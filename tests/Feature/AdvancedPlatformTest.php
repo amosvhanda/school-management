@@ -76,7 +76,7 @@ class AdvancedPlatformTest extends TestCase
                 'body' => 'Meeting at 3pm',
                 'channels' => ['email', 'push'],
                 'recipient_ids' => [$recipient->id],
-                'audience_type' => 'staff', // <-- Correct enum value
+                'audience_type' => 'teacher', // <-- Correct enum value
             ]);
 
         $response->assertCreated();
