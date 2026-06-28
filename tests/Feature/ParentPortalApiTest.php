@@ -1,0 +1,198 @@
+<?php
+
+namespace Tests\Feature;
+
+use App\Enums\UserRole;
+use App\Models\DisciplinaryRecord;
+use App\Models\Guardian;
+use App\Models\ParentNotification;
+use App\Models\Student;
+use App\Models\User;
+use App\Services\GuardianService;
+use Tests\TestCase;
+
+class ParentPortalApiTest extends TestCase
+{
+    public function test_parent_portal_dashboard_and_children(): void
+    {
+        $school = \App\Models\School::factory()->create();
+        $parent = User::factory()->create([
+            'role' => UserRole::Parent,
+            'school_id' => $school->id,
+        ]);
+        $student = Student::factory()->create(['school_id' => $school->id, 'status' => 'active']);
+
+        $parent->students()->attach($student->id, [
+            'school_id' => $school->id,
+            'relationship' => 'parent',
+            'is_primary' => true,
+        ]);
+
+        $token = $parent->createToken('test')->plainTextToken;
+        $headers = ['Authorization' => 'Bearer '.$token];
+
+        $this->withHeaders($headers)
+            ->getJson('/api/v1/parent/portal/children')
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.id', $student->id);
+
+        $this->withHeaders($headers)
+            ->getJson('/api/v1/parent/portal/dashboard')
+            ->assertOk()
+            ->assertJsonPath('data.children_count', 1);
+    }
+
+    public function test_auth_me_includes_children_for_parent(): void
+    {
+        $school = \App\Models\School::factory()->create();
+        $parent = User::factory()->create([
+            'role' => UserRole::Parent,
+            'school_id' => $school->id,
+        ]);
+        $student = Student::factory()->create(['school_id' => $school->id, 'status' => 'active']);
+
+        $parent->students()->attach($student->id, [
+            'school_id' => $school->id,
+            'relationship' => 'parent',
+            'is_primary' => true,
+        ]);
+
+        $token = $parent->createToken('test')->plainTextToken;
+
+        $this->withHeaders(['Authorization' => 'Bearer '.$token])
+            ->getJson('/api/v1/auth/me')
+            ->assertOk()
+            ->assertJsonCount(1, 'data.user.children')
+            ->assertJsonPath('data.user.children.0.id', $student->id);
+    }
+
+    public function test_parent_cannot_access_unlinked_student(): void
+    {
+        $school = \App\Models\School::factory()->create();
+        $parent = User::factory()->create([
+            'role' => UserRole::Parent,
+            'school_id' => $school->id,
+        ]);
+        $otherStudent = Student::factory()->create(['school_id' => $school->id]);
+
+        $token = $parent->createToken('test')->plainTextToken;
+
+        $this->withHeaders(['Authorization' => 'Bearer '.$token])
+            ->getJson("/api/v1/parent/portal/students/{$otherStudent->id}/fees")
+            ->assertForbidden();
+    }
+
+    public function test_disciplinary_record_notifies_linked_parents(): void
+    {
+        $auth = $this->createAuthenticatedUser();
+        $parent = User::factory()->create([
+            'role' => UserRole::Parent,
+            'school_id' => $auth['school']->id,
+            'email' => 'linked-parent@example.com',
+        ]);
+        $student = Student::factory()->create(['school_id' => $auth['school']->id]);
+
+        $parent->students()->attach($student->id, [
+            'school_id' => $auth['school']->id,
+            'relationship' => 'parent',
+            'is_primary' => true,
+        ]);
+
+        $this->withHeaders(['Authorization' => 'Bearer '.$auth['token']])
+            ->postJson('/api/v1/disciplinary-records', [
+                'student_id' => $student->id,
+                'incident_date' => now()->toDateString(),
+                'category' => 'Late arrival',
+                'severity' => 'minor',
+                'description' => 'Arrived 30 minutes late.',
+            ])
+            ->assertCreated();
+
+        $this->assertDatabaseHas('parent_notifications', [
+            'parent_user_id' => $parent->id,
+            'student_id' => $student->id,
+            'type' => 'disciplinary',
+        ]);
+    }
+
+    public function test_guardian_link_syncs_parent_student_pivot(): void
+    {
+        $auth = $this->createAuthenticatedUser();
+        $student = Student::factory()->create(['school_id' => $auth['school']->id]);
+
+        $guardian = app(GuardianService::class)->createOrFindGuardian([
+            'first_name' => 'Mary',
+            'last_name' => 'Guardian',
+            'email' => 'guardian-sync@example.com',
+            'phone' => '0771234567',
+            'relationship' => 'mother',
+            'is_primary' => true,
+        ], $auth['school']->id, $student->id);
+
+        $parentUserId = $guardian->user_id;
+        $this->assertNotNull($parentUserId);
+
+        $this->assertDatabaseHas('parent_student', [
+            'parent_id' => $parentUserId,
+            'student_id' => $student->id,
+        ]);
+    }
+
+    public function test_parent_can_view_discipline_and_notifications(): void
+    {
+        $school = \App\Models\School::factory()->create();
+        $parent = User::factory()->create([
+            'role' => UserRole::Parent,
+            'school_id' => $school->id,
+        ]);
+        $student = Student::factory()->create(['school_id' => $school->id]);
+
+        $parent->students()->attach($student->id, [
+            'school_id' => $school->id,
+            'relationship' => 'parent',
+            'is_primary' => true,
+        ]);
+
+        DisciplinaryRecord::create([
+            'school_id' => $school->id,
+            'student_id' => $student->id,
+            'incident_date' => now(),
+            'category' => 'Uniform',
+            'severity' => 'minor',
+            'description' => 'Incorrect uniform.',
+            'parent_notified' => true,
+        ]);
+
+        ParentNotification::create([
+            'school_id' => $school->id,
+            'parent_user_id' => $parent->id,
+            'student_id' => $student->id,
+            'type' => 'disciplinary',
+            'title' => 'Disciplinary notice',
+            'body' => 'Test notice',
+        ]);
+
+        $token = $parent->createToken('test')->plainTextToken;
+        $headers = ['Authorization' => 'Bearer '.$token];
+
+        $this->withHeaders($headers)
+            ->getJson("/api/v1/parent/portal/students/{$student->id}/discipline")
+            ->assertOk()
+            ->assertJsonCount(1, 'data.records');
+
+        $this->withHeaders($headers)
+            ->getJson('/api/v1/parent/portal/notifications')
+            ->assertOk()
+            ->assertJsonCount(1, 'data');
+    }
+
+    public function test_non_parent_cannot_access_parent_portal(): void
+    {
+        $auth = $this->createAuthenticatedUser('admin');
+
+        $this->withHeaders(['Authorization' => 'Bearer '.$auth['token']])
+            ->getJson('/api/v1/parent/portal/dashboard')
+            ->assertForbidden();
+    }
+}

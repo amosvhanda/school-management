@@ -1,0 +1,661 @@
+import type { NavCapability } from '@/types/navigation'
+
+export interface DashboardModule {
+  title: string
+  description: string
+  href: string
+  icon: string
+  capability?: NavCapability | NavCapability[]
+}
+
+export interface DashboardModuleGroup {
+  label: string
+  modules: DashboardModule[]
+}
+
+/** All staff modules — single source for dashboard module grid and section hubs. */
+export const STAFF_DASHBOARD_MODULE_GROUPS: DashboardModuleGroup[] = [
+  {
+    label: 'Overview',
+    modules: [
+      {
+        title: 'School analytics',
+        description: 'Cross-school performance dashboard',
+        href: '/analytics',
+        icon: 'BarChart3',
+        capability: 'canManageTeachers',
+      },
+      {
+        title: 'Workflows',
+        description: 'Pending approvals and tasks',
+        href: '/workflows',
+        icon: 'GitBranch',
+        capability: 'canManageTeachers',
+      },
+      {
+        title: 'Workflow history',
+        description: 'Completed approval records',
+        href: '/workflows/history',
+        icon: 'History',
+        capability: 'canManageTeachers',
+      },
+      {
+        title: 'Reports',
+        description: 'Download and export school reports',
+        href: '/reports',
+        icon: 'FileBarChart',
+        capability: 'canManageTeachers',
+      },
+      {
+        title: 'Command center',
+        description: 'Executive school health overview',
+        href: '/enterprise',
+        icon: 'LayoutDashboard',
+        capability: 'canManageTeachers',
+      },
+      {
+        title: 'Assistant',
+        description: 'AI school assistant',
+        href: '/assistant',
+        icon: 'Bot',
+        capability: 'isStaff',
+      },
+    ],
+  },
+  {
+    label: 'People',
+    modules: [
+      {
+        title: 'People analytics',
+        description: 'Enrolment and staff insights',
+        href: '/people/analytics',
+        icon: 'BarChart3',
+        capability: 'canManageStudents',
+      },
+      {
+        title: 'Students',
+        description: 'Browse and manage learners',
+        href: '/students',
+        icon: 'GraduationCap',
+        capability: 'canManageStudents',
+      },
+      {
+        title: 'Teachers',
+        description: 'Staff records and profiles',
+        href: '/teachers',
+        icon: 'Users',
+        capability: 'canManageTeachers',
+      },
+      {
+        title: 'Guardians',
+        description: 'Parents and emergency contacts',
+        href: '/guardians',
+        icon: 'UserCheck',
+        capability: 'canManageStudents',
+      },
+      {
+        title: 'Enrollment',
+        description: 'Applications and intake pipeline',
+        href: '/enrollment',
+        icon: 'ClipboardList',
+        capability: 'canManageStudents',
+      },
+    ],
+  },
+  {
+    label: 'Academics',
+    modules: [
+      {
+        title: 'Academics analytics',
+        description: 'Attendance and assessment trends',
+        href: '/academics/analytics',
+        icon: 'BarChart3',
+        capability: 'canManageTeachers',
+      },
+      {
+        title: 'Classes',
+        description: 'Class groups and setup',
+        href: '/academics/setup',
+        icon: 'BookOpen',
+        capability: 'canManageTeachers',
+      },
+      {
+        title: 'Subjects',
+        description: 'Curriculum subjects',
+        href: '/academics/subjects',
+        icon: 'BookMarked',
+        capability: 'canManageTeachers',
+      },
+      {
+        title: 'Departments',
+        description: 'Academic departments',
+        href: '/academics/departments',
+        icon: 'Building2',
+        capability: 'canManageTeachers',
+      },
+      {
+        title: 'Grade levels',
+        description: 'Year and grade structure',
+        href: '/academics/grade-levels',
+        icon: 'Layers',
+        capability: 'canManageTeachers',
+      },
+      {
+        title: 'Grading scales',
+        description: 'Mark bands and grade rules',
+        href: '/academics/grading-scales',
+        icon: 'SlidersHorizontal',
+        capability: 'canManageTeachers',
+      },
+      {
+        title: 'Rooms',
+        description: 'Classrooms and venues',
+        href: '/academics/rooms',
+        icon: 'DoorOpen',
+        capability: 'canManageTeachers',
+      },
+      {
+        title: 'Terms',
+        description: 'Academic calendar terms',
+        href: '/academics/terms',
+        icon: 'Calendar',
+        capability: 'canManageTeachers',
+      },
+      {
+        title: 'Teacher assignments',
+        description: 'Staff-to-class allocations',
+        href: '/academics/teacher-assignments',
+        icon: 'UserCog',
+        capability: 'canManageTeachers',
+      },
+      {
+        title: 'Class assignments',
+        description: 'Subject-class mappings',
+        href: '/academics/assignments',
+        icon: 'ListChecks',
+        capability: 'canManageTeachers',
+      },
+      {
+        title: 'Gradebook',
+        description: 'Enter and review marks',
+        href: '/academics/grades',
+        icon: 'NotebookPen',
+        capability: 'canManageExaminations',
+      },
+      {
+        title: 'Attendance',
+        description: 'Daily class register',
+        href: '/academics/attendance',
+        icon: 'ClipboardCheck',
+        capability: 'canManageStudents',
+      },
+      {
+        title: 'Exams',
+        description: 'Schedule and publish results',
+        href: '/academics/exams',
+        icon: 'FileText',
+        capability: 'canManageExaminations',
+      },
+      {
+        title: 'Class tests',
+        description: 'Continuous assessment tests',
+        href: '/academics/tests',
+        icon: 'PenLine',
+        capability: 'canManageExaminations',
+      },
+      {
+        title: 'Timetable',
+        description: 'Weekly class schedule',
+        href: '/academics/timetable',
+        icon: 'CalendarDays',
+        capability: 'canManageTeachers',
+      },
+      {
+        title: 'Holiday programs',
+        description: 'Holiday school activities',
+        href: '/academics/holiday-programs',
+        icon: 'Sun',
+        capability: 'canManageTeachers',
+      },
+    ],
+  },
+  {
+    label: 'Finance',
+    modules: [
+      {
+        title: 'Finance analytics',
+        description: 'Collections and revenue trends',
+        href: '/finance/analytics',
+        icon: 'BarChart3',
+        capability: 'canManageFinance',
+      },
+      {
+        title: 'Finance overview',
+        description: 'Daily collections snapshot',
+        href: '/finance',
+        icon: 'Wallet',
+        capability: 'canManageFinance',
+      },
+      {
+        title: 'Payments',
+        description: 'Record fee collections',
+        href: '/finance/payments',
+        icon: 'CreditCard',
+        capability: 'canManageFinance',
+      },
+      {
+        title: 'Invoices',
+        description: 'Bill students and track balances',
+        href: '/finance/invoices',
+        icon: 'Receipt',
+        capability: 'canManageFinance',
+      },
+      {
+        title: 'Fee structures',
+        description: 'Configure fees by class',
+        href: '/finance/fees',
+        icon: 'Tags',
+        capability: 'canManageFinance',
+      },
+      {
+        title: 'Fee categories',
+        description: 'Fee type groupings',
+        href: '/finance/fee-categories',
+        icon: 'FolderTree',
+        capability: 'canManageFinance',
+      },
+      {
+        title: 'Transactions',
+        description: 'Ledger and journal activity',
+        href: '/finance/transactions',
+        icon: 'ArrowLeftRight',
+        capability: 'canManageFinance',
+      },
+      {
+        title: 'Payroll',
+        description: 'Staff salary processing',
+        href: '/finance/payroll',
+        icon: 'Banknote',
+        capability: 'canManageFinance',
+      },
+      {
+        title: 'Aging report',
+        description: 'Outstanding fees by age',
+        href: '/finance/reports',
+        icon: 'LineChart',
+        capability: 'canManageFinance',
+      },
+    ],
+  },
+  {
+    label: 'HR & Compliance',
+    modules: [
+      {
+        title: 'HR analytics',
+        description: 'Leave, discipline, and compliance',
+        href: '/hr/analytics',
+        icon: 'BarChart3',
+        capability: 'canManageTeachers',
+      },
+      {
+        title: 'Leave requests',
+        description: 'Staff leave queue',
+        href: '/hr/leave',
+        icon: 'Palmtree',
+        capability: 'canManageTeachers',
+      },
+      {
+        title: 'Discipline',
+        description: 'Student conduct records',
+        href: '/hr/discipline',
+        icon: 'ShieldAlert',
+        capability: 'canManageStudents',
+      },
+      {
+        title: 'Policies',
+        description: 'School compliance policies',
+        href: '/compliance',
+        icon: 'Scale',
+        capability: 'canManageTeachers',
+      },
+      {
+        title: 'Incidents',
+        description: 'Report and track incidents',
+        href: '/compliance/incidents',
+        icon: 'AlertTriangle',
+        capability: 'canManageTeachers',
+      },
+      {
+        title: 'Consent forms',
+        description: 'Parent consent management',
+        href: '/compliance/consent',
+        icon: 'FileCheck',
+        capability: 'canManageStudents',
+      },
+      {
+        title: 'Audit trail',
+        description: 'Who did what across the system',
+        href: '/compliance/audit',
+        icon: 'ScrollText',
+        capability: 'canViewAuditLogs',
+      },
+    ],
+  },
+  {
+    label: 'Communications',
+    modules: [
+      {
+        title: 'Communications analytics',
+        description: 'Messaging and engagement',
+        href: '/communications/analytics',
+        icon: 'BarChart3',
+        capability: 'isStaff',
+      },
+      {
+        title: 'Announcements',
+        description: 'Broadcast to the school',
+        href: '/communications/announcements',
+        icon: 'Megaphone',
+        capability: 'isStaff',
+      },
+      {
+        title: 'Messages',
+        description: 'Staff and parent inbox',
+        href: '/communications/threads',
+        icon: 'MessageSquare',
+        capability: 'isStaff',
+      },
+    ],
+  },
+  {
+    label: 'Operations',
+    modules: [
+      {
+        title: 'Operations analytics',
+        description: 'Campus and resource usage',
+        href: '/operations/analytics',
+        icon: 'BarChart3',
+        capability: 'canManageTeachers',
+      },
+      {
+        title: 'Inventory',
+        description: 'Stock and supplies',
+        href: '/operations/inventory',
+        icon: 'Package',
+        capability: 'canManageTeachers',
+      },
+      {
+        title: 'Inventory sales',
+        description: 'Point-of-sale stock sales',
+        href: '/operations/inventory/sales',
+        icon: 'ShoppingBag',
+        capability: 'canManageTeachers',
+      },
+      {
+        title: 'Procurement',
+        description: 'Purchase requests',
+        href: '/operations/procurement',
+        icon: 'ShoppingCart',
+        capability: 'canManageFinance',
+      },
+      {
+        title: 'Vendors',
+        description: 'Supplier directory',
+        href: '/operations/procurement/vendors',
+        icon: 'Truck',
+        capability: 'canManageFinance',
+      },
+      {
+        title: 'Library',
+        description: 'Books and lending',
+        href: '/operations/library',
+        icon: 'Library',
+        capability: 'canManageTeachers',
+      },
+      {
+        title: 'Transport',
+        description: 'Fleet and routes overview',
+        href: '/operations/transport',
+        icon: 'Bus',
+        capability: 'canManageTeachers',
+      },
+      {
+        title: 'Transport drivers',
+        description: 'Driver records',
+        href: '/operations/transport/drivers',
+        icon: 'IdCard',
+        capability: 'canManageTeachers',
+      },
+      {
+        title: 'Transport routes',
+        description: 'Route planning',
+        href: '/operations/transport/routes',
+        icon: 'Route',
+        capability: 'canManageTeachers',
+      },
+      {
+        title: 'Assets',
+        description: 'Fixed asset register',
+        href: '/operations/assets',
+        icon: 'HardDrive',
+        capability: 'canManageFinance',
+      },
+      {
+        title: 'Hostels',
+        description: 'Boarding and dormitories',
+        href: '/operations/hostels',
+        icon: 'Home',
+        capability: 'canManageTeachers',
+      },
+      {
+        title: 'Visitors',
+        description: 'Sign-in register',
+        href: '/operations/visitors',
+        icon: 'UserCheck',
+        capability: 'canManageTeachers',
+      },
+      {
+        title: 'Health records',
+        description: 'Student health clinic',
+        href: '/operations/health',
+        icon: 'HeartPulse',
+        capability: 'canManageTeachers',
+      },
+      {
+        title: 'Events',
+        description: 'School calendar events',
+        href: '/operations/events',
+        icon: 'CalendarHeart',
+        capability: 'canManageTeachers',
+      },
+    ],
+  },
+  {
+    label: 'Enterprise',
+    modules: [
+      {
+        title: 'Enterprise finance',
+        description: 'Advanced finance modules',
+        href: '/enterprise/finance',
+        icon: 'Landmark',
+        capability: 'canManageFinance',
+      },
+      {
+        title: 'Instalment plans',
+        description: 'Fee instalment schedules',
+        href: '/enterprise/finance/instalments',
+        icon: 'CalendarClock',
+        capability: 'canManageFinance',
+      },
+      {
+        title: 'Enterprise academic',
+        description: 'Curriculum and promotion rules',
+        href: '/enterprise/academic',
+        icon: 'GraduationCap',
+        capability: 'canManageTeachers',
+      },
+      {
+        title: 'Enterprise exams',
+        description: 'Advanced exam configuration',
+        href: '/enterprise/exams',
+        icon: 'FileStack',
+        capability: 'canManageExaminations',
+      },
+      {
+        title: 'Enterprise HR',
+        description: 'Advanced HR workflows',
+        href: '/enterprise/hr',
+        icon: 'Briefcase',
+        capability: 'canManageTeachers',
+      },
+      {
+        title: 'Warnings',
+        description: 'Staff and student warnings',
+        href: '/enterprise/warnings',
+        icon: 'AlertCircle',
+        capability: 'canManageTeachers',
+      },
+      {
+        title: 'Alumni',
+        description: 'Former student records',
+        href: '/enterprise/alumni',
+        icon: 'UsersRound',
+        capability: 'canManageTeachers',
+      },
+      {
+        title: 'Campaigns',
+        description: 'Fundraising and outreach',
+        href: '/enterprise/campaigns',
+        icon: 'Megaphone',
+        capability: 'canManageTeachers',
+      },
+    ],
+  },
+  {
+    label: 'Administration',
+    modules: [
+      {
+        title: 'Users',
+        description: 'System user accounts',
+        href: '/admin/users',
+        icon: 'UserCog',
+        capability: 'canManageTeachers',
+      },
+      {
+        title: 'Roles',
+        description: 'Permissions and access',
+        href: '/admin/roles',
+        icon: 'KeyRound',
+        capability: 'canManageTeachers',
+      },
+      {
+        title: 'Settings',
+        description: 'School profile and preferences',
+        href: '/settings',
+        icon: 'Settings',
+        capability: 'canManageTeachers',
+      },
+      {
+        title: 'Custom fields',
+        description: 'Extra data fields for records',
+        href: '/settings/custom-fields',
+        icon: 'FormInput',
+        capability: 'canManageTeachers',
+      },
+    ],
+  },
+]
+
+export const PLATFORM_DASHBOARD_MODULE_GROUPS: DashboardModuleGroup[] = [
+  {
+    label: 'Platform',
+    modules: [
+      {
+        title: 'Licenses',
+        description: 'Issue and manage school licenses',
+        href: '/platform/licenses',
+        icon: 'Key',
+      },
+      {
+        title: 'System health',
+        description: 'Infrastructure monitoring',
+        href: '/platform/health',
+        icon: 'Activity',
+      },
+      {
+        title: 'Operations',
+        description: 'Jobs, queues, and live ops',
+        href: '/platform/operations',
+        icon: 'Server',
+      },
+      {
+        title: 'API clients',
+        description: 'External integrations',
+        href: '/platform/api-clients',
+        icon: 'Plug',
+      },
+      {
+        title: 'Documents',
+        description: 'Platform document store',
+        href: '/platform/documents',
+        icon: 'FileText',
+      },
+      {
+        title: 'Scholarships',
+        description: 'Platform scholarship programs',
+        href: '/platform/scholarships',
+        icon: 'Award',
+      },
+      {
+        title: 'Refunds',
+        description: 'Platform refund processing',
+        href: '/platform/refunds',
+        icon: 'RotateCcw',
+      },
+      {
+        title: 'Staff tasks',
+        description: 'Cross-school task queue',
+        href: '/platform/staff-tasks',
+        icon: 'ListTodo',
+      },
+    ],
+  },
+]
+
+export const PARENT_DASHBOARD_MODULE_GROUPS: DashboardModuleGroup[] = [
+  {
+    label: 'Parent portal',
+    modules: [
+      {
+        title: 'My children',
+        description: 'View your children\'s profiles',
+        href: '/portal/children',
+        icon: 'Users',
+      },
+      {
+        title: 'Messages',
+        description: 'Chat with school staff',
+        href: '/portal/messages',
+        icon: 'MessageSquare',
+      },
+      {
+        title: 'Announcements',
+        description: 'School news and updates',
+        href: '/portal/announcements',
+        icon: 'Megaphone',
+      },
+      {
+        title: 'Consent forms',
+        description: 'Review and respond to forms',
+        href: '/portal/consent',
+        icon: 'FileCheck',
+      },
+      {
+        title: 'Notifications',
+        description: 'Alerts and reminders',
+        href: '/portal/notifications',
+        icon: 'Bell',
+      },
+    ],
+  },
+]

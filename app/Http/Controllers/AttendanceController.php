@@ -1,0 +1,307 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Models\Attendance;
+use App\Models\ClassModel;
+use App\Models\Student;
+use App\Services\AttendanceNotificationService;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Validator;
+
+class AttendanceController extends Controller
+{
+    protected AttendanceNotificationService $notificationService;
+
+    public function __construct(AttendanceNotificationService $notificationService)
+    {
+        $this->notificationService = $notificationService;
+    }
+
+    public function index(Request $request)
+    {
+        $user = $request->user();
+        $schoolId = $user?->school_id;
+        $query = Attendance::with(['student', 'classModel'])
+            ->when($schoolId, function ($q) use ($schoolId) {
+                $q->where('school_id', $schoolId);
+            });
+
+        if ($request->has('class_id')) {
+            $classId = $request->class_id;
+            // Handle both class name and class ID
+            if (!is_numeric($classId)) {
+                $class = \App\Models\ClassModel::where('name', $classId)->first();
+                if ($class) {
+                    $classId = $class->id;
+                }
+            }
+            $query->where('class_id', $classId);
+        }
+        if ($request->has('date')) {
+            $query->where('date', $request->date);
+        }
+        if ($request->has('student_id')) {
+            $query->where('student_id', $request->student_id);
+        }
+
+        $attendance = $query->orderBy('date', 'desc')->orderBy('created_at', 'desc')->get();
+
+        return response()->json([
+            'data' => $attendance,
+        ]);
+    }
+
+    public function store(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'class_id' => 'required', // Can be string (class name) or integer (class ID)
+            'date' => 'required|date',
+            'records' => 'required|array',
+            'records.*.student_id' => 'required|exists:students,id',
+            'records.*.status' => 'required|string|in:present,absent,late,excused',
+            'records.*.remarks' => 'nullable|string',
+            'records.*.time' => 'nullable|string',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'message' => 'Validation failed',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        $user = $request->user();
+        $schoolId = $user?->school_id;
+
+        // Handle class_id - can be class name or class ID
+        $classId = $request->class_id;
+        $class = null;
+        if (!is_numeric($classId)) {
+            // If it's a class name, try to find the class ID
+            $class = \App\Models\ClassModel::where('name', $classId)
+                ->when($schoolId, fn ($q) => $q->where('school_id', $schoolId))
+                ->first();
+            if ($class) {
+                $classId = $class->id;
+            } else {
+                // If class not found, use null (will be stored as string in class_id field)
+                $classId = $request->class_id;
+            }
+        }
+        if ($classId && is_numeric($classId)) {
+            $class = \App\Models\ClassModel::where('id', $classId)
+                ->when($schoolId, fn ($q) => $q->where('school_id', $schoolId))
+                ->first();
+        }
+
+        // Enforce class teacher assignment for teachers
+        if ($user?->isTeacher()) {
+            $teacherId = $user->teacher?->id;
+            if (!$teacherId) {
+                return response()->json([
+                    'message' => 'Teacher account not linked to staff record',
+                ], 403);
+            }
+
+            $isClassTeacher = $class && (int) $class->teacher_id === (int) $teacherId;
+            $hasAssignment = \App\Models\TeacherAssignment::where('school_id', $schoolId)
+                ->where('teacher_id', $teacherId)
+                ->where('class_id', $classId)
+                ->exists();
+
+            if (!$isClassTeacher && !$hasAssignment) {
+                return response()->json([
+                    'message' => 'Only the assigned class teacher can mark attendance for this class.',
+                ], 403);
+            }
+        }
+
+        $attendanceRecords = [];
+        $normalizedDate = $request->date('date')->toDateString();
+        $normalizedClassId = is_numeric($classId) ? (int) $classId : null;
+
+        foreach ($request->records as $record) {
+            $student = Student::where('school_id', $schoolId)
+                ->findOrFail($record['student_id']);
+            if ($class) {
+                if ($student->class_id && (int) $student->class_id !== (int) $class->id) {
+                    return response()->json([
+                        'message' => 'Student does not belong to selected class',
+                        'errors' => ['student_id' => ['Student class mismatch']],
+                    ], 422);
+                }
+                if (!$student->class_id && $student->class && $student->class !== $class->name) {
+                    return response()->json([
+                        'message' => 'Student does not belong to selected class',
+                        'errors' => ['student_id' => ['Student class mismatch']],
+                    ], 422);
+                }
+            }
+
+            $attendance = $this->upsertAttendanceRecord(
+                schoolId: (int) $schoolId,
+                studentId: (int) $record['student_id'],
+                date: $normalizedDate,
+                classId: $normalizedClassId,
+                values: [
+                    'status' => $record['status'],
+                    'remarks' => $record['remarks'] ?? null,
+                    'time_in' => $record['time'] ?? null,
+                    'marked_by' => $user->id,
+                    'teacher_id' => $request->teacher_id ?? $user->teacher?->id,
+                    'subject_id' => $record['subject_id'] ?? null,
+                    'lesson_type' => $record['lesson_type'] ?? null,
+                ],
+            );
+
+            // Send notification if student is absent
+            if ($attendance->status === 'absent') {
+                $this->notificationService->notifyAbsence($attendance);
+            }
+
+            $attendanceRecords[] = $attendance;
+        }
+
+        return response()->json([
+            'data' => $attendanceRecords,
+            'message' => 'Attendance recorded successfully',
+        ], 201);
+    }
+
+    /**
+     * Upsert attendance without tripping the unique index when legacy rows
+     * (null class_id / school_id) exist or the school global scope hides a match.
+     */
+    private function upsertAttendanceRecord(
+        int $schoolId,
+        int $studentId,
+        string $date,
+        ?int $classId,
+        array $values,
+    ): Attendance {
+        $query = Attendance::withoutGlobalScopes()
+            ->where('student_id', $studentId)
+            ->whereDate('date', $date);
+
+        if ($schoolId) {
+            $query->where(function ($q) use ($schoolId) {
+                $q->where('school_id', $schoolId)->orWhereNull('school_id');
+            });
+        }
+
+        if ($classId !== null) {
+            $query->where(function ($q) use ($classId) {
+                $q->where('class_id', $classId)->orWhereNull('class_id');
+            });
+        } else {
+            $query->whereNull('class_id');
+        }
+
+        $existing = $query->orderByRaw('CASE WHEN class_id IS NULL THEN 1 ELSE 0 END')->first();
+
+        $payload = array_merge($values, [
+            'school_id' => $schoolId,
+            'student_id' => $studentId,
+            'date' => $date,
+            'class_id' => $classId,
+        ]);
+
+        if ($existing) {
+            $existing->update($payload);
+
+            return $existing->fresh();
+        }
+
+        return Attendance::withoutGlobalScopes()->create($payload);
+    }
+
+    public function studentSummary(Request $request, $id)
+    {
+        $schoolId = $request->user()?->school_id;
+        $attendance = Attendance::where('student_id', $id)
+            ->when($schoolId, fn ($q) => $q->where('school_id', $schoolId))
+            ->get();
+
+        $summary = [
+            'total_days' => $attendance->count(),
+            'present' => $attendance->where('status', 'present')->count(),
+            'absent' => $attendance->where('status', 'absent')->count(),
+            'late' => $attendance->where('status', 'late')->count(),
+            'excused' => $attendance->where('status', 'excused')->count(),
+            'attendance_rate' => $attendance->count() > 0 
+                ? ($attendance->where('status', 'present')->count() / $attendance->count()) * 100 
+                : 0,
+        ];
+
+        return response()->json([
+            'data' => $summary,
+        ]);
+    }
+
+    public function classReport(Request $request, $id)
+    {
+        // Handle both class name and class ID
+        $classId = $id;
+        $schoolId = $request->user()?->school_id;
+        if (!is_numeric($classId)) {
+            $class = \App\Models\ClassModel::where('name', $classId)
+                ->when($schoolId, fn ($q) => $q->where('school_id', $schoolId))
+                ->first();
+            if ($class) {
+                $classId = $class->id;
+            }
+        }
+        
+        $attendance = Attendance::with('student')
+            ->where('class_id', $classId)
+            ->when($schoolId, fn ($q) => $q->where('school_id', $schoolId))
+            ->get();
+
+        $summary = [
+            'total_students' => $attendance->pluck('student_id')->unique()->count(),
+            'total_records' => $attendance->count(),
+            'present' => $attendance->where('status', 'present')->count(),
+            'absent' => $attendance->where('status', 'absent')->count(),
+            'late' => $attendance->where('status', 'late')->count(),
+            'excused' => $attendance->where('status', 'excused')->count(),
+        ];
+
+        return response()->json([
+            'data' => $summary,
+        ]);
+    }
+
+    public function todaySummary(Request $request)
+    {
+        $today = now()->toDateString();
+        $schoolId = $request->user()?->school_id;
+        
+        $attendance = Attendance::whereDate('date', $today)
+            ->when($schoolId, fn ($q) => $q->where('school_id', $schoolId))
+            ->get();
+        
+        $present = $attendance->where('status', 'present')->count();
+        $absent = $attendance->where('status', 'absent')->count();
+        $late = $attendance->where('status', 'late')->count();
+        $excused = $attendance->where('status', 'excused')->count();
+        $total = $present + $absent + $late + $excused;
+        
+        // Frontend dashboard expects counts (present, absent, late), not percentages.
+        $totalStudents = Student::where('status', 'active')
+            ->when($schoolId, fn ($q) => $q->where('school_id', $schoolId))
+            ->count();
+        $actualTotal = $totalStudents > 0 ? $totalStudents : max($total, 1);
+        
+        return response()->json([
+            'data' => [
+                'present' => $present,
+                'absent' => $absent,
+                'late' => $late,
+                'excused' => $excused,
+                'total' => $actualTotal,
+                'date' => $today,
+            ],
+        ]);
+    }
+}

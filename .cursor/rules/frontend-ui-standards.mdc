@@ -1,0 +1,44 @@
+---
+description: WCAG-aligned frontend UI/UX, design tokens, and component standards for all UI code
+alwaysApply: true
+---
+
+# Frontend UI/UX Engineering Standards
+
+Apply these rules to **every** frontend change in this project (Vue, shadcn-vue, Tailwind).
+
+## Accessibility (WCAG 2.1 AA minimum)
+
+- Prefer semantic HTML: `<main>`, `<nav>`, `<header>`, `<section>`, `<article>`, `<button>`, `<label>` — avoid div-only layouts for structure.
+- Meet contrast requirements for text and interactive elements; do not rely on color alone for meaning.
+- Every interactive control must be keyboard reachable with a visible `:focus-visible` state.
+- Images/icons that convey meaning need `alt` text or `aria-label`; decorative icons use `aria-hidden="true"`.
+- Form fields: associated `<label>`, `aria-invalid` / error messages linked via `aria-describedby` where applicable.
+- Live regions for async feedback (`aria-live`, toasts) when status changes matter.
+
+## Design system & layout
+
+- Use **design tokens** from the project theme (`style.css`, Tailwind theme, shadcn variables) — no arbitrary one-off hex/spacing unless adding a token.
+- Follow an **8px spacing rhythm** (`gap-2`, `p-4`, `space-y-6`, etc.).
+- Clear typography hierarchy: page title → section title → label → helper text; consistent `font-weight` and `line-height`.
+- **Mobile-first** responsive layouts; test sm / md / lg breakpoints; avoid horizontal overflow on small screens.
+- Reuse shadcn-vue primitives (`Button`, `Card`, `Sheet`, `Form*`) before inventing new patterns.
+
+## Components & code quality
+
+- Single-responsibility, reusable components; shared logic in composables (`src/composables/`).
+- Always provide **loading**, **empty**, and **error** states for data-driven UI.
+- Lazy-load heavy routes and charts where practical; avoid layout shift (reserve space for async content).
+- Name props, events, and functions clearly; keep diffs focused — no unrelated refactors.
+- Match existing project conventions (Pinia, vee-validate, `@/` imports, relation fields via `FormFieldSchema`).
+
+## This codebase
+
+- API calls via `src/services/`; forms via `FormBuilder` + `useFormBuilder` + Zod schemas.
+- Relation fields use `type: 'relation'` and `preloadRelationFields` before edit; fetch full record on edit.
+- Prefer Vite proxy in dev (`VITE_API_URL` empty); validate ZIM phone/date rules in `src/lib/validation.ts`.
+
+## Output expectations
+
+- Production-ready code only — no placeholder TODOs unless explicitly requested.
+- Briefly note only **non-obvious** architectural or a11y decisions in the response.

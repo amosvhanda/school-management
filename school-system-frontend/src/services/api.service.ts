@@ -1,0 +1,568 @@
+import type { ListQueryParams } from '@/types/api'
+import { api } from '@/lib/api'
+import { unwrapOne } from '@/lib/api-response'
+import {
+  createRecord,
+  deleteRecord,
+  fetchList,
+  fetchOne,
+  fetchPaginatedList,
+  patchRecord,
+  postRecord,
+  updateRecord,
+} from './dashboard.service'
+import { endpoints as e } from './endpoints'
+
+function crud(base: string, detail = (id: number | string) => `${base}/${id}`) {
+  return {
+    list: (params?: ListQueryParams) => fetchList(base, params),
+    get: (id: number | string) => fetchOne(detail(id)),
+    create: (payload: Record<string, unknown>) => createRecord(base, payload),
+    update: (id: number | string, payload: Record<string, unknown>) => updateRecord(detail(id), payload),
+    remove: (id: number | string) => deleteRecord(detail(id)),
+  }
+}
+
+export const schoolApi = {
+  show: () => fetchOne(e.school.show),
+  update: (payload: Record<string, unknown>) => updateRecord(e.school.show, payload),
+  settings: () => fetchOne(e.settings.school),
+  updateSettings: (settings: Array<{ group: string; key: string; value: unknown }>) =>
+    updateRecord(e.settings.school, { settings }),
+  terminology: () => fetchOne(e.settings.terminology),
+  updateTerminology: (payload: Record<string, unknown>) => updateRecord(e.settings.terminology, payload),
+  customFields: () => fetchList(e.settings.customFields),
+  createCustomField: (payload: Record<string, unknown>) => createRecord(e.settings.customFields, payload),
+  deleteCustomField: (id: number | string) => deleteRecord(e.settings.customField(id)),
+  publicConfig: () => fetchOne(e.settings.config),
+}
+
+export const studentsApi = {
+  ...crud(e.students.list, e.students.detail),
+  promote: (payload: Record<string, unknown>) => postRecord(e.students.promote, payload),
+  bulkInvoices: (payload: Record<string, unknown>) => postRecord(e.students.bulkInvoices, payload),
+  bulkStatus: (payload: Record<string, unknown>) => postRecord(e.students.bulkStatus, payload),
+  bulkPromote: (payload: Record<string, unknown>) => postRecord(e.students.bulkPromote, payload),
+  performance: (id: number | string) => fetchOne(e.students.performance(id)),
+  lifecycle: (id: number | string) => fetchOne(e.students.lifecycle(id)),
+  invoices: (id: number | string) => fetchList(e.students.invoices(id)),
+  createInvoice: (id: number | string, payload: Record<string, unknown>) =>
+    createRecord(e.students.createInvoice(id), payload),
+  uploadDocuments: (id: number | string, payload: Record<string, unknown>) =>
+    postRecord(e.students.documents(id), payload),
+  exams: (id: number | string) => fetchList(e.students.exams(id)),
+  guardians: (id: number | string) => fetchList(e.students.guardians(id)),
+}
+
+export const teachersApi = {
+  ...crud(e.teachers.list, e.teachers.detail),
+  updateStatus: (id: number | string, payload: Record<string, unknown>) =>
+    patchRecord(e.teachers.status(id), payload),
+}
+
+export const guardiansApi = {
+  ...crud(e.guardians.list, e.guardians.detail),
+  students: (id: number | string) => fetchList(e.guardians.students(id)),
+  linkStudent: (id: number | string, payload: Record<string, unknown>) =>
+    postRecord(e.guardians.linkStudent(id), payload),
+}
+
+export const enrollmentApi = {
+  ...crud(e.enrollment.list, e.enrollment.detail),
+  approve: (id: number | string, payload?: Record<string, unknown>) =>
+    updateRecord(e.enrollment.approve(id), payload ?? {}),
+  reject: (id: number | string, payload?: Record<string, unknown>) =>
+    updateRecord(e.enrollment.reject(id), payload ?? { notes: 'Rejected' }),
+}
+
+export const usersApi = {
+  ...crud(e.users.list, e.users.detail),
+  activate: (id: number | string) => patchRecord(e.users.activate(id)),
+  deactivate: (id: number | string) => patchRecord(e.users.deactivate(id)),
+  resetPassword: (id: number | string, payload: Record<string, unknown>) =>
+    postRecord(e.users.resetPassword(id), payload),
+  assignRole: (id: number | string, payload: Record<string, unknown>) =>
+    patchRecord(e.users.assignRole(id), payload),
+  roles: () => fetchList(e.roles.list),
+  permissions: () => fetchList(e.permissions.list),
+}
+
+export const rolesApi = {
+  ...crud(e.roles.list, e.roles.detail),
+  permissions: () => fetchList(e.permissions.list),
+}
+
+export const academicsApi = {
+  classes: crud(e.classes.list, e.classes.detail),
+  subjects: crud(e.subjects.list, e.subjects.detail),
+  departments: crud(e.departments.list, e.departments.detail),
+  gradeLevels: crud(e.gradeLevels.list, e.gradeLevels.detail),
+  gradingScales: {
+    ...crud(e.gradingScales.list, e.gradingScales.detail),
+    getGradeForScore: (payload: Record<string, unknown>) => postRecord(e.gradingScales.getGrade, payload),
+  },
+  rooms: crud(e.rooms.list, e.rooms.detail),
+  terms: {
+    ...crud(e.terms.list, e.terms.detail),
+    current: () => fetchOne(e.terms.current),
+  },
+  assignments: crud(e.assignments.list, e.assignments.detail),
+  tests: {
+    ...crud(e.tests.list, e.tests.detail),
+    recordResults: (id: number | string, payload: Record<string, unknown>) =>
+      postRecord(e.tests.recordResults(id), payload),
+  },
+  teacherAssignments: crud(e.teacherAssignments.list, e.teacherAssignments.detail),
+  grades: {
+    byClass: (classId: number | string) => fetchList(e.grades.byClass(classId)),
+    byStudent: (studentId: number | string) => fetchList(e.grades.byStudent(studentId)),
+    store: (payload: Record<string, unknown>) => createRecord(e.grades.store, payload),
+    bulkUpload: (payload: Record<string, unknown>) => postRecord(e.grades.bulk, payload),
+    classPerformance: (classId: number | string) => fetchOne(e.grades.classPerformance(classId)),
+  },
+  exams: {
+    ...crud(e.exams.list, e.exams.detail),
+    analytics: () => fetchOne(e.exams.analytics),
+    approveResults: (id: number | string, payload?: Record<string, unknown>) =>
+      postRecord(e.exams.approveResults(id), payload ?? {}),
+    publish: (id: number | string, payload?: Record<string, unknown>) =>
+      postRecord(e.exams.publish(id), payload ?? {}),
+    recordResults: (id: number | string, payload: Record<string, unknown>) =>
+      postRecord(e.exams.recordResults(id), payload),
+  },
+  attendance: {
+    list: (params?: ListQueryParams) => fetchList(e.attendance.list, params),
+    record: (payload: Record<string, unknown>) => createRecord(e.attendance.list, payload),
+    todaySummary: () => fetchOne(e.attendance.todaySummary),
+    studentSummary: (id: number | string) => fetchOne(e.attendance.studentSummary(id)),
+    classReport: (id: number | string) => fetchOne(e.attendance.classReport(id)),
+  },
+  timetable: {
+    ...crud(e.timetable.list, e.timetable.detail),
+    generate: (payload: Record<string, unknown>) => postRecord(e.timetable.generate, payload),
+    generateBulk: (payload: Record<string, unknown>) => postRecord(e.timetable.generateBulk, payload),
+  },
+  holidayPrograms: {
+    ...crud(e.holidayPrograms.list, e.holidayPrograms.detail),
+    enrollments: (id: number | string) => fetchList(e.holidayPrograms.enrollments(id)),
+    enroll: (id: number | string, payload: Record<string, unknown>) =>
+      postRecord(e.holidayPrograms.enroll(id), payload),
+    attendance: (id: number | string, params?: ListQueryParams) =>
+      fetchList(e.holidayPrograms.attendance(id), params),
+    recordAttendance: (id: number | string, payload: Record<string, unknown>) =>
+      postRecord(e.holidayPrograms.attendance(id), payload),
+  },
+}
+
+export const financeApi = {
+  summary: () => fetchOne(e.finance.summary),
+  outstandingBalances: (params?: ListQueryParams) => fetchPaginatedList(e.finance.outstandingBalances, params),
+  aging: () => fetchOne<Record<string, unknown>>(e.finance.aging),
+  reconciliation: async (params?: ListQueryParams) => {
+    const { data } = await api.get(e.finance.reconciliation, { params })
+    return unwrapOne<Record<string, unknown>>(data)
+  },
+  periodReport: (period: string) => fetchOne(e.finance.periodReport(period)),
+  payments: {
+    list: (params?: ListQueryParams) => fetchList(e.payments.list, params),
+    create: (payload: Record<string, unknown>) => createRecord(e.payments.list, payload),
+    remove: (id: number | string) => deleteRecord(e.payments.detail(id)),
+    receipt: (id: number | string) => fetchOne(e.payments.receipt(id)),
+    reverse: (id: number | string, payload?: Record<string, unknown>) =>
+      postRecord(e.payments.reverse(id), payload ?? {}),
+  },
+  transactions: {
+    list: (params?: ListQueryParams) => fetchList(e.transactions.list, params),
+    summary: () => fetchOne(e.transactions.summary),
+  },
+  invoices: {
+    list: (params?: ListQueryParams) => fetchList(e.invoices.list, params),
+    create: (payload: Record<string, unknown>) => createRecord(e.invoices.list, payload),
+    update: (id: number | string, payload: Record<string, unknown>) =>
+      updateRecord(e.invoices.detail(id), payload),
+  },
+  feeStructures: crud(e.feeStructures.list, e.feeStructures.detail),
+  feeCategories: crud(e.feeCategories.list, e.feeCategories.detail),
+  payroll: {
+    list: (params?: ListQueryParams) => fetchList(e.payroll.list, params),
+    teachers: () => fetchList(e.payroll.teachers),
+    summary: () => fetchOne(e.payroll.summary),
+    trends: () => fetchList(e.payroll.trends),
+    departmentSummary: () => fetchOne(e.payroll.departmentSummary),
+    teacherHistory: (id: number | string) => fetchList(e.payroll.teacherHistory(id)),
+    payslip: (id: number | string) => fetchOne(e.payroll.payslip(id)),
+    generate: (payload: Record<string, unknown>) => postRecord(e.payroll.generate, payload),
+    update: (id: number | string, payload: Record<string, unknown>) =>
+      updateRecord(e.payroll.detail(id), payload),
+    process: (id: number | string, payload?: Record<string, unknown>) =>
+      postRecord(e.payroll.process(id), payload ?? {}),
+  },
+}
+
+export const operationsApi = {
+  inventory: {
+    items: crud(e.inventory.items, e.inventory.item),
+    restock: (id: number | string, payload: Record<string, unknown>) =>
+      postRecord(e.inventory.restock(id), payload),
+    sales: {
+      list: (params?: ListQueryParams) => fetchList(e.inventory.sales, params),
+      create: (payload: Record<string, unknown>) => createRecord(e.inventory.sales, payload),
+    },
+  },
+  procurement: {
+    requisitions: {
+      list: (params?: ListQueryParams) => fetchList(e.procurement.requisitions, params),
+      create: (payload: Record<string, unknown>) => createRecord(e.procurement.requisitions, payload),
+    },
+    vendors: {
+      list: (params?: ListQueryParams) => fetchList(e.procurement.vendors, params),
+      create: (payload: Record<string, unknown>) => createRecord(e.procurement.vendors, payload),
+    },
+    receiveGoods: (payload: Record<string, unknown>) => postRecord(e.procurement.goodsReceipts, payload),
+  },
+  assets: {
+    list: (params?: ListQueryParams) => fetchList(e.assets.list, params),
+    create: (payload: Record<string, unknown>) => createRecord(e.assets.list, payload),
+    logMaintenance: (id: number | string, payload: Record<string, unknown>) =>
+      postRecord(e.assets.maintenance(id), payload),
+    dispose: (id: number | string, payload?: Record<string, unknown>) =>
+      postRecord(e.assets.dispose(id), payload ?? {}),
+  },
+  transport: {
+    vehicles: {
+      list: (params?: ListQueryParams) => fetchList(e.transport.vehicles, params),
+      create: (payload: Record<string, unknown>) => createRecord(e.transport.vehicles, payload),
+    },
+    drivers: {
+      list: (params?: ListQueryParams) => fetchList(e.transport.drivers, params),
+      create: (payload: Record<string, unknown>) => createRecord(e.transport.drivers, payload),
+    },
+    routes: {
+      list: (params?: ListQueryParams) => fetchList(e.transport.routes, params),
+      create: (payload: Record<string, unknown>) => createRecord(e.transport.routes, payload),
+    },
+    allocateStudent: (payload: Record<string, unknown>) => postRecord(e.transport.allocations, payload),
+  },
+  hostels: {
+    list: (params?: ListQueryParams) => fetchList(e.hostels.list, params),
+    create: (payload: Record<string, unknown>) => createRecord(e.hostels.list, payload),
+    storeRoom: (id: number | string, payload: Record<string, unknown>) =>
+      postRecord(e.hostels.rooms(id), payload),
+    allocate: (payload: Record<string, unknown>) => postRecord(e.hostels.allocations, payload),
+  },
+  library: {
+    books: {
+      list: (params?: ListQueryParams) => fetchList(e.library.books, params),
+      create: (payload: Record<string, unknown>) => createRecord(e.library.books, payload),
+    },
+    borrow: (payload: Record<string, unknown>) => postRecord(e.library.borrow, payload),
+    returnBook: (id: number | string, payload?: Record<string, unknown>) =>
+      postRecord(e.library.return(id), payload ?? {}),
+  },
+  visitors: {
+    list: (params?: ListQueryParams) => fetchList(e.visitors.list, params),
+    checkIn: (payload: Record<string, unknown>) => postRecord(e.visitors.checkIn, payload),
+    checkOut: (id: number | string, payload?: Record<string, unknown>) =>
+      postRecord(e.visitors.checkOut(id), payload ?? {}),
+  },
+  health: {
+    visits: {
+      list: (params?: ListQueryParams) => fetchList(e.health.visits, params),
+      create: (payload: Record<string, unknown>) => createRecord(e.health.visits, payload),
+    },
+    profile: (studentId: number | string) => fetchOne(e.health.profile(studentId)),
+    updateProfile: (studentId: number | string, payload: Record<string, unknown>) =>
+      updateRecord(e.health.profile(studentId), payload),
+  },
+  events: crud(e.events.list),
+}
+
+export const hrApi = {
+  leaveRequests: {
+    list: (params?: ListQueryParams) => fetchList(e.leaveRequests.list, params),
+    create: (payload: Record<string, unknown>) => createRecord(e.leaveRequests.list, payload),
+    approve: (id: number | string, payload?: Record<string, unknown>) =>
+      postRecord(e.leaveRequests.approve(id), payload ?? {}),
+    reject: (id: number | string, payload?: Record<string, unknown>) =>
+      postRecord(e.leaveRequests.reject(id), payload ?? {}),
+  },
+  discipline: {
+    list: (params?: ListQueryParams) => fetchList(e.discipline.list, params),
+    create: (payload: Record<string, unknown>) => createRecord(e.discipline.list, payload),
+    get: (id: number | string) => fetchOne(e.discipline.detail(id)),
+  },
+}
+
+export const commsApi = {
+  announcements: crud(e.announcements.list, e.announcements.detail),
+  threads: {
+    list: (params?: ListQueryParams) => fetchList(e.communications.threads, params),
+    get: (id: number | string) => fetchOne(e.communications.thread(id)),
+    reply: (id: number | string, payload: Record<string, unknown>) =>
+      postRecord(e.communications.reply(id), payload),
+  },
+}
+
+export interface AuditActor {
+  id: number | null
+  name: string
+  email: string | null
+  role: string | null
+}
+
+export interface AuditChange {
+  field: string
+  label: string
+  from: unknown
+  to: unknown
+}
+
+export interface AuditLogRow {
+  id: number
+  module: string
+  module_label: string
+  action: string
+  action_label: string
+  description: string | null
+  summary: string
+  actor: AuditActor
+  target: {
+    type: string | null
+    type_label: string
+    id: number | null
+  }
+  changes: AuditChange[]
+  old_values: Record<string, unknown> | null
+  new_values: Record<string, unknown> | null
+  metadata: Record<string, unknown> | null
+  context: {
+    ip_address: string | null
+    device_type: string | null
+    platform: string | null
+    location: string | null
+    request_method: string | null
+    request_path: string | null
+  }
+  created_at: string
+}
+
+export interface LoginHistoryRow {
+  id: number
+  event: string
+  event_label: string
+  summary: string
+  email: string | null
+  actor: AuditActor
+  failure_reason: string | null
+  token_name: string | null
+  context: {
+    ip_address: string | null
+    device_type: string | null
+    platform: string | null
+    location: string | null
+  }
+  created_at: string
+}
+
+export const complianceApi = {
+  policies: {
+    list: (params?: ListQueryParams) => fetchList(e.compliance.policies, params),
+    create: (payload: Record<string, unknown>) => createRecord(e.compliance.policies, payload),
+  },
+  incidents: {
+    list: (params?: ListQueryParams) => fetchList(e.compliance.incidents, params),
+    create: (payload: Record<string, unknown>) => createRecord(e.compliance.incidents, payload),
+  },
+  consentForms: {
+    list: (params?: ListQueryParams) => fetchList(e.consentForms.list, params),
+    create: (payload: Record<string, unknown>) => createRecord(e.consentForms.list, payload),
+  },
+  auditLogs: {
+    list: (params?: ListQueryParams) => fetchList<AuditLogRow>(e.auditLogs.list, params),
+    listPaginated: (params?: ListQueryParams) =>
+      fetchPaginatedList<AuditLogRow>(e.auditLogs.list, params),
+    loginHistory: (params?: ListQueryParams) =>
+      fetchList<LoginHistoryRow>(e.auditLogs.loginHistory, params),
+    loginHistoryPaginated: (params?: ListQueryParams) =>
+      fetchPaginatedList<LoginHistoryRow>(e.auditLogs.loginHistory, params),
+    get: (id: number | string) => fetchOne<AuditLogRow>(e.auditLogs.detail(id)),
+  },
+}
+
+export const workflowsApi = {
+  pending: (params?: ListQueryParams) => fetchList(e.workflows.pending, params),
+  history: (params?: ListQueryParams) => fetchList(e.workflows.history, params),
+  get: (id: number | string) => fetchOne(e.workflows.detail(id)),
+  approve: (id: number | string, payload?: Record<string, unknown>) =>
+    postRecord(e.workflows.approve(id), payload ?? {}),
+  reject: (id: number | string, payload?: Record<string, unknown>) =>
+    postRecord(e.workflows.reject(id), payload ?? {}),
+}
+
+export const reportsApi = {
+  export: (params?: ListQueryParams) => fetchList(e.reports.export, params),
+  academicPerformance: (params?: ListQueryParams) => fetchOne(e.reports.academicPerformance, params),
+  attendance: (params?: ListQueryParams) => fetchOne(e.reports.attendance, params),
+  financial: (params?: ListQueryParams) => fetchOne(e.reports.financial, params),
+  classReport: (id: number | string) => fetchOne(e.reports.classReport(id)),
+  generate: (type: string) => fetchOne(e.reports.generate(type)),
+  store: (payload: Record<string, unknown>) => createRecord(e.reports.store, payload),
+}
+
+export const parentPortalApi = {
+  dashboard: () => fetchOne(e.parentPortal.dashboard),
+  children: () => fetchList(e.parentPortal.children),
+  results: (studentId: number | string) => fetchList(e.parentPortal.results(studentId)),
+  attendance: (studentId: number | string) => fetchList(e.parentPortal.attendance(studentId)),
+  fees: (studentId: number | string) => fetchOne(e.parentPortal.fees(studentId)),
+  discipline: (studentId: number | string) => fetchList(e.parentPortal.discipline(studentId)),
+  progress: (studentId: number | string) => fetchOne(e.parentPortal.progress(studentId)),
+  announcements: () => fetchList(e.parentPortal.announcements),
+  notifications: () => fetchList(e.parentPortal.notifications),
+  markNotificationRead: (id: number | string) => postRecord(e.parentPortal.markNotificationRead(id)),
+  markAllNotificationsRead: () => postRecord(e.parentPortal.markAllNotificationsRead),
+  threads: () => fetchList(e.parentPortal.threads),
+  createThread: (payload: Record<string, unknown>) => createRecord(e.parentPortal.threads, payload),
+  threadMessages: (threadId: number | string) => fetchList(e.parentPortal.threadMessages(threadId)),
+  sendMessage: (threadId: number | string, payload: Record<string, unknown>) =>
+    postRecord(e.parentPortal.threadMessages(threadId), payload),
+  consentForms: () => fetchList(e.parentPortal.consentForms),
+  respondConsent: (id: number | string, payload: Record<string, unknown>) =>
+    postRecord(e.parentPortal.respondConsent(id), payload),
+}
+
+export const enterpriseApi = {
+  commandCenter: () => fetchOne(e.enterprise.commandCenter),
+  academic: {
+    calendar: (params?: ListQueryParams) => fetchList(e.enterprise.academic.calendar, params),
+    storeCalendarEntry: (payload: Record<string, unknown>) =>
+      createRecord(e.enterprise.academic.calendar, payload),
+    curriculum: () => fetchList(e.enterprise.academic.curriculum),
+    assessmentCategories: () => fetchList(e.enterprise.academic.assessmentCategories),
+    promotionRules: () => fetchList(e.enterprise.academic.promotionRules),
+    gpaRanking: () => fetchList(e.enterprise.academic.gpaRanking),
+  },
+  finance: {
+    accounts: () => fetchList(e.enterprise.finance.accounts),
+    seedAccounts: () => postRecord(e.enterprise.finance.seedAccounts),
+    postJournal: (payload: Record<string, unknown>) => postRecord(e.enterprise.finance.journals, payload),
+    exchangeRates: () => fetchList(e.enterprise.finance.exchangeRates),
+    instalmentPlans: () => fetchList(e.enterprise.finance.instalmentPlans),
+    bankStatements: () => fetchList(e.enterprise.finance.bankStatements),
+    profitLoss: () => fetchOne(e.enterprise.finance.profitLoss),
+    balanceSheet: () => fetchOne(e.enterprise.finance.balanceSheet),
+    cashflowForecast: () => fetchOne(e.enterprise.finance.cashflowForecast),
+    revenueRules: () => fetchList(e.enterprise.finance.revenueRules),
+  },
+  exams: {
+    questionBank: () => fetchList(e.enterprise.exams.questionBank),
+    generatePaper: (payload: Record<string, unknown>) => postRecord(e.enterprise.exams.generatePaper, payload),
+    startCbt: (payload: Record<string, unknown>) => postRecord(e.enterprise.exams.startCbt, payload),
+    submitCbt: (id: number | string, payload: Record<string, unknown>) =>
+      postRecord(e.enterprise.exams.submitCbt(id), payload),
+    remarkRequests: () => fetchList(e.enterprise.exams.remarkRequests),
+    delegations: () => fetchList(e.enterprise.exams.delegations),
+  },
+  hr: {
+    performanceReviews: () => fetchList(e.enterprise.hr.performanceReviews),
+    contracts: () => fetchList(e.enterprise.hr.contracts),
+    certifications: () => fetchList(e.enterprise.hr.certifications),
+  },
+  earlyWarnings: () => fetchList(e.enterprise.intelligence.earlyWarnings),
+  alumni: () => fetchList(e.enterprise.intelligence.alumni),
+  campaigns: () => fetchList(e.enterprise.intelligence.campaigns),
+}
+
+export const assistantApi = {
+  chat: (payload: Record<string, unknown>) => postRecord(e.assistant.chat, payload),
+  conversations: (params?: ListQueryParams) => fetchList(e.assistant.conversations, params),
+  getConversation: (id: number | string) => fetchOne(e.assistant.conversation(id)),
+}
+
+export interface PlatformLicenseSummary {
+  schools: { total: number; licensed: number; unlicensed: number; expired: number }
+  keys: { total: number; unused: number; active: number; expired: number; revoked: number }
+}
+
+export interface SchoolLicenseRow {
+  id: number
+  name: string
+  code: string
+  email?: string | null
+  phone?: string | null
+  status: string
+  license_status: string
+  license_plan?: string | null
+  license_expires_at?: string | null
+  users_count: number
+  license_state: { status: string; message: string; days_remaining?: number | null }
+  active_key?: {
+    id: number
+    key_prefix: string
+    plan_type: string
+    status: string
+    activated_at?: string | null
+    expires_at?: string | null
+  } | null
+}
+
+export interface LicenseKeyRow {
+  id: number
+  key_prefix: string
+  plan_type: string
+  duration_months?: number | null
+  status: string
+  school?: { id: number; name: string; code: string } | null
+  customer_name?: string | null
+  customer_email?: string | null
+  activated_at?: string | null
+  expires_at?: string | null
+  created_at?: string | null
+  created_by?: { id: number; name: string; email: string } | null
+}
+
+export const platformApi = {
+  licenseOverview: async (params?: ListQueryParams) => {
+    const { data } = await api.get(e.license.admin.list, { params })
+    return unwrapOne<{
+      keys?: LicenseKeyRow[]
+      summary?: PlatformLicenseSummary
+    }>(data)
+  },
+  schoolsOverview: async (params?: ListQueryParams) => {
+    const { data } = await api.get(e.license.admin.schools, { params })
+    return unwrapOne<{
+      schools?: SchoolLicenseRow[]
+      summary?: PlatformLicenseSummary
+    }>(data)
+  },
+  licenses: async (params?: ListQueryParams) => {
+    const payload = await platformApi.licenseOverview(params)
+    return Array.isArray(payload?.keys) ? payload.keys : []
+  },
+  generateLicense: (payload: Record<string, unknown>) =>
+    createRecord<{ license_key: string; record: Record<string, unknown> }>(e.license.admin.list, payload),
+  revokeLicense: (id: number | string) => postRecord(e.license.admin.revoke(id)),
+  systemHealth: () => fetchOne(e.platform.systemHealth),
+  operationsLive: () => fetchOne(e.platform.operationsLive),
+  apiClients: () => fetchList(e.platform.apiClients),
+  policyRules: () => fetchList(e.platform.policyRules),
+  workflowDefinitions: () => fetchList(e.platform.workflowDefinitions),
+  branchTree: () => fetchOne(e.platform.branchTree),
+  retentionPolicies: () => fetchList(e.platform.retentionPolicies),
+  maskingRules: () => fetchList(e.platform.maskingRules),
+  documents: () => fetchList(e.platform.documents),
+  certificates: () => fetchList(e.platform.certificates),
+  vault: () => fetchList(e.platform.vault),
+  scholarships: () => fetchList(e.platform.scholarships),
+  paymentGateways: () => fetchList(e.platform.paymentGateways),
+  refunds: () => fetchList(e.platform.refunds),
+  behaviorPoints: () => fetchList(e.platform.behaviorPoints),
+  interventions: () => fetchList(e.platform.interventions),
+  staffTasks: () => fetchList(e.platform.staffTasks),
+  staffFeed: () => fetchList(e.platform.staffFeed),
+  predictiveAnalytics: () => fetchOne(e.platform.predictiveAnalytics),
+  auditIntegrity: () => fetchOne(e.platform.auditIntegrity),
+}
+
+export { endpoints } from './endpoints'

@@ -1,0 +1,183 @@
+<?php
+
+namespace Tests\Feature;
+
+use Tests\TestCase;
+use App\Models\Attendance;
+use App\Models\Student;
+use App\Models\ClassModel;
+
+class AttendanceApiTest extends TestCase
+{
+    public function test_get_attendance_list(): void
+    {
+        $auth = $this->createAuthenticatedUser();
+        
+        $response = $this->withHeaders([
+            'Authorization' => 'Bearer ' . $auth['token'],
+        ])->getJson('/api/v1/attendance');
+
+        $response->assertStatus(200);
+    }
+
+    public function test_create_attendance(): void
+    {
+        $auth = $this->createAuthenticatedUser();
+        $class = ClassModel::factory()->create(['school_id' => $auth['school']->id]);
+        $student = Student::factory()->create([
+            'school_id' => $auth['school']->id,
+            'class_id' => $class->id,
+        ]);
+
+        $response = $this->withHeaders([
+            'Authorization' => 'Bearer ' . $auth['token'],
+        ])->postJson('/api/v1/attendance', [
+            'class_id' => $class->id,
+            'date' => now()->format('Y-m-d'),
+            'records' => [
+                [
+                    'student_id' => $student->id,
+                    'status' => 'present',
+                ],
+            ],
+        ]);
+
+        $response->assertStatus(201)
+            ->assertJsonStructure([
+                'data',
+                'message',
+            ]);
+    }
+
+    public function test_resaving_attendance_updates_existing_row(): void
+    {
+        $auth = $this->createAuthenticatedUser();
+        $class = ClassModel::factory()->create(['school_id' => $auth['school']->id]);
+        $student = Student::factory()->create([
+            'school_id' => $auth['school']->id,
+            'class_id' => $class->id,
+        ]);
+        $date = now()->format('Y-m-d');
+        $headers = ['Authorization' => 'Bearer '.$auth['token']];
+
+        Attendance::withoutGlobalScopes()->create([
+            'school_id' => $auth['school']->id,
+            'student_id' => $student->id,
+            'class_id' => $class->id,
+            'date' => $date,
+            'status' => 'present',
+            'marked_by' => $auth['user']->id,
+        ]);
+
+        $this->withHeaders($headers)->postJson('/api/v1/attendance', [
+            'class_id' => $class->id,
+            'date' => $date,
+            'records' => [
+                [
+                    'student_id' => $student->id,
+                    'status' => 'absent',
+                    'remarks' => 'Updated mark',
+                ],
+            ],
+        ])->assertStatus(201);
+
+        $this->assertDatabaseHas('attendance', [
+            'student_id' => $student->id,
+            'class_id' => $class->id,
+            'status' => 'absent',
+            'remarks' => 'Updated mark',
+        ]);
+
+        $this->assertSame(
+            1,
+            Attendance::withoutGlobalScopes()
+                ->where('student_id', $student->id)
+                ->whereDate('date', $date)
+                ->where('class_id', $class->id)
+                ->count(),
+        );
+    }
+
+    public function test_resaving_attendance_merges_legacy_null_class_row(): void
+    {
+        $auth = $this->createAuthenticatedUser();
+        $class = ClassModel::factory()->create(['school_id' => $auth['school']->id]);
+        $student = Student::factory()->create([
+            'school_id' => $auth['school']->id,
+            'class_id' => $class->id,
+        ]);
+        $date = now()->format('Y-m-d');
+
+        Attendance::withoutGlobalScopes()->create([
+            'school_id' => null,
+            'student_id' => $student->id,
+            'class_id' => null,
+            'date' => $date,
+            'status' => 'present',
+            'marked_by' => $auth['user']->id,
+        ]);
+
+        $this->withHeaders([
+            'Authorization' => 'Bearer '.$auth['token'],
+        ])->postJson('/api/v1/attendance', [
+            'class_id' => $class->id,
+            'date' => $date,
+            'records' => [
+                [
+                    'student_id' => $student->id,
+                    'status' => 'late',
+                ],
+            ],
+        ])->assertStatus(201);
+
+        $this->assertSame(
+            1,
+            Attendance::withoutGlobalScopes()
+                ->where('student_id', $student->id)
+                ->whereDate('date', $date)
+                ->count(),
+        );
+
+        $this->assertDatabaseHas('attendance', [
+            'student_id' => $student->id,
+            'class_id' => $class->id,
+            'status' => 'late',
+            'school_id' => $auth['school']->id,
+        ]);
+    }
+
+    public function test_get_today_attendance_summary(): void
+    {
+        $auth = $this->createAuthenticatedUser();
+        
+        $response = $this->withHeaders([
+            'Authorization' => 'Bearer ' . $auth['token'],
+        ])->getJson('/api/v1/attendance/today/summary');
+
+        $response->assertStatus(200);
+    }
+
+    public function test_get_student_attendance_summary(): void
+    {
+        $auth = $this->createAuthenticatedUser();
+        $student = Student::factory()->create(['school_id' => $auth['school']->id]);
+
+        $response = $this->withHeaders([
+            'Authorization' => 'Bearer ' . $auth['token'],
+        ])->getJson("/api/v1/attendance/student/{$student->id}/summary");
+
+        $response->assertStatus(200);
+    }
+
+    public function test_get_class_attendance_report(): void
+    {
+        $auth = $this->createAuthenticatedUser();
+        $class = ClassModel::factory()->create(['school_id' => $auth['school']->id]);
+
+        $response = $this->withHeaders([
+            'Authorization' => 'Bearer ' . $auth['token'],
+        ])->getJson("/api/v1/attendance/class/{$class->id}/report");
+
+        $response->assertStatus(200);
+    }
+}

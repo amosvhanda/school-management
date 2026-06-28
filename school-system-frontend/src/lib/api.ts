@@ -1,0 +1,97 @@
+import axios from 'axios'
+import type { Router } from 'vue-router'
+import { env } from '@/lib/env'
+import { getErrorMessage } from '@/lib/api-response'
+import { finishRequestProgress, startRequestProgress } from '@/lib/request-progress'
+import type { ApiErrorResponse } from '@/types/api'
+
+const apiOrigin = env.VITE_API_URL?.replace(/\/$/, '') ?? ''
+export const baseURL = apiOrigin ? `${apiOrigin}/api/v1` : '/api/v1'
+
+export const api = axios.create({
+  baseURL,
+  headers: {
+    Accept: 'application/json',
+    'Content-Type': 'application/json',
+  },
+})
+
+const TOKEN_KEY = 'auth_token'
+
+export function getStoredToken(): string | null {
+  return localStorage.getItem(TOKEN_KEY)
+}
+
+export function setStoredToken(token: string | null): void {
+  if (token) {
+    localStorage.setItem(TOKEN_KEY, token)
+  } else {
+    localStorage.removeItem(TOKEN_KEY)
+  }
+}
+
+let routerInstance: Router | null = null
+let onUnauthorized: (() => void) | null = null
+let onForbidden: ((message: string) => void) | null = null
+let onLicenseRequired: ((payload: ApiErrorResponse) => void) | null = null
+
+export function setupApiInterceptors(options: {
+  router: Router
+  onUnauthorized?: () => void
+  onForbidden?: (message: string) => void
+  onLicenseRequired?: (payload: ApiErrorResponse) => void
+}) {
+  routerInstance = options.router
+  onUnauthorized = options.onUnauthorized ?? null
+  onForbidden = options.onForbidden ?? null
+  onLicenseRequired = options.onLicenseRequired ?? null
+}
+
+api.interceptors.request.use((config) => {
+  if (!config.headers['X-Skip-Progress']) {
+    startRequestProgress()
+  }
+
+  const token = getStoredToken()
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`
+  }
+  return config
+})
+
+api.interceptors.response.use(
+  (response) => {
+    if (!response.config.headers['X-Skip-Progress']) {
+      finishRequestProgress()
+    }
+    return response
+  },
+  (error) => {
+    if (!error.config?.headers?.['X-Skip-Progress']) {
+      finishRequestProgress()
+    }
+    const status = error.response?.status
+    const data = error.response?.data as ApiErrorResponse | undefined
+
+    if (status === 401) {
+      setStoredToken(null)
+      onUnauthorized?.()
+      if (routerInstance && routerInstance.currentRoute.value.name !== 'login') {
+        routerInstance.push({ name: 'login', query: { redirect: routerInstance.currentRoute.value.fullPath } })
+      }
+    }
+
+    if (status === 402 && data?.code?.startsWith('license')) {
+      onLicenseRequired?.(data)
+      if (routerInstance && !routerInstance.currentRoute.value.path.startsWith('/license')) {
+        routerInstance.push({ name: 'license-activate' })
+      }
+    }
+
+    if (status === 403) {
+      onForbidden?.(getErrorMessage(error, 'You do not have permission to perform this action.'))
+    }
+
+    return Promise.reject(error)
+  },
+)

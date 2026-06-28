@@ -1,0 +1,182 @@
+<?php
+
+namespace App\Http\Controllers\Platform;
+
+use App\Http\Controllers\Controller;
+use App\Models\FeePenaltyRule;
+use App\Models\Payment;
+use App\Models\PaymentGatewayConfig;
+use App\Models\Refund;
+use App\Models\Scholarship;
+use App\Models\ScholarshipApplication;
+use App\Models\Student;
+use App\Services\Platform\PaymentGatewayService;
+use App\Services\Platform\RefundService;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Validator;
+
+class PlatformFinanceController extends Controller
+{
+    public function __construct(
+        private PaymentGatewayService $gateway,
+        private RefundService $refunds,
+    ) {}
+
+    public function scholarships(Request $request)
+    {
+        return response()->json(['data' => Scholarship::where('school_id', $request->user()->school_id)->withCount('applications')->get()]);
+    }
+
+    public function storeScholarship(Request $request)
+    {
+        $data = Validator::make($request->all(), [
+            'name' => 'required|string',
+            'type' => 'required|string',
+            'amount' => 'nullable|numeric',
+            'percentage' => 'nullable|numeric',
+            'criteria' => 'nullable|string',
+            'application_deadline' => 'nullable|date',
+            'slots' => 'nullable|integer',
+            'status' => 'nullable|string',
+        ])->validate();
+
+        $scholarship = Scholarship::create(array_merge($data, ['school_id' => $request->user()->school_id]));
+
+        return response()->json(['data' => $scholarship, 'message' => 'Scholarship created'], 201);
+    }
+
+    public function applyScholarship(Request $request, int $id)
+    {
+        $scholarship = Scholarship::where('school_id', $request->user()->school_id)->findOrFail($id);
+        $data = Validator::make($request->all(), [
+            'student_id' => 'required|exists:students,id',
+            'motivation' => 'nullable|string',
+            'supporting_data' => 'array',
+        ])->validate();
+
+        Student::where('school_id', $request->user()->school_id)->findOrFail($data['student_id']);
+
+        $application = ScholarshipApplication::create([
+            'scholarship_id' => $scholarship->id,
+            'student_id' => $data['student_id'],
+            'school_id' => $request->user()->school_id,
+            'motivation' => $data['motivation'] ?? null,
+            'supporting_data' => $data['supporting_data'] ?? null,
+        ]);
+
+        return response()->json(['data' => $application, 'message' => 'Application submitted'], 201);
+    }
+
+    public function reviewScholarshipApplication(Request $request, int $id)
+    {
+        $application = ScholarshipApplication::where('school_id', $request->user()->school_id)->findOrFail($id);
+        $data = Validator::make($request->all(), ['status' => 'required|in:approved,rejected,pending'])->validate();
+
+        $application->update([
+            'status' => $data['status'],
+            'reviewed_by' => $request->user()->id,
+            'reviewed_at' => now(),
+        ]);
+
+        return response()->json(['data' => $application->fresh(), 'message' => 'Application reviewed']);
+    }
+
+    public function gatewayConfigs(Request $request)
+    {
+        return response()->json(['data' => PaymentGatewayConfig::where('school_id', $request->user()->school_id)->get()]);
+    }
+
+    public function storeGatewayConfig(Request $request)
+    {
+        $data = Validator::make($request->all(), [
+            'provider' => 'required|string',
+            'credentials' => 'required|array',
+            'is_active' => 'boolean',
+            'supports_cards' => 'boolean',
+            'supports_mobile_money' => 'boolean',
+            'supports_bank_transfer' => 'boolean',
+        ])->validate();
+
+        $config = PaymentGatewayConfig::updateOrCreate(
+            ['school_id' => $request->user()->school_id, 'provider' => $data['provider']],
+            $data,
+        );
+
+        return response()->json([
+            'data' => $config->fresh(),
+            'message' => 'Gateway config saved',
+        ]);
+    }
+
+    public function initiatePayment(Request $request)
+    {
+        $data = Validator::make($request->all(), [
+            'invoice_id' => 'required|exists:invoices,id',
+            'student_id' => 'nullable|exists:students,id',
+            'amount' => 'required|numeric|min:0.01',
+            'payment_method' => 'required|in:card,mobile_money,bank_transfer',
+            'provider' => 'nullable|string',
+        ])->validate();
+
+        $txn = $this->gateway->initiate(
+            $request->user()->school_id,
+            $data['invoice_id'],
+            $data['student_id'] ?? null,
+            $data['amount'],
+            $data['payment_method'],
+            $data['provider'] ?? 'stripe',
+        );
+
+        return response()->json(['data' => $txn, 'message' => 'Payment initiated'], 201);
+    }
+
+    public function penaltyRules(Request $request)
+    {
+        return response()->json(['data' => FeePenaltyRule::where('school_id', $request->user()->school_id)->get()]);
+    }
+
+    public function storePenaltyRule(Request $request)
+    {
+        $data = Validator::make($request->all(), [
+            'name' => 'required|string',
+            'grace_days' => 'integer|min:0',
+            'penalty_type' => 'required|in:fixed,percentage',
+            'penalty_value' => 'required|numeric|min:0',
+            'frequency' => 'in:once,daily,monthly',
+            'is_active' => 'boolean',
+        ])->validate();
+
+        $rule = FeePenaltyRule::create(array_merge($data, ['school_id' => $request->user()->school_id]));
+
+        return response()->json(['data' => $rule, 'message' => 'Penalty rule created'], 201);
+    }
+
+    public function refunds(Request $request)
+    {
+        return response()->json(['data' => Refund::where('school_id', $request->user()->school_id)->with('payment')->orderByDesc('id')->limit(100)->get()]);
+    }
+
+    public function requestRefund(Request $request)
+    {
+        $data = Validator::make($request->all(), [
+            'payment_id' => 'required|exists:payments,id',
+            'amount' => 'required|numeric|min:0.01',
+            'reason' => 'required|string',
+        ])->validate();
+
+        $payment = Payment::where('school_id', $request->user()->school_id)->findOrFail($data['payment_id']);
+        $refund = $this->refunds->request($request->user(), $payment, $data['amount'], $data['reason']);
+
+        return response()->json(['data' => $refund, 'message' => 'Refund requested'], 201);
+    }
+
+    public function approveRefund(Request $request, int $id)
+    {
+        $refund = Refund::where('school_id', $request->user()->school_id)->findOrFail($id);
+
+        return response()->json([
+            'data' => $this->refunds->approve($refund, $request->user()),
+            'message' => 'Refund processed',
+        ]);
+    }
+}
