@@ -173,7 +173,7 @@ class StudentLifecycleTest extends TestCase
             'Authorization' => 'Bearer '.$auth['token'],
         ])->postJson("/api/v1/holiday-programs/{$program->id}/attendance", [
             'student_id' => $student->id,
-            'date' => now()->toDateString(),
+            'date' => now()->addWeek()->toDateString(), // Set date within program schedule
             'status' => 'present',
         ]);
 
