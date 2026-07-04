@@ -7,6 +7,7 @@ use App\Models\HolidayEnrollment;
 use App\Models\HolidayProgram;
 use App\Models\Student;
 use App\Services\HolidayProgramService;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 
@@ -128,7 +129,11 @@ class HolidayProgramController extends Controller
         $student = Student::where('school_id', $schoolId)->findOrFail($data['student_id']);
 
         // Guard date parameters to prevent junk data entries outside of scope
-        if ($data['date'] < $program->start_date || $data['date'] > $program->end_date) {
+        $attendanceDate = Carbon::parse($data['date']);
+        $programStart = Carbon::parse($program->start_date)->startOfDay();
+        $programEnd = Carbon::parse($program->end_date)->endOfDay();
+
+        if ($attendanceDate->lt($programStart) || $attendanceDate->gt($programEnd)) {
             throw ValidationException::withMessages([
                 'date' => "The attendance date must fall within the program schedule ({$program->start_date} to {$program->end_date})."
             ]);

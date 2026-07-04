@@ -1,20 +1,23 @@
 <script setup lang="ts">
-import { onMounted } from 'vue'
+import { computed, onMounted } from 'vue'
 import { Activity, ArrowLeftRight, DollarSign, Wallet } from '@lucide/vue'
 import DashboardHero from '@/components/dashboard/DashboardHero.vue'
 import RoleQuickActions from '@/components/dashboard/RoleQuickActions.vue'
 import DashboardModulesGrid from '@/components/dashboard/DashboardModulesGrid.vue'
 import DashboardSkeleton from '@/components/dashboard/DashboardSkeleton.vue'
-import KpiCard from '@/components/dashboard/KpiCard.vue'
-import PayrollPanel from '@/components/dashboard/PayrollPanel.vue'
-import FinanceOverviewPanel from '@/components/dashboard/FinanceOverviewPanel.vue'
-import ActivityFeed from '@/components/dashboard/ActivityFeed.vue'
+import MetricBand from '@/components/dashboard/MetricBand.vue'
+import type { MetricCard } from '@/components/dashboard/MetricBand.vue'
 import ErrorState from '@/components/feedback/ErrorState.vue'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { useAuth } from '@/composables/useAuth'
 import { useStaffDashboard } from '@/composables/useStaffDashboard'
+import { lazy } from '@/lib/lazy'
 import { getRoleDashboardMeta } from '@/lib/role-dashboard'
-import { STAFF_DASHBOARD_MODULE_GROUPS } from '@/lib/dashboard-modules'
+import { ACCOUNTS_DASHBOARD_MODULE_GROUPS } from '@/lib/dashboard-modules'
+
+const PayrollPanel = lazy(() => import('@/components/dashboard/PayrollPanel.vue'))
+const FinanceOverviewPanel = lazy(() => import('@/components/dashboard/FinanceOverviewPanel.vue'))
+const ActivityFeed = lazy(() => import('@/components/dashboard/ActivityFeed.vue'))
 
 const { user } = useAuth()
 const meta = getRoleDashboardMeta(user.value?.role)
@@ -24,6 +27,40 @@ const {
   recent, financeSummary, load,
 } = useStaffDashboard()
 
+const overviewCards = computed<MetricCard[]>(() => [
+  {
+    title: 'Revenue today',
+    value: `$${formatMoney(kpis.value?.paymentsToday ?? 0)}`,
+    subtitle: 'Collections recorded today',
+    icon: DollarSign,
+    accent: 'success' as const,
+    href: '/finance/payments',
+  },
+  {
+    title: 'Outstanding fees',
+    value: `$${formatMoney(kpis.value?.outstandingFees ?? 0)}`,
+    subtitle: 'Unpaid balances',
+    icon: Wallet,
+    accent: 'danger' as const,
+    href: '/finance/invoices',
+  },
+  {
+    title: 'Transactions',
+    value: String(kpis.value?.totalActivity ?? 0),
+    subtitle: 'This month',
+    icon: ArrowLeftRight,
+    href: '/finance/transactions',
+  },
+  {
+    title: 'Payroll due',
+    value: `$${formatMoney(kpis.value?.payrollSummary.total_pending ?? 0)}`,
+    subtitle: 'Pending staff payments',
+    icon: Activity,
+    accent: 'warning' as const,
+    href: '/finance/payroll',
+  },
+])
+
 function formatMoney(value: number) {
   return value.toLocaleString(undefined, { maximumFractionDigits: 0 })
 }
@@ -32,7 +69,7 @@ onMounted(() => load({ activityFeed: true, financeSummary: true }))
 </script>
 
 <template>
-  <div class="mx-auto max-w-[1400px] space-y-8 pb-8">
+  <div class="mx-auto max-w-350 space-y-8 pb-8">
     <DashboardHero
       :name="user?.name"
       :role="meta.label"
@@ -47,13 +84,7 @@ onMounted(() => load({ activityFeed: true, financeSummary: true }))
     <template v-else-if="kpis">
       <Alert v-if="error" variant="destructive"><AlertDescription>{{ error }}</AlertDescription></Alert>
 
-      <section aria-labelledby="accounts-kpis" class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <h2 id="accounts-kpis" class="sr-only">Accounts KPIs</h2>
-        <KpiCard title="Revenue today" :value="`$${formatMoney(kpis.paymentsToday)}`" subtitle="Collections recorded today" :icon="DollarSign" accent="success" href="/finance/payments" />
-        <KpiCard title="Outstanding fees" :value="`$${formatMoney(kpis.outstandingFees)}`" subtitle="Unpaid balances" :icon="Wallet" accent="danger" href="/finance/invoices" />
-        <KpiCard title="Transactions" :value="String(kpis.totalActivity)" subtitle="This month" :icon="ArrowLeftRight" href="/finance/transactions" />
-        <KpiCard title="Payroll due" :value="`$${formatMoney(kpis.payrollSummary.total_pending)}`" subtitle="Pending staff payments" :icon="Activity" accent="warning" href="/finance/payroll" />
-      </section>
+      <MetricBand title="Accounts KPIs" description="Cashflow and collections at a glance" :cards="overviewCards" />
 
       <RoleQuickActions variant="accounts" />
 
@@ -63,11 +94,11 @@ onMounted(() => load({ activityFeed: true, financeSummary: true }))
 
       <section class="grid gap-6 lg:grid-cols-2">
         <PayrollPanel :summary="kpis.payrollSummary" />
-        <ActivityFeed :items="recent" class="min-h-[320px]" />
+        <ActivityFeed :items="recent" class="min-h-80" />
       </section>
 
       <DashboardModulesGrid
-        :groups="STAFF_DASHBOARD_MODULE_GROUPS"
+        :groups="ACCOUNTS_DASHBOARD_MODULE_GROUPS"
         title="Your modules"
         description="Accounting, finance, and related school areas"
       />

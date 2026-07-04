@@ -135,11 +135,12 @@ class ReportController extends Controller
      */
     public function financial(Request $request)
     {
+        $schoolId = $request->user()?->school_id;
         $currency = $request->get('currency', 'all');
 
-        $invoiceQuery = Invoice::query();
-        $paymentQuery = Payment::where('status', 'completed');
-        $txQuery = Transaction::where('status', 'completed');
+        $invoiceQuery = Invoice::query()->when($schoolId, fn ($q) => $q->where('school_id', $schoolId));
+        $paymentQuery = Payment::where('status', 'completed')->when($schoolId, fn ($q) => $q->where('school_id', $schoolId));
+        $txQuery = Transaction::where('status', 'completed')->when($schoolId, fn ($q) => $q->where('school_id', $schoolId));
 
         if ($currency !== 'all') {
             $invoiceQuery->where('currency', $currency);

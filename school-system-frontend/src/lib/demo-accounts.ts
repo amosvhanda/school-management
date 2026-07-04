@@ -63,20 +63,20 @@ export const DEMO_ACCOUNTS: DemoAccount[] = [
     destination: 'Parent portal',
   },
   {
-    label: 'Platform admin',
+    label: 'Super admin',
     role: 'super_admin',
     email: 'super@school.co.zw',
     password: 'super123',
     webAccess: true,
-    destination: 'Platform dashboard',
+    destination: 'Super admin portal',
   },
   {
     label: 'Student',
     role: 'student',
     email: 'student@school.co.zw',
     password: 'student123',
-    webAccess: false,
-    destination: 'Not available on web (API only)',
+    webAccess: true,
+    destination: 'Student portal',
   },
 ]
 

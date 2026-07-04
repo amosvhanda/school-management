@@ -2,6 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Resources\Api\V1\PayrollPayslipResource;
+use App\Http\Resources\Api\V1\PayrollResource;
+use App\Http\Resources\Api\V1\TransactionResource;
 use App\Models\Payroll;
 use App\Models\Teacher;
 use App\Models\Transaction;
@@ -9,6 +12,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\Rule;
 
 class PayrollController extends Controller
 {
@@ -18,7 +22,9 @@ class PayrollController extends Controller
      */
     public function index(Request $request)
     {
-        $query = Payroll::with('teacher');
+        $schoolId = $request->user()?->school_id;
+        $query = Payroll::with('teacher')
+            ->when($schoolId, fn ($q) => $q->where('school_id', $schoolId));
 
         if ($request->filled('month')) {
             $query->where('month', (int) $request->month);
@@ -35,40 +41,8 @@ class PayrollController extends Controller
             ->orderBy('teacher_id')
             ->get();
 
-        $data = $rows->map(function ($p) {
-            $t = $p->teacher;
-            $amountPaid = (float) ($p->amount_paid ?? 0);
-            $balance = max((float) $p->net_salary - $amountPaid, 0);
-            return [
-                'id' => $p->id,
-                'teacher_id' => $p->teacher_id,
-                'name' => $t?->name ?? 'Unknown',
-                'employeeId' => $t?->employee_id ?? '',
-                'department' => $t?->department ?? 'Academic',
-                'position' => $t?->subject ?? 'Teacher',
-                'baseSalary' => (float) $p->base_salary,
-                'allowances' => $p->allowances ?? [],
-                'allowancesTotal' => (float) ($p->allowances_total ?? 0),
-                'grossSalary' => (float) $p->gross_salary,
-                'deductions' => $p->deductions ?? [],
-                'deductionsTotal' => (float) $p->deductions_total,
-                'netSalary' => (float) $p->net_salary,
-                'amountPaid' => $amountPaid,
-                'balance' => $balance,
-                'currency' => $p->currency ?? 'USD',
-                'paymentStatus' => $this->mapStatus($p->status, $amountPaid, (float) $p->net_salary),
-                'status' => $p->status,
-                'month' => $p->month,
-                'year' => $p->year,
-                'paid_at' => $p->paid_at?->toDateString(),
-                'payment_method' => $p->payment_method,
-                'payment_reference' => $p->payment_reference,
-                'bank_name' => $t?->bank_name,
-                'bank_account_number' => $t?->bank_account_number,
-            ];
-        });
-
-        return response()->json(['data' => $data]);
+        return PayrollResource::collection($rows)
+            ->additional(['message' => 'Success']);
     }
 
     /**
@@ -76,7 +50,10 @@ class PayrollController extends Controller
      */
     public function getTeachers(Request $request)
     {
+        $schoolId = $request->user()?->school_id;
+
         $teachers = Teacher::where('status', 'active')
+            ->when($schoolId, fn ($q) => $q->where('school_id', $schoolId))
             ->select('id', 'name', 'employee_id', 'department', 'base_salary', 'salary_currency', 'allowances', 'deductions')
             ->get()
             ->map(function ($teacher) {
@@ -101,11 +78,18 @@ class PayrollController extends Controller
      */
     public function generate(Request $request)
     {
+        $schoolId = $request->user()?->school_id;
+
+        $teacherRule = Rule::exists('teachers', 'id');
+        if ($schoolId) {
+            $teacherRule = $teacherRule->where('school_id', $schoolId);
+        }
+
         $validator = Validator::make($request->all(), [
             'month' => 'required|integer|min:1|max:12',
             'year' => 'required|integer|min:2020|max:2100',
             'teacher_ids' => 'required|array|min:1',
-            'teacher_ids.*' => 'exists:teachers,id',
+            'teacher_ids.*' => $teacherRule,
         ]);
 
         if ($validator->fails()) {
@@ -129,9 +113,9 @@ class PayrollController extends Controller
         DB::beginTransaction();
         try {
             foreach ($request->teacher_ids as $tid) {
-                $teacher = Teacher::find($tid);
+                $teacher = Teacher::where('school_id', $schoolId)->find($tid);
                 if (!$teacher) {
-                    $errors[] = "Teacher ID {$tid} not found";
+                    $errors[] = "Teacher ID {$tid} not found or not part of the current school";
                     continue;
                 }
 
@@ -254,7 +238,9 @@ class PayrollController extends Controller
             ], 422);
         }
 
-        $payroll = Payroll::findOrFail($id);
+        $schoolId = $request->user()?->school_id;
+        $payroll = Payroll::when($schoolId, fn ($q) => $q->where('school_id', $schoolId))
+            ->findOrFail($id);
 
         DB::beginTransaction();
         try {
@@ -287,10 +273,9 @@ class PayrollController extends Controller
 
             DB::commit();
 
-            return response()->json([
-                'message' => 'Payroll updated successfully',
-                'data' => $payroll->fresh('teacher'),
-            ]);
+            return (new PayrollResource($payroll->fresh('teacher')))
+                ->additional(['message' => 'Payroll updated successfully'])
+                ->response();
         } catch (\Exception $e) {
             DB::rollBack();
             return response()->json([
@@ -320,7 +305,10 @@ class PayrollController extends Controller
             ], 422);
         }
 
-        $payroll = Payroll::with('teacher')->findOrFail($id);
+        $schoolId = $request->user()?->school_id;
+        $payroll = Payroll::with('teacher')
+            ->when($schoolId, fn ($q) => $q->where('school_id', $schoolId))
+            ->findOrFail($id);
 
         if ($payroll->status === 'paid') {
             return response()->json([
@@ -379,8 +367,8 @@ class PayrollController extends Controller
             return response()->json([
                 'message' => 'Payroll processed and payment recorded successfully',
                 'data' => [
-                    'payroll' => $payroll->fresh('teacher'),
-                    'transaction' => $transaction,
+                    'payroll' => new PayrollResource($payroll->fresh('teacher')),
+                    'transaction' => new TransactionResource($transaction),
                 ],
             ]);
         } catch (\Exception $e) {
@@ -398,65 +386,14 @@ class PayrollController extends Controller
      */
     public function payslip($id)
     {
-        $payroll = Payroll::with(['teacher', 'school'])->findOrFail($id);
-        $teacher = $payroll->teacher;
-        $school = $payroll->school;
-        $amountPaid = (float) ($payroll->amount_paid ?? 0);
-        $balance = max((float) $payroll->net_salary - $amountPaid, 0);
+        $schoolId = request()->user()?->school_id;
+        $payroll = Payroll::with(['teacher', 'school'])
+            ->when($schoolId, fn ($q) => $q->where('school_id', $schoolId))
+            ->findOrFail($id);
 
-        $payslip = [
-            'id' => $payroll->id,
-            'payslip_number' => "PS-{$payroll->year}-{$payroll->month}-{$payroll->id}",
-            'generated_at' => now()->toDateTimeString(),
-            'school' => [
-                'name' => $school->name ?? 'School Name',
-                'address' => $school->address ?? '',
-                'phone' => $school->phone ?? '',
-                'email' => $school->email ?? '',
-            ],
-            'employee' => [
-                'id' => $teacher->id,
-                'name' => $teacher->name,
-                'employee_id' => $teacher->employee_id,
-                'department' => $teacher->department ?? 'Academic',
-                'position' => $teacher->subject ?? 'Teacher',
-                'bank_name' => $teacher->bank_name,
-                'bank_account_number' => $teacher->bank_account_number,
-            ],
-            'period' => [
-                'month' => $payroll->month,
-                'year' => $payroll->year,
-                'month_name' => date('F', mktime(0, 0, 0, $payroll->month, 1)),
-            ],
-            'earnings' => [
-                'base_salary' => (float) $payroll->base_salary,
-                'allowances' => $payroll->allowances ?? [],
-                'allowances_total' => (float) $payroll->allowances_total,
-                'gross_salary' => (float) $payroll->gross_salary,
-            ],
-            'deductions' => [
-                'breakdown' => $payroll->deductions ?? [],
-                'total' => (float) $payroll->deductions_total,
-            ],
-            'summary' => [
-                'gross_salary' => (float) $payroll->gross_salary,
-                'total_deductions' => (float) $payroll->deductions_total,
-                'net_salary' => (float) $payroll->net_salary,
-                'amount_paid' => $amountPaid,
-                'balance' => $balance,
-                'currency' => $payroll->currency,
-            ],
-            'payment' => [
-                'status' => $payroll->status,
-                'paid_at' => $payroll->paid_at?->toDateString(),
-                'payment_method' => $payroll->payment_method,
-                'payment_reference' => $payroll->payment_reference,
-            ],
-        ];
-
-        return response()->json([
-            'data' => $payslip,
-        ]);
+        return (new PayrollPayslipResource($payroll))
+            ->additional(['message' => 'Success'])
+            ->response();
     }
 
     /**
@@ -464,23 +401,25 @@ class PayrollController extends Controller
      */
     public function summary(Request $request)
     {
-        $query = Payroll::query();
+        $schoolId = $request->user()?->school_id;
+        $baseQuery = Payroll::query()
+            ->when($schoolId, fn ($q) => $q->where('school_id', $schoolId));
         
         if ($request->filled('month')) {
-            $query->where('month', (int) $request->month);
+            $baseQuery->where('month', (int) $request->month);
         }
         if ($request->filled('year')) {
-            $query->where('year', (int) $request->year);
+            $baseQuery->where('year', (int) $request->year);
         }
 
-        $totalPayroll = $query->sum('gross_salary');
-        $totalPaid = $query->where('status', 'paid')->sum('net_salary');
-        $totalPending = $query->where('status', 'pending')->sum('net_salary');
-        $totalPartial = $query->where('status', 'partial')->sum('net_salary');
-        $totalEmployees = $query->count();
-        $paidEmployees = $query->where('status', 'paid')->count();
-        $pendingEmployees = $query->where('status', 'pending')->count();
-        $partialEmployees = $query->where('status', 'partial')->count();
+        $totalPayroll = (clone $baseQuery)->sum('gross_salary');
+        $totalPaid = (clone $baseQuery)->where('status', 'paid')->sum('net_salary');
+        $totalPending = (clone $baseQuery)->where('status', 'pending')->sum('net_salary');
+        $totalPartial = (clone $baseQuery)->where('status', 'partial')->sum('net_salary');
+        $totalEmployees = (clone $baseQuery)->count();
+        $paidEmployees = (clone $baseQuery)->where('status', 'paid')->count();
+        $pendingEmployees = (clone $baseQuery)->where('status', 'pending')->count();
+        $partialEmployees = (clone $baseQuery)->where('status', 'partial')->count();
 
         return response()->json([
             'data' => [
@@ -503,38 +442,19 @@ class PayrollController extends Controller
     {
         $schoolId = $request->user()?->school_id;
 
+        $teacher = Teacher::when($schoolId, fn ($q) => $q->where('school_id', $schoolId))
+            ->findOrFail($teacherId);
+
         $records = Payroll::with(['teacher', 'transactions'])
-            ->when($schoolId, fn ($q) => $q->where('school_id', $schoolId))
             ->where('teacher_id', $teacherId)
+            ->when($schoolId, fn ($q) => $q->where('school_id', $schoolId))
             ->orderBy('year', 'desc')
             ->orderBy('month', 'desc')
-            ->get()
-            ->map(function ($p) {
-                $amountPaid = (float) ($p->amount_paid ?? 0);
-                return [
-                    'id' => $p->id,
-                    'teacher_id' => $p->teacher_id,
-                    'month' => $p->month,
-                    'year' => $p->year,
-                    'net_salary' => (float) $p->net_salary,
-                    'amount_paid' => $amountPaid,
-                    'balance' => max((float) $p->net_salary - $amountPaid, 0),
-                    'status' => $p->status,
-                    'payments' => $p->transactions->map(fn ($t) => [
-                        'id' => $t->id,
-                        'amount' => (float) $t->debit,
-                        'currency' => $t->currency,
-                        'status' => $t->status,
-                        'payment_method' => $t->payment_method,
-                        'reference' => $t->reference,
-                        'date' => $t->created_at?->toDateString(),
-                    ]),
-                ];
-            });
+            ->get();
 
-        return response()->json([
-            'data' => $records,
-        ]);
+        return PayrollResource::collection($records)
+            ->additional(['message' => 'Success'])
+            ->response();
     }
 
     /**

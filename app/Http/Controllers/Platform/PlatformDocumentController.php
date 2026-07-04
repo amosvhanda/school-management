@@ -77,17 +77,7 @@ class PlatformDocumentController extends Controller
             return response()->json(['message' => 'Invalid or revoked certificate'], 404);
         }
 
-        /** @var \App\Models\Certificate $result */
-        // This line tells Intelephense exactly what $result is, clearing the warning!
-
-        return response()->json([
-            'data' => [
-                'title' => $result->title,
-                'recipient' => $result->student?->full_name,
-                'issued_at' => $result->issued_at,
-                'status' => 'verified'
-            ]
-        ]);
+        return response()->json(['data' => $result]);
     }
 
     public function certificates(Request $request): JsonResponse

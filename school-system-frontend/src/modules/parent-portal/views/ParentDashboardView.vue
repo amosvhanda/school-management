@@ -158,7 +158,6 @@ onMounted(load)
         :groups="PARENT_DASHBOARD_MODULE_GROUPS"
         title="Portal modules"
         description="Everything available in your parent portal"
-        skip-permission-filter
       />
     </template>
   </div>

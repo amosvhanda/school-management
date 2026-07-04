@@ -4,5 +4,5 @@ import { platformNavigation } from '@/lib/navigation'
 </script>
 
 <template>
-  <DashboardShell :navigation="platformNavigation" title="Platform Admin" />
+  <DashboardShell :navigation="platformNavigation" title="Super Admin Portal" />
 </template>

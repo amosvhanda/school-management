@@ -2,7 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import AuthLayout from '@/layouts/AuthLayout.vue'
 import AuthenticatedLayout from '@/layouts/AuthenticatedLayout.vue'
 import { createRouteGuards } from './guards'
-import { publicRoutes, staffRoutes, parentRoutes, platformRoutes } from './routes'
+import { publicRoutes, staffRoutes, parentRoutes, studentRoutes, platformRoutes } from './routes'
 import { setupApiInterceptors } from '@/lib/api'
 import { useNotificationStore } from '@/stores/notification.store'
 
@@ -13,7 +13,7 @@ const router = createRouter({
       path: '/',
       component: AuthenticatedLayout,
       meta: { requiresAuth: true },
-      children: [...staffRoutes, ...parentRoutes, ...platformRoutes],
+      children: [...staffRoutes, ...parentRoutes, ...studentRoutes, ...platformRoutes],
     },
     {
       path: '/',

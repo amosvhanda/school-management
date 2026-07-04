@@ -10,7 +10,7 @@ class TeacherApiTest extends TestCase
     public function test_get_teachers_list(): void
     {
         $auth = $this->createAuthenticatedUser();
-        
+
         $response = $this->withHeaders([
             'Authorization' => 'Bearer ' . $auth['token'],
         ])->getJson('/api/v1/teachers');
@@ -50,6 +50,19 @@ class TeacherApiTest extends TestCase
 
         $response->assertStatus(200)
             ->assertJsonStructure(['data' => ['id', 'name']]);
+    }
+
+    public function test_cannot_access_teacher_from_different_school(): void
+    {
+        $auth = $this->createAuthenticatedUser();
+        $otherSchool = \App\Models\School::factory()->create();
+        $teacher = Teacher::factory()->create(['school_id' => $otherSchool->id]);
+
+        $response = $this->withHeaders([
+            'Authorization' => 'Bearer ' . $auth['token'],
+        ])->getJson("/api/v1/teachers/{$teacher->id}");
+
+        $response->assertStatus(404);
     }
 
     public function test_update_teacher(): void

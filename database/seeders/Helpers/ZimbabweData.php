@@ -18,6 +18,8 @@ final class ZimbabweData
         ['name' => 'Mufakose 1 High School', 'code' => 'MUF001'],
         ['name' => 'Allan Wilson Boys High', 'code' => 'AWBH01'],
         ['name' => 'Prince Edward School', 'code' => 'PRED01'],
+        ['name' => 'St Johns College', 'code' => 'STJH01'],
+        ['name' => 'Harare High School', 'code' => 'HARH01'],
     ];
 
     public const CLASS_NAMES = ['Grade 7', 'Form 1A', 'Form 2B', 'Form 3B', 'Form 4A', 'Lower 6', 'Upper 6'];

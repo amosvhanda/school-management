@@ -45,6 +45,30 @@ class PaymentApiTest extends TestCase
             ]);
     }
 
+    public function test_payment_invoice_must_belong_to_school(): void
+    {
+        $auth = $this->createAuthenticatedUser();
+        $otherSchool = \App\Models\School::factory()->create();
+        $student = Student::factory()->create(['school_id' => $otherSchool->id]);
+        $invoice = Invoice::factory()->create([
+            'school_id' => $otherSchool->id,
+            'student_id' => $student->id,
+            'currency' => $otherSchool->currency_default,
+        ]);
+
+        $response = $this->withHeaders([
+            'Authorization' => 'Bearer ' . $auth['token'],
+        ])->postJson('/api/v1/payments', [
+            'invoice_id' => $invoice->id,
+            'amount' => 500.00,
+            'currency' => $auth['school']->currency_default,
+            'method' => 'cash',
+        ]);
+
+        $response->assertStatus(422)
+            ->assertJsonValidationErrors('invoice_id');
+    }
+
     public function test_get_payment_receipt(): void
     {
         $auth = $this->createAuthenticatedUser();

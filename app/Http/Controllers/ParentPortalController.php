@@ -314,9 +314,15 @@ class ParentPortalController extends Controller
     public function notifications(Request $request)
     {
         $parent = $this->requireParent($request);
+        $studentId = $request->integer('student_id');
+
+        if ($studentId) {
+            $this->parentAccess->assertCanAccessStudent($parent, $studentId);
+        }
 
         $query = ParentNotification::query()
             ->where('parent_user_id', $parent->id)
+            ->when($studentId, fn ($q) => $q->where('student_id', $studentId))
             ->with(['student:id,first_name,last_name,full_name,student_number'])
             ->orderByDesc('created_at');
 

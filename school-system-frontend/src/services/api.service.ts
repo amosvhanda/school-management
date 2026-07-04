@@ -399,8 +399,23 @@ export const workflowsApi = {
     postRecord(e.workflows.reject(id), payload ?? {}),
 }
 
+export interface ReportExportPayload {
+  type: 'academic-performance' | 'attendance' | 'financial'
+  format?: 'csv' | 'json' | null
+  term?: string | null
+  year?: number | null
+  subject?: string | null
+  class_id?: number | null
+  from?: string | null
+  to?: string | null
+  currency?: string | null
+}
+
 export const reportsApi = {
-  export: (params?: ListQueryParams) => fetchList(e.reports.export, params),
+  export: async (payload: ReportExportPayload) => {
+    const { data } = await api.get(e.reports.export, { params: payload })
+    return unwrapOne<Record<string, unknown>>(data)
+  },
   academicPerformance: (params?: ListQueryParams) => fetchOne(e.reports.academicPerformance, params),
   attendance: (params?: ListQueryParams) => fetchOne(e.reports.attendance, params),
   financial: (params?: ListQueryParams) => fetchOne(e.reports.financial, params),
@@ -418,7 +433,7 @@ export const parentPortalApi = {
   discipline: (studentId: number | string) => fetchList(e.parentPortal.discipline(studentId)),
   progress: (studentId: number | string) => fetchOne(e.parentPortal.progress(studentId)),
   announcements: () => fetchList(e.parentPortal.announcements),
-  notifications: () => fetchList(e.parentPortal.notifications),
+  notifications: (params?: ListQueryParams) => fetchList(e.parentPortal.notifications, params),
   markNotificationRead: (id: number | string) => postRecord(e.parentPortal.markNotificationRead(id)),
   markAllNotificationsRead: () => postRecord(e.parentPortal.markAllNotificationsRead),
   threads: () => fetchList(e.parentPortal.threads),
@@ -563,6 +578,11 @@ export const platformApi = {
   staffFeed: () => fetchList(e.platform.staffFeed),
   predictiveAnalytics: () => fetchOne(e.platform.predictiveAnalytics),
   auditIntegrity: () => fetchOne(e.platform.auditIntegrity),
+  communications: {
+    send: (payload: Record<string, unknown>) => postRecord(e.platform.communications.send, payload),
+    tracking: (params?: ListQueryParams) => fetchList(e.platform.communications.tracking, params),
+    markRead: (id: number | string) => postRecord(e.platform.communications.markRead(id)),
+  },
 }
 
 export { endpoints } from './endpoints'

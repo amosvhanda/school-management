@@ -16,7 +16,7 @@ const search = ref('')
 const capabilityLabels: Record<string, string> = {
   isStaff: 'Staff access',
   isParent: 'Parent portal',
-  isSuperAdmin: 'Platform admin',
+  isSuperAdmin: 'Super admin portal',
   canManageStudents: 'Manage students',
   canManageTeachers: 'Manage teachers & admin',
   canManageFinance: 'Manage finance',

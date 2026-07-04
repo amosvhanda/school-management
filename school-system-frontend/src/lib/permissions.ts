@@ -78,10 +78,10 @@ export function getDefaultRouteForRole(role: UserRole): string {
   switch (role) {
     case 'parent':
       return '/portal'
+    case 'student':
+      return '/student'
     case 'super_admin':
       return '/platform'
-    case 'student':
-      return '/login'
     default:
       return STAFF_DASHBOARD_ROLES.includes(role) ? '/' : '/login'
   }

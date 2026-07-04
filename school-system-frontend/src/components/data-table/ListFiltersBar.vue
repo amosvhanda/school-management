@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import { FilterX, SlidersHorizontal } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
+import { findRelationLabel } from '@/lib/relation-options'
 import {
   Select,
   SelectContent,
@@ -40,6 +41,42 @@ function parentValue(filter: ListFilterSchema): string | undefined {
   if (!parentField) return undefined
   const raw = model.value[parentField]
   return raw || undefined
+}
+
+const activeFilters = computed(() =>
+  props.filters
+    .map((filter) => {
+      const raw = model.value[filter.key]
+      if (!raw) return null
+
+      if (filter.type === 'relation' && filter.relation) {
+        const parent = parentValue(filter)
+        const paramKey = filter.relation.dependsOn?.paramKey ?? filter.relation.dependsOn?.field
+        const params = parent && paramKey ? { [paramKey]: parent } : undefined
+        const relationLabel = findRelationLabel(filter.relation.endpoint, raw, params)
+        return {
+          key: filter.key,
+          label: filter.label,
+          value: relationLabel ?? raw,
+        }
+      }
+
+      const optionLabel = filter.options?.find((option) => option.value === raw)?.label
+      return {
+        key: filter.key,
+        label: filter.label,
+        value: optionLabel ?? raw,
+      }
+    })
+    .filter((item): item is { key: string; label: string; value: string } => Boolean(item)),
+)
+
+function clearFilter(key: string) {
+  update(key, ALL)
+}
+
+function selectOptions(filter: ListFilterSchema) {
+  return (filter.options ?? []).filter((option) => option.value !== '')
 }
 
 const hasActive = computed(() => (props.activeCount ?? 0) > 0)
@@ -101,7 +138,7 @@ const hasActive = computed(() => (props.activeCount ?? 0) > 0)
                 {{ filter.placeholder ?? `All ${filter.label.toLowerCase()}` }}
               </SelectItem>
               <SelectItem
-                v-for="option in filter.options ?? []"
+                v-for="option in selectOptions(filter)"
                 :key="option.value"
                 :value="option.value"
                 class="text-xs"
@@ -112,6 +149,25 @@ const hasActive = computed(() => (props.activeCount ?? 0) > 0)
           </Select>
         </div>
       </template>
+    </div>
+
+    <div v-if="activeFilters.length" class="flex flex-wrap gap-2">
+      <span
+        v-for="chip in activeFilters"
+        :key="chip.key"
+        class="inline-flex items-center gap-2 rounded-full border border-border/70 bg-background px-2.5 py-1 text-[11px] text-muted-foreground"
+      >
+        <span class="font-medium text-foreground">{{ chip.label }}:</span>
+        <span>{{ chip.value }}</span>
+        <button
+          type="button"
+          class="text-muted-foreground hover:text-destructive"
+          :aria-label="`Clear ${chip.label} filter`"
+          @click="clearFilter(chip.key)"
+        >
+          ×
+        </button>
+      </span>
     </div>
   </section>
 </template>

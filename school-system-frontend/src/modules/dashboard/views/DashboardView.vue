@@ -2,11 +2,13 @@
 import { computed } from 'vue'
 import { useAuth } from '@/composables/useAuth'
 import { getStaffDashboardVariant } from '@/lib/role-dashboard'
-import AdminDashboardPanel from '@/modules/dashboard/views/panels/AdminDashboardPanel.vue'
-import TeacherDashboardPanel from '@/modules/dashboard/views/panels/TeacherDashboardPanel.vue'
-import FinanceDashboardPanel from '@/modules/dashboard/views/panels/FinanceDashboardPanel.vue'
-import AccountsDashboardPanel from '@/modules/dashboard/views/panels/AccountsDashboardPanel.vue'
-import ExamOfficerDashboardPanel from '@/modules/dashboard/views/panels/ExamOfficerDashboardPanel.vue'
+import { lazy } from '@/lib/lazy'
+
+const AdminDashboardPanel = lazy(() => import('@/modules/dashboard/views/panels/AdminDashboardPanel.vue'))
+const TeacherDashboardPanel = lazy(() => import('@/modules/dashboard/views/panels/TeacherDashboardPanel.vue'))
+const FinanceDashboardPanel = lazy(() => import('@/modules/dashboard/views/panels/FinanceDashboardPanel.vue'))
+const AccountsDashboardPanel = lazy(() => import('@/modules/dashboard/views/panels/AccountsDashboardPanel.vue'))
+const ExamOfficerDashboardPanel = lazy(() => import('@/modules/dashboard/views/panels/ExamOfficerDashboardPanel.vue'))
 
 const { user } = useAuth()
 

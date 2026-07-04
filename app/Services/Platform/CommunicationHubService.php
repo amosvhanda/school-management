@@ -3,6 +3,7 @@
 namespace App\Services\Platform;
 
 use App\Models\HubMessage;
+use App\Enums\UserRole;
 use App\Models\HubMessageDelivery;
 use App\Models\NotificationQueue;
 use App\Models\User;
@@ -94,9 +95,18 @@ class CommunicationHubService
 
     protected function resolveRecipients(int $schoolId, array $data): array
     {
-        if (($data['audience_type'] ?? 'individual') === 'all_staff') {
+        $audienceType = $data['audience_type'] ?? 'individual';
+
+        if ($audienceType === 'all_staff') {
             return User::where('school_id', $schoolId)
                 ->whereIn('role', ['admin', 'school_admin', 'teacher', 'finance', 'accounts'])
+                ->pluck('id')
+                ->all();
+        }
+
+        if (in_array($audienceType, array_map(fn (UserRole $role) => $role->value, UserRole::cases()), true)) {
+            return User::where('school_id', $schoolId)
+                ->where('role', $audienceType)
                 ->pluck('id')
                 ->all();
         }

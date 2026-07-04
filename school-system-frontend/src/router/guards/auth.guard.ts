@@ -1,6 +1,6 @@
 import { useAuthStore } from '../../stores/auth.store'
 
-export function authGuard(to: any, from: any, next: any) {
+export function authGuard(to: any, _from: any, next: any) {
   const auth = useAuthStore()
 
   // not logged in → send to login

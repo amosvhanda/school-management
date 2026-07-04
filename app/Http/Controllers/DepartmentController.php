@@ -52,14 +52,9 @@ class DepartmentController extends Controller
     /**
      * Get a specific department
      */
-    public function show(Request $request, $id)
+    public function show(Request $request, Department $department)
     {
-        $user = $request->user();
-        $schoolId = $user->school_id;
-
-        $department = Department::where('school_id', $schoolId)
-            ->with('headTeacher:id,name,employee_id')
-            ->findOrFail($id);
+        $department->load('headTeacher:id,name,employee_id');
 
         return response()->json([
             'data' => $department,
@@ -123,13 +118,10 @@ class DepartmentController extends Controller
     /**
      * Update a department
      */
-    public function update(Request $request, $id)
+    public function update(Request $request, Department $department)
     {
         $user = $request->user();
         $schoolId = $user->school_id;
-
-        $department = Department::where('school_id', $schoolId)
-            ->findOrFail($id);
 
         $validator = Validator::make($request->all(), [
             'name' => [
@@ -138,7 +130,7 @@ class DepartmentController extends Controller
                 'max:255',
                 Rule::unique('departments')->where(function ($query) use ($schoolId) {
                     return $query->where('school_id', $schoolId);
-                })->ignore($id)
+                })->ignore($department->id)
             ],
             'code' => [
                 'nullable',
@@ -146,7 +138,7 @@ class DepartmentController extends Controller
                 'max:20',
                 Rule::unique('departments')->where(function ($query) use ($schoolId) {
                     return $query->where('school_id', $schoolId);
-                })->ignore($id)
+                })->ignore($department->id)
             ],
             'description' => 'nullable|string',
             'head_teacher_id' => 'nullable|exists:teachers,id',
@@ -179,14 +171,8 @@ class DepartmentController extends Controller
     /**
      * Delete a department
      */
-    public function destroy(Request $request, $id)
+    public function destroy(Request $request, Department $department)
     {
-        $user = $request->user();
-        $schoolId = $user->school_id;
-
-        $department = Department::where('school_id', $schoolId)
-            ->findOrFail($id);
-
         // Check if department has teachers
         if ($department->teachers()->exists()) {
             return response()->json([

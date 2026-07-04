@@ -27,16 +27,6 @@ export function createRouteGuards(router: Router) {
 
     if (to.meta.requiresAuth && authStore.user) {
       if (!canAccessRoute(authStore.user, to)) {
-        if (authStore.user.role === 'student') {
-          useNotificationStore().notify({
-            title: 'Access denied',
-            description: 'Student accounts cannot access the staff dashboard.',
-            variant: 'destructive',
-          })
-          await authStore.logout()
-          return { name: 'login' }
-        }
-
         useNotificationStore().notify({
           title: 'Access denied',
           description: 'You do not have permission to view this page.',
@@ -47,6 +37,9 @@ export function createRouteGuards(router: Router) {
 
       if (to.path === '/' && authStore.user.role === 'parent') {
         return '/portal'
+      }
+      if (to.path === '/' && authStore.user.role === 'student') {
+        return '/student'
       }
       if (to.path === '/' && authStore.user.role === 'super_admin') {
         return '/platform'

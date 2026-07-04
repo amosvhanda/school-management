@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Resources\Api\V1\TransactionResource;
 use App\Models\Transaction;
 use Illuminate\Http\Request;
 
@@ -9,7 +10,9 @@ class TransactionController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Transaction::with('student');
+        $schoolId = $request->user()?->school_id;
+        $query = Transaction::with('student')
+            ->when($schoolId, fn ($q) => $q->where('school_id', $schoolId));
 
         if ($request->has('student_id') && $request->student_id !== 'all') {
             $query->where('student_id', $request->student_id);
@@ -46,14 +49,15 @@ class TransactionController extends Controller
 
         $transactions = $query->orderBy('created_at', 'desc')->get();
 
-        return response()->json([
-            'data' => $transactions,
-        ]);
+        return TransactionResource::collection($transactions)
+            ->additional(['message' => 'Success']);
     }
 
     public function summary(Request $request)
     {
-        $query = Transaction::where('status', 'completed');
+        $schoolId = $request->user()?->school_id;
+        $query = Transaction::where('status', 'completed')
+            ->when($schoolId, fn ($q) => $q->where('school_id', $schoolId));
 
         if ($request->has('from')) {
             $query->where('created_at', '>=', $request->from);

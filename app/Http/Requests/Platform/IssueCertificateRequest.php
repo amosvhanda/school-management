@@ -2,7 +2,6 @@
 
 namespace App\Http\Requests\Platform;
 
-use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 
 class IssueCertificateRequest extends FormRequest
@@ -12,7 +11,7 @@ class IssueCertificateRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return false;
+        return true;
     }
 
     /**

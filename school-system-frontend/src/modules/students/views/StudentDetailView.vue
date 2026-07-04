@@ -500,7 +500,7 @@ onMounted(load)
       :form-key="`student-edit-${id}`"
       :form-loading="formEditLoading"
       :saving="saving"
-      staged
+      description="Update personal, enrollment, contact, and guardian information in one place."
       save-label="Save changes"
       @submit="onSaveStudent"
     />

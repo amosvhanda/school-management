@@ -130,12 +130,28 @@ export const studentFormFields: FormFieldSchema[] = mergeFormSections(
       label: 'Mobile',
       type: 'phone',
       placeholder: '077 123 4567',
+      colSpan: 1,
     },
     {
       name: 'email',
       label: 'Email',
       type: 'email',
       placeholder: 'student@example.com',
+      colSpan: 1,
+    },
+    {
+      name: 'suburb',
+      label: 'Suburb',
+      type: 'text',
+      placeholder: 'Mufakose',
+      colSpan: 1,
+    },
+    {
+      name: 'address',
+      label: 'Address',
+      type: 'textarea',
+      placeholder: 'Home address',
+      colSpan: 2,
     },
   ]),
   formSection('Guardian', [

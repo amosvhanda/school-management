@@ -30,6 +30,13 @@ defineEmits<{
   'update:globalFilter': [value: string]
   'server-page-change': [page: number]
 }>()
+
+defineSlots<{
+  toolbar?(): unknown
+  filters?(): unknown
+} & {
+  [name in `cell-${string}`]?: (props: { row: any }) => unknown
+}>()
 </script>
 
 <template>

@@ -13,6 +13,319 @@ export interface DashboardModuleGroup {
   modules: DashboardModule[]
 }
 
+export const TEACHER_DASHBOARD_MODULE_GROUPS: DashboardModuleGroup[] = [
+  {
+    label: 'Teaching',
+    modules: [
+      {
+        title: 'Attendance register',
+        description: 'Mark and review class attendance',
+        href: '/academics/attendance',
+        icon: 'ClipboardCheck',
+        capability: 'canManageStudents',
+      },
+      {
+        title: 'Exams',
+        description: 'Enter marks and review exam outcomes',
+        href: '/academics/exams',
+        icon: 'FileText',
+        capability: ['canManageExaminations', 'canEnterExamResults'],
+      },
+      {
+        title: 'Academics analytics',
+        description: 'Track attendance and performance trends',
+        href: '/academics/analytics',
+        icon: 'BarChart3',
+        capability: ['canManageTeachers', 'canManageStudents', 'canEnterExamResults'],
+      },
+    ],
+  },
+  {
+    label: 'Learners',
+    modules: [
+      {
+        title: 'Students',
+        description: 'View and update learner records',
+        href: '/students',
+        icon: 'GraduationCap',
+        capability: 'canManageStudents',
+      },
+      {
+        title: 'Guardians',
+        description: 'Review parent and guardian contacts',
+        href: '/guardians',
+        icon: 'UserCheck',
+        capability: 'canManageStudents',
+      },
+    ],
+  },
+  {
+    label: 'Communication',
+    modules: [
+      {
+        title: 'Messages',
+        description: 'Reply to parent and staff threads',
+        href: '/communications/threads',
+        icon: 'MessageSquare',
+        capability: 'isStaff',
+      },
+      {
+        title: 'Announcements',
+        description: 'Post updates to school audiences',
+        href: '/communications/announcements',
+        icon: 'Megaphone',
+        capability: 'isStaff',
+      },
+      {
+        title: 'Communications analytics',
+        description: 'Monitor message and engagement activity',
+        href: '/communications/analytics',
+        icon: 'BarChart3',
+        capability: 'isStaff',
+      },
+    ],
+  },
+  {
+    label: 'Tools',
+    modules: [
+      {
+        title: 'Assistant',
+        description: 'Use the AI assistant for teaching tasks',
+        href: '/assistant',
+        icon: 'Bot',
+        capability: 'isStaff',
+      },
+    ],
+  },
+]
+
+export const ACCOUNTS_DASHBOARD_MODULE_GROUPS: DashboardModuleGroup[] = [
+  {
+    label: 'Finance operations',
+    modules: [
+      {
+        title: 'Finance overview',
+        description: 'Daily cash position and receivables snapshot',
+        href: '/finance',
+        icon: 'Wallet',
+        capability: 'canManageFinance',
+      },
+      {
+        title: 'Payments',
+        description: 'Capture and reconcile collections',
+        href: '/finance/payments',
+        icon: 'CreditCard',
+        capability: 'canManageFinance',
+      },
+      {
+        title: 'Invoices',
+        description: 'Issue invoices and monitor balances',
+        href: '/finance/invoices',
+        icon: 'Receipt',
+        capability: 'canManageFinance',
+      },
+      {
+        title: 'Transactions',
+        description: 'Review ledgers and posting activity',
+        href: '/finance/transactions',
+        icon: 'ArrowLeftRight',
+        capability: 'canManageFinance',
+      },
+      {
+        title: 'Aging report',
+        description: 'Track overdue balances by age buckets',
+        href: '/finance/reports',
+        icon: 'LineChart',
+        capability: 'canManageFinance',
+      },
+      {
+        title: 'Finance analytics',
+        description: 'Collections and revenue performance insights',
+        href: '/finance/analytics',
+        icon: 'BarChart3',
+        capability: 'canManageFinance',
+      },
+    ],
+  },
+  {
+    label: 'Back office',
+    modules: [
+      {
+        title: 'Payroll',
+        description: 'Manage staff payroll disbursements',
+        href: '/finance/payroll',
+        icon: 'Banknote',
+        capability: 'canManageFinance',
+      },
+      {
+        title: 'Procurement',
+        description: 'Handle purchase requests and approvals',
+        href: '/operations/procurement',
+        icon: 'ShoppingCart',
+        capability: 'canManageFinance',
+      },
+      {
+        title: 'Vendors',
+        description: 'Maintain supplier records and contacts',
+        href: '/operations/procurement/vendors',
+        icon: 'Truck',
+        capability: 'canManageFinance',
+      },
+      {
+        title: 'Assets',
+        description: 'Track financial assets and registers',
+        href: '/operations/assets',
+        icon: 'HardDrive',
+        capability: 'canManageFinance',
+      },
+      {
+        title: 'Instalment plans',
+        description: 'Manage fee payment plan schedules',
+        href: '/enterprise/finance/instalments',
+        icon: 'CalendarClock',
+        capability: 'canManageFinance',
+      },
+    ],
+  },
+  {
+    label: 'Coordination',
+    modules: [
+      {
+        title: 'Messages',
+        description: 'Coordinate with parents and staff',
+        href: '/communications/threads',
+        icon: 'MessageSquare',
+        capability: 'isStaff',
+      },
+      {
+        title: 'Announcements',
+        description: 'Post finance and billing updates',
+        href: '/communications/announcements',
+        icon: 'Megaphone',
+        capability: 'isStaff',
+      },
+      {
+        title: 'Audit trail',
+        description: 'Review system activity and finance changes',
+        href: '/compliance/audit',
+        icon: 'ScrollText',
+        capability: 'canViewAuditLogs',
+      },
+      {
+        title: 'Assistant',
+        description: 'Use AI support for operational tasks',
+        href: '/assistant',
+        icon: 'Bot',
+        capability: 'isStaff',
+      },
+    ],
+  },
+]
+
+export const FINANCE_DASHBOARD_MODULE_GROUPS: DashboardModuleGroup[] = [
+  {
+    label: 'Finance',
+    modules: [
+      {
+        title: 'Finance overview',
+        description: 'Daily collections and receivables snapshot',
+        href: '/finance',
+        icon: 'Wallet',
+        capability: 'canManageFinance',
+      },
+      {
+        title: 'Finance analytics',
+        description: 'Revenue and collection trends',
+        href: '/finance/analytics',
+        icon: 'BarChart3',
+        capability: 'canManageFinance',
+      },
+      {
+        title: 'Payments',
+        description: 'Record and reconcile fee payments',
+        href: '/finance/payments',
+        icon: 'CreditCard',
+        capability: 'canManageFinance',
+      },
+      {
+        title: 'Invoices',
+        description: 'Bill students and track balances',
+        href: '/finance/invoices',
+        icon: 'Receipt',
+        capability: 'canManageFinance',
+      },
+      {
+        title: 'Fee structures',
+        description: 'Configure fees by class and term',
+        href: '/finance/fees',
+        icon: 'Tags',
+        capability: 'canManageFinance',
+      },
+      {
+        title: 'Aging report',
+        description: 'Outstanding balances by due age',
+        href: '/finance/reports',
+        icon: 'LineChart',
+        capability: 'canManageFinance',
+      },
+    ],
+  },
+  {
+    label: 'Accounting',
+    modules: [
+      {
+        title: 'Transactions',
+        description: 'Ledger and postings activity',
+        href: '/finance/transactions',
+        icon: 'ArrowLeftRight',
+        capability: 'canManageFinance',
+      },
+      {
+        title: 'Payroll',
+        description: 'Salary processing and pending payouts',
+        href: '/finance/payroll',
+        icon: 'Banknote',
+        capability: 'canManageFinance',
+      },
+      {
+        title: 'Procurement',
+        description: 'Purchase requests and approvals',
+        href: '/operations/procurement',
+        icon: 'ShoppingCart',
+        capability: 'canManageFinance',
+      },
+      {
+        title: 'Vendors',
+        description: 'Supplier records and contacts',
+        href: '/operations/procurement/vendors',
+        icon: 'Truck',
+        capability: 'canManageFinance',
+      },
+      {
+        title: 'Assets',
+        description: 'Financial asset register',
+        href: '/operations/assets',
+        icon: 'HardDrive',
+        capability: 'canManageFinance',
+      },
+      {
+        title: 'Enterprise finance',
+        description: 'Advanced accounting modules',
+        href: '/enterprise/finance',
+        icon: 'Landmark',
+        capability: 'canManageFinance',
+      },
+      {
+        title: 'Instalment plans',
+        description: 'Fee plan schedules and tracking',
+        href: '/enterprise/finance/instalments',
+        icon: 'CalendarClock',
+        capability: 'canManageFinance',
+      },
+    ],
+  },
+]
+
 /** All staff modules — single source for dashboard module grid and section hubs. */
 export const STAFF_DASHBOARD_MODULE_GROUPS: DashboardModuleGroup[] = [
   {
@@ -575,48 +888,63 @@ export const PLATFORM_DASHBOARD_MODULE_GROUPS: DashboardModuleGroup[] = [
         description: 'Issue and manage school licenses',
         href: '/platform/licenses',
         icon: 'Key',
+        capability: 'isSuperAdmin',
       },
       {
         title: 'System health',
         description: 'Infrastructure monitoring',
         href: '/platform/health',
         icon: 'Activity',
+        capability: 'isSuperAdmin',
       },
       {
         title: 'Operations',
         description: 'Jobs, queues, and live ops',
         href: '/platform/operations',
         icon: 'Server',
+        capability: 'isSuperAdmin',
       },
       {
         title: 'API clients',
         description: 'External integrations',
         href: '/platform/api-clients',
         icon: 'Plug',
+        capability: 'isSuperAdmin',
+      },
+      {
+        title: 'Communications',
+        description: 'Send and track platform-wide messages',
+        href: '/platform/communications',
+        icon: 'Megaphone',
+        capability: 'isSuperAdmin',
       },
       {
         title: 'Documents',
         description: 'Platform document store',
         href: '/platform/documents',
         icon: 'FileText',
+        capability: 'isSuperAdmin',
       },
       {
         title: 'Scholarships',
         description: 'Platform scholarship programs',
         href: '/platform/scholarships',
         icon: 'Award',
+        capability: 'isSuperAdmin',
       },
       {
         title: 'Refunds',
         description: 'Platform refund processing',
         href: '/platform/refunds',
         icon: 'RotateCcw',
+        capability: 'isSuperAdmin',
       },
       {
         title: 'Staff tasks',
         description: 'Cross-school task queue',
         href: '/platform/staff-tasks',
         icon: 'ListTodo',
+        capability: 'isSuperAdmin',
       },
     ],
   },
@@ -631,30 +959,35 @@ export const PARENT_DASHBOARD_MODULE_GROUPS: DashboardModuleGroup[] = [
         description: 'View your children\'s profiles',
         href: '/portal/children',
         icon: 'Users',
+        capability: 'isParent',
       },
       {
         title: 'Messages',
         description: 'Chat with school staff',
         href: '/portal/messages',
         icon: 'MessageSquare',
+        capability: 'isParent',
       },
       {
         title: 'Announcements',
         description: 'School news and updates',
         href: '/portal/announcements',
         icon: 'Megaphone',
+        capability: 'isParent',
       },
       {
         title: 'Consent forms',
         description: 'Review and respond to forms',
         href: '/portal/consent',
         icon: 'FileCheck',
+        capability: 'isParent',
       },
       {
         title: 'Notifications',
         description: 'Alerts and reminders',
         href: '/portal/notifications',
         icon: 'Bell',
+        capability: 'isParent',
       },
     ],
   },

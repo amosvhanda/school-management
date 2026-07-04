@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import {
-  CalendarDays,
   CheckCircle2,
   ClipboardCheck,
   Clock,

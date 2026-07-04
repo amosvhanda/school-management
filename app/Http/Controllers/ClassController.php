@@ -36,9 +36,9 @@ class ClassController extends Controller
         ]);
     }
 
-    public function show($id)
+    public function show(ClassModel $class)
     {
-        $class = ClassModel::with(['teacher', 'students'])->findOrFail($id);
+        $class->load(['teacher', 'students']);
 
         return response()->json([
             'data' => $class,
@@ -75,10 +75,8 @@ class ClassController extends Controller
         ], 201);
     }
 
-    public function update(Request $request, $id)
+    public function update(Request $request, ClassModel $class)
     {
-        $class = ClassModel::findOrFail($id);
-
         $validator = Validator::make($request->all(), [
             'name' => 'sometimes|string|max:255',
             'capacity' => 'nullable|integer|min:1',
@@ -101,9 +99,8 @@ class ClassController extends Controller
         ]);
     }
 
-    public function destroy($id)
+    public function destroy(ClassModel $class)
     {
-        $class = ClassModel::findOrFail($id);
         $class->delete();
 
         return response()->json([

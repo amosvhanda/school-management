@@ -4,10 +4,15 @@ import type { NavCapability } from '@/types/navigation'
 import { getDefaultRouteForRole, hasCapability, isStaffDashboardRole } from './permissions'
 
 const PARENT_PREFIX = '/portal'
+const STUDENT_PREFIX = '/student'
 const PLATFORM_PREFIX = '/platform'
 
 export function isParentPath(path: string): boolean {
   return path === PARENT_PREFIX || path.startsWith(`${PARENT_PREFIX}/`)
+}
+
+export function isStudentPath(path: string): boolean {
+  return path === STUDENT_PREFIX || path.startsWith(`${STUDENT_PREFIX}/`)
 }
 
 export function isPlatformPath(path: string): boolean {
@@ -38,8 +43,9 @@ export function canAccessRoute(
   const path = to.path
   const licensePath = path === '/license/activate'
 
-  if (user.role === 'student' && !licensePath) {
-    return false
+  if (user.role === 'student') {
+    if (licensePath) return true
+    return isStudentPath(path)
   }
 
   if (user.role === 'parent') {
@@ -48,11 +54,11 @@ export function canAccessRoute(
   }
 
   if (user.role === 'super_admin') {
-    if (isParentPath(path)) return false
+    if (isParentPath(path) || isStudentPath(path)) return false
     if (isPlatformPath(path)) return true
     if (path === '/') return false
   } else if (isStaffDashboardRole(user.role)) {
-    if (isParentPath(path) || isPlatformPath(path)) return false
+    if (isParentPath(path) || isStudentPath(path) || isPlatformPath(path)) return false
   } else {
     return false
   }

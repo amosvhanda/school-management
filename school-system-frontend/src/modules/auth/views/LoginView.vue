@@ -56,14 +56,10 @@ const { submit, isSubmitting, setValues } = useFormApiSubmit({
 async function completeLogin(email: string, password: string) {
   const result = await login(email, password)
 
-  if (result.user.role === 'student') {
-    await logout()
-    throw new Error('Student accounts cannot sign in to the web app yet.')
-  }
-
   if (
     !isStaffDashboardRole(result.user.role)
     && result.user.role !== 'parent'
+    && result.user.role !== 'student'
     && result.user.role !== 'super_admin'
   ) {
     await logout()

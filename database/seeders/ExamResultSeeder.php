@@ -13,10 +13,8 @@ class ExamResultSeeder extends Seeder
     public function run(): void
     {
         foreach (School::all() as $school) {
-            $exams = Exam::where('school_id', $school->id)
-                ->where('is_published', true)
-                ->get();
-            
+            $exams = Exam::where('school_id', $school->id)->get();
+
             $students = Student::where('school_id', $school->id)
                 ->where('status', 'active')
                 ->get();

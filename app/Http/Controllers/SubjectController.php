@@ -52,14 +52,8 @@ class SubjectController extends Controller
     /**
      * Get a specific subject
      */
-    public function show(Request $request, $id)
+    public function show(Subject $subject)
     {
-        $user = $request->user();
-        $schoolId = $user->school_id;
-
-        $subject = Subject::where('school_id', $schoolId)
-            ->findOrFail($id);
-
         return response()->json([
             'data' => $subject,
         ]);
@@ -124,13 +118,10 @@ class SubjectController extends Controller
     /**
      * Update a subject
      */
-    public function update(Request $request, $id)
+    public function update(Request $request, Subject $subject)
     {
         $user = $request->user();
         $schoolId = $user->school_id;
-
-        $subject = Subject::where('school_id', $schoolId)
-            ->findOrFail($id);
 
         $validator = Validator::make($request->all(), [
             'name' => [
@@ -139,7 +130,7 @@ class SubjectController extends Controller
                 'max:255',
                 Rule::unique('subjects')->where(function ($query) use ($schoolId) {
                     return $query->where('school_id', $schoolId);
-                })->ignore($id)
+                })->ignore($subject->id)
             ],
             'code' => [
                 'nullable',
@@ -147,7 +138,7 @@ class SubjectController extends Controller
                 'max:20',
                 Rule::unique('subjects')->where(function ($query) use ($schoolId) {
                     return $query->where('school_id', $schoolId);
-                })->ignore($id)
+                })->ignore($subject->id)
             ],
             'description' => 'nullable|string',
             'is_active' => 'nullable|boolean',
@@ -182,14 +173,8 @@ class SubjectController extends Controller
     /**
      * Delete a subject
      */
-    public function destroy(Request $request, $id)
+    public function destroy(Request $request, Subject $subject)
     {
-        $user = $request->user();
-        $schoolId = $user->school_id;
-
-        $subject = Subject::where('school_id', $schoolId)
-            ->findOrFail($id);
-
         // Check if subject is in use
         if ($subject->grades()->exists() || $subject->timetables()->exists()) {
             return response()->json([

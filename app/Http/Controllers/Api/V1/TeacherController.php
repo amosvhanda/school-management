@@ -20,6 +20,10 @@ class TeacherController extends Controller
 
         $query = Teacher::query();
 
+        if ($request->user()?->school_id) {
+            $query->where('school_id', $request->user()->school_id);
+        }
+
         if ($request->filled('search')) {
             $search = $request->search;
             $query->where(function ($q) use ($search) {

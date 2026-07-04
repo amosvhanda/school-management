@@ -119,7 +119,7 @@ function colClass(field: FormFieldSchema) {
             <FormItem>
               <!-- Labels remain hidden for background panel attachments -->
               <FormLabel
-                v-if="field.type !== 'checkbox' && field.type !== 'guardian-section'"
+                v-if="field.type !== 'checkbox'"
                 :class="cn(formLabelClass, 'flex items-center gap-1')"
               >
                 {{ field.label }}
@@ -233,7 +233,7 @@ function colClass(field: FormFieldSchema) {
 
                 <!-- Standard Text/Numeric Primitive Catch-all -->
                 <Input
-                  v-else-if="field.type !== 'checkbox' && field.type !== 'guardian-section' && field.type !== 'relation'"
+                  v-else
                   v-bind="componentField"
                   :type="field.type"
                   :placeholder="field.placeholder"

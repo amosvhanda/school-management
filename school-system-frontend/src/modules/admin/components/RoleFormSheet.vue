@@ -2,6 +2,7 @@
 import { computed, ref, watch } from 'vue'
 import { toTypedSchema } from '@vee-validate/zod'
 import { useForm } from 'vee-validate'
+import type { GenericObject, SubmissionHandler } from 'vee-validate'
 import { z } from 'zod'
 import RolePermissionsPicker from '@/modules/admin/components/RolePermissionsPicker.vue'
 import type { PermissionRecord, RoleRecord } from '@/modules/admin/types'
@@ -31,6 +32,11 @@ import { cn } from '@/lib/utils'
 
 const open = defineModel<boolean>('open', { required: true })
 
+type RoleFormValues = {
+  name: string
+  description?: string
+}
+
 const props = defineProps<{
   role: RoleRecord | null
   permissions: PermissionRecord[]
@@ -47,7 +53,7 @@ const schema = z.object({
   description: z.string().trim().optional().or(z.literal('')),
 })
 
-const form = useForm({
+const form = useForm<RoleFormValues>({
   validationSchema: toTypedSchema(schema),
   initialValues: { name: '', description: '' },
 })
@@ -85,13 +91,13 @@ function applyServerErrors(error: unknown) {
 
 defineExpose({ applyServerErrors })
 
-const onSubmit = form.handleSubmit((formValues) => {
+const onSubmit = form.handleSubmit((formValues: RoleFormValues) => {
   emit('submit', {
     name: formValues.name,
     description: formValues.description ?? '',
     permission_ids: permissionIds.value,
   })
-})
+}) as unknown as SubmissionHandler<GenericObject>
 </script>
 
 <template>

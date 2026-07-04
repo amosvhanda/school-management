@@ -1,22 +1,25 @@
 <script setup lang="ts">
-import { onMounted } from 'vue'
+import { computed, onMounted } from 'vue'
 import { Activity, DollarSign, Wallet, Banknote } from '@lucide/vue'
 import DashboardHero from '@/components/dashboard/DashboardHero.vue'
 import RoleQuickActions from '@/components/dashboard/RoleQuickActions.vue'
 import DashboardModulesGrid from '@/components/dashboard/DashboardModulesGrid.vue'
 import DashboardSkeleton from '@/components/dashboard/DashboardSkeleton.vue'
-import KpiCard from '@/components/dashboard/KpiCard.vue'
-import PayrollPanel from '@/components/dashboard/PayrollPanel.vue'
-import ActivityChart from '@/components/dashboard/ActivityChart.vue'
-import MonthlyStatsChart from '@/components/dashboard/MonthlyStatsChart.vue'
-import FinanceOverviewPanel from '@/components/dashboard/FinanceOverviewPanel.vue'
-import ActivityFeed from '@/components/dashboard/ActivityFeed.vue'
+import MetricBand from '@/components/dashboard/MetricBand.vue'
+import type { MetricCard } from '@/components/dashboard/MetricBand.vue'
 import ErrorState from '@/components/feedback/ErrorState.vue'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { useAuth } from '@/composables/useAuth'
 import { useStaffDashboard } from '@/composables/useStaffDashboard'
+import { lazy } from '@/lib/lazy'
 import { getRoleDashboardMeta } from '@/lib/role-dashboard'
-import { STAFF_DASHBOARD_MODULE_GROUPS } from '@/lib/dashboard-modules'
+import { FINANCE_DASHBOARD_MODULE_GROUPS } from '@/lib/dashboard-modules'
+
+const PayrollPanel = lazy(() => import('@/components/dashboard/PayrollPanel.vue'))
+const ActivityChart = lazy(() => import('@/components/dashboard/ActivityChart.vue'))
+const MonthlyStatsChart = lazy(() => import('@/components/dashboard/MonthlyStatsChart.vue'))
+const FinanceOverviewPanel = lazy(() => import('@/components/dashboard/FinanceOverviewPanel.vue'))
+const ActivityFeed = lazy(() => import('@/components/dashboard/ActivityFeed.vue'))
 
 const { user } = useAuth()
 const meta = getRoleDashboardMeta(user.value?.role)
@@ -26,6 +29,43 @@ const {
   activity, monthly, recent, financeSummary, load,
 } = useStaffDashboard()
 
+const overviewCards = computed<MetricCard[]>(() => [
+  {
+    title: 'Outstanding fees',
+    value: `$${formatMoney(kpis.value?.outstandingFees ?? 0)}`,
+    subtitle: 'Unpaid student balances',
+    icon: DollarSign,
+    accent: 'danger' as const,
+    trend: kpis.value?.paymentsGrowth ?? 0,
+    href: '/finance/invoices',
+  },
+  {
+    title: 'Revenue today',
+    value: `$${formatMoney(kpis.value?.paymentsToday ?? 0)}`,
+    subtitle: `$${formatMoney(kpis.value?.totalRevenue ?? 0)} lifetime`,
+    icon: Activity,
+    accent: 'success' as const,
+    trend: kpis.value?.revenueChange ?? 0,
+    href: '/finance/payments',
+  },
+  {
+    title: 'Monthly transactions',
+    value: String(kpis.value?.totalActivity ?? 0),
+    subtitle: 'Ledger entries this month',
+    icon: Wallet,
+    trend: kpis.value?.activityChange ?? 0,
+    href: '/finance/transactions',
+  },
+  {
+    title: 'Payroll pending',
+    value: `$${formatMoney((kpis.value?.payrollSummary.total_pending ?? 0) + (kpis.value?.payrollSummary.total_partial ?? 0))}`,
+    subtitle: 'Outstanding staff payroll',
+    icon: Banknote,
+    accent: 'warning' as const,
+    href: '/finance/payroll',
+  },
+])
+
 function formatMoney(value: number) {
   return value.toLocaleString(undefined, { maximumFractionDigits: 0 })
 }
@@ -34,7 +74,7 @@ onMounted(() => load({ analytics: true, activityFeed: true, financeSummary: true
 </script>
 
 <template>
-  <div class="mx-auto max-w-[1400px] space-y-8 pb-8">
+  <div class="mx-auto max-w-screen-2xl space-y-8 pb-8">
     <DashboardHero
       :name="user?.name"
       :role="meta.label"
@@ -49,13 +89,7 @@ onMounted(() => load({ analytics: true, activityFeed: true, financeSummary: true
     <template v-else-if="kpis">
       <Alert v-if="error" variant="destructive"><AlertDescription>{{ error }}</AlertDescription></Alert>
 
-      <section aria-labelledby="finance-kpis" class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <h2 id="finance-kpis" class="sr-only">Finance KPIs</h2>
-        <KpiCard title="Outstanding fees" :value="`$${formatMoney(kpis.outstandingFees)}`" subtitle="Unpaid student balances" :icon="DollarSign" accent="danger" :trend="kpis.paymentsGrowth" href="/finance/invoices" />
-        <KpiCard title="Revenue today" :value="`$${formatMoney(kpis.paymentsToday)}`" :subtitle="`$${formatMoney(kpis.totalRevenue)} lifetime`" :icon="Activity" accent="success" :trend="kpis.revenueChange" href="/finance/payments" />
-        <KpiCard title="Monthly transactions" :value="String(kpis.totalActivity)" subtitle="Ledger entries this month" :icon="Wallet" :trend="kpis.activityChange" href="/finance/transactions" />
-        <KpiCard title="Payroll pending" :value="`$${formatMoney(kpis.payrollSummary.total_pending + kpis.payrollSummary.total_partial)}`" subtitle="Outstanding staff payroll" :icon="Banknote" accent="warning" href="/finance/payroll" />
-      </section>
+      <MetricBand title="Finance KPIs" description="Live financial snapshot for the current school year" :cards="overviewCards" />
 
       <RoleQuickActions variant="finance" />
 
@@ -70,12 +104,12 @@ onMounted(() => load({ analytics: true, activityFeed: true, financeSummary: true
         </div>
         <div class="xl:col-span-4 space-y-6">
           <PayrollPanel :summary="kpis.payrollSummary" />
-          <ActivityFeed :items="recent" class="min-h-[280px]" />
+          <ActivityFeed :items="recent" class="min-h-72" />
         </div>
       </section>
 
       <DashboardModulesGrid
-        :groups="STAFF_DASHBOARD_MODULE_GROUPS"
+        :groups="FINANCE_DASHBOARD_MODULE_GROUPS"
         title="Your modules"
         description="Finance, operations, and admin areas available to you"
       />

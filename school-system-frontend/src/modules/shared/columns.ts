@@ -11,12 +11,17 @@ import {
   isDateTimeFieldKey,
   isTimeFieldKey,
 } from '@/lib/format'
+import { relationLabelFromRow } from '@/lib/relation-display'
 
 export function textColumn(header: string, key: string): ColumnDef<Record<string, unknown>> {
   return {
     accessorKey: key,
     header,
-    cell: ({ row }) => String(row.getValue(key) ?? '—'),
+    cell: ({ row }) => {
+      const relationLabel = relationLabelFromRow(row.original, key)
+      if (relationLabel) return relationLabel
+      return String(row.getValue(key) ?? '—')
+    },
   }
 }
 
@@ -197,7 +202,30 @@ export const guardianColumns: ColumnDef<Record<string, unknown>>[] = [
   textColumn('Last name', 'last_name'),
   textColumn('Phone', 'phone'),
   textColumn('Email', 'email'),
-  textColumn('Relationship', 'relationship'),
+  {
+    id: 'relationship',
+    header: 'Relationship',
+    cell: ({ row }) => {
+      const direct = row.original.relationship
+      if (direct != null && String(direct).trim() !== '') return String(direct)
+
+      const students = row.original.students
+      if (!Array.isArray(students) || !students.length) return '—'
+
+      const relationships = students
+        .map((student) => {
+          if (!student || typeof student !== 'object') return ''
+          const pivot = (student as Record<string, unknown>).pivot
+          if (!pivot || typeof pivot !== 'object') return ''
+          return String((pivot as Record<string, unknown>).relationship ?? '').trim()
+        })
+        .filter(Boolean)
+
+      if (!relationships.length) return '—'
+
+      return Array.from(new Set(relationships)).join(', ')
+    },
+  },
   {
     id: 'linked_students',
     header: 'Linked students',

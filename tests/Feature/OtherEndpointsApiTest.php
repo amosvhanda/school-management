@@ -60,6 +60,48 @@ class OtherEndpointsApiTest extends TestCase
         $response->assertStatus(201);
     }
 
+    public function test_get_payroll_payslip(): void
+    {
+        $auth = $this->createAuthenticatedUser();
+        $teacher = \App\Models\Teacher::factory()->create(['school_id' => $auth['school']->id]);
+        $payroll = \App\Models\Payroll::create([
+            'school_id' => $auth['school']->id,
+            'teacher_id' => $teacher->id,
+            'month' => now()->month,
+            'year' => now()->year,
+            'base_salary' => 1200.00,
+            'allowances' => ['housing' => 200.00],
+            'allowances_total' => 200.00,
+            'gross_salary' => 1400.00,
+            'deductions' => ['tax' => 100.00],
+            'deductions_total' => 100.00,
+            'net_salary' => 1300.00,
+            'amount_paid' => 0,
+            'currency' => 'USD',
+            'status' => 'pending',
+        ]);
+
+        $response = $this->withHeaders([
+            'Authorization' => 'Bearer ' . $auth['token'],
+        ])->getJson("/api/v1/payroll/{$payroll->id}/payslip");
+
+        $response->assertStatus(200)
+            ->assertJsonStructure([
+                'data' => [
+                    'id',
+                    'payslip_number',
+                    'generated_at',
+                    'school' => ['id', 'name', 'code'],
+                    'employee' => ['id', 'name', 'employee_id'],
+                    'period' => ['month', 'year', 'month_name'],
+                    'earnings' => ['base_salary', 'allowances', 'gross_salary'],
+                    'deductions' => ['breakdown', 'total'],
+                    'summary' => ['net_salary', 'amount_paid', 'balance'],
+                    'payment' => ['status', 'payment_method'],
+                ],
+            ]);
+    }
+
     public function test_get_parent_children(): void
     {
         $auth = $this->createAuthenticatedUser();
@@ -216,6 +258,34 @@ class OtherEndpointsApiTest extends TestCase
         ])->getJson('/api/v1/finance/summary');
 
         $response->assertStatus(200);
+    }
+
+    public function test_get_financial_report_is_scoped_to_school(): void
+    {
+        $auth = $this->createAuthenticatedUser();
+        $otherSchool = \App\Models\School::factory()->create();
+
+        \App\Models\Invoice::factory()->create([
+            'school_id' => $otherSchool->id,
+            'status' => 'pending',
+            'balance' => 1000,
+            'currency' => $auth['school']->currency_default,
+        ]);
+
+        \App\Models\Payment::factory()->create([
+            'school_id' => $auth['school']->id,
+            'status' => 'completed',
+            'amount' => 200,
+            'currency' => $auth['school']->currency_default,
+        ]);
+
+        $response = $this->withHeaders([
+            'Authorization' => 'Bearer ' . $auth['token'],
+        ])->getJson('/api/v1/reports/financial?currency=' . $auth['school']->currency_default);
+
+        $response->assertStatus(200)
+            ->assertJsonPath('data.total_invoices', 0)
+            ->assertJsonPath('data.collected', 200);
     }
 
     public function test_get_dashboard_kpis(): void

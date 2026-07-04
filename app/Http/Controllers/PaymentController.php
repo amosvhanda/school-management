@@ -2,12 +2,14 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Resources\Api\V1\PaymentResource;
 use App\Models\Payment;
 use App\Models\School;
 use App\Services\AuditService;
 use App\Services\FinancialLedgerService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\Rule;
 use InvalidArgumentException;
 
 class PaymentController extends Controller
@@ -25,24 +27,19 @@ class PaymentController extends Controller
     {
         $schoolId = $request->user()->school_id;
 
-        $query = Payment::with(['student:id,full_name,student_number', 'invoice:id,invoice_number,balance'])
-            ->when($schoolId, fn ($q) => $q->where('school_id', $schoolId));
+        // Optimized Eager Loading
+        $query = Payment::with([
+            'student:id,full_name,student_number',
+            'invoice:id,invoice_number,balance'
+        ])->when($schoolId, fn ($q) => $q->where('school_id', $schoolId));
 
-        if ($request->filled('student_id')) {
-            $query->where('student_id', $request->student_id);
+        // Mass assignment filter safety
+        foreach (['student_id', 'invoice_id', 'method', 'status', 'currency'] as $filter) {
+            if ($request->filled($filter)) {
+                $query->where($filter, $request->input($filter));
+            }
         }
-        if ($request->filled('invoice_id')) {
-            $query->where('invoice_id', $request->invoice_id);
-        }
-        if ($request->filled('method')) {
-            $query->where('method', $request->method);
-        }
-        if ($request->filled('status')) {
-            $query->where('status', $request->status);
-        }
-        if ($request->filled('currency')) {
-            $query->where('currency', $request->currency);
-        }
+
         if ($request->filled('from')) {
             $query->whereDate('date', '>=', $request->from);
         }
@@ -53,14 +50,15 @@ class PaymentController extends Controller
         if ($request->filled('search')) {
             $search = $request->search;
             $query->where(function ($q) use ($search) {
+                // Note: optimized indexes should be present for these fields
                 $q->whereHas('student', function ($sq) use ($search) {
                     $sq->where('full_name', 'like', "%{$search}%")
                         ->orWhere('student_number', 'like', "%{$search}%");
                 })
-                    ->orWhere('reference', 'like', "%{$search}%")
-                    ->orWhereHas('invoice', function ($iq) use ($search) {
-                        $iq->where('invoice_number', 'like', "%{$search}%");
-                    });
+                ->orWhere('reference', 'like', "%{$search}%")
+                ->orWhereHas('invoice', function ($iq) use ($search) {
+                    $iq->where('invoice_number', 'like', "%{$search}%");
+                });
             });
         }
 
@@ -73,33 +71,42 @@ class PaymentController extends Controller
         $order = strtolower($request->get('order', 'desc')) === 'asc' ? 'asc' : 'desc';
         $query->orderBy($sort, $order);
 
+        // Guard against massive unpaginated queries
         if ($request->boolean('all')) {
-            return response()->json(['data' => $query->limit(500)->get()]);
+            return PaymentResource::collection($query->limit(500)->get())
+                ->additional(['message' => 'Success']);
         }
 
         if ($request->filled('limit') && ! $request->filled('page')) {
-            return response()->json(['data' => $query->limit((int) $request->limit)->get()]);
+            $limit = min((int) $request->limit, 100); // Caps unpaginated custom limits
+            return PaymentResource::collection($query->limit($limit)->get())
+                ->additional(['message' => 'Success']);
         }
 
         $perPage = min($request->integer('per_page', 25), 100);
 
-        return response()->json([
-            'message' => 'Success',
-            'data' => $query->paginate($perPage),
-        ]);
+        return PaymentResource::collection($query->paginate($perPage))
+            ->additional(['message' => 'Success']);
     }
 
     public function store(Request $request)
     {
         $schoolId = $request->user()->school_id;
-        $school = School::findOrFail($schoolId);
-        $schoolCurrency = $school->getDefaultCurrency();
+
+        // Use relationship if available to save a query, or fallback safely
+        $schoolCurrency = $request->user()->school?->getDefaultCurrency()
+            ?? School::findOrFail($schoolId)->getDefaultCurrency();
+
+        $invoiceRule = Rule::exists('invoices', 'id');
+        if ($schoolId) {
+            $invoiceRule = $invoiceRule->where('school_id', $schoolId);
+        }
 
         $validator = Validator::make($request->all(), [
-            'invoice_id' => 'required|exists:invoices,id',
+            'invoice_id' => ['required', $invoiceRule],
             'amount' => 'required|numeric|min:0.01',
-            'currency' => 'nullable|string|in:USD,ZWG',
-            'method' => 'required|string|max:50',
+            'currency' => ['nullable', 'string', Rule::in(['USD', 'ZWG'])],
+            'method' => ['required', 'string', 'max:50', Rule::in(self::PAYMENT_METHODS)],
             'reference' => 'nullable|string|max:100',
             'notes' => 'nullable|string|max:500',
         ]);
@@ -123,7 +130,7 @@ class PaymentController extends Controller
             $payment = $this->ledgerService->recordPayment(
                 invoiceId: (int) $request->invoice_id,
                 amount: (float) $request->amount,
-                method: strtolower(trim($request->method)),
+                method: strtolower(trim($request->filled('method'))),
                 schoolId: $schoolId,
                 createdBy: $request->user()->id,
                 reference: $request->reference,
@@ -133,34 +140,42 @@ class PaymentController extends Controller
             return response()->json(['message' => $e->getMessage()], 422);
         }
 
-        return response()->json([
-            'data' => $payment,
-            'message' => 'Payment recorded successfully',
-        ], 201);
+        return (new PaymentResource($payment))
+            ->additional(['message' => 'Payment recorded successfully'])
+            ->response()
+            ->setStatusCode(201);
     }
 
-    public function receipt($id)
+    public function receipt(Request $request, Payment $payment)
     {
-        $payment = Payment::with([
+        // Tenant Scoping Guard
+        if ($request->user()->school_id && $payment->school_id !== $request->user()->school_id) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        $payment->load([
             'student:id,full_name,student_number,class',
             'invoice:id,invoice_number,amount,balance,description,due_date',
             'school:id,name,code,address,phone,email',
             'createdBy:id,name,first_name,last_name',
-        ])->findOrFail($id);
+        ]);
 
         return response()->json([
             'data' => [
                 'receipt_number' => 'RCT-'.str_pad((string) $payment->id, 6, '0', STR_PAD_LEFT),
                 'issued_at' => now()->toIso8601String(),
-                'payment' => $payment,
+                'payment' => new PaymentResource($payment),
                 'school' => $payment->school,
             ],
         ]);
     }
 
-    public function reverse(Request $request, $id)
+    public function reverse(Request $request, Payment $payment)
     {
-        $payment = Payment::findOrFail($id);
+        // Tenant Scoping Guard
+        if ($request->user()->school_id && $payment->school_id !== $request->user()->school_id) {
+            abort(403, 'Unauthorized action.');
+        }
 
         $validator = Validator::make($request->all(), [
             'reason' => 'nullable|string|max:500',
@@ -195,15 +210,17 @@ class PaymentController extends Controller
             ],
         );
 
-        return response()->json([
-            'data' => $payment,
-            'message' => 'Payment reversed successfully',
-        ]);
+        return (new PaymentResource($payment))
+            ->additional(['message' => 'Payment reversed successfully'])
+            ->response();
     }
 
-    public function destroy($id)
+    public function destroy(Request $request, Payment $payment)
     {
-        $payment = Payment::findOrFail($id);
+        // Tenant Scoping Guard
+        if ($request->user()->school_id && $payment->school_id !== $request->user()->school_id) {
+            abort(403, 'Unauthorized action.');
+        }
 
         if ($payment->status === 'completed') {
             return response()->json([

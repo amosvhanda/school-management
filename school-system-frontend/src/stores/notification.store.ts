@@ -31,6 +31,11 @@ export const useNotificationStore = defineStore('notification', () => {
     recentActivity.value = items
   }
 
+  function reset() {
+    workflowCount.value = 0
+    recentActivity.value = []
+  }
+
   const unreadCount = () => workflowCount.value + (recentActivity.value.length > 0 ? 1 : 0)
 
   return {
@@ -39,6 +44,7 @@ export const useNotificationStore = defineStore('notification', () => {
     notify,
     setWorkflowCount,
     setRecentActivity,
+    reset,
     unreadCount,
   }
 })

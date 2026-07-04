@@ -145,20 +145,20 @@ Route::middleware(['auth:sanctum', 'school.isolated', 'school.licensed'])->group
 
     // Academic
     Route::get('/classes', [App\Http\Controllers\ClassController::class, 'index']);
-    Route::get('/classes/{id}', [App\Http\Controllers\ClassController::class, 'show']);
+    Route::get('/classes/{class}', [App\Http\Controllers\ClassController::class, 'show']);
     Route::post('/classes', [App\Http\Controllers\ClassController::class, 'store']);
-    Route::put('/classes/{id}', [App\Http\Controllers\ClassController::class, 'update']);
-    Route::delete('/classes/{id}', [App\Http\Controllers\ClassController::class, 'destroy']);
+    Route::put('/classes/{class}', [App\Http\Controllers\ClassController::class, 'update']);
+    Route::delete('/classes/{class}', [App\Http\Controllers\ClassController::class, 'destroy']);
     Route::get('/subjects', [App\Http\Controllers\SubjectController::class, 'index']);
-    Route::get('/subjects/{id}', [App\Http\Controllers\SubjectController::class, 'show']);
+    Route::get('/subjects/{subject}', [App\Http\Controllers\SubjectController::class, 'show']);
     Route::post('/subjects', [App\Http\Controllers\SubjectController::class, 'store']);
-    Route::put('/subjects/{id}', [App\Http\Controllers\SubjectController::class, 'update']);
-    Route::delete('/subjects/{id}', [App\Http\Controllers\SubjectController::class, 'destroy']);
+    Route::put('/subjects/{subject}', [App\Http\Controllers\SubjectController::class, 'update']);
+    Route::delete('/subjects/{subject}', [App\Http\Controllers\SubjectController::class, 'destroy']);
     Route::get('/departments', [App\Http\Controllers\DepartmentController::class, 'index']);
-    Route::get('/departments/{id}', [App\Http\Controllers\DepartmentController::class, 'show']);
+    Route::get('/departments/{department}', [App\Http\Controllers\DepartmentController::class, 'show']);
     Route::post('/departments', [App\Http\Controllers\DepartmentController::class, 'store']);
-    Route::put('/departments/{id}', [App\Http\Controllers\DepartmentController::class, 'update']);
-    Route::delete('/departments/{id}', [App\Http\Controllers\DepartmentController::class, 'destroy']);
+    Route::put('/departments/{department}', [App\Http\Controllers\DepartmentController::class, 'update']);
+    Route::delete('/departments/{department}', [App\Http\Controllers\DepartmentController::class, 'destroy']);
     Route::get('/grade-levels', [App\Http\Controllers\GradeLevelController::class, 'index']);
     Route::get('/grade-levels/{id}', [App\Http\Controllers\GradeLevelController::class, 'show']);
     Route::post('/grade-levels', [App\Http\Controllers\GradeLevelController::class, 'store']);
@@ -199,11 +199,11 @@ Route::middleware(['auth:sanctum', 'school.isolated', 'school.licensed'])->group
     Route::post('/exams/{id}/publish', [App\Http\Controllers\ExamController::class, 'publish']);
     Route::post('/exams/{id}/results', [App\Http\Controllers\ExamController::class, 'recordResults']);
     Route::get('/tests', [App\Http\Controllers\TestController::class, 'index']);
-    Route::get('/tests/{id}', [App\Http\Controllers\TestController::class, 'show']);
+    Route::get('/tests/{test}', [App\Http\Controllers\TestController::class, 'show']);
     Route::post('/tests', [App\Http\Controllers\TestController::class, 'store']);
-    Route::put('/tests/{id}', [App\Http\Controllers\TestController::class, 'update']);
-    Route::delete('/tests/{id}', [App\Http\Controllers\TestController::class, 'destroy']);
-    Route::post('/tests/{id}/results', [App\Http\Controllers\TestController::class, 'recordResults']);
+    Route::put('/tests/{test}', [App\Http\Controllers\TestController::class, 'update']);
+    Route::delete('/tests/{test}', [App\Http\Controllers\TestController::class, 'destroy']);
+    Route::post('/tests/{test}/results', [App\Http\Controllers\TestController::class, 'recordResults']);
     Route::get('/attendance', [App\Http\Controllers\AttendanceController::class, 'index']);
     Route::post('/attendance', [App\Http\Controllers\AttendanceController::class, 'store']);
     Route::get('/attendance/today/summary', [App\Http\Controllers\AttendanceController::class, 'todaySummary']);
@@ -223,15 +223,15 @@ Route::middleware(['auth:sanctum', 'school.isolated', 'school.licensed'])->group
     // Finance
     Route::get('/payments', [App\Http\Controllers\PaymentController::class, 'index']);
     Route::post('/payments', [App\Http\Controllers\PaymentController::class, 'store']);
-    Route::get('/payments/{id}/receipt', [App\Http\Controllers\PaymentController::class, 'receipt']);
-    Route::post('/payments/{id}/reverse', [App\Http\Controllers\PaymentController::class, 'reverse']);
-    Route::delete('/payments/{id}', [App\Http\Controllers\PaymentController::class, 'destroy']);
+    Route::get('/payments/{payment}/receipt', [App\Http\Controllers\PaymentController::class, 'receipt']);
+    Route::post('/payments/{payment}/reverse', [App\Http\Controllers\PaymentController::class, 'reverse']);
+    Route::delete('/payments/{payment}', [App\Http\Controllers\PaymentController::class, 'destroy']);
     Route::get('/transactions', [App\Http\Controllers\TransactionController::class, 'index']);
     Route::get('/transactions/summary', [App\Http\Controllers\TransactionController::class, 'summary']);
     Route::get('/invoices', [App\Http\Controllers\InvoiceController::class, 'index']);
     Route::post('/invoices', [App\Http\Controllers\InvoiceController::class, 'store']);
-    Route::get('/invoices/{id}', [App\Http\Controllers\InvoiceController::class, 'show']);
-    Route::put('/invoices/{id}', [App\Http\Controllers\InvoiceController::class, 'update']);
+    Route::get('/invoices/{invoice}', [App\Http\Controllers\InvoiceController::class, 'show']);
+    Route::put('/invoices/{invoice}', [App\Http\Controllers\InvoiceController::class, 'update']);
     Route::get('/fee-structures', [App\Http\Controllers\FeeStructureController::class, 'index']);
     Route::post('/fee-structures', [App\Http\Controllers\FeeStructureController::class, 'store']);
     Route::put('/fee-structures/{id}', [App\Http\Controllers\FeeStructureController::class, 'update']);
@@ -410,7 +410,7 @@ Route::middleware(['auth:sanctum', 'school.isolated', 'school.licensed'])->group
         Route::post('/fee-penalty-rules', [App\Http\Controllers\Platform\PlatformFinanceController::class, 'storePenaltyRule']);
         Route::get('/refunds', [App\Http\Controllers\Platform\PlatformFinanceController::class, 'refunds']);
         Route::post('/refunds', [App\Http\Controllers\Platform\PlatformFinanceController::class, 'requestRefund']);
-        Route::post('/refunds/{id}/approve', [App\Http\Controllers\Platform\PlatformFinanceController::class, 'approveRefund']);
+        Route::post('/refunds/{refund}/approve', [App\Http\Controllers\Platform\PlatformFinanceController::class, 'approveRefund']);
 
         Route::get('/behavior-points', [App\Http\Controllers\Platform\PlatformStaffController::class, 'behaviorPoints']);
         Route::post('/behavior-points', [App\Http\Controllers\Platform\PlatformStaffController::class, 'storeBehaviorPoint']);
@@ -462,7 +462,7 @@ Route::middleware(['auth:sanctum', 'school.isolated', 'school.licensed'])->group
         Route::post('/finance/instalment-plans', [App\Http\Controllers\Enterprise\EnterpriseFinanceController::class, 'createInstalmentPlan']);
         Route::get('/finance/bank-statements', [App\Http\Controllers\Enterprise\EnterpriseFinanceController::class, 'bankStatements']);
         Route::post('/finance/bank-statements', [App\Http\Controllers\Enterprise\EnterpriseFinanceController::class, 'importBankLine']);
-        Route::post('/finance/bank-statements/{lineId}/reconcile', [App\Http\Controllers\Enterprise\EnterpriseFinanceController::class, 'reconcile']);
+        Route::post('/finance/bank-statements/{line}/reconcile', [App\Http\Controllers\Enterprise\EnterpriseFinanceController::class, 'reconcile']);
         Route::get('/finance/reports/profit-loss', [App\Http\Controllers\Enterprise\EnterpriseFinanceController::class, 'profitAndLoss']);
         Route::get('/finance/reports/balance-sheet', [App\Http\Controllers\Enterprise\EnterpriseFinanceController::class, 'balanceSheet']);
         Route::get('/finance/cashflow-forecast', [App\Http\Controllers\Enterprise\EnterpriseFinanceController::class, 'cashflowForecast']);

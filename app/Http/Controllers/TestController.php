@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Resources\Api\V1\TestResource;
 use App\Models\Test;
 use App\Models\TestResult;
 use App\Models\Term;
@@ -49,22 +50,18 @@ class TestController extends Controller
         $tests = $query->orderBy('test_date', 'desc')
             ->get();
 
-        return response()->json([
-            'data' => $tests,
-        ]);
+        return TestResource::collection($tests)
+            ->additional(['message' => 'Success']);
     }
 
     /**
      * Get a specific test
      */
-    public function show(Request $request, $id)
+    public function show(Request $request, Test $test)
     {
-        $user = $request->user();
-        $schoolId = $user->school_id;
+        $schoolId = $request->user()->school_id;
 
-        $test = Test::where('school_id', $schoolId)
-            ->with(['classModel', 'subject', 'teacher', 'term', 'testResults.student'])
-            ->findOrFail($id);
+        $test->load(['classModel', 'subject', 'teacher', 'term', 'testResults.student']);
 
         // Get all students in the class
         $students = Student::where('school_id', $schoolId)
@@ -74,9 +71,8 @@ class TestController extends Controller
 
         $test->students = $students;
 
-        return response()->json([
-            'data' => $test,
-        ]);
+        return (new TestResource($test))
+            ->additional(['message' => 'Success']);
     }
 
     /**
@@ -157,22 +153,19 @@ class TestController extends Controller
             'is_published' => $request->boolean('is_published', false),
         ]);
 
-        return response()->json([
-            'message' => 'Test created successfully',
-            'data' => $test->load(['classModel', 'subject', 'teacher', 'term']),
-        ], 201);
+        return (new TestResource($test->load(['classModel', 'subject', 'teacher', 'term'])))
+            ->additional(['message' => 'Test created successfully'])
+            ->response()
+            ->setStatusCode(201);
     }
 
     /**
      * Update a test
      */
-    public function update(Request $request, $id)
+    public function update(Request $request, Test $test)
     {
         $user = $request->user();
         $schoolId = $user->school_id;
-
-        $test = Test::where('school_id', $schoolId)
-            ->findOrFail($id);
 
         $validator = Validator::make($request->all(), [
             'class_id' => 'sometimes|exists:classes,id',
@@ -234,23 +227,15 @@ class TestController extends Controller
             'is_published',
         ]));
 
-        return response()->json([
-            'message' => 'Test updated successfully',
-            'data' => $test->fresh()->load(['classModel', 'subject', 'teacher', 'term']),
-        ]);
+        return (new TestResource($test->fresh()->load(['classModel', 'subject', 'teacher', 'term'])))
+            ->additional(['message' => 'Test updated successfully']);
     }
 
     /**
      * Delete a test
      */
-    public function destroy(Request $request, $id)
+    public function destroy(Request $request, Test $test)
     {
-        $user = $request->user();
-        $schoolId = $user->school_id;
-
-        $test = Test::where('school_id', $schoolId)
-            ->findOrFail($id);
-
         // Delete test results
         $test->testResults()->delete();
 
@@ -264,13 +249,10 @@ class TestController extends Controller
     /**
      * Record test results for students
      */
-    public function recordResults(Request $request, $id)
+    public function recordResults(Request $request, Test $test)
     {
         $user = $request->user();
         $schoolId = $user->school_id;
-
-        $test = Test::where('school_id', $schoolId)
-            ->findOrFail($id);
 
         $validator = Validator::make($request->all(), [
             'results' => 'required|array',
@@ -309,9 +291,7 @@ class TestController extends Controller
             }
         });
 
-        return response()->json([
-            'message' => 'Test results recorded successfully',
-            'data' => $test->fresh()->load('testResults.student'),
-        ]);
+        return (new TestResource($test->fresh()->load('testResults.student')))
+            ->additional(['message' => 'Test results recorded successfully']);
     }
 }

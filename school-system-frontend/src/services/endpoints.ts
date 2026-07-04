@@ -374,5 +374,10 @@ export const endpoints = {
     systemHealth: '/platform/system/health',
     auditIntegrity: '/platform/audit-integrity/verify',
     apiClients: '/platform/api-clients',
+    communications: {
+      send: '/platform/communications/send',
+      tracking: '/platform/communications/tracking',
+      markRead: (id: number | string) => `/platform/communications/deliveries/${id}/read`,
+    },
   },
 } as const

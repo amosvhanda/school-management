@@ -9,6 +9,7 @@ import {
   logout as logoutApi,
 } from '@/services/auth.service'
 import { useConfigStore } from '@/stores/config.store'
+import { useNotificationStore } from '@/stores/notification.store'
 import type { AuthUser } from '@/types/auth'
 
 /**
@@ -148,6 +149,7 @@ export const useAuthStore = defineStore('auth', () => {
 
       token.value = payload.token
       user.value = payload.user
+      useNotificationStore().reset()
 
       setStoredToken(payload.token)
 
@@ -184,6 +186,7 @@ export const useAuthStore = defineStore('auth', () => {
       bootstrapPromise = null
       queryClient.clear()
       useConfigStore().reset()
+      useNotificationStore().reset()
     }
   }
 

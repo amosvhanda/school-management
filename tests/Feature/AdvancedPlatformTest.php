@@ -85,9 +85,6 @@ class AdvancedPlatformTest extends TestCase
 
     public function test_document_signing_and_certificate_verification(): void
     {
-        // Bypass authorization gates specifically to allow document creation in testing
-        $this->withoutMiddleware();
-
         $auth = $this->createAuthenticatedUser();
         $auth['user']->update(['role' => 'admin']);
 
@@ -120,9 +117,6 @@ class AdvancedPlatformTest extends TestCase
 
     public function test_exam_vault_and_mark_lock(): void
     {
-        // Bypass authorization gates specifically to allow vault creation in testing
-        $this->withoutMiddleware();
-
         $auth = $this->createAuthenticatedUser();
         $auth['user']->update(['role' => 'admin']);
 

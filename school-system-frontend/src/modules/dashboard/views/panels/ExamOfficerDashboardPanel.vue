@@ -1,22 +1,25 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import { BookOpen, CheckCircle2, FileText, Upload } from '@lucide/vue'
 import DashboardHero from '@/components/dashboard/DashboardHero.vue'
 import RoleQuickActions from '@/components/dashboard/RoleQuickActions.vue'
 import DashboardModulesGrid from '@/components/dashboard/DashboardModulesGrid.vue'
 import DashboardSkeleton from '@/components/dashboard/DashboardSkeleton.vue'
-import KpiCard from '@/components/dashboard/KpiCard.vue'
-import ActivityFeed from '@/components/dashboard/ActivityFeed.vue'
+import MetricBand from '@/components/dashboard/MetricBand.vue'
+import type { MetricCard } from '@/components/dashboard/MetricBand.vue'
 import ErrorState from '@/components/feedback/ErrorState.vue'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { useAuth } from '@/composables/useAuth'
 import { useStaffDashboard } from '@/composables/useStaffDashboard'
+import { lazy } from '@/lib/lazy'
 import { getRoleDashboardMeta } from '@/lib/role-dashboard'
 import { STAFF_DASHBOARD_MODULE_GROUPS } from '@/lib/dashboard-modules'
 import { academicsApi } from '@/services/api.service'
+
+const ActivityFeed = lazy(() => import('@/components/dashboard/ActivityFeed.vue'))
 
 interface ExamRow {
   id: number
@@ -33,6 +36,13 @@ const {
 } = useStaffDashboard()
 
 const examStats = ref({ total: 0, published: 0, pending: 0, upcoming: 0 })
+
+const overviewCards = computed<MetricCard[]>(() => [
+  { title: 'Total exams', value: String(examStats.value.total), subtitle: 'Scheduled in system', icon: FileText, href: '/academics/exams' },
+  { title: 'Upcoming', value: String(examStats.value.upcoming), subtitle: 'On or after today', icon: BookOpen, accent: 'warning' as const, href: '/academics/exams' },
+  { title: 'Pending approval', value: String(examStats.value.pending), subtitle: 'Results awaiting sign-off', icon: CheckCircle2, href: '/academics/exams' },
+  { title: 'Published', value: String(examStats.value.published), subtitle: 'Visible to parents', icon: Upload, accent: 'success' as const, href: '/academics/exams' },
+])
 
 async function loadExamStats() {
   try {
@@ -60,7 +70,7 @@ onMounted(refreshAll)
 </script>
 
 <template>
-  <div class="mx-auto max-w-[1400px] space-y-8 pb-8">
+  <div class="mx-auto max-w-350 space-y-8 pb-8">
     <DashboardHero
       :name="user?.name"
       :role="meta.label"
@@ -75,13 +85,7 @@ onMounted(refreshAll)
     <template v-else-if="kpis">
       <Alert v-if="error" variant="destructive"><AlertDescription>{{ error }}</AlertDescription></Alert>
 
-      <section aria-labelledby="exam-kpis" class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <h2 id="exam-kpis" class="sr-only">Examination KPIs</h2>
-        <KpiCard title="Total exams" :value="String(examStats.total)" subtitle="Scheduled in system" :icon="FileText" href="/academics/exams" />
-        <KpiCard title="Upcoming" :value="String(examStats.upcoming)" subtitle="On or after today" :icon="BookOpen" accent="warning" href="/academics/exams" />
-        <KpiCard title="Pending approval" :value="String(examStats.pending)" subtitle="Results awaiting sign-off" :icon="CheckCircle2" href="/academics/exams" />
-        <KpiCard title="Published" :value="String(examStats.published)" subtitle="Visible to parents" :icon="Upload" accent="success" href="/academics/exams" />
-      </section>
+      <MetricBand title="Examination KPIs" description="State of exams and result publishing" :cards="overviewCards" />
 
       <RoleQuickActions variant="examination_officer" />
 
@@ -113,7 +117,7 @@ onMounted(refreshAll)
         </Card>
 
         <div class="lg:col-span-1">
-          <ActivityFeed :items="recent" class="min-h-[240px]" />
+          <ActivityFeed :items="recent" class="min-h-60" />
         </div>
       </div>
 

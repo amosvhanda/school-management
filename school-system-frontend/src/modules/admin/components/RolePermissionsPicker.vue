@@ -60,6 +60,22 @@ function handleGroupUpdate(ids: number[], checked: boolean) {
   model.value = [...next].sort((a, b) => a - b)
 }
 
+function updateGroupSelection(ids: number[], value: boolean | 'indeterminate') {
+  handleGroupUpdate(ids, value === true)
+}
+
+function updatePermissionSelection(id: number, value: boolean | 'indeterminate') {
+  handlePermissionUpdate(id, value === true)
+}
+
+function createGroupSelectionHandler(ids: number[]) {
+  return (value: boolean | 'indeterminate') => updateGroupSelection(ids, value)
+}
+
+function createPermissionSelectionHandler(id: number) {
+  return (value: boolean | 'indeterminate') => updatePermissionSelection(id, value)
+}
+
 function selectAll() {
   model.value = props.permissions.map((p) => p.id).sort((a, b) => a - b)
 }
@@ -140,7 +156,7 @@ watch(
             :id="`group-${resource}`"
             :checked="isGroupFullySelected(items.map((p) => p.id)) ? true : isGroupPartiallySelected(items.map((p) => p.id)) ? 'indeterminate' : false"
             :disabled="disabled"
-            @update:checked="(v) => handleGroupUpdate(items.map((p) => p.id), Boolean(v))"
+            @update:checked="createGroupSelectionHandler(items.map((p) => p.id))"
           />
           <Label :for="`group-${resource}`" class="cursor-pointer text-sm font-semibold tracking-tight">
             {{ resourceLabel(String(resource)) }}
@@ -159,7 +175,7 @@ watch(
               class="mt-0.5"
               :checked="selectedSet.has(permission.id)"
               :disabled="disabled"
-              @update:checked="(v) => handlePermissionUpdate(permission.id, Boolean(v))"
+              @update:checked="createPermissionSelectionHandler(permission.id)"
             />
             <div class="min-w-0 flex-1 space-y-0.5">
               <Label :for="`perm-${permission.id}`" class="cursor-pointer text-sm font-medium leading-none">

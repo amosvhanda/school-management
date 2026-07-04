@@ -38,7 +38,7 @@ import { fetchList } from '@/services/dashboard.service'
 import { moduleEndpoints } from '@/services'
 
 // Auth session import to safely manage teacher scopes
-import { useAuthStore } from '@/stores/auth'
+import { useAuthStore } from '@/stores/auth.store'
 
 interface ClassOption { id: number; name: string }
 interface SubjectOption { id: number; name: string }

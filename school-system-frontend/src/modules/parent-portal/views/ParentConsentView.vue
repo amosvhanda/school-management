@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { onMounted, ref, watch } from 'vue'
 import PageLoader from '@/components/feedback/PageLoader.vue'
 import ErrorState from '@/components/feedback/ErrorState.vue'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -14,6 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { useParentPortalScope } from '@/composables/useParentPortalScope'
 import { useToast } from '@/composables/useToast'
 import { getErrorMessage } from '@/lib/api-response'
 import { parentPortalApi } from '@/services/index'
@@ -41,6 +42,7 @@ const respondingId = ref<number | null>(null)
 const notes = ref('')
 const studentId = ref('')
 const saving = ref(false)
+const scopeStore = useParentPortalScope('consent-child')
 
 async function load() {
   loading.value = true
@@ -52,7 +54,8 @@ async function load() {
     ])
     forms.value = formRows
     children.value = childRows
-    if (childRows.length) studentId.value = String(childRows[0].id)
+    studentId.value = scopeStore.resolveChildSelection(childRows, scopeStore.read(''), '')
+    if (studentId.value) scopeStore.write(studentId.value)
   } catch (err) {
     error.value = getErrorMessage(err, 'Failed to load consent forms')
   } finally {
@@ -63,12 +66,14 @@ async function load() {
 function startRespond(form: ConsentForm) {
   respondingId.value = form.id
   notes.value = ''
+  studentId.value = scopeStore.resolveChildSelection(children.value, scopeStore.read(''), '')
 }
 
 async function submitResponse(status: 'approved' | 'declined') {
   if (respondingId.value == null) return
   saving.value = true
   try {
+    scopeStore.write(studentId.value)
     await parentPortalApi.respondConsent(respondingId.value, {
       status,
       notes: notes.value.trim() || undefined,
@@ -85,6 +90,11 @@ async function submitResponse(status: 'approved' | 'declined') {
 }
 
 onMounted(load)
+
+watch(studentId, (value) => {
+  if (!respondingId.value) return
+  scopeStore.write(value)
+})
 </script>
 
 <template>

@@ -60,14 +60,8 @@ class TermController extends Controller
     /**
      * Get a specific term
      */
-    public function show(Request $request, $id)
+    public function show(Request $request, Term $term)
     {
-        $user = $request->user();
-        $schoolId = $user->school_id;
-
-        $term = Term::where('school_id', $schoolId)
-            ->findOrFail($id);
-
         return response()->json([
             'data' => $term,
         ]);
@@ -126,13 +120,10 @@ class TermController extends Controller
     /**
      * Update a term
      */
-    public function update(Request $request, $id)
+    public function update(Request $request, Term $term)
     {
         $user = $request->user();
         $schoolId = $user->school_id;
-
-        $term = Term::where('school_id', $schoolId)
-            ->findOrFail($id);
 
         $validator = Validator::make($request->all(), [
             'name' => 'sometimes|string|max:255',
@@ -180,14 +171,8 @@ class TermController extends Controller
     /**
      * Delete a term
      */
-    public function destroy(Request $request, $id)
+    public function destroy(Request $request, Term $term)
     {
-        $user = $request->user();
-        $schoolId = $user->school_id;
-
-        $term = Term::where('school_id', $schoolId)
-            ->findOrFail($id);
-
         // Check if term has exams or other data
         if ($term->exams()->count() > 0) {
             return response()->json([

@@ -84,29 +84,168 @@ export const staffNavigation: NavGroup[] = [
   },
 ]
 
+export const adminNavigation: NavGroup[] = staffNavigation.map((group) => ({
+  ...group,
+  items: group.items.map((item) => ({
+    ...item,
+    roles: ['admin'],
+  })),
+}))
+
+export const teacherNavigation: NavGroup[] = [
+  {
+    label: 'Overview',
+    items: [
+      { title: 'Dashboard', href: '/', icon: 'LayoutDashboard', roles: ['teacher'] },
+      {
+        title: 'Academics analytics',
+        href: '/academics/analytics',
+        icon: 'BarChart3',
+        capability: ['canManageTeachers', 'canManageStudents', 'canEnterExamResults'],
+        roles: ['teacher'],
+      },
+    ],
+  },
+  {
+    label: 'Teaching',
+    items: [
+      { title: 'Attendance', href: '/academics/attendance', icon: 'ClipboardCheck', capability: 'canManageStudents', roles: ['teacher'] },
+      { title: 'Exams', href: '/academics/exams', icon: 'FileText', capability: ['canManageExaminations', 'canEnterExamResults'], roles: ['teacher'] },
+      { title: 'Students', href: '/students', icon: 'GraduationCap', capability: 'canManageStudents', roles: ['teacher'] },
+      { title: 'Guardians', href: '/guardians', icon: 'UserCheck', capability: 'canManageStudents', roles: ['teacher'] },
+    ],
+  },
+  {
+    label: 'Communications',
+    items: [
+      { title: 'Messages', href: '/communications/threads', icon: 'MessageSquare', capability: 'isStaff', roles: ['teacher'] },
+      { title: 'Announcements', href: '/communications/announcements', icon: 'Megaphone', capability: 'isStaff', roles: ['teacher'] },
+      { title: 'Analytics', href: '/communications/analytics', icon: 'BarChart3', capability: 'isStaff', roles: ['teacher'] },
+    ],
+  },
+  {
+    label: 'Tools',
+    items: [
+      { title: 'Assistant', href: '/assistant', icon: 'Bot', capability: 'isStaff', roles: ['teacher'] },
+    ],
+  },
+]
+
+export const financeNavigation: NavGroup[] = [
+  {
+    label: 'Overview',
+    items: [
+      { title: 'Dashboard', href: '/', icon: 'LayoutDashboard', roles: ['finance'] },
+      { title: 'Finance overview', href: '/finance', icon: 'Wallet', capability: 'canManageFinance', roles: ['finance'] },
+      { title: 'Finance analytics', href: '/finance/analytics', icon: 'BarChart3', capability: 'canManageFinance', roles: ['finance'] },
+    ],
+  },
+  {
+    label: 'Billing',
+    items: [
+      { title: 'Payments', href: '/finance/payments', icon: 'CreditCard', capability: 'canManageFinance', roles: ['finance'] },
+      { title: 'Invoices', href: '/finance/invoices', icon: 'Receipt', capability: 'canManageFinance', roles: ['finance'] },
+      { title: 'Fee structures', href: '/finance/fees', icon: 'Tags', capability: 'canManageFinance', roles: ['finance'] },
+      { title: 'Fee categories', href: '/finance/fee-categories', icon: 'FolderTree', capability: 'canManageFinance', roles: ['finance'] },
+      { title: 'Aging report', href: '/finance/reports', icon: 'LineChart', capability: 'canManageFinance', roles: ['finance'] },
+    ],
+  },
+  {
+    label: 'Operations',
+    items: [
+      { title: 'Transactions', href: '/finance/transactions', icon: 'ArrowLeftRight', capability: 'canManageFinance', roles: ['finance'] },
+      { title: 'Payroll', href: '/finance/payroll', icon: 'Banknote', capability: 'canManageFinance', roles: ['finance'] },
+      { title: 'Procurement', href: '/operations/procurement', icon: 'ShoppingCart', capability: 'canManageFinance', roles: ['finance'] },
+      { title: 'Vendors', href: '/operations/procurement/vendors', icon: 'Truck', capability: 'canManageFinance', roles: ['finance'] },
+      { title: 'Assets', href: '/operations/assets', icon: 'HardDrive', capability: 'canManageFinance', roles: ['finance'] },
+      { title: 'Enterprise finance', href: '/enterprise/finance', icon: 'Landmark', capability: 'canManageFinance', roles: ['finance'] },
+      { title: 'Instalment plans', href: '/enterprise/finance/instalments', icon: 'CalendarClock', capability: 'canManageFinance', roles: ['finance'] },
+    ],
+  },
+]
+
+export const accountsNavigation: NavGroup[] = [
+  {
+    label: 'Overview',
+    items: [
+      { title: 'Dashboard', href: '/', icon: 'LayoutDashboard', roles: ['accounts'] },
+      { title: 'Finance analytics', href: '/finance/analytics', icon: 'BarChart3', capability: 'canManageFinance', roles: ['accounts'] },
+    ],
+  },
+  {
+    label: 'Collections',
+    items: [
+      { title: 'Finance overview', href: '/finance', icon: 'Wallet', capability: 'canManageFinance', roles: ['accounts'] },
+      { title: 'Payments', href: '/finance/payments', icon: 'CreditCard', capability: 'canManageFinance', roles: ['accounts'] },
+      { title: 'Invoices', href: '/finance/invoices', icon: 'Receipt', capability: 'canManageFinance', roles: ['accounts'] },
+      { title: 'Fee structures', href: '/finance/fees', icon: 'Tags', capability: 'canManageFinance', roles: ['accounts'] },
+      { title: 'Fee categories', href: '/finance/fee-categories', icon: 'FolderTree', capability: 'canManageFinance', roles: ['accounts'] },
+      { title: 'Aging report', href: '/finance/reports', icon: 'LineChart', capability: 'canManageFinance', roles: ['accounts'] },
+    ],
+  },
+  {
+    label: 'Accounting',
+    items: [
+      { title: 'Transactions', href: '/finance/transactions', icon: 'ArrowLeftRight', capability: 'canManageFinance', roles: ['accounts'] },
+      { title: 'Payroll', href: '/finance/payroll', icon: 'Banknote', capability: 'canManageFinance', roles: ['accounts'] },
+      { title: 'Procurement', href: '/operations/procurement', icon: 'ShoppingCart', capability: 'canManageFinance', roles: ['accounts'] },
+      { title: 'Vendors', href: '/operations/procurement/vendors', icon: 'Truck', capability: 'canManageFinance', roles: ['accounts'] },
+      { title: 'Assets', href: '/operations/assets', icon: 'HardDrive', capability: 'canManageFinance', roles: ['accounts'] },
+      { title: 'Instalment plans', href: '/enterprise/finance/instalments', icon: 'CalendarClock', capability: 'canManageFinance', roles: ['accounts'] },
+    ],
+  },
+  {
+    label: 'Communication & Control',
+    items: [
+      { title: 'Messages', href: '/communications/threads', icon: 'MessageSquare', capability: 'isStaff', roles: ['accounts'] },
+      { title: 'Announcements', href: '/communications/announcements', icon: 'Megaphone', capability: 'isStaff', roles: ['accounts'] },
+      { title: 'Audit trail', href: '/compliance/audit', icon: 'ScrollText', capability: 'canViewAuditLogs', roles: ['accounts'] },
+      { title: 'Assistant', href: '/assistant', icon: 'Bot', capability: 'isStaff', roles: ['accounts'] },
+    ],
+  },
+]
+
 export const parentNavigation: NavGroup[] = [
   {
     label: 'Portal',
     items: [
-      { title: 'Home', href: '/portal', icon: 'Home' },
-      { title: 'My Children', href: '/portal/children', icon: 'Users', roles: ['parent'] },
-      { title: 'Messages', href: '/portal/messages', icon: 'MessageSquare', roles: ['parent'] },
-      { title: 'Announcements', href: '/portal/announcements', icon: 'Megaphone', roles: ['parent'] },
-      { title: 'Consent forms', href: '/portal/consent', icon: 'FileCheck', roles: ['parent'] },
-      { title: 'Notifications', href: '/portal/notifications', icon: 'Bell', roles: ['parent'] },
+      { title: 'Home', href: '/portal', icon: 'Home', capability: 'isParent', roles: ['parent'] },
+      { title: 'My Children', href: '/portal/children', icon: 'Users', capability: 'isParent', roles: ['parent'] },
+      { title: 'Messages', href: '/portal/messages', icon: 'MessageSquare', capability: 'isParent', roles: ['parent'] },
+      { title: 'Announcements', href: '/portal/announcements', icon: 'Megaphone', capability: 'isParent', roles: ['parent'] },
+      { title: 'Consent forms', href: '/portal/consent', icon: 'FileCheck', capability: 'isParent', roles: ['parent'] },
+      { title: 'Notifications', href: '/portal/notifications', icon: 'Bell', capability: 'isParent', roles: ['parent'] },
+    ],
+  },
+]
+
+export const studentNavigation: NavGroup[] = [
+  {
+    label: 'Student portal',
+    items: [
+      { title: 'Dashboard', href: '/student', icon: 'Home', roles: ['student'] },
+      { title: 'Performance', href: '/student/performance', icon: 'BarChart3', roles: ['student'] },
+      { title: 'Attendance', href: '/student/attendance', icon: 'ClipboardCheck', roles: ['student'] },
+      { title: 'Exams', href: '/student/exams', icon: 'FileText', roles: ['student'] },
+      { title: 'Fees', href: '/student/fees', icon: 'Wallet', roles: ['student'] },
     ],
   },
 ]
 
 export const platformNavigation: NavGroup[] = [
   {
-    label: 'Platform',
+    label: 'Super Admin Portal',
     items: [
-      { title: 'Dashboard', href: '/platform', icon: 'LayoutDashboard', roles: ['super_admin'] },
-      { title: 'Licenses', href: '/platform/licenses', icon: 'Key', roles: ['super_admin'] },
-      { title: 'Health', href: '/platform/health', icon: 'Activity', roles: ['super_admin'] },
-      { title: 'Operations', href: '/platform/operations', icon: 'Server', roles: ['super_admin'] },
-      { title: 'API clients', href: '/platform/api-clients', icon: 'Plug', roles: ['super_admin'] },
+      { title: 'Dashboard', href: '/platform', icon: 'LayoutDashboard', capability: 'isSuperAdmin', roles: ['super_admin'] },
+      { title: 'Licenses', href: '/platform/licenses', icon: 'Key', capability: 'isSuperAdmin', roles: ['super_admin'] },
+      { title: 'Health', href: '/platform/health', icon: 'Activity', capability: 'isSuperAdmin', roles: ['super_admin'] },
+      { title: 'Operations', href: '/platform/operations', icon: 'Server', capability: 'isSuperAdmin', roles: ['super_admin'] },
+      { title: 'API clients', href: '/platform/api-clients', icon: 'Plug', capability: 'isSuperAdmin', roles: ['super_admin'] },
+      { title: 'Communications', href: '/platform/communications', icon: 'Megaphone', capability: 'isSuperAdmin', roles: ['super_admin'] },
+      { title: 'Documents', href: '/platform/documents', icon: 'FileText', capability: 'isSuperAdmin', roles: ['super_admin'] },
+      { title: 'Scholarships', href: '/platform/scholarships', icon: 'Award', capability: 'isSuperAdmin', roles: ['super_admin'] },
+      { title: 'Refunds', href: '/platform/refunds', icon: 'RotateCcw', capability: 'isSuperAdmin', roles: ['super_admin'] },
+      { title: 'Staff tasks', href: '/platform/staff-tasks', icon: 'ListTodo', capability: 'isSuperAdmin', roles: ['super_admin'] },
     ],
   },
 ]

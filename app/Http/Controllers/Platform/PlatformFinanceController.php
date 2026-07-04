@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Platform;
 
 use App\Http\Controllers\Controller;
+use App\Http\Resources\Api\V1\RefundResource;
 use App\Models\FeePenaltyRule;
 use App\Models\Payment;
 use App\Models\PaymentGatewayConfig;
@@ -14,6 +15,7 @@ use App\Services\Platform\PaymentGatewayService;
 use App\Services\Platform\RefundService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\Rule;
 
 class PlatformFinanceController extends Controller
 {
@@ -47,14 +49,16 @@ class PlatformFinanceController extends Controller
 
     public function applyScholarship(Request $request, int $id)
     {
-        $scholarship = Scholarship::where('school_id', $request->user()->school_id)->findOrFail($id);
+        $schoolId = $request->user()->school_id;
+        $scholarship = Scholarship::where('school_id', $schoolId)->findOrFail($id);
         $data = Validator::make($request->all(), [
-            'student_id' => 'required|exists:students,id',
+            'student_id' => [
+                'required',
+                Rule::exists('students', 'id')->where('school_id', $schoolId),
+            ],
             'motivation' => 'nullable|string',
             'supporting_data' => 'array',
         ])->validate();
-
-        Student::where('school_id', $request->user()->school_id)->findOrFail($data['student_id']);
 
         $application = ScholarshipApplication::create([
             'scholarship_id' => $scholarship->id,
@@ -110,9 +114,13 @@ class PlatformFinanceController extends Controller
 
     public function initiatePayment(Request $request)
     {
+        $schoolId = $request->user()->school_id;
+        $invoiceRule = Rule::exists('invoices', 'id')->where('school_id', $schoolId);
+        $studentRule = Rule::exists('students', 'id')->where('school_id', $schoolId);
+
         $data = Validator::make($request->all(), [
-            'invoice_id' => 'required|exists:invoices,id',
-            'student_id' => 'nullable|exists:students,id',
+            'invoice_id' => ['required', $invoiceRule],
+            'student_id' => ['nullable', $studentRule],
             'amount' => 'required|numeric|min:0.01',
             'payment_method' => 'required|in:card,mobile_money,bank_transfer',
             'provider' => 'nullable|string',
@@ -153,13 +161,20 @@ class PlatformFinanceController extends Controller
 
     public function refunds(Request $request)
     {
-        return response()->json(['data' => Refund::where('school_id', $request->user()->school_id)->with('payment')->orderByDesc('id')->limit(100)->get()]);
+        return RefundResource::collection(
+            Refund::where('school_id', $request->user()->school_id)
+                ->with('payment')
+                ->orderByDesc('id')
+                ->limit(100)
+                ->get()
+        )->additional(['message' => 'Success']);
     }
 
     public function requestRefund(Request $request)
     {
+        $paymentRule = Rule::exists('payments', 'id')->where('school_id', $request->user()->school_id);
         $data = Validator::make($request->all(), [
-            'payment_id' => 'required|exists:payments,id',
+            'payment_id' => ['required', $paymentRule],
             'amount' => 'required|numeric|min:0.01',
             'reason' => 'required|string',
         ])->validate();
@@ -167,16 +182,16 @@ class PlatformFinanceController extends Controller
         $payment = Payment::where('school_id', $request->user()->school_id)->findOrFail($data['payment_id']);
         $refund = $this->refunds->request($request->user(), $payment, $data['amount'], $data['reason']);
 
-        return response()->json(['data' => $refund, 'message' => 'Refund requested'], 201);
+        return (new RefundResource($refund->load('payment')))
+            ->additional(['message' => 'Refund requested'])
+            ->response()
+            ->setStatusCode(201);
     }
 
-    public function approveRefund(Request $request, int $id)
+    public function approveRefund(Request $request, Refund $refund)
     {
-        $refund = Refund::where('school_id', $request->user()->school_id)->findOrFail($id);
-
-        return response()->json([
-            'data' => $this->refunds->approve($refund, $request->user()),
-            'message' => 'Refund processed',
-        ]);
+        return (new RefundResource(
+            $this->refunds->approve($refund, $request->user())->load('payment')
+        ))->additional(['message' => 'Refund processed']);
     }
 }

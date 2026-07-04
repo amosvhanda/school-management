@@ -48,7 +48,7 @@ onMounted(load)
 <template>
   <div class="space-y-6">
     <div>
-      <Badge variant="secondary" class="mb-2 font-normal">Platform admin</Badge>
+      <Badge variant="secondary" class="mb-2 font-normal">Super Admin</Badge>
       <h1 class="text-2xl font-semibold tracking-tight">
         Welcome, {{ user?.name?.split(' ')[0] ?? 'Admin' }}
       </h1>
@@ -133,7 +133,6 @@ onMounted(load)
         :groups="PLATFORM_DASHBOARD_MODULE_GROUPS"
         title="Platform modules"
         description="All platform administration areas"
-        skip-permission-filter
       />
     </template>
   </div>

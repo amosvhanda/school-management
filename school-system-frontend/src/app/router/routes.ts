@@ -287,6 +287,39 @@ export const parentRoutes: RouteRecordRaw[] = [
   },
 ]
 
+export const studentRoutes: RouteRecordRaw[] = [
+  {
+    path: 'student',
+    name: 'student-dashboard',
+    component: () => import('@/modules/student-portal/views/StudentDashboardView.vue'),
+    meta: { roles: ['student'] },
+  },
+  {
+    path: 'student/performance',
+    name: 'student-performance',
+    component: () => import('@/modules/student-portal/views/StudentDashboardView.vue'),
+    meta: { roles: ['student'] },
+  },
+  {
+    path: 'student/attendance',
+    name: 'student-attendance',
+    component: () => import('@/modules/student-portal/views/StudentDashboardView.vue'),
+    meta: { roles: ['student'] },
+  },
+  {
+    path: 'student/exams',
+    name: 'student-exams',
+    component: () => import('@/modules/student-portal/views/StudentDashboardView.vue'),
+    meta: { roles: ['student'] },
+  },
+  {
+    path: 'student/fees',
+    name: 'student-fees',
+    component: () => import('@/modules/student-portal/views/StudentDashboardView.vue'),
+    meta: { roles: ['student'] },
+  },
+]
+
 export const platformRoutes: RouteRecordRaw[] = [
   {
     path: 'platform',
@@ -298,6 +331,12 @@ export const platformRoutes: RouteRecordRaw[] = [
     path: 'platform/licenses',
     name: 'platform-licenses',
     component: () => import('@/modules/platform/views/PlatformLicensesView.vue'),
+    meta: { roles: ['super_admin'] },
+  },
+  {
+    path: 'platform/communications',
+    name: 'platform-communications',
+    component: () => import('@/modules/platform/views/PlatformCommunicationsView.vue'),
     meta: { roles: ['super_admin'] },
   },
   platformListRoute('platform/health', 'platform-health', 'platform-health'),

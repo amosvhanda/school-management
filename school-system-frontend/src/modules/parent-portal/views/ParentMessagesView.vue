@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { MessageSquare, Plus, Send } from '@lucide/vue'
 import PageLoader from '@/components/feedback/PageLoader.vue'
 import ErrorState from '@/components/feedback/ErrorState.vue'
@@ -23,6 +23,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet'
+import { useParentPortalScope } from '@/composables/useParentPortalScope'
 import { useToast } from '@/composables/useToast'
 import { getErrorMessage } from '@/lib/api-response'
 import { parentPortalApi } from '@/services/index'
@@ -65,6 +66,7 @@ const newThread = ref({
   message: '',
   student_id: '',
 })
+const scopeStore = useParentPortalScope('messages-child')
 
 const activeTitle = computed(() => activeThread.value?.subject ?? 'Select a conversation')
 
@@ -84,6 +86,10 @@ async function loadThreads() {
     ])
     threads.value = threadRows
     children.value = childRows
+
+    const restoredChildId = scopeStore.resolveChildSelection(childRows, scopeStore.read(''), '')
+    if (restoredChildId) scopeStore.write(restoredChildId)
+
     if (threadRows.length && !activeThread.value) {
       await selectThread(threadRows[0])
     }
@@ -129,10 +135,11 @@ async function sendReply() {
 }
 
 function openNewThread() {
+  const restoredChildId = scopeStore.resolveChildSelection(children.value, scopeStore.read(''), '')
   newThread.value = {
     subject: '',
     message: '',
-    student_id: children.value[0] ? String(children.value[0].id) : '',
+    student_id: restoredChildId,
   }
   sheetOpen.value = true
 }
@@ -144,6 +151,7 @@ async function createThread() {
   }
   creating.value = true
   try {
+    scopeStore.write(newThread.value.student_id)
     const thread = await parentPortalApi.createThread({
       subject: newThread.value.subject.trim(),
       message: newThread.value.message.trim(),
@@ -161,6 +169,14 @@ async function createThread() {
 }
 
 onMounted(loadThreads)
+
+watch(
+  () => newThread.value.student_id,
+  (value) => {
+    if (!sheetOpen.value) return
+    scopeStore.write(value)
+  },
+)
 </script>
 
 <template>

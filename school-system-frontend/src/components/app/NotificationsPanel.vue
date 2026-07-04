@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { RouterLink } from 'vue-router'
 // Corrected Lucide import path
 import {
@@ -20,16 +20,61 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Badge } from '@/components/ui/badge'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { formatRelativeTime } from '@/lib/format'
+import { useAuth } from '@/composables/useAuth'
+import { useParentPortalScope } from '@/composables/useParentPortalScope'
+import { parentPortalApi } from '@/services/api.service'
+import { getErrorMessage } from '@/lib/api-response'
 import { useNotificationStore } from '@/stores/notification.store'
 
 const notificationStore = useNotificationStore()
+const { user } = useAuth()
+
+interface ParentNotificationRow {
+  id: number
+  title?: string
+  type?: string
+  body?: string
+  data?: Record<string, unknown> | null
+  student?: {
+    id?: number
+    full_name?: string
+    first_name?: string
+    last_name?: string
+    student_number?: string
+  } | null
+  read_at?: string | null
+  created_at?: string
+}
+
+interface ChildOption {
+  id: number
+  full_name?: string
+  fullName?: string
+}
 
 const iconMap: Record<string, typeof CreditCard> = {
   payment: CreditCard,
   invoice: Receipt,
   student: UserPlus,
 }
+
+const menuOpen = ref(false)
+const parentLoading = ref(false)
+const parentError = ref<string | null>(null)
+const parentNotifications = ref<ParentNotificationRow[]>([])
+const parentChildren = ref<ChildOption[]>([])
+const selectedStudentId = ref('all')
+
+const isParent = computed(() => user.value?.role === 'parent')
+const scopeStore = useParentPortalScope('notifications-filter')
 
 const items = computed(() =>
   notificationStore.recentActivity.slice(0, 8).map((item) => ({
@@ -39,14 +84,114 @@ const items = computed(() =>
   })),
 )
 
+const parentItems = computed(() =>
+  parentNotifications.value.slice(0, 8).map((item) => {
+    const dataTitle = item.data?.title ?? item.data?.subject
+    const dataBody = item.data?.body ?? item.data?.message ?? item.data?.description
+    const studentName = item.student
+      ? (item.student.full_name
+        ?? [item.student.first_name, item.student.last_name].filter(Boolean).join(' ').trim()
+        ?? null)
+      : null
+
+    return {
+      ...item,
+      displayTitle: item.title?.trim() || String(dataTitle ?? 'Notification'),
+      displayBody: item.body?.trim() || (dataBody == null ? null : String(dataBody)),
+      displayStudent: studentName && studentName.trim() ? studentName : null,
+      time: formatRelativeTime(item.created_at),
+      Icon: iconMap[item.type ?? ''] ?? FileText,
+    }
+  }),
+)
+
+const parentUnreadCount = computed(() =>
+  parentNotifications.value.filter((item) => !item.read_at).length,
+)
+
+const selectedChildLabel = computed(() => {
+  if (selectedStudentId.value === 'all') return 'All linked children'
+  const selectedId = Number(selectedStudentId.value)
+  const child = parentChildren.value.find((item) => item.id === selectedId)
+  if (!child) return 'Selected child'
+  return child.fullName ?? child.full_name ?? `Student #${child.id}`
+})
+
 const badgeTotal = computed(() => {
+  if (isParent.value) return parentUnreadCount.value
   const n = notificationStore.workflowCount
   return n > 0 ? n : items.value.length > 0 ? items.value.length : 0
 })
+
+const viewAllRoute = computed(() => (isParent.value ? '/portal/notifications' : '/'))
+
+async function loadParentNotifications() {
+  if (!isParent.value) return
+
+  parentLoading.value = true
+  parentError.value = null
+
+  try {
+    const children = await parentPortalApi.children() as ChildOption[]
+    parentChildren.value = children
+
+    if (
+      selectedStudentId.value !== 'all'
+      && !children.some((child) => String(child.id) === selectedStudentId.value)
+    ) {
+      selectedStudentId.value = 'all'
+      scopeStore.write('all')
+    }
+
+    const notifications = await parentPortalApi.notifications(
+      selectedStudentId.value === 'all'
+        ? undefined
+        : { student_id: Number(selectedStudentId.value) },
+    ) as ParentNotificationRow[]
+
+    parentNotifications.value = notifications
+  } catch (error) {
+    parentError.value = getErrorMessage(error, 'Failed to load notifications')
+  } finally {
+    parentLoading.value = false
+  }
+}
+
+async function onChildFilterChange(value: unknown) {
+  selectedStudentId.value = value == null ? 'all' : String(value)
+  scopeStore.write(selectedStudentId.value)
+  await loadParentNotifications()
+}
+
+async function markRead(id: number) {
+  try {
+    await parentPortalApi.markNotificationRead(id)
+    await loadParentNotifications()
+  } catch {
+    // Keep the panel non-blocking; full error details are available on the notifications page.
+  }
+}
+
+watch(
+  () => scopeStore.storageKey.value,
+  () => {
+    selectedStudentId.value = scopeStore.read('all')
+  },
+  { immediate: true },
+)
+
+watch(
+  () => menuOpen.value,
+  async (open) => {
+    if (open && isParent.value) {
+      await loadParentNotifications()
+    }
+  },
+)
 </script>
 
 <template>
-  <DropdownMenu>
+  <DropdownMenu v-model:open="menuOpen">
     <DropdownMenuTrigger as-child>
       <Button
         variant="ghost"
@@ -67,17 +212,91 @@ const badgeTotal = computed(() => {
     <DropdownMenuContent align="end" class="w-80 p-0 rounded-xl shadow-lg border">
       <DropdownMenuLabel class="flex items-center justify-between px-4 py-3 text-sm font-semibold">
         <span>Notifications</span>
-        <Badge v-if="notificationStore.workflowCount" variant="secondary" class="text-xs font-normal">
+        <Badge v-if="isParent && parentUnreadCount" variant="secondary" class="text-xs font-normal">
+          {{ parentUnreadCount }} unread
+        </Badge>
+        <Badge v-else-if="notificationStore.workflowCount" variant="secondary" class="text-xs font-normal">
           {{ notificationStore.workflowCount }} pending
         </Badge>
       </DropdownMenuLabel>
+
+      <template v-if="isParent">
+        <div class="px-3 pb-2">
+          <p class="mb-1 text-[11px] uppercase tracking-wide text-muted-foreground">Scope</p>
+          <Select :model-value="selectedStudentId" @update:model-value="onChildFilterChange">
+            <SelectTrigger class="h-8 text-xs">
+              <SelectValue :placeholder="selectedChildLabel" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All linked children</SelectItem>
+              <SelectItem
+                v-for="child in parentChildren"
+                :key="child.id"
+                :value="String(child.id)"
+              >
+                {{ child.fullName ?? child.full_name ?? `Student #${child.id}` }}
+              </SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </template>
+
       <DropdownMenuSeparator />
       <ScrollArea class="max-h-80">
-        <div v-if="!items.length" class="flex flex-col items-center gap-2 px-4 py-8 text-center">
+        <div
+          v-if="isParent && parentLoading"
+          class="px-4 py-6 text-center text-sm text-muted-foreground"
+        >
+          Loading notifications...
+        </div>
+
+        <div
+          v-else-if="isParent && parentError"
+          class="px-4 py-6 text-center text-sm text-destructive"
+        >
+          {{ parentError }}
+        </div>
+
+        <div v-else-if="isParent && !parentItems.length" class="flex flex-col items-center gap-2 px-4 py-8 text-center">
+          <CheckCircle2 class="size-8 text-muted-foreground/40" aria-hidden="true" />
+          <p class="text-sm font-medium text-foreground">You're all caught up</p>
+          <p class="text-xs text-muted-foreground leading-normal max-w-[200px]">No alerts for this profile scope.</p>
+        </div>
+
+        <div v-else-if="!isParent && !items.length" class="flex flex-col items-center gap-2 px-4 py-8 text-center">
           <CheckCircle2 class="size-8 text-muted-foreground/40" aria-hidden="true" />
           <p class="text-sm font-medium text-foreground">You're all caught up</p>
           <p class="text-xs text-muted-foreground leading-normal max-w-[200px]">Recent activity will appear here.</p>
         </div>
+
+        <div v-else-if="isParent" class="divide-y divide-muted/60">
+          <div
+            v-for="item in parentItems"
+            :key="String(item.id)"
+            class="flex gap-3 px-4 py-3 transition-colors hover:bg-muted/40"
+          >
+            <div class="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+              <component :is="item.Icon" class="size-3.5" aria-hidden="true" />
+            </div>
+            <div class="min-w-0 flex-1">
+              <p class="truncate text-sm font-medium text-foreground leading-snug">{{ item.displayTitle }}</p>
+              <p v-if="item.displayBody" class="mt-0.5 text-xs text-muted-foreground truncate">{{ item.displayBody }}</p>
+              <p class="mt-0.5 text-xs text-muted-foreground truncate">
+                {{ item.displayStudent ?? 'Parent portal' }} · {{ item.time }}
+              </p>
+            </div>
+            <Button
+              v-if="!item.read_at"
+              variant="ghost"
+              size="sm"
+              class="h-7 px-2 text-[11px]"
+              @click="markRead(item.id)"
+            >
+              Mark read
+            </Button>
+          </div>
+        </div>
+
         <div v-else class="divide-y divide-muted/60">
           <div
             v-for="item in items"
@@ -97,7 +316,7 @@ const badgeTotal = computed(() => {
       <DropdownMenuSeparator />
       <div class="p-2 bg-muted/5">
         <Button variant="ghost" size="sm" class="w-full justify-center h-8 text-xs font-medium" as-child>
-          <RouterLink to="/">View dashboard activity</RouterLink>
+          <RouterLink :to="viewAllRoute">{{ isParent ? 'View all parent notifications' : 'View dashboard activity' }}</RouterLink>
         </Button>
       </div>
     </DropdownMenuContent>

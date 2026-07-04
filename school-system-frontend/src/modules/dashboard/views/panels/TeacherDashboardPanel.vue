@@ -1,19 +1,22 @@
 <script setup lang="ts">
-import { onMounted } from 'vue'
+import { computed, onMounted } from 'vue'
 import { BookOpen, ClipboardCheck, GraduationCap, GitBranch } from '@lucide/vue'
 import DashboardHero from '@/components/dashboard/DashboardHero.vue'
 import RoleQuickActions from '@/components/dashboard/RoleQuickActions.vue'
 import DashboardModulesGrid from '@/components/dashboard/DashboardModulesGrid.vue'
 import DashboardSkeleton from '@/components/dashboard/DashboardSkeleton.vue'
-import KpiCard from '@/components/dashboard/KpiCard.vue'
-import AttendancePanel from '@/components/dashboard/AttendancePanel.vue'
-import ActivityFeed from '@/components/dashboard/ActivityFeed.vue'
+import MetricBand from '@/components/dashboard/MetricBand.vue'
+import type { MetricCard } from '@/components/dashboard/MetricBand.vue'
 import ErrorState from '@/components/feedback/ErrorState.vue'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { useAuth } from '@/composables/useAuth'
 import { useStaffDashboard } from '@/composables/useStaffDashboard'
+import { lazy } from '@/lib/lazy'
 import { getRoleDashboardMeta } from '@/lib/role-dashboard'
-import { STAFF_DASHBOARD_MODULE_GROUPS } from '@/lib/dashboard-modules'
+import { TEACHER_DASHBOARD_MODULE_GROUPS } from '@/lib/dashboard-modules'
+
+const AttendancePanel = lazy(() => import('@/components/dashboard/AttendancePanel.vue'))
+const ActivityFeed = lazy(() => import('@/components/dashboard/ActivityFeed.vue'))
 
 const { user } = useAuth()
 const meta = getRoleDashboardMeta(user.value?.role)
@@ -22,6 +25,37 @@ const {
   loading, error, lastUpdated, kpis,
   recent, pendingWorkflows, load,
 } = useStaffDashboard()
+
+const overviewCards = computed<MetricCard[]>(() => [
+  {
+    title: "Today's attendance",
+    value: attendanceValue(kpis.value?.attendanceSummary ?? { present: 0, total: 0, absent: 0, late: 0, excused: 0, date: '' }),
+    subtitle: attendanceSubtitle(kpis.value?.attendanceSummary ?? { present: 0, total: 0, absent: 0, late: 0, excused: 0, date: '' }),
+    icon: ClipboardCheck,
+    href: '/academics/attendance',
+  },
+  {
+    title: 'Classes',
+    value: kpis.value?.totalClasses ?? 0,
+    subtitle: `${kpis.value?.activeStudents ?? 0} active students`,
+    icon: BookOpen,
+    href: '/academics/setup',
+  },
+  {
+    title: 'Students',
+    value: kpis.value?.activeStudents ?? 0,
+    subtitle: `${kpis.value?.totalStudents ?? 0} enrolled`,
+    icon: GraduationCap,
+    href: '/students',
+  },
+  {
+    title: 'Pending workflows',
+    value: String(pendingWorkflows.value),
+    subtitle: 'Items awaiting action',
+    icon: GitBranch,
+    href: '/workflows',
+  },
+])
 
 function attendanceValue(summary: NonNullable<typeof kpis.value>['attendanceSummary']) {
   if (!summary.total) return '0'
@@ -36,7 +70,7 @@ onMounted(() => load({ activityFeed: true }))
 </script>
 
 <template>
-  <div class="mx-auto max-w-[1400px] space-y-8 pb-8">
+  <div class="mx-auto max-w-350 space-y-8 pb-8">
     <DashboardHero
       :name="user?.name"
       :role="meta.label"
@@ -51,49 +85,19 @@ onMounted(() => load({ activityFeed: true }))
     <template v-else-if="kpis">
       <Alert v-if="error" variant="destructive"><AlertDescription>{{ error }}</AlertDescription></Alert>
 
-      <section aria-labelledby="teacher-kpis" class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <h2 id="teacher-kpis" class="sr-only">Teaching KPIs</h2>
-        <KpiCard
-          title="Today's attendance"
-          :value="attendanceValue(kpis.attendanceSummary)"
-          :subtitle="attendanceSubtitle(kpis.attendanceSummary)"
-          :icon="ClipboardCheck"
-          href="/academics/attendance"
-        />
-        <KpiCard
-          title="Classes"
-          :value="kpis.totalClasses"
-          :subtitle="`${kpis.activeStudents} active students`"
-          :icon="BookOpen"
-          href="/academics/setup"
-        />
-        <KpiCard
-          title="Students"
-          :value="kpis.activeStudents"
-          :subtitle="`${kpis.totalStudents} enrolled`"
-          :icon="GraduationCap"
-          href="/students"
-        />
-        <KpiCard
-          title="Pending workflows"
-          :value="String(pendingWorkflows)"
-          subtitle="Items awaiting action"
-          :icon="GitBranch"
-          href="/workflows"
-        />
-      </section>
+      <MetricBand title="Teaching KPIs" description="Track attendance, classes, and approvals" :cards="overviewCards" />
 
       <RoleQuickActions variant="teacher" />
 
       <section class="grid gap-6 lg:grid-cols-2">
         <AttendancePanel :summary="kpis.attendanceSummary" />
-        <ActivityFeed :items="recent" class="min-h-[320px]" />
+        <ActivityFeed :items="recent" class="min-h-80" />
       </section>
 
       <DashboardModulesGrid
-        :groups="STAFF_DASHBOARD_MODULE_GROUPS"
+        :groups="TEACHER_DASHBOARD_MODULE_GROUPS"
         title="Your modules"
-        description="All teaching and school areas available to you"
+        description="Teacher tools and workflows available to your role"
       />
     </template>
 

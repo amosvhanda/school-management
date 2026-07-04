@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted } from 'vue'
+import { computed, onMounted } from 'vue'
 import {
   Activity,
   DollarSign,
@@ -10,22 +10,25 @@ import DashboardHero from '@/components/dashboard/DashboardHero.vue'
 import RoleQuickActions from '@/components/dashboard/RoleQuickActions.vue'
 import DashboardModulesGrid from '@/components/dashboard/DashboardModulesGrid.vue'
 import DashboardSkeleton from '@/components/dashboard/DashboardSkeleton.vue'
-import DashboardSecondaryMetrics from '@/components/dashboard/DashboardSecondaryMetrics.vue'
-import KpiCard from '@/components/dashboard/KpiCard.vue'
-import AttendancePanel from '@/components/dashboard/AttendancePanel.vue'
-import PayrollPanel from '@/components/dashboard/PayrollPanel.vue'
-import ActivityChart from '@/components/dashboard/ActivityChart.vue'
-import MonthlyStatsChart from '@/components/dashboard/MonthlyStatsChart.vue'
-import ActivityFeed from '@/components/dashboard/ActivityFeed.vue'
-import CommandCenterSection from '@/components/dashboard/CommandCenterSection.vue'
-import AcademicHeatmap from '@/components/dashboard/AcademicHeatmap.vue'
-import FinanceOverviewPanel from '@/components/dashboard/FinanceOverviewPanel.vue'
+import MetricBand from '@/components/dashboard/MetricBand.vue'
 import ErrorState from '@/components/feedback/ErrorState.vue'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { useAuth } from '@/composables/useAuth'
 import { useStaffDashboard } from '@/composables/useStaffDashboard'
+import type { MetricCard } from '@/components/dashboard/MetricBand.vue'
+import { lazy } from '@/lib/lazy'
 import { getRoleDashboardMeta } from '@/lib/role-dashboard'
 import { STAFF_DASHBOARD_MODULE_GROUPS } from '@/lib/dashboard-modules'
+
+const DashboardSecondaryMetrics = lazy(() => import('@/components/dashboard/DashboardSecondaryMetrics.vue'))
+const AttendancePanel = lazy(() => import('@/components/dashboard/AttendancePanel.vue'))
+const PayrollPanel = lazy(() => import('@/components/dashboard/PayrollPanel.vue'))
+const ActivityChart = lazy(() => import('@/components/dashboard/ActivityChart.vue'))
+const MonthlyStatsChart = lazy(() => import('@/components/dashboard/MonthlyStatsChart.vue'))
+const ActivityFeed = lazy(() => import('@/components/dashboard/ActivityFeed.vue'))
+const CommandCenterSection = lazy(() => import('@/components/dashboard/CommandCenterSection.vue'))
+const AcademicHeatmap = lazy(() => import('@/components/dashboard/AcademicHeatmap.vue'))
+const FinanceOverviewPanel = lazy(() => import('@/components/dashboard/FinanceOverviewPanel.vue'))
 
 const { user, checkCapability } = useAuth()
 const meta = getRoleDashboardMeta(user.value?.role)
@@ -34,6 +37,43 @@ const {
   loading, error, partialErrors, lastUpdated, kpis,
   activity, monthly, recent, commandCenter, financeSummary, load,
 } = useStaffDashboard()
+
+const overviewCards = computed<MetricCard[]>(() => [
+  {
+    title: 'Active students',
+    value: kpis.value?.activeStudents ?? 0,
+    subtitle: `${kpis.value?.totalStudents ?? 0} enrolled · ${kpis.value?.totalClasses ?? 0} classes`,
+    icon: GraduationCap,
+    trend: kpis.value?.studentsGrowth ?? 0,
+    href: '/students',
+  },
+  {
+    title: 'Teaching staff',
+    value: kpis.value?.totalTeachers ?? 0,
+    subtitle: `${kpis.value?.totalParents ?? 0} parents on file`,
+    icon: Users,
+    trend: kpis.value?.usersChange ?? 0,
+    href: '/teachers',
+  },
+  {
+    title: 'Outstanding fees',
+    value: `$${formatMoney(kpis.value?.outstandingFees ?? 0)}`,
+    subtitle: 'Unpaid balances',
+    icon: DollarSign,
+    accent: 'danger' as const,
+    trend: kpis.value?.paymentsGrowth ?? 0,
+    href: '/finance/invoices',
+  },
+  {
+    title: 'Revenue today',
+    value: `$${formatMoney(kpis.value?.paymentsToday ?? 0)}`,
+    subtitle: `$${formatMoney(kpis.value?.totalRevenue ?? 0)} lifetime`,
+    icon: Activity,
+    accent: 'success' as const,
+    trend: kpis.value?.revenueChange ?? 0,
+    href: '/finance/payments',
+  },
+])
 
 function formatMoney(value: number) {
   return value.toLocaleString(undefined, { maximumFractionDigits: 0 })
@@ -66,13 +106,7 @@ onMounted(() => load({
         <AlertDescription>Some widgets failed: {{ partialErrors.join(' · ') }}</AlertDescription>
       </Alert>
 
-      <section aria-labelledby="admin-kpis" class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <h2 id="admin-kpis" class="sr-only">School KPIs</h2>
-        <KpiCard title="Active students" :value="kpis.activeStudents" :subtitle="`${kpis.totalStudents} enrolled · ${kpis.totalClasses} classes`" :icon="GraduationCap" :trend="kpis.studentsGrowth" href="/students" />
-        <KpiCard title="Teaching staff" :value="kpis.totalTeachers" :subtitle="`${kpis.totalParents} parents on file`" :icon="Users" :trend="kpis.usersChange" href="/teachers" />
-        <KpiCard title="Outstanding fees" :value="`$${formatMoney(kpis.outstandingFees)}`" subtitle="Unpaid balances" :icon="DollarSign" accent="danger" :trend="kpis.paymentsGrowth" href="/finance/invoices" />
-        <KpiCard title="Revenue today" :value="`$${formatMoney(kpis.paymentsToday)}`" :subtitle="`$${formatMoney(kpis.totalRevenue)} lifetime`" :icon="Activity" accent="success" :trend="kpis.revenueChange" href="/finance/payments" />
-      </section>
+      <MetricBand title="School KPIs" description="Quick health checks for the current campus state" :cards="overviewCards" />
 
       <DashboardSecondaryMetrics :kpis="kpis" />
       <RoleQuickActions variant="admin" />
@@ -83,7 +117,7 @@ onMounted(() => load({
           <MonthlyStatsChart :data="monthly" />
         </div>
         <div class="xl:col-span-4">
-          <ActivityFeed :items="recent" class="min-h-[420px]" />
+          <ActivityFeed :items="recent" class="min-h-105" />
         </div>
       </section>
 

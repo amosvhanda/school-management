@@ -2,12 +2,14 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Resources\Api\V1\InvoiceResource;
 use App\Models\Invoice;
 use App\Models\School;
 use App\Models\Student;
 use App\Services\FinancialLedgerService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\Rule;
 
 class InvoiceController extends Controller
 {
@@ -57,30 +59,30 @@ class InvoiceController extends Controller
         $query->orderByDesc('created_at');
 
         if ($request->boolean('all')) {
-            return response()->json(['data' => $query->limit(500)->get()]);
+            return InvoiceResource::collection($query->limit(500)->get())
+                ->additional(['message' => 'Success']);
         }
 
         if ($request->filled('limit') && ! $request->filled('page')) {
-            return response()->json(['data' => $query->limit((int) $request->limit)->get()]);
+            return InvoiceResource::collection($query->limit((int) $request->limit)->get())
+                ->additional(['message' => 'Success']);
         }
 
         $perPage = min($request->integer('per_page', 25), 100);
 
-        return response()->json([
-            'message' => 'Success',
-            'data' => $query->paginate($perPage),
-        ]);
+        return InvoiceResource::collection($query->paginate($perPage))
+            ->additional(['message' => 'Success']);
     }
 
-    public function show($id)
+    public function show(Invoice $invoice)
     {
-        $invoice = Invoice::with([
+        $invoice->load([
             'student:id,full_name,student_number,class,balance,currency',
             'payments' => fn ($q) => $q->orderByDesc('date')->limit(50),
             'feeStructure:id,category,amount',
-        ])->findOrFail($id);
+        ]);
 
-        return response()->json(['data' => $invoice]);
+        return (new InvoiceResource($invoice))->additional(['message' => 'Success']);
     }
 
     public function store(Request $request)
@@ -88,11 +90,17 @@ class InvoiceController extends Controller
         $schoolId = $request->user()->school_id;
 
         $validator = Validator::make($request->all(), [
-            'student_id' => ['required', 'exists:students,id'],
+            'student_id' => [
+                'required',
+                Rule::exists('students', 'id')->where('school_id', $schoolId),
+            ],
             'description' => ['required', 'string', 'max:500'],
             'amount' => ['required', 'numeric', 'min:0.01'],
             'due_date' => ['required', 'date'],
-            'fee_structure_id' => ['nullable', 'exists:fee_structures,id'],
+            'fee_structure_id' => [
+                'nullable',
+                Rule::exists('fee_structures', 'id')->where('school_id', $schoolId),
+            ],
         ]);
 
         if ($validator->fails()) {
@@ -115,10 +123,10 @@ class InvoiceController extends Controller
 
         $this->sendInvoiceNotification($invoice, $student);
 
-        return response()->json([
-            'data' => $invoice->load(['student', 'school']),
-            'message' => 'Invoice created successfully',
-        ], 201);
+        return (new InvoiceResource($invoice->load(['student', 'school'])))
+            ->additional(['message' => 'Invoice created successfully'])
+            ->response()
+            ->setStatusCode(201);
     }
 
     protected function sendInvoiceNotification(Invoice $invoice, Student $student): void
@@ -167,10 +175,8 @@ class InvoiceController extends Controller
         }
     }
 
-    public function update(Request $request, $id)
+    public function update(Request $request, Invoice $invoice)
     {
-        $invoice = Invoice::findOrFail($id);
-
         if (in_array($invoice->status, ['paid'], true)) {
             return response()->json(['message' => 'Paid invoices cannot be edited.'], 422);
         }
@@ -199,9 +205,7 @@ class InvoiceController extends Controller
         $invoice->status = $this->ledgerService->resolveInvoiceStatus($invoice);
         $invoice->save();
 
-        return response()->json([
-            'data' => $invoice,
-            'message' => 'Invoice updated successfully',
-        ]);
+        return (new InvoiceResource($invoice))
+            ->additional(['message' => 'Invoice updated successfully']);
     }
 }

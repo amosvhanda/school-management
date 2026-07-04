@@ -428,7 +428,7 @@ endpoints:
       groupDescription: ''
       subgroup: ''
       subgroupDescription: ''
-      title: ''
+      title: 'Issue an API Access Token for external platform integrations'
       description: ''
       authenticated: false
       deprecated: false
@@ -583,7 +583,7 @@ endpoints:
         name: license_status
         description: ''
         required: false
-        example: grace
+        example: expired
         type: string
         enumValues:
           - licensed
@@ -607,7 +607,7 @@ endpoints:
         nullable: true
         deprecated: false
     cleanBodyParameters:
-      license_status: grace
+      license_status: expired
       search: b
     fileParameters: []
     responses:
@@ -653,7 +653,7 @@ endpoints:
         name: status
         description: ''
         required: false
-        example: unused
+        example: expired
         type: string
         enumValues:
           - unused
@@ -675,7 +675,7 @@ endpoints:
         nullable: true
         deprecated: false
     cleanBodyParameters:
-      status: unused
+      status: expired
       school_id: 16
     fileParameters: []
     responses:
@@ -721,7 +721,7 @@ endpoints:
         name: plan_type
         description: ''
         required: true
-        example: lifetime
+        example: annual
         type: string
         enumValues:
           - lifetime
@@ -777,7 +777,7 @@ endpoints:
         nullable: true
         deprecated: false
     cleanBodyParameters:
-      plan_type: lifetime
+      plan_type: annual
       duration_months: 1
       customer_name: 'n'
       customer_email: ashly64@example.com
@@ -1026,7 +1026,7 @@ endpoints:
         name: dateOfBirth
         description: 'DateOfBirth. Must be a valid date.'
         required: false
-        example: '2026-06-27T20:02:56'
+        example: '2026-07-02T21:34:06'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -1037,7 +1037,7 @@ endpoints:
         name: gender
         description: Gender.
         required: false
-        example: 'not specified'
+        example: male
         type: string
         enumValues:
           - male
@@ -1053,8 +1053,8 @@ endpoints:
       email: ashly64@example.com
       phone: v
       address: d
-      dateOfBirth: '2026-06-27T20:02:56'
-      gender: 'not specified'
+      dateOfBirth: '2026-07-02T21:34:06'
+      gender: male
     fileParameters: []
     responses: []
     responseFields: []
@@ -1408,7 +1408,7 @@ endpoints:
         name: 'settings[].is_public'
         description: 'Settings * is public.'
         required: false
-        example: true
+        example: false
         type: boolean
         enumValues: []
         exampleWasSpecified: false
@@ -1419,7 +1419,7 @@ endpoints:
         - group: architecto
           key: architecto
           type: architecto
-          is_public: true
+          is_public: false
     fileParameters: []
     responses: []
     responseFields: []
@@ -1668,7 +1668,7 @@ endpoints:
         name: field_type
         description: 'Field type.'
         required: false
-        example: date
+        example: number
         type: string
         enumValues:
           - text
@@ -1699,7 +1699,7 @@ endpoints:
         name: is_required
         description: 'Is required.'
         required: false
-        example: false
+        example: true
         type: boolean
         enumValues: []
         exampleWasSpecified: false
@@ -1731,8 +1731,8 @@ endpoints:
       entity_type: teacher
       name: b
       slug: 'n'
-      field_type: date
-      is_required: false
+      field_type: number
+      is_required: true
       is_active: true
       sort_order: 84
     fileParameters: []
@@ -1766,14 +1766,14 @@ endpoints:
         name: customField_id
         description: 'The ID of the customField.'
         required: true
-        example: 1
+        example: 16
         type: integer
         enumValues: []
         exampleWasSpecified: false
         nullable: false
         deprecated: false
     cleanUrlParameters:
-      customField_id: 1
+      customField_id: 16
     queryParameters: []
     cleanQueryParameters: []
     bodyParameters: []
@@ -3153,7 +3153,7 @@ endpoints:
         name: dateOfBirth
         description: 'DateOfBirth. Must be a valid date.'
         required: false
-        example: '2026-06-27T20:02:56'
+        example: '2026-07-02T21:34:06'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -3164,7 +3164,7 @@ endpoints:
         name: gender
         description: Gender.
         required: false
-        example: other
+        example: female
         type: string
         enumValues:
           - male
@@ -3322,8 +3322,8 @@ endpoints:
       class: architecto
       class_id: 16
       grade_level_id: 16
-      dateOfBirth: '2026-06-27T20:02:56'
-      gender: other
+      dateOfBirth: '2026-07-02T21:34:06'
+      gender: female
       phone: ngzmiyvdljnikhwa
       email: breitenberg.gilbert@example.com
       address: architecto
@@ -3424,7 +3424,7 @@ endpoints:
         name: dueDate
         description: 'Must be a valid date.'
         required: true
-        example: '2026-06-27T20:02:56'
+        example: '2026-07-02T21:34:06'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -3444,7 +3444,7 @@ endpoints:
     cleanBodyParameters:
       studentIds: []
       description: 'Eius et animi quos velit et.'
-      dueDate: '2026-06-27T20:02:56'
+      dueDate: '2026-07-02T21:34:06'
       amount: 60
     fileParameters: []
     responses: []
@@ -3615,14 +3615,14 @@ endpoints:
         name: student_id
         description: 'The ID of the student.'
         required: true
-        example: 1
+        example: 16
         type: integer
         enumValues: []
         exampleWasSpecified: false
         nullable: false
         deprecated: false
     cleanUrlParameters:
-      student_id: 1
+      student_id: 16
     queryParameters: []
     cleanQueryParameters: []
     bodyParameters: []
@@ -3667,14 +3667,14 @@ endpoints:
         name: student_id
         description: 'The ID of the student.'
         required: true
-        example: 1
+        example: 16
         type: integer
         enumValues: []
         exampleWasSpecified: false
         nullable: false
         deprecated: false
     cleanUrlParameters:
-      student_id: 1
+      student_id: 16
     queryParameters: []
     cleanQueryParameters: []
     bodyParameters:
@@ -3738,7 +3738,7 @@ endpoints:
         name: dateOfBirth
         description: 'DateOfBirth. Must be a valid date.'
         required: false
-        example: '2026-06-27T20:02:56'
+        example: '2026-07-02T21:34:06'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -3907,7 +3907,7 @@ endpoints:
       class: architecto
       class_id: 16
       grade_level_id: 16
-      dateOfBirth: '2026-06-27T20:02:56'
+      dateOfBirth: '2026-07-02T21:34:06'
       gender: female
       phone: ngzmiyvdljnikhwa
       email: breitenberg.gilbert@example.com
@@ -3952,14 +3952,14 @@ endpoints:
         name: student_id
         description: 'The ID of the student.'
         required: true
-        example: 1
+        example: 16
         type: integer
         enumValues: []
         exampleWasSpecified: false
         nullable: false
         deprecated: false
     cleanUrlParameters:
-      student_id: 1
+      student_id: 16
     queryParameters: []
     cleanQueryParameters: []
     bodyParameters: []
@@ -3995,14 +3995,14 @@ endpoints:
         name: student
         description: 'The student.'
         required: true
-        example: 1
+        example: 16
         type: integer
         enumValues: []
         exampleWasSpecified: false
         nullable: false
         deprecated: false
     cleanUrlParameters:
-      student: 1
+      student: 16
     queryParameters: []
     cleanQueryParameters: []
     bodyParameters: []
@@ -4047,14 +4047,14 @@ endpoints:
         name: student
         description: 'The student.'
         required: true
-        example: 1
+        example: 16
         type: integer
         enumValues: []
         exampleWasSpecified: false
         nullable: false
         deprecated: false
     cleanUrlParameters:
-      student: 1
+      student: 16
     queryParameters: []
     cleanQueryParameters: []
     bodyParameters: []
@@ -4099,14 +4099,14 @@ endpoints:
         name: student
         description: 'The student.'
         required: true
-        example: 1
+        example: 16
         type: integer
         enumValues: []
         exampleWasSpecified: false
         nullable: false
         deprecated: false
     cleanUrlParameters:
-      student: 1
+      student: 16
     queryParameters: []
     cleanQueryParameters: []
     bodyParameters: []
@@ -4151,14 +4151,14 @@ endpoints:
         name: student
         description: 'The student.'
         required: true
-        example: 1
+        example: 16
         type: integer
         enumValues: []
         exampleWasSpecified: false
         nullable: false
         deprecated: false
     cleanUrlParameters:
-      student: 1
+      student: 16
     queryParameters: []
     cleanQueryParameters: []
     bodyParameters:
@@ -4189,7 +4189,7 @@ endpoints:
         name: dueDate
         description: 'Must be a valid date.'
         required: true
-        example: '2026-06-27T20:02:56'
+        example: '2026-07-02T21:34:06'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -4198,7 +4198,7 @@ endpoints:
     cleanBodyParameters:
       amount: 27
       description: 'Eius et animi quos velit et.'
-      dueDate: '2026-06-27T20:02:56'
+      dueDate: '2026-07-02T21:34:06'
     fileParameters: []
     responses: []
     responseFields: []
@@ -4230,14 +4230,14 @@ endpoints:
         name: student
         description: 'The student.'
         required: true
-        example: 1
+        example: 16
         type: integer
         enumValues: []
         exampleWasSpecified: false
         nullable: false
         deprecated: false
     cleanUrlParameters:
-      student: 1
+      student: 16
     queryParameters: []
     cleanQueryParameters: []
     bodyParameters:
@@ -4299,14 +4299,14 @@ endpoints:
         name: student
         description: 'The student.'
         required: true
-        example: 1
+        example: 16
         type: integer
         enumValues: []
         exampleWasSpecified: false
         nullable: false
         deprecated: false
     cleanUrlParameters:
-      student: 1
+      student: 16
     queryParameters: []
     cleanQueryParameters: []
     bodyParameters: []
@@ -4351,14 +4351,14 @@ endpoints:
         name: student
         description: 'The student.'
         required: true
-        example: 1
+        example: 16
         type: integer
         enumValues: []
         exampleWasSpecified: false
         nullable: false
         deprecated: false
     cleanUrlParameters:
-      student: 1
+      student: 16
     queryParameters: []
     cleanQueryParameters: []
     bodyParameters: []
@@ -4535,7 +4535,7 @@ endpoints:
         name: billing_mode
         description: ''
         required: false
-        example: both
+        example: direct_sale
         type: string
         enumValues:
           - direct_sale
@@ -4564,7 +4564,7 @@ endpoints:
       currency: iyv
       stock_quantity: 42
       reorder_level: 37
-      billing_mode: both
+      billing_mode: direct_sale
       description: 'Eius et animi quos velit et.'
     fileParameters: []
     responses: []
@@ -4919,7 +4919,7 @@ endpoints:
         name: start_date
         description: 'Must be a valid date.'
         required: true
-        example: '2026-06-27T20:02:56'
+        example: '2026-07-02T21:34:06'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -4930,7 +4930,7 @@ endpoints:
         name: end_date
         description: 'Must be a valid date. Must be a date after or equal to <code>start_date</code>.'
         required: true
-        example: '2052-07-20'
+        example: '2052-07-25'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -4974,7 +4974,7 @@ endpoints:
         name: is_active
         description: ''
         required: false
-        example: true
+        example: false
         type: boolean
         enumValues: []
         exampleWasSpecified: false
@@ -4983,12 +4983,12 @@ endpoints:
     cleanBodyParameters:
       name: b
       academic_year: ngzmiyv
-      start_date: '2026-06-27T20:02:56'
-      end_date: '2052-07-20'
+      start_date: '2026-07-02T21:34:06'
+      end_date: '2052-07-25'
       fee_amount: 39
       currency: gzm
       description: 'Eius et animi quos velit et.'
-      is_active: true
+      is_active: false
     fileParameters: []
     responses: []
     responseFields: []
@@ -5030,8 +5030,80 @@ endpoints:
       id: architecto
     queryParameters: []
     cleanQueryParameters: []
-    bodyParameters: []
-    cleanBodyParameters: []
+    bodyParameters:
+      name:
+        custom: []
+        name: name
+        description: 'Must not be greater than 255 characters.'
+        required: false
+        example: b
+        type: string
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+      start_date:
+        custom: []
+        name: start_date
+        description: 'Must be a valid date.'
+        required: false
+        example: '2026-07-02T21:34:06'
+        type: string
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+      end_date:
+        custom: []
+        name: end_date
+        description: 'Must be a valid date.'
+        required: false
+        example: '2026-07-02T21:34:06'
+        type: string
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+      fee_amount:
+        custom: []
+        name: fee_amount
+        description: 'Must be at least 0.'
+        required: false
+        example: 39
+        type: number
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+      is_active:
+        custom: []
+        name: is_active
+        description: ''
+        required: false
+        example: false
+        type: boolean
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+      description:
+        custom: []
+        name: description
+        description: ''
+        required: false
+        example: 'Eius et animi quos velit et.'
+        type: string
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: true
+        deprecated: false
+    cleanBodyParameters:
+      name: b
+      start_date: '2026-07-02T21:34:06'
+      end_date: '2026-07-02T21:34:06'
+      fee_amount: 39
+      is_active: false
+      description: 'Eius et animi quos velit et.'
     fileParameters: []
     responses: []
     responseFields: []
@@ -5129,16 +5201,16 @@ endpoints:
       student_id:
         custom: []
         name: student_id
-        description: 'Must match an existing stored value.'
+        description: ''
         required: true
-        example: architecto
-        type: string
+        example: 16
+        type: integer
         enumValues: []
         exampleWasSpecified: false
         nullable: false
         deprecated: false
     cleanBodyParameters:
-      student_id: architecto
+      student_id: 16
     fileParameters: []
     responses: []
     responseFields: []
@@ -5236,10 +5308,10 @@ endpoints:
       student_id:
         custom: []
         name: student_id
-        description: 'Must match an existing stored value.'
+        description: ''
         required: true
-        example: architecto
-        type: string
+        example: 16
+        type: integer
         enumValues: []
         exampleWasSpecified: false
         nullable: false
@@ -5249,7 +5321,7 @@ endpoints:
         name: date
         description: 'Must be a valid date.'
         required: true
-        example: '2026-06-27T20:02:56'
+        example: '2026-07-02T21:34:06'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -5260,7 +5332,7 @@ endpoints:
         name: status
         description: ''
         required: true
-        example: late
+        example: excused
         type: string
         enumValues:
           - present
@@ -5282,9 +5354,9 @@ endpoints:
         nullable: true
         deprecated: false
     cleanBodyParameters:
-      student_id: architecto
-      date: '2026-06-27T20:02:56'
-      status: late
+      student_id: 16
+      date: '2026-07-02T21:34:06'
+      status: excused
       notes: architecto
     fileParameters: []
     responses: []
@@ -5460,7 +5532,7 @@ endpoints:
         name: joiningDate
         description: 'JoiningDate. Must be a valid date.'
         required: false
-        example: '2026-06-27T20:02:56'
+        example: '2026-07-02T21:34:06'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -5487,7 +5559,7 @@ endpoints:
       subject: 'n'
       department: g
       qualification: z
-      joiningDate: '2026-06-27T20:02:56'
+      joiningDate: '2026-07-02T21:34:06'
     fileParameters: []
     responses: []
     responseFields: []
@@ -5519,14 +5591,14 @@ endpoints:
         name: teacher_id
         description: 'The ID of the teacher.'
         required: true
-        example: 1
+        example: 16
         type: integer
         enumValues: []
         exampleWasSpecified: false
         nullable: false
         deprecated: false
     cleanUrlParameters:
-      teacher_id: 1
+      teacher_id: 16
     queryParameters: []
     cleanQueryParameters: []
     bodyParameters: []
@@ -5571,14 +5643,14 @@ endpoints:
         name: teacher_id
         description: 'The ID of the teacher.'
         required: true
-        example: 1
+        example: 16
         type: integer
         enumValues: []
         exampleWasSpecified: false
         nullable: false
         deprecated: false
     cleanUrlParameters:
-      teacher_id: 1
+      teacher_id: 16
     queryParameters: []
     cleanQueryParameters: []
     bodyParameters:
@@ -5675,7 +5747,7 @@ endpoints:
         name: joiningDate
         description: 'JoiningDate. Must be a valid date.'
         required: false
-        example: '2026-06-27T20:02:56'
+        example: '2026-07-02T21:34:06'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -5712,7 +5784,7 @@ endpoints:
       subject: 'n'
       department: g
       qualification: z
-      joiningDate: '2026-06-27T20:02:56'
+      joiningDate: '2026-07-02T21:34:06'
       status: architecto
     fileParameters: []
     responses: []
@@ -5745,14 +5817,14 @@ endpoints:
         name: teacher_id
         description: 'The ID of the teacher.'
         required: true
-        example: 1
+        example: 16
         type: integer
         enumValues: []
         exampleWasSpecified: false
         nullable: false
         deprecated: false
     cleanUrlParameters:
-      teacher_id: 1
+      teacher_id: 16
     queryParameters: []
     cleanQueryParameters: []
     bodyParameters: []
@@ -5788,14 +5860,14 @@ endpoints:
         name: id
         description: 'The ID of the teacher.'
         required: true
-        example: 1
+        example: 16
         type: integer
         enumValues: []
         exampleWasSpecified: false
         nullable: false
         deprecated: false
     cleanUrlParameters:
-      id: 1
+      id: 16
     queryParameters: []
     cleanQueryParameters: []
     bodyParameters:
@@ -5804,7 +5876,7 @@ endpoints:
         name: status
         description: ''
         required: true
-        example: active
+        example: inactive
         type: string
         enumValues:
           - active
@@ -5814,7 +5886,7 @@ endpoints:
         nullable: false
         deprecated: false
     cleanBodyParameters:
-      status: active
+      status: inactive
     fileParameters: []
     responses: []
     responseFields: []
@@ -5866,7 +5938,7 @@ endpoints:
     custom: []
     httpMethods:
       - GET
-    uri: 'api/v1/classes/{id}'
+    uri: 'api/v1/classes/{class_id}'
     metadata:
       custom: []
       groupName: Endpoints
@@ -5881,19 +5953,19 @@ endpoints:
       Content-Type: application/json
       Accept: application/json
     urlParameters:
-      id:
+      class_id:
         custom: []
-        name: id
+        name: class_id
         description: 'The ID of the class.'
         required: true
-        example: architecto
-        type: string
+        example: 16
+        type: integer
         enumValues: []
         exampleWasSpecified: false
         nullable: false
         deprecated: false
     cleanUrlParameters:
-      id: architecto
+      class_id: 16
     queryParameters: []
     cleanQueryParameters: []
     bodyParameters: []
@@ -5996,7 +6068,7 @@ endpoints:
     custom: []
     httpMethods:
       - PUT
-    uri: 'api/v1/classes/{id}'
+    uri: 'api/v1/classes/{class_id}'
     metadata:
       custom: []
       groupName: Endpoints
@@ -6011,19 +6083,19 @@ endpoints:
       Content-Type: application/json
       Accept: application/json
     urlParameters:
-      id:
+      class_id:
         custom: []
-        name: id
+        name: class_id
         description: 'The ID of the class.'
         required: true
-        example: architecto
-        type: string
+        example: 16
+        type: integer
         enumValues: []
         exampleWasSpecified: false
         nullable: false
         deprecated: false
     cleanUrlParameters:
-      id: architecto
+      class_id: 16
     queryParameters: []
     cleanQueryParameters: []
     bodyParameters:
@@ -6074,7 +6146,7 @@ endpoints:
     custom: []
     httpMethods:
       - DELETE
-    uri: 'api/v1/classes/{id}'
+    uri: 'api/v1/classes/{class_id}'
     metadata:
       custom: []
       groupName: Endpoints
@@ -6089,19 +6161,19 @@ endpoints:
       Content-Type: application/json
       Accept: application/json
     urlParameters:
-      id:
+      class_id:
         custom: []
-        name: id
+        name: class_id
         description: 'The ID of the class.'
         required: true
-        example: architecto
-        type: string
+        example: 16
+        type: integer
         enumValues: []
         exampleWasSpecified: false
         nullable: false
         deprecated: false
     cleanUrlParameters:
-      id: architecto
+      class_id: 16
     queryParameters: []
     cleanQueryParameters: []
     bodyParameters: []
@@ -6157,7 +6229,7 @@ endpoints:
     custom: []
     httpMethods:
       - GET
-    uri: 'api/v1/subjects/{id}'
+    uri: 'api/v1/subjects/{subject_id}'
     metadata:
       custom: []
       groupName: Endpoints
@@ -6172,19 +6244,19 @@ endpoints:
       Content-Type: application/json
       Accept: application/json
     urlParameters:
-      id:
+      subject_id:
         custom: []
-        name: id
+        name: subject_id
         description: 'The ID of the subject.'
         required: true
-        example: architecto
-        type: string
+        example: 16
+        type: integer
         enumValues: []
         exampleWasSpecified: false
         nullable: false
         deprecated: false
     cleanUrlParameters:
-      id: architecto
+      subject_id: 16
     queryParameters: []
     cleanQueryParameters: []
     bodyParameters: []
@@ -6266,7 +6338,7 @@ endpoints:
         name: is_active
         description: ''
         required: false
-        example: false
+        example: true
         type: boolean
         enumValues: []
         exampleWasSpecified: false
@@ -6309,7 +6381,7 @@ endpoints:
       name: b
       code: ngzmiyvdljnikhwa
       description: 'Eius et animi quos velit et.'
-      is_active: false
+      is_active: true
       order: 60
     fileParameters: []
     responses: []
@@ -6322,7 +6394,7 @@ endpoints:
     custom: []
     httpMethods:
       - PUT
-    uri: 'api/v1/subjects/{id}'
+    uri: 'api/v1/subjects/{subject_id}'
     metadata:
       custom: []
       groupName: Endpoints
@@ -6337,19 +6409,19 @@ endpoints:
       Content-Type: application/json
       Accept: application/json
     urlParameters:
-      id:
+      subject_id:
         custom: []
-        name: id
+        name: subject_id
         description: 'The ID of the subject.'
         required: true
-        example: architecto
-        type: string
+        example: 16
+        type: integer
         enumValues: []
         exampleWasSpecified: false
         nullable: false
         deprecated: false
     cleanUrlParameters:
-      id: architecto
+      subject_id: 16
     queryParameters: []
     cleanQueryParameters: []
     bodyParameters:
@@ -6447,7 +6519,7 @@ endpoints:
     custom: []
     httpMethods:
       - DELETE
-    uri: 'api/v1/subjects/{id}'
+    uri: 'api/v1/subjects/{subject_id}'
     metadata:
       custom: []
       groupName: Endpoints
@@ -6462,19 +6534,19 @@ endpoints:
       Content-Type: application/json
       Accept: application/json
     urlParameters:
-      id:
+      subject_id:
         custom: []
-        name: id
+        name: subject_id
         description: 'The ID of the subject.'
         required: true
-        example: architecto
-        type: string
+        example: 16
+        type: integer
         enumValues: []
         exampleWasSpecified: false
         nullable: false
         deprecated: false
     cleanUrlParameters:
-      id: architecto
+      subject_id: 16
     queryParameters: []
     cleanQueryParameters: []
     bodyParameters: []
@@ -6530,7 +6602,7 @@ endpoints:
     custom: []
     httpMethods:
       - GET
-    uri: 'api/v1/departments/{id}'
+    uri: 'api/v1/departments/{department_id}'
     metadata:
       custom: []
       groupName: Endpoints
@@ -6545,19 +6617,19 @@ endpoints:
       Content-Type: application/json
       Accept: application/json
     urlParameters:
-      id:
+      department_id:
         custom: []
-        name: id
+        name: department_id
         description: 'The ID of the department.'
         required: true
-        example: architecto
-        type: string
+        example: 16
+        type: integer
         enumValues: []
         exampleWasSpecified: false
         nullable: false
         deprecated: false
     cleanUrlParameters:
-      id: architecto
+      department_id: 16
     queryParameters: []
     cleanQueryParameters: []
     bodyParameters: []
@@ -6650,7 +6722,7 @@ endpoints:
         name: is_active
         description: ''
         required: false
-        example: true
+        example: false
         type: boolean
         enumValues: []
         exampleWasSpecified: false
@@ -6660,7 +6732,7 @@ endpoints:
       name: b
       code: ngzmiyvdljnikhwa
       description: 'Eius et animi quos velit et.'
-      is_active: true
+      is_active: false
     fileParameters: []
     responses: []
     responseFields: []
@@ -6672,7 +6744,7 @@ endpoints:
     custom: []
     httpMethods:
       - PUT
-    uri: 'api/v1/departments/{id}'
+    uri: 'api/v1/departments/{department_id}'
     metadata:
       custom: []
       groupName: Endpoints
@@ -6687,19 +6759,19 @@ endpoints:
       Content-Type: application/json
       Accept: application/json
     urlParameters:
-      id:
+      department_id:
         custom: []
-        name: id
+        name: department_id
         description: 'The ID of the department.'
         required: true
-        example: architecto
-        type: string
+        example: 16
+        type: integer
         enumValues: []
         exampleWasSpecified: false
         nullable: false
         deprecated: false
     cleanUrlParameters:
-      id: architecto
+      department_id: 16
     queryParameters: []
     cleanQueryParameters: []
     bodyParameters:
@@ -6774,7 +6846,7 @@ endpoints:
     custom: []
     httpMethods:
       - DELETE
-    uri: 'api/v1/departments/{id}'
+    uri: 'api/v1/departments/{department_id}'
     metadata:
       custom: []
       groupName: Endpoints
@@ -6789,19 +6861,19 @@ endpoints:
       Content-Type: application/json
       Accept: application/json
     urlParameters:
-      id:
+      department_id:
         custom: []
-        name: id
+        name: department_id
         description: 'The ID of the department.'
         required: true
-        example: architecto
-        type: string
+        example: 16
+        type: integer
         enumValues: []
         exampleWasSpecified: false
         nullable: false
         deprecated: false
     cleanUrlParameters:
-      id: architecto
+      department_id: 16
     queryParameters: []
     cleanQueryParameters: []
     bodyParameters: []
@@ -7080,7 +7152,7 @@ endpoints:
         name: is_active
         description: ''
         required: false
-        example: false
+        example: true
         type: boolean
         enumValues: []
         exampleWasSpecified: false
@@ -7091,7 +7163,7 @@ endpoints:
       code: 'n'
       order: 84
       description: 'Eius et animi quos velit et.'
-      is_active: false
+      is_active: true
     fileParameters: []
     responses: []
     responseFields: []
@@ -7596,7 +7668,7 @@ endpoints:
         name: is_active
         description: ''
         required: false
-        example: true
+        example: false
         type: boolean
         enumValues: []
         exampleWasSpecified: false
@@ -7609,7 +7681,7 @@ endpoints:
       capacity: 66
       description: 'Eius et animi quos velit et.'
       location: v
-      is_active: true
+      is_active: false
     fileParameters: []
     responses: []
     responseFields: []
@@ -7723,7 +7795,7 @@ endpoints:
         name: is_active
         description: ''
         required: false
-        example: false
+        example: true
         type: boolean
         enumValues: []
         exampleWasSpecified: false
@@ -7736,7 +7808,7 @@ endpoints:
       capacity: 66
       description: 'Eius et animi quos velit et.'
       location: v
-      is_active: false
+      is_active: true
     fileParameters: []
     responses: []
     responseFields: []
@@ -7891,14 +7963,14 @@ endpoints:
         name: id
         description: 'The ID of the term.'
         required: true
-        example: architecto
-        type: string
+        example: 16
+        type: integer
         enumValues: []
         exampleWasSpecified: false
         nullable: false
         deprecated: false
     cleanUrlParameters:
-      id: architecto
+      id: 16
     queryParameters: []
     cleanQueryParameters: []
     bodyParameters: []
@@ -7969,7 +8041,7 @@ endpoints:
         name: start_date
         description: 'Must be a valid date.'
         required: true
-        example: '2026-06-27T20:02:56'
+        example: '2026-07-02T21:34:06'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -7980,134 +8052,7 @@ endpoints:
         name: end_date
         description: 'Must be a valid date. Must be a date after <code>start_date</code>.'
         required: true
-        example: '2052-07-20'
-        type: string
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: false
-        deprecated: false
-      order:
-        custom: []
-        name: order
-        description: 'Must be at least 1.'
-        required: false
-        example: 22
-        type: integer
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: true
-        deprecated: false
-      description:
-        custom: []
-        name: description
-        description: ''
-        required: false
-        example: 'Eius et animi quos velit et.'
-        type: string
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: true
-        deprecated: false
-      is_current:
-        custom: []
-        name: is_current
-        description: ''
-        required: false
-        example: true
-        type: boolean
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: true
-        deprecated: false
-    cleanBodyParameters:
-      name: b
-      academic_year: ngzmiyv
-      start_date: '2026-06-27T20:02:56'
-      end_date: '2052-07-20'
-      order: 22
-      description: 'Eius et animi quos velit et.'
-      is_current: true
-    fileParameters: []
-    responses: []
-    responseFields: []
-    auth: []
-    controller: null
-    method: null
-    route: null
-  -
-    custom: []
-    httpMethods:
-      - PUT
-    uri: 'api/v1/terms/{id}'
-    metadata:
-      custom: []
-      groupName: Endpoints
-      groupDescription: ''
-      subgroup: ''
-      subgroupDescription: ''
-      title: 'Update a term'
-      description: ''
-      authenticated: false
-      deprecated: false
-    headers:
-      Content-Type: application/json
-      Accept: application/json
-    urlParameters:
-      id:
-        custom: []
-        name: id
-        description: 'The ID of the term.'
-        required: true
-        example: architecto
-        type: string
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: false
-        deprecated: false
-    cleanUrlParameters:
-      id: architecto
-    queryParameters: []
-    cleanQueryParameters: []
-    bodyParameters:
-      name:
-        custom: []
-        name: name
-        description: 'Must not be greater than 255 characters.'
-        required: false
-        example: b
-        type: string
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: false
-        deprecated: false
-      academic_year:
-        custom: []
-        name: academic_year
-        description: 'Must not be greater than 9 characters.'
-        required: false
-        example: ngzmiyv
-        type: string
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: false
-        deprecated: false
-      start_date:
-        custom: []
-        name: start_date
-        description: 'Must be a valid date.'
-        required: false
-        example: '2026-06-27T20:02:56'
-        type: string
-        enumValues: []
-        exampleWasSpecified: false
-        nullable: false
-        deprecated: false
-      end_date:
-        custom: []
-        name: end_date
-        description: 'Must be a valid date. Must be a date after <code>start_date</code>.'
-        required: false
-        example: '2052-07-20'
+        example: '2052-07-25'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -8146,9 +8091,125 @@ endpoints:
         exampleWasSpecified: false
         nullable: true
         deprecated: false
-      is_active:
+    cleanBodyParameters:
+      name: b
+      academic_year: ngzmiyv
+      start_date: '2026-07-02T21:34:06'
+      end_date: '2052-07-25'
+      order: 22
+      description: 'Eius et animi quos velit et.'
+      is_current: false
+    fileParameters: []
+    responses: []
+    responseFields: []
+    auth: []
+    controller: null
+    method: null
+    route: null
+  -
+    custom: []
+    httpMethods:
+      - PUT
+    uri: 'api/v1/terms/{id}'
+    metadata:
+      custom: []
+      groupName: Endpoints
+      groupDescription: ''
+      subgroup: ''
+      subgroupDescription: ''
+      title: 'Update a term'
+      description: ''
+      authenticated: false
+      deprecated: false
+    headers:
+      Content-Type: application/json
+      Accept: application/json
+    urlParameters:
+      id:
         custom: []
-        name: is_active
+        name: id
+        description: 'The ID of the term.'
+        required: true
+        example: 16
+        type: integer
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+    cleanUrlParameters:
+      id: 16
+    queryParameters: []
+    cleanQueryParameters: []
+    bodyParameters:
+      name:
+        custom: []
+        name: name
+        description: 'Must not be greater than 255 characters.'
+        required: false
+        example: b
+        type: string
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+      academic_year:
+        custom: []
+        name: academic_year
+        description: 'Must not be greater than 9 characters.'
+        required: false
+        example: ngzmiyv
+        type: string
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+      start_date:
+        custom: []
+        name: start_date
+        description: 'Must be a valid date.'
+        required: false
+        example: '2026-07-02T21:34:06'
+        type: string
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+      end_date:
+        custom: []
+        name: end_date
+        description: 'Must be a valid date. Must be a date after <code>start_date</code>.'
+        required: false
+        example: '2052-07-25'
+        type: string
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: false
+        deprecated: false
+      order:
+        custom: []
+        name: order
+        description: 'Must be at least 1.'
+        required: false
+        example: 22
+        type: integer
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: true
+        deprecated: false
+      description:
+        custom: []
+        name: description
+        description: ''
+        required: false
+        example: 'Eius et animi quos velit et.'
+        type: string
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: true
+        deprecated: false
+      is_current:
+        custom: []
+        name: is_current
         description: ''
         required: false
         example: true
@@ -8157,15 +8218,26 @@ endpoints:
         exampleWasSpecified: false
         nullable: true
         deprecated: false
+      is_active:
+        custom: []
+        name: is_active
+        description: ''
+        required: false
+        example: false
+        type: boolean
+        enumValues: []
+        exampleWasSpecified: false
+        nullable: true
+        deprecated: false
     cleanBodyParameters:
       name: b
       academic_year: ngzmiyv
-      start_date: '2026-06-27T20:02:56'
-      end_date: '2052-07-20'
+      start_date: '2026-07-02T21:34:06'
+      end_date: '2052-07-25'
       order: 22
       description: 'Eius et animi quos velit et.'
-      is_current: false
-      is_active: true
+      is_current: true
+      is_active: false
     fileParameters: []
     responses: []
     responseFields: []
@@ -8197,14 +8269,14 @@ endpoints:
         name: id
         description: 'The ID of the term.'
         required: true
-        example: architecto
-        type: string
+        example: 16
+        type: integer
         enumValues: []
         exampleWasSpecified: false
         nullable: false
         deprecated: false
     cleanUrlParameters:
-      id: architecto
+      id: 16
     queryParameters: []
     cleanQueryParameters: []
     bodyParameters: []
@@ -8328,7 +8400,7 @@ endpoints:
         name: due_date
         description: 'Must be a valid date.'
         required: true
-        example: '2026-06-27T20:02:56'
+        example: '2026-07-02T21:34:06'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -8372,7 +8444,7 @@ endpoints:
       subject: 'n'
       class_id: architecto
       teacher_id: architecto
-      due_date: '2026-06-27T20:02:56'
+      due_date: '2026-07-02T21:34:06'
       total_marks: 39
       description: 'Eius et animi quos velit et.'
       instructions: architecto
@@ -8519,7 +8591,7 @@ endpoints:
         name: due_date
         description: 'Must be a valid date.'
         required: false
-        example: '2026-06-27T20:02:56'
+        example: '2026-07-02T21:34:06'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -8541,7 +8613,7 @@ endpoints:
         name: status
         description: ''
         required: false
-        example: cancelled
+        example: active
         type: string
         enumValues:
           - active
@@ -8575,9 +8647,9 @@ endpoints:
     cleanBodyParameters:
       title: b
       subject: 'n'
-      due_date: '2026-06-27T20:02:56'
+      due_date: '2026-07-02T21:34:06'
       total_marks: 84
-      status: cancelled
+      status: active
       description: 'Eius et animi quos velit et.'
       instructions: architecto
     fileParameters: []
@@ -8706,14 +8778,14 @@ endpoints:
         name: studentId
         description: ''
         required: true
-        example: 1
+        example: 16
         type: integer
         enumValues: []
         exampleWasSpecified: false
         nullable: false
         deprecated: false
     cleanUrlParameters:
-      studentId: 1
+      studentId: 16
     queryParameters: []
     cleanQueryParameters: []
     bodyParameters: []
@@ -8839,7 +8911,7 @@ endpoints:
         name: assessment_type
         description: ''
         required: true
-        example: exam
+        example: quiz
         type: string
         enumValues:
           - test
@@ -8903,7 +8975,7 @@ endpoints:
       total: 84
       term: architecto
       year: 16
-      assessment_type: exam
+      assessment_type: quiz
     fileParameters: []
     responses: []
     responseFields: []
@@ -9304,7 +9376,7 @@ endpoints:
         name: exam_date
         description: 'Must be a valid date.'
         required: true
-        example: '2026-06-27T20:02:56'
+        example: '2026-07-02T21:34:06'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -9315,7 +9387,7 @@ endpoints:
         name: start_time
         description: 'Must be a valid date in the format <code>H:i</code>.'
         required: false
-        example: '20:02'
+        example: '21:34'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -9326,7 +9398,7 @@ endpoints:
         name: end_time
         description: 'Must be a valid date in the format <code>H:i</code>. Must be a date after <code>start_time</code>.'
         required: false
-        example: '2052-07-20'
+        example: '2052-07-25'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -9371,9 +9443,9 @@ endpoints:
       subject_id: architecto
       name: 'n'
       description: 'Eius et animi quos velit et.'
-      exam_date: '2026-06-27T20:02:56'
-      start_time: '20:02'
-      end_time: '2052-07-20'
+      exam_date: '2026-07-02T21:34:06'
+      start_time: '21:34'
+      end_time: '2052-07-25'
       total_marks: 39
       passing_marks: 84
       academic_year: zmiyvdl
@@ -9479,7 +9551,7 @@ endpoints:
         name: exam_date
         description: 'Must be a valid date.'
         required: false
-        example: '2026-06-27T20:02:56'
+        example: '2026-07-02T21:34:06'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -9490,7 +9562,7 @@ endpoints:
         name: start_time
         description: 'Must be a valid date in the format <code>H:i</code>.'
         required: false
-        example: '20:02'
+        example: '21:34'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -9501,7 +9573,7 @@ endpoints:
         name: end_time
         description: 'Must be a valid date in the format <code>H:i</code>. Must be a date after <code>start_time</code>.'
         required: false
-        example: '2052-07-20'
+        example: '2052-07-25'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -9554,9 +9626,9 @@ endpoints:
     cleanBodyParameters:
       name: b
       description: 'Eius et animi quos velit et.'
-      exam_date: '2026-06-27T20:02:56'
-      start_time: '20:02'
-      end_time: '2052-07-20'
+      exam_date: '2026-07-02T21:34:06'
+      start_time: '21:34'
+      end_time: '2052-07-25'
       total_marks: 39
       passing_marks: 84
       academic_year: zmiyvdl
@@ -9833,7 +9905,7 @@ endpoints:
     custom: []
     httpMethods:
       - GET
-    uri: 'api/v1/tests/{id}'
+    uri: 'api/v1/tests/{test_id}'
     metadata:
       custom: []
       groupName: Endpoints
@@ -9848,19 +9920,19 @@ endpoints:
       Content-Type: application/json
       Accept: application/json
     urlParameters:
-      id:
+      test_id:
         custom: []
-        name: id
+        name: test_id
         description: 'The ID of the test.'
         required: true
-        example: architecto
-        type: string
+        example: 16
+        type: integer
         enumValues: []
         exampleWasSpecified: false
         nullable: false
         deprecated: false
     cleanUrlParameters:
-      id: architecto
+      test_id: 16
     queryParameters: []
     cleanQueryParameters: []
     bodyParameters: []
@@ -9975,7 +10047,7 @@ endpoints:
         name: test_date
         description: 'Must be a valid date.'
         required: true
-        example: '2026-06-27T20:02:56'
+        example: '2026-07-02T21:34:06'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -9986,7 +10058,7 @@ endpoints:
         name: start_time
         description: 'Must be a valid date in the format <code>H:i</code>.'
         required: false
-        example: '20:02'
+        example: '21:34'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -9997,7 +10069,7 @@ endpoints:
         name: end_time
         description: 'Must be a valid date in the format <code>H:i</code>. Must be a date after <code>start_time</code>.'
         required: false
-        example: '2052-07-20'
+        example: '2052-07-25'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -10042,9 +10114,9 @@ endpoints:
       teacher_id: architecto
       name: 'n'
       description: 'Eius et animi quos velit et.'
-      test_date: '2026-06-27T20:02:56'
-      start_time: '20:02'
-      end_time: '2052-07-20'
+      test_date: '2026-07-02T21:34:06'
+      start_time: '21:34'
+      end_time: '2052-07-25'
       total_marks: 39
       passing_marks: 84
       academic_year: zmiyvdl
@@ -10059,7 +10131,7 @@ endpoints:
     custom: []
     httpMethods:
       - PUT
-    uri: 'api/v1/tests/{id}'
+    uri: 'api/v1/tests/{test_id}'
     metadata:
       custom: []
       groupName: Endpoints
@@ -10074,19 +10146,19 @@ endpoints:
       Content-Type: application/json
       Accept: application/json
     urlParameters:
-      id:
+      test_id:
         custom: []
-        name: id
+        name: test_id
         description: 'The ID of the test.'
         required: true
-        example: architecto
-        type: string
+        example: 16
+        type: integer
         enumValues: []
         exampleWasSpecified: false
         nullable: false
         deprecated: false
     cleanUrlParameters:
-      id: architecto
+      test_id: 16
     queryParameters: []
     cleanQueryParameters: []
     bodyParameters:
@@ -10161,7 +10233,7 @@ endpoints:
         name: test_date
         description: 'Must be a valid date.'
         required: false
-        example: '2026-06-27T20:02:56'
+        example: '2026-07-02T21:34:06'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -10172,7 +10244,7 @@ endpoints:
         name: start_time
         description: 'Must be a valid date in the format <code>H:i</code>.'
         required: false
-        example: '20:02'
+        example: '21:34'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -10183,7 +10255,7 @@ endpoints:
         name: end_time
         description: 'Must be a valid date in the format <code>H:i</code>. Must be a date after <code>start_time</code>.'
         required: false
-        example: '2052-07-20'
+        example: '2052-07-25'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -10227,7 +10299,7 @@ endpoints:
         name: is_published
         description: ''
         required: false
-        example: true
+        example: false
         type: boolean
         enumValues: []
         exampleWasSpecified: false
@@ -10236,13 +10308,13 @@ endpoints:
     cleanBodyParameters:
       name: b
       description: 'Eius et animi quos velit et.'
-      test_date: '2026-06-27T20:02:56'
-      start_time: '20:02'
-      end_time: '2052-07-20'
+      test_date: '2026-07-02T21:34:06'
+      start_time: '21:34'
+      end_time: '2052-07-25'
       total_marks: 39
       passing_marks: 84
       academic_year: zmiyvdl
-      is_published: true
+      is_published: false
     fileParameters: []
     responses: []
     responseFields: []
@@ -10254,7 +10326,7 @@ endpoints:
     custom: []
     httpMethods:
       - DELETE
-    uri: 'api/v1/tests/{id}'
+    uri: 'api/v1/tests/{test_id}'
     metadata:
       custom: []
       groupName: Endpoints
@@ -10269,19 +10341,19 @@ endpoints:
       Content-Type: application/json
       Accept: application/json
     urlParameters:
-      id:
+      test_id:
         custom: []
-        name: id
+        name: test_id
         description: 'The ID of the test.'
         required: true
-        example: architecto
-        type: string
+        example: 16
+        type: integer
         enumValues: []
         exampleWasSpecified: false
         nullable: false
         deprecated: false
     cleanUrlParameters:
-      id: architecto
+      test_id: 16
     queryParameters: []
     cleanQueryParameters: []
     bodyParameters: []
@@ -10297,7 +10369,7 @@ endpoints:
     custom: []
     httpMethods:
       - POST
-    uri: 'api/v1/tests/{id}/results'
+    uri: 'api/v1/tests/{test_id}/results'
     metadata:
       custom: []
       groupName: Endpoints
@@ -10312,19 +10384,19 @@ endpoints:
       Content-Type: application/json
       Accept: application/json
     urlParameters:
-      id:
+      test_id:
         custom: []
-        name: id
+        name: test_id
         description: 'The ID of the test.'
         required: true
-        example: architecto
-        type: string
+        example: 16
+        type: integer
         enumValues: []
         exampleWasSpecified: false
         nullable: false
         deprecated: false
     cleanUrlParameters:
-      id: architecto
+      test_id: 16
     queryParameters: []
     cleanQueryParameters: []
     bodyParameters:
@@ -10464,7 +10536,7 @@ endpoints:
         name: date
         description: 'Can be string (class name) or integer (class ID). Must be a valid date.'
         required: true
-        example: '2026-06-27T20:02:56'
+        example: '2026-07-02T21:34:06'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -10532,7 +10604,7 @@ endpoints:
         deprecated: false
     cleanBodyParameters:
       class_id: architecto
-      date: '2026-06-27T20:02:56'
+      date: '2026-07-02T21:34:06'
       records:
         - student_id: architecto
           status: excused
@@ -10609,14 +10681,14 @@ endpoints:
         name: id
         description: 'The ID of the student.'
         required: true
-        example: 1
+        example: 16
         type: integer
         enumValues: []
         exampleWasSpecified: false
         nullable: false
         deprecated: false
     cleanUrlParameters:
-      id: 1
+      id: 16
     queryParameters: []
     cleanQueryParameters: []
     bodyParameters: []
@@ -10801,7 +10873,7 @@ endpoints:
         name: start_time
         description: 'Must be a valid date in the format <code>H:i</code>.'
         required: true
-        example: '20:02'
+        example: '21:34'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -10812,7 +10884,7 @@ endpoints:
         name: end_time
         description: 'Must be a valid date in the format <code>H:i</code>.'
         required: true
-        example: '20:02'
+        example: '21:34'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -10855,8 +10927,8 @@ endpoints:
       class_id: architecto
       subject: architecto
       day: architecto
-      start_time: '20:02'
-      end_time: '20:02'
+      start_time: '21:34'
+      end_time: '21:34'
       room: architecto
     fileParameters: []
     responses: []
@@ -10938,7 +11010,7 @@ endpoints:
         name: start_time
         description: 'Must be a valid date in the format <code>H:i</code>.'
         required: false
-        example: '20:02'
+        example: '21:34'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -10949,7 +11021,7 @@ endpoints:
         name: end_time
         description: 'Must be a valid date in the format <code>H:i</code>.'
         required: false
-        example: '20:02'
+        example: '21:34'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -10991,8 +11063,8 @@ endpoints:
     cleanBodyParameters:
       subject: architecto
       day: architecto
-      start_time: '20:02'
-      end_time: '20:02'
+      start_time: '21:34'
+      end_time: '21:34'
       room: architecto
     fileParameters: []
     responses: []
@@ -11095,7 +11167,7 @@ endpoints:
         name: day_start
         description: 'Must be a valid date in the format <code>H:i</code>.'
         required: false
-        example: '20:02'
+        example: '21:34'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -11127,7 +11199,7 @@ endpoints:
       class_id: architecto
       days:
         - architecto
-      day_start: '20:02'
+      day_start: '21:34'
       period_minutes: 22
       replace_existing: true
     fileParameters: []
@@ -11211,7 +11283,7 @@ endpoints:
         name: day_start
         description: 'Must be a valid date in the format <code>H:i</code>.'
         required: false
-        example: '20:02'
+        example: '21:34'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -11246,7 +11318,7 @@ endpoints:
       all_classes: false
       days:
         - architecto
-      day_start: '20:02'
+      day_start: '21:34'
       period_minutes: 22
       replace_existing: false
     fileParameters: []
@@ -11379,7 +11451,7 @@ endpoints:
         name: assigned_at
         description: 'Must be a valid date.'
         required: false
-        example: '2026-06-27T20:02:56'
+        example: '2026-07-02T21:34:06'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -11390,7 +11462,7 @@ endpoints:
         name: assigned_until
         description: 'Must be a valid date. Must be a date after <code>assigned_at</code>.'
         required: false
-        example: '2052-07-20'
+        example: '2052-07-25'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -11401,7 +11473,7 @@ endpoints:
         name: is_active
         description: ''
         required: false
-        example: true
+        example: false
         type: boolean
         enumValues: []
         exampleWasSpecified: false
@@ -11410,9 +11482,9 @@ endpoints:
     cleanBodyParameters:
       teacher_id: architecto
       role: 'n'
-      assigned_at: '2026-06-27T20:02:56'
-      assigned_until: '2052-07-20'
-      is_active: true
+      assigned_at: '2026-07-02T21:34:06'
+      assigned_until: '2052-07-25'
+      is_active: false
     fileParameters: []
     responses: []
     responseFields: []
@@ -11515,7 +11587,7 @@ endpoints:
         name: assigned_at
         description: 'Must be a valid date.'
         required: false
-        example: '2026-06-27T20:02:56'
+        example: '2026-07-02T21:34:06'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -11526,7 +11598,7 @@ endpoints:
         name: assigned_until
         description: 'Must be a valid date. Must be a date after <code>assigned_at</code>.'
         required: false
-        example: '2052-07-20'
+        example: '2052-07-25'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -11537,7 +11609,7 @@ endpoints:
         name: is_active
         description: ''
         required: false
-        example: true
+        example: false
         type: boolean
         enumValues: []
         exampleWasSpecified: false
@@ -11545,9 +11617,9 @@ endpoints:
         deprecated: false
     cleanBodyParameters:
       role: b
-      assigned_at: '2026-06-27T20:02:56'
-      assigned_until: '2052-07-20'
-      is_active: true
+      assigned_at: '2026-07-02T21:34:06'
+      assigned_until: '2052-07-25'
+      is_active: false
     fileParameters: []
     responses: []
     responseFields: []
@@ -11664,7 +11736,7 @@ endpoints:
       invoice_id:
         custom: []
         name: invoice_id
-        description: 'Must match an existing stored value.'
+        description: ''
         required: true
         example: architecto
         type: string
@@ -11688,11 +11760,9 @@ endpoints:
         name: currency
         description: ''
         required: false
-        example: USD
+        example: architecto
         type: string
-        enumValues:
-          - USD
-          - ZWG
+        enumValues: []
         exampleWasSpecified: false
         nullable: true
         deprecated: false
@@ -11701,7 +11771,7 @@ endpoints:
         name: method
         description: 'Must not be greater than 50 characters.'
         required: true
-        example: g
+        example: 'n'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -11712,7 +11782,7 @@ endpoints:
         name: reference
         description: 'Must not be greater than 100 characters.'
         required: false
-        example: z
+        example: g
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -11723,7 +11793,7 @@ endpoints:
         name: notes
         description: 'Must not be greater than 500 characters.'
         required: false
-        example: m
+        example: z
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -11732,10 +11802,10 @@ endpoints:
     cleanBodyParameters:
       invoice_id: architecto
       amount: 39
-      currency: USD
-      method: g
-      reference: z
-      notes: m
+      currency: architecto
+      method: 'n'
+      reference: g
+      notes: z
     fileParameters: []
     responses: []
     responseFields: []
@@ -11747,7 +11817,7 @@ endpoints:
     custom: []
     httpMethods:
       - GET
-    uri: 'api/v1/payments/{id}/receipt'
+    uri: 'api/v1/payments/{payment_id}/receipt'
     metadata:
       custom: []
       groupName: Endpoints
@@ -11762,19 +11832,19 @@ endpoints:
       Content-Type: application/json
       Accept: application/json
     urlParameters:
-      id:
+      payment_id:
         custom: []
-        name: id
+        name: payment_id
         description: 'The ID of the payment.'
         required: true
-        example: architecto
-        type: string
+        example: 16
+        type: integer
         enumValues: []
         exampleWasSpecified: false
         nullable: false
         deprecated: false
     cleanUrlParameters:
-      id: architecto
+      payment_id: 16
     queryParameters: []
     cleanQueryParameters: []
     bodyParameters: []
@@ -11799,7 +11869,7 @@ endpoints:
     custom: []
     httpMethods:
       - POST
-    uri: 'api/v1/payments/{id}/reverse'
+    uri: 'api/v1/payments/{payment_id}/reverse'
     metadata:
       custom: []
       groupName: Endpoints
@@ -11814,19 +11884,19 @@ endpoints:
       Content-Type: application/json
       Accept: application/json
     urlParameters:
-      id:
+      payment_id:
         custom: []
-        name: id
+        name: payment_id
         description: 'The ID of the payment.'
         required: true
-        example: architecto
-        type: string
+        example: 16
+        type: integer
         enumValues: []
         exampleWasSpecified: false
         nullable: false
         deprecated: false
     cleanUrlParameters:
-      id: architecto
+      payment_id: 16
     queryParameters: []
     cleanQueryParameters: []
     bodyParameters:
@@ -11854,7 +11924,7 @@ endpoints:
     custom: []
     httpMethods:
       - DELETE
-    uri: 'api/v1/payments/{id}'
+    uri: 'api/v1/payments/{payment_id}'
     metadata:
       custom: []
       groupName: Endpoints
@@ -11869,19 +11939,19 @@ endpoints:
       Content-Type: application/json
       Accept: application/json
     urlParameters:
-      id:
+      payment_id:
         custom: []
-        name: id
+        name: payment_id
         description: 'The ID of the payment.'
         required: true
-        example: architecto
-        type: string
+        example: 16
+        type: integer
         enumValues: []
         exampleWasSpecified: false
         nullable: false
         deprecated: false
     cleanUrlParameters:
-      id: architecto
+      payment_id: 16
     queryParameters: []
     cleanQueryParameters: []
     bodyParameters: []
@@ -12039,7 +12109,7 @@ endpoints:
       student_id:
         custom: []
         name: student_id
-        description: 'Must match an existing stored value.'
+        description: ''
         required: true
         example: architecto
         type: string
@@ -12074,7 +12144,7 @@ endpoints:
         name: due_date
         description: 'Must be a valid date.'
         required: true
-        example: '2026-06-27T20:02:56'
+        example: '2026-07-02T21:34:06'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -12083,7 +12153,7 @@ endpoints:
       fee_structure_id:
         custom: []
         name: fee_structure_id
-        description: 'Must match an existing stored value.'
+        description: ''
         required: false
         example: null
         type: string
@@ -12095,7 +12165,7 @@ endpoints:
       student_id: architecto
       description: 'Et animi quos velit et fugiat.'
       amount: 42
-      due_date: '2026-06-27T20:02:56'
+      due_date: '2026-07-02T21:34:06'
     fileParameters: []
     responses: []
     responseFields: []
@@ -12107,7 +12177,7 @@ endpoints:
     custom: []
     httpMethods:
       - GET
-    uri: 'api/v1/invoices/{id}'
+    uri: 'api/v1/invoices/{invoice_id}'
     metadata:
       custom: []
       groupName: Endpoints
@@ -12122,19 +12192,19 @@ endpoints:
       Content-Type: application/json
       Accept: application/json
     urlParameters:
-      id:
+      invoice_id:
         custom: []
-        name: id
+        name: invoice_id
         description: 'The ID of the invoice.'
         required: true
-        example: architecto
-        type: string
+        example: 16
+        type: integer
         enumValues: []
         exampleWasSpecified: false
         nullable: false
         deprecated: false
     cleanUrlParameters:
-      id: architecto
+      invoice_id: 16
     queryParameters: []
     cleanQueryParameters: []
     bodyParameters: []
@@ -12159,7 +12229,7 @@ endpoints:
     custom: []
     httpMethods:
       - PUT
-    uri: 'api/v1/invoices/{id}'
+    uri: 'api/v1/invoices/{invoice_id}'
     metadata:
       custom: []
       groupName: Endpoints
@@ -12174,19 +12244,19 @@ endpoints:
       Content-Type: application/json
       Accept: application/json
     urlParameters:
-      id:
+      invoice_id:
         custom: []
-        name: id
+        name: invoice_id
         description: 'The ID of the invoice.'
         required: true
-        example: architecto
-        type: string
+        example: 16
+        type: integer
         enumValues: []
         exampleWasSpecified: false
         nullable: false
         deprecated: false
     cleanUrlParameters:
-      id: architecto
+      invoice_id: 16
     queryParameters: []
     cleanQueryParameters: []
     bodyParameters:
@@ -12217,7 +12287,7 @@ endpoints:
         name: due_date
         description: 'Must be a valid date.'
         required: false
-        example: '2026-06-27T20:02:56'
+        example: '2026-07-02T21:34:06'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -12226,7 +12296,7 @@ endpoints:
     cleanBodyParameters:
       description: 'Eius et animi quos velit et.'
       amount: 60
-      due_date: '2026-06-27T20:02:56'
+      due_date: '2026-07-02T21:34:06'
     fileParameters: []
     responses: []
     responseFields: []
@@ -12700,7 +12770,7 @@ endpoints:
         name: is_active
         description: ''
         required: false
-        example: true
+        example: false
         type: boolean
         enumValues: []
         exampleWasSpecified: false
@@ -12720,7 +12790,7 @@ endpoints:
     cleanBodyParameters:
       name: b
       description: 'Eius et animi quos velit et.'
-      is_active: true
+      is_active: false
       order: 60
     fileParameters: []
     responses: []
@@ -12996,14 +13066,14 @@ endpoints:
         name: id
         description: 'The ID of the teacher.'
         required: true
-        example: 1
+        example: 16
         type: integer
         enumValues: []
         exampleWasSpecified: false
         nullable: false
         deprecated: false
     cleanUrlParameters:
-      id: 1
+      id: 16
     queryParameters: []
     cleanQueryParameters: []
     bodyParameters: []
@@ -13124,7 +13194,7 @@ endpoints:
       teacher_ids:
         custom: []
         name: teacher_ids
-        description: 'Must match an existing stored value.'
+        description: ''
         required: false
         example: null
         type: 'string[]'
@@ -13271,7 +13341,7 @@ endpoints:
         name: payment_method
         description: ''
         required: true
-        example: bank_transfer
+        example: onemoney
         type: string
         enumValues:
           - bank_transfer
@@ -13299,7 +13369,7 @@ endpoints:
         name: paid_at
         description: 'Must be a valid date.'
         required: false
-        example: '2026-06-27T20:02:56'
+        example: '2026-07-02T21:34:06'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -13317,9 +13387,9 @@ endpoints:
         nullable: true
         deprecated: false
     cleanBodyParameters:
-      payment_method: bank_transfer
+      payment_method: onemoney
       payment_reference: b
-      paid_at: '2026-06-27T20:02:56'
+      paid_at: '2026-07-02T21:34:06'
       amount_paid: 39
     fileParameters: []
     responses: []
@@ -13696,14 +13766,14 @@ endpoints:
         name: studentId
         description: ''
         required: true
-        example: 1
+        example: 16
         type: integer
         enumValues: []
         exampleWasSpecified: false
         nullable: false
         deprecated: false
     cleanUrlParameters:
-      studentId: 1
+      studentId: 16
     queryParameters: []
     cleanQueryParameters: []
     bodyParameters: []
@@ -13748,14 +13818,14 @@ endpoints:
         name: studentId
         description: ''
         required: true
-        example: 1
+        example: 16
         type: integer
         enumValues: []
         exampleWasSpecified: false
         nullable: false
         deprecated: false
     cleanUrlParameters:
-      studentId: 1
+      studentId: 16
     queryParameters: []
     cleanQueryParameters: []
     bodyParameters: []
@@ -13800,14 +13870,14 @@ endpoints:
         name: studentId
         description: ''
         required: true
-        example: 1
+        example: 16
         type: integer
         enumValues: []
         exampleWasSpecified: false
         nullable: false
         deprecated: false
     cleanUrlParameters:
-      studentId: 1
+      studentId: 16
     queryParameters: []
     cleanQueryParameters: []
     bodyParameters: []
@@ -13852,14 +13922,14 @@ endpoints:
         name: studentId
         description: ''
         required: true
-        example: 1
+        example: 16
         type: integer
         enumValues: []
         exampleWasSpecified: false
         nullable: false
         deprecated: false
     cleanUrlParameters:
-      studentId: 1
+      studentId: 16
     queryParameters: []
     cleanQueryParameters: []
     bodyParameters: []
@@ -13904,14 +13974,14 @@ endpoints:
         name: studentId
         description: ''
         required: true
-        example: 1
+        example: 16
         type: integer
         enumValues: []
         exampleWasSpecified: false
         nullable: false
         deprecated: false
     cleanUrlParameters:
-      studentId: 1
+      studentId: 16
     queryParameters: []
     cleanQueryParameters: []
     bodyParameters: []
@@ -14389,7 +14459,7 @@ endpoints:
         name: incident_date
         description: 'Must be a valid date.'
         required: true
-        example: '2026-06-27T20:02:56'
+        example: '2026-07-02T21:34:06'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -14411,7 +14481,7 @@ endpoints:
         name: severity
         description: ''
         required: false
-        example: major
+        example: minor
         type: string
         enumValues:
           - minor
@@ -14447,7 +14517,7 @@ endpoints:
         name: notify_parents
         description: ''
         required: false
-        example: true
+        example: false
         type: boolean
         enumValues: []
         exampleWasSpecified: false
@@ -14455,12 +14525,12 @@ endpoints:
         deprecated: false
     cleanBodyParameters:
       student_id: architecto
-      incident_date: '2026-06-27T20:02:56'
+      incident_date: '2026-07-02T21:34:06'
       category: 'n'
-      severity: major
+      severity: minor
       description: 'Eius et animi quos velit et.'
       action_taken: architecto
-      notify_parents: true
+      notify_parents: false
     fileParameters: []
     responses: []
     responseFields: []
@@ -15014,7 +15084,7 @@ endpoints:
         name: first_name
         description: 'First name. Must not be greater than 255 characters.'
         required: false
-        example: b
+        example: a
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -15025,7 +15095,7 @@ endpoints:
         name: last_name
         description: 'Last name. Must not be greater than 255 characters.'
         required: false
-        example: 'n'
+        example: w
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -15036,7 +15106,7 @@ endpoints:
         name: email
         description: 'Email. Must be a valid email address. Must not be greater than 255 characters.'
         required: false
-        example: ashly64@example.com
+        example: abe.schaden@example.org
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -15047,7 +15117,7 @@ endpoints:
         name: phone
         description: 'Phone. Must not be greater than 20 characters.'
         required: false
-        example: vdljnikhwaykcmyu
+        example: srzkkbrrwnryiohy
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -15058,7 +15128,7 @@ endpoints:
         name: relationship
         description: 'Relationship. Must not be greater than 50 characters.'
         required: false
-        example: w
+        example: 'n'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -15102,7 +15172,7 @@ endpoints:
         name: is_primary
         description: 'Is primary.'
         required: false
-        example: true
+        example: false
         type: boolean
         enumValues: []
         exampleWasSpecified: false
@@ -15113,7 +15183,7 @@ endpoints:
         name: can_receive_notifications
         description: 'Can receive notifications.'
         required: false
-        example: false
+        example: true
         type: boolean
         enumValues: []
         exampleWasSpecified: false
@@ -15131,16 +15201,16 @@ endpoints:
         nullable: true
         deprecated: false
     cleanBodyParameters:
-      first_name: b
-      last_name: 'n'
-      email: ashly64@example.com
-      phone: vdljnikhwaykcmyu
-      relationship: w
+      first_name: a
+      last_name: w
+      email: abe.schaden@example.org
+      phone: srzkkbrrwnryiohy
+      relationship: 'n'
       address: architecto
       national_id: 'n'
       occupation: g
-      is_primary: true
-      can_receive_notifications: false
+      is_primary: false
+      can_receive_notifications: true
       student_id: 16
     fileParameters: []
     responses: []
@@ -15211,7 +15281,7 @@ endpoints:
         name: is_primary
         description: 'Is primary.'
         required: false
-        example: true
+        example: false
         type: boolean
         enumValues: []
         exampleWasSpecified: false
@@ -15233,7 +15303,7 @@ endpoints:
         name: emergency_contact
         description: 'Emergency contact.'
         required: false
-        example: false
+        example: true
         type: boolean
         enumValues: []
         exampleWasSpecified: false
@@ -15242,9 +15312,9 @@ endpoints:
     cleanBodyParameters:
       student_id: 16
       relationship: 'n'
-      is_primary: true
+      is_primary: false
       can_pickup: true
-      emergency_contact: false
+      emergency_contact: true
     fileParameters: []
     responses: []
     responseFields: []
@@ -15342,7 +15412,7 @@ endpoints:
         name: date_of_birth
         description: 'Must be a valid date.'
         required: true
-        example: '2026-06-27T20:02:56'
+        example: '2026-07-02T21:34:06'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -15485,7 +15555,7 @@ endpoints:
     cleanBodyParameters:
       first_name: b
       surname: 'n'
-      date_of_birth: '2026-06-27T20:02:56'
+      date_of_birth: '2026-07-02T21:34:06'
       gender: male
       phone: architecto
       address: architecto
@@ -15722,7 +15792,7 @@ endpoints:
         name: type
         description: ''
         required: true
-        example: annual
+        example: sick
         type: string
         enumValues:
           - annual
@@ -15738,7 +15808,7 @@ endpoints:
         name: start_date
         description: 'Must be a valid date.'
         required: true
-        example: '2026-06-27T20:02:56'
+        example: '2026-07-02T21:34:06'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -15749,7 +15819,7 @@ endpoints:
         name: end_date
         description: 'Must be a valid date. Must be a date after or equal to <code>start_date</code>.'
         required: true
-        example: '2052-07-20'
+        example: '2052-07-25'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -15768,9 +15838,9 @@ endpoints:
         deprecated: false
     cleanBodyParameters:
       teacher_id: architecto
-      type: annual
-      start_date: '2026-06-27T20:02:56'
-      end_date: '2052-07-20'
+      type: sick
+      start_date: '2026-07-02T21:34:06'
+      end_date: '2052-07-25'
       reason: 'n'
     fileParameters: []
     responses: []
@@ -15893,7 +15963,7 @@ endpoints:
         name: type
         description: ''
         required: true
-        example: academic-performance
+        example: attendance
         type: string
         enumValues:
           - academic-performance
@@ -15907,7 +15977,7 @@ endpoints:
         name: format
         description: ''
         required: false
-        example: csv
+        example: json
         type: string
         enumValues:
           - csv
@@ -15964,7 +16034,7 @@ endpoints:
         name: from
         description: 'Must be a valid date.'
         required: false
-        example: '2026-06-27T20:02:56'
+        example: '2026-07-02T21:34:06'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -15975,7 +16045,7 @@ endpoints:
         name: to
         description: 'Must be a valid date.'
         required: false
-        example: '2026-06-27T20:02:56'
+        example: '2026-07-02T21:34:06'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -15993,14 +16063,14 @@ endpoints:
         nullable: true
         deprecated: false
     cleanBodyParameters:
-      type: academic-performance
-      format: csv
+      type: attendance
+      format: json
       term: architecto
       year: 16
       subject: architecto
       class_id: 16
-      from: '2026-06-27T20:02:56'
-      to: '2026-06-27T20:02:56'
+      from: '2026-07-02T21:34:06'
+      to: '2026-07-02T21:34:06'
       currency: architecto
     fileParameters: []
     responses:
@@ -16503,7 +16573,7 @@ endpoints:
         name: target_audience
         description: ''
         required: true
-        example: students
+        example: teachers
         type: string
         enumValues:
           - all
@@ -16519,7 +16589,7 @@ endpoints:
         name: date
         description: 'Must be a valid date.'
         required: true
-        example: '2026-06-27T20:02:56'
+        example: '2026-07-02T21:34:06'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -16540,8 +16610,8 @@ endpoints:
       title: b
       message: architecto
       type: success
-      target_audience: students
-      date: '2026-06-27T20:02:56'
+      target_audience: teachers
+      date: '2026-07-02T21:34:06'
       is_active: true
     fileParameters: []
     responses: []
@@ -16612,7 +16682,7 @@ endpoints:
         name: type
         description: ''
         required: false
-        example: success
+        example: warning
         type: string
         enumValues:
           - info
@@ -16643,7 +16713,7 @@ endpoints:
         name: date
         description: 'Must be a valid date.'
         required: false
-        example: '2026-06-27T20:02:56'
+        example: '2026-07-02T21:34:06'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -16663,9 +16733,9 @@ endpoints:
     cleanBodyParameters:
       title: b
       message: architecto
-      type: success
+      type: warning
       target_audience: staff
-      date: '2026-06-27T20:02:56'
+      date: '2026-07-02T21:34:06'
       is_active: false
     fileParameters: []
     responses: []
@@ -17100,7 +17170,7 @@ endpoints:
         name: submit
         description: ''
         required: false
-        example: false
+        example: true
         type: boolean
         enumValues: []
         exampleWasSpecified: false
@@ -17146,7 +17216,7 @@ endpoints:
         - description: 'Eius et animi quos velit et.'
           quantity: 16
           unit_cost: 42
-      submit: false
+      submit: true
     fileParameters: []
     responses: []
     responseFields: []
@@ -17335,7 +17405,7 @@ endpoints:
         name: received_date
         description: 'Must be a valid date.'
         required: true
-        example: '2026-06-27T20:02:56'
+        example: '2026-07-02T21:34:06'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -17354,7 +17424,7 @@ endpoints:
         deprecated: false
     cleanBodyParameters:
       requisition_id: architecto
-      received_date: '2026-06-27T20:02:56'
+      received_date: '2026-07-02T21:34:06'
       notes: architecto
     fileParameters: []
     responses: []
@@ -17464,7 +17534,7 @@ endpoints:
         name: purchase_date
         description: 'Must be a valid date.'
         required: false
-        example: '2026-06-27T20:02:56'
+        example: '2026-07-02T21:34:06'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -17507,7 +17577,7 @@ endpoints:
       asset_tag: b
       name: 'n'
       category: g
-      purchase_date: '2026-06-27T20:02:56'
+      purchase_date: '2026-07-02T21:34:06'
       purchase_cost: 12
       location: architecto
     fileParameters: []
@@ -17557,7 +17627,7 @@ endpoints:
         name: maintenance_date
         description: 'Must be a valid date.'
         required: true
-        example: '2026-06-27T20:02:56'
+        example: '2026-07-02T21:34:06'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -17586,7 +17656,7 @@ endpoints:
         nullable: true
         deprecated: false
     cleanBodyParameters:
-      maintenance_date: '2026-06-27T20:02:56'
+      maintenance_date: '2026-07-02T21:34:06'
       description: 'Eius et animi quos velit et.'
       cost: 60
     fileParameters: []
@@ -17636,7 +17706,7 @@ endpoints:
         name: disposed_at
         description: 'Must be a valid date.'
         required: true
-        example: '2026-06-27T20:02:56'
+        example: '2026-07-02T21:34:06'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -17665,7 +17735,7 @@ endpoints:
         nullable: true
         deprecated: false
     cleanBodyParameters:
-      disposed_at: '2026-06-27T20:02:56'
+      disposed_at: '2026-07-02T21:34:06'
       reason: architecto
       submit_for_approval: false
     fileParameters: []
@@ -18175,7 +18245,7 @@ endpoints:
         name: gender
         description: ''
         required: false
-        example: male
+        example: female
         type: string
         enumValues:
           - male
@@ -18197,7 +18267,7 @@ endpoints:
         deprecated: false
     cleanBodyParameters:
       name: b
-      gender: male
+      gender: female
       capacity: 22
     fileParameters: []
     responses: []
@@ -18311,10 +18381,10 @@ endpoints:
       student_id:
         custom: []
         name: student_id
-        description: 'Must match an existing stored value.'
+        description: ''
         required: true
-        example: architecto
-        type: string
+        example: 16
+        type: integer
         enumValues: []
         exampleWasSpecified: false
         nullable: false
@@ -18322,17 +18392,17 @@ endpoints:
       bed_id:
         custom: []
         name: bed_id
-        description: 'Must match an existing stored value.'
+        description: ''
         required: true
-        example: architecto
-        type: string
+        example: 16
+        type: integer
         enumValues: []
         exampleWasSpecified: false
         nullable: false
         deprecated: false
     cleanBodyParameters:
-      student_id: architecto
-      bed_id: architecto
+      student_id: 16
+      bed_id: 16
     fileParameters: []
     responses: []
     responseFields: []
@@ -18521,7 +18591,7 @@ endpoints:
         name: due_at
         description: 'Must be a valid date. Must be a date after <code>today</code>.'
         required: true
-        example: '2052-07-20'
+        example: '2052-07-25'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -18530,7 +18600,7 @@ endpoints:
     cleanBodyParameters:
       book_id: architecto
       student_id: architecto
-      due_at: '2052-07-20'
+      due_at: '2052-07-25'
     fileParameters: []
     responses: []
     responseFields: []
@@ -18789,14 +18859,14 @@ endpoints:
         name: id
         description: 'The ID of the student.'
         required: true
-        example: 1
+        example: 16
         type: integer
         enumValues: []
         exampleWasSpecified: false
         nullable: false
         deprecated: false
     cleanUrlParameters:
-      id: 1
+      id: 16
     queryParameters: []
     cleanQueryParameters: []
     bodyParameters: []
@@ -18841,14 +18911,14 @@ endpoints:
         name: id
         description: 'The ID of the student.'
         required: true
-        example: 1
+        example: 16
         type: integer
         enumValues: []
         exampleWasSpecified: false
         nullable: false
         deprecated: false
     cleanUrlParameters:
-      id: 1
+      id: 16
     queryParameters: []
     cleanQueryParameters: []
     bodyParameters:
@@ -18986,10 +19056,10 @@ endpoints:
       student_id:
         custom: []
         name: student_id
-        description: 'Must match an existing stored value.'
+        description: ''
         required: true
-        example: architecto
-        type: string
+        example: 16
+        type: integer
         enumValues: []
         exampleWasSpecified: false
         nullable: false
@@ -18997,9 +19067,9 @@ endpoints:
       visit_date:
         custom: []
         name: visit_date
-        description: 'Must be a valid date.'
+        description: 'Changed from unsafe cross-tenant exists rule. Must be a valid date.'
         required: true
-        example: '2026-06-27T20:02:56'
+        example: '2026-07-02T21:34:06'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -19039,8 +19109,8 @@ endpoints:
         nullable: true
         deprecated: false
     cleanBodyParameters:
-      student_id: architecto
-      visit_date: '2026-06-27T20:02:56'
+      student_id: 16
+      visit_date: '2026-07-02T21:34:06'
       complaint: architecto
       diagnosis: architecto
       treatment: architecto
@@ -19141,7 +19211,7 @@ endpoints:
         name: starts_at
         description: 'Must be a valid date.'
         required: true
-        example: '2026-06-27T20:02:56'
+        example: '2026-07-02T21:34:06'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -19152,7 +19222,7 @@ endpoints:
         name: ends_at
         description: 'Must be a valid date. Must be a date after <code>starts_at</code>.'
         required: false
-        example: '2052-07-20'
+        example: '2052-07-25'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -19183,8 +19253,8 @@ endpoints:
     cleanBodyParameters:
       title: b
       type: 'n'
-      starts_at: '2026-06-27T20:02:56'
-      ends_at: '2052-07-20'
+      starts_at: '2026-07-02T21:34:06'
+      ends_at: '2052-07-25'
       location: architecto
       description: 'Eius et animi quos velit et.'
     fileParameters: []
@@ -19295,7 +19365,7 @@ endpoints:
         name: effective_date
         description: 'Must be a valid date.'
         required: false
-        example: '2026-06-27T20:02:56'
+        example: '2026-07-02T21:34:06'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -19306,7 +19376,7 @@ endpoints:
         name: review_date
         description: 'Must be a valid date.'
         required: false
-        example: '2026-06-27T20:02:56'
+        example: '2026-07-02T21:34:06'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -19316,8 +19386,8 @@ endpoints:
       title: b
       category: architecto
       content: architecto
-      effective_date: '2026-06-27T20:02:56'
-      review_date: '2026-06-27T20:02:56'
+      effective_date: '2026-07-02T21:34:06'
+      review_date: '2026-07-02T21:34:06'
     fileParameters: []
     responses: []
     responseFields: []
@@ -19404,7 +19474,7 @@ endpoints:
         name: severity
         description: ''
         required: false
-        example: low
+        example: critical
         type: string
         enumValues:
           - low
@@ -19427,7 +19497,7 @@ endpoints:
         deprecated: false
     cleanBodyParameters:
       category: b
-      severity: low
+      severity: critical
       description: 'Eius et animi quos velit et.'
     fileParameters: []
     responses: []
@@ -19537,7 +19607,7 @@ endpoints:
         name: due_date
         description: 'Must be a valid date.'
         required: false
-        example: '2026-06-27T20:02:56'
+        example: '2026-07-02T21:34:06'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -19558,7 +19628,7 @@ endpoints:
       title: b
       content: architecto
       target_audience: architecto
-      due_date: '2026-06-27T20:02:56'
+      due_date: '2026-07-02T21:34:06'
       requires_signature: false
     fileParameters: []
     responses: []
@@ -20173,7 +20243,7 @@ endpoints:
         name: is_active
         description: ''
         required: false
-        example: false
+        example: true
         type: boolean
         enumValues: []
         exampleWasSpecified: false
@@ -20232,7 +20302,7 @@ endpoints:
         - name: architecto
           approver_role: architecto
           escalation_hours: 16
-      is_active: false
+      is_active: true
     fileParameters: []
     responses: []
     responseFields: []
@@ -20614,7 +20684,7 @@ endpoints:
         name: is_active
         description: ''
         required: false
-        example: false
+        example: true
         type: boolean
         enumValues: []
         exampleWasSpecified: false
@@ -20625,7 +20695,7 @@ endpoints:
       field: architecto
       visible_roles: []
       mask_pattern: architecto
-      is_active: false
+      is_active: true
     fileParameters: []
     responses: []
     responseFields: []
@@ -20657,14 +20727,14 @@ endpoints:
         name: id
         description: 'The ID of the student.'
         required: true
-        example: 1
+        example: 16
         type: integer
         enumValues: []
         exampleWasSpecified: false
         nullable: false
         deprecated: false
     cleanUrlParameters:
-      id: 1
+      id: 16
     queryParameters: []
     cleanQueryParameters: []
     bodyParameters: []
@@ -20696,7 +20766,7 @@ endpoints:
       groupDescription: ''
       subgroup: ''
       subgroupDescription: ''
-      title: ''
+      title: 'Dispatch an omni-channel announcement across the platform'
       description: ''
       authenticated: false
       deprecated: false
@@ -20711,9 +20781,9 @@ endpoints:
       subject:
         custom: []
         name: subject
-        description: ''
+        description: 'Must not be greater than 255 characters.'
         required: false
-        example: architecto
+        example: b
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -20736,7 +20806,7 @@ endpoints:
         description: ''
         required: false
         example:
-          - push
+          - whatsapp
         type: 'string[]'
         enumValues:
           - email
@@ -20750,12 +20820,21 @@ endpoints:
         custom: []
         name: audience_type
         description: ''
-        required: false
-        example: individual
+        required: true
+        example: examination_officer
         type: string
         enumValues:
           - individual
           - all_staff
+          - super_admin
+          - admin
+          - school_admin
+          - teacher
+          - parent
+          - student
+          - finance
+          - accounts
+          - examination_officer
         exampleWasSpecified: false
         nullable: false
         deprecated: false
@@ -20772,11 +20851,11 @@ endpoints:
         nullable: false
         deprecated: false
     cleanBodyParameters:
-      subject: architecto
+      subject: b
       body: architecto
       channels:
-        - push
-      audience_type: individual
+        - whatsapp
+      audience_type: examination_officer
       recipient_ids:
         - 16
     fileParameters: []
@@ -20797,7 +20876,7 @@ endpoints:
       groupDescription: ''
       subgroup: ''
       subgroupDescription: ''
-      title: ''
+      title: 'View delivery metrics and status logs for sent messages'
       description: ''
       authenticated: false
       deprecated: false
@@ -20837,7 +20916,7 @@ endpoints:
       groupDescription: ''
       subgroup: ''
       subgroupDescription: ''
-      title: ''
+      title: 'Explicitly acknowledge and flag an individual delivery receipt as read'
       description: ''
       authenticated: false
       deprecated: false
@@ -20935,9 +21014,9 @@ endpoints:
       title:
         custom: []
         name: title
-        description: ''
+        description: 'Must not be greater than 255 characters.'
         required: true
-        example: architecto
+        example: b
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -20946,9 +21025,9 @@ endpoints:
       document_type:
         custom: []
         name: document_type
-        description: ''
+        description: 'Must not be greater than 50 characters.'
         required: true
-        example: architecto
+        example: 'n'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -20966,8 +21045,8 @@ endpoints:
         nullable: false
         deprecated: false
     cleanBodyParameters:
-      title: architecto
-      document_type: architecto
+      title: b
+      document_type: 'n'
       content: architecto
     fileParameters: []
     responses: []
@@ -21085,10 +21164,10 @@ endpoints:
       student_id:
         custom: []
         name: student_id
-        description: 'Must match an existing stored value.'
+        description: ''
         required: true
-        example: architecto
-        type: string
+        example: 16
+        type: integer
         enumValues: []
         exampleWasSpecified: false
         nullable: false
@@ -21096,9 +21175,9 @@ endpoints:
       certificate_type:
         custom: []
         name: certificate_type
-        description: ''
+        description: 'Must not be greater than 100 characters.'
         required: true
-        example: architecto
+        example: 'n'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -21107,9 +21186,9 @@ endpoints:
       title:
         custom: []
         name: title
-        description: ''
+        description: 'Must not be greater than 255 characters.'
         required: true
-        example: architecto
+        example: g
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -21124,12 +21203,12 @@ endpoints:
         type: object
         enumValues: []
         exampleWasSpecified: false
-        nullable: false
+        nullable: true
         deprecated: false
     cleanBodyParameters:
-      student_id: architecto
-      certificate_type: architecto
-      title: architecto
+      student_id: 16
+      certificate_type: 'n'
+      title: g
     fileParameters: []
     responses: []
     responseFields: []
@@ -21203,9 +21282,9 @@ endpoints:
       title:
         custom: []
         name: title
-        description: ''
+        description: 'Must not be greater than 255 characters.'
         required: true
-        example: architecto
+        example: b
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -21225,9 +21304,9 @@ endpoints:
       vault_type:
         custom: []
         name: vault_type
-        description: ''
+        description: 'Must not be greater than 50 characters.'
         required: false
-        example: architecto
+        example: 'n'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -21236,10 +21315,10 @@ endpoints:
       exam_id:
         custom: []
         name: exam_id
-        description: 'Must match an existing stored value.'
+        description: ''
         required: false
-        example: null
-        type: string
+        example: 16
+        type: integer
         enumValues: []
         exampleWasSpecified: false
         nullable: true
@@ -21253,12 +21332,13 @@ endpoints:
         type: object
         enumValues: []
         exampleWasSpecified: false
-        nullable: false
+        nullable: true
         deprecated: false
     cleanBodyParameters:
-      title: architecto
+      title: b
       content: architecto
-      vault_type: architecto
+      vault_type: 'n'
+      exam_id: 16
     fileParameters: []
     responses: []
     responseFields: []
@@ -21441,7 +21521,7 @@ endpoints:
         name: application_deadline
         description: 'Must be a valid date.'
         required: false
-        example: '2026-06-27T20:02:56'
+        example: '2026-07-02T21:34:06'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -21475,7 +21555,7 @@ endpoints:
       amount: 4326.41688
       percentage: 4326.41688
       criteria: architecto
-      application_deadline: '2026-06-27T20:02:56'
+      application_deadline: '2026-07-02T21:34:06'
       slots: 16
       status: architecto
     fileParameters: []
@@ -21523,7 +21603,7 @@ endpoints:
       student_id:
         custom: []
         name: student_id
-        description: 'Must match an existing stored value.'
+        description: ''
         required: true
         example: architecto
         type: string
@@ -21603,7 +21683,7 @@ endpoints:
         name: status
         description: ''
         required: true
-        example: pending
+        example: approved
         type: string
         enumValues:
           - approved
@@ -21613,7 +21693,7 @@ endpoints:
         nullable: false
         deprecated: false
     cleanBodyParameters:
-      status: pending
+      status: approved
     fileParameters: []
     responses: []
     responseFields: []
@@ -21711,7 +21791,7 @@ endpoints:
         name: is_active
         description: ''
         required: false
-        example: false
+        example: true
         type: boolean
         enumValues: []
         exampleWasSpecified: false
@@ -21744,7 +21824,7 @@ endpoints:
         name: supports_bank_transfer
         description: ''
         required: false
-        example: false
+        example: true
         type: boolean
         enumValues: []
         exampleWasSpecified: false
@@ -21753,10 +21833,10 @@ endpoints:
     cleanBodyParameters:
       provider: architecto
       credentials: []
-      is_active: false
+      is_active: true
       supports_cards: false
       supports_mobile_money: false
-      supports_bank_transfer: false
+      supports_bank_transfer: true
     fileParameters: []
     responses: []
     responseFields: []
@@ -21790,7 +21870,7 @@ endpoints:
       invoice_id:
         custom: []
         name: invoice_id
-        description: 'Must match an existing stored value.'
+        description: ''
         required: true
         example: architecto
         type: string
@@ -21801,7 +21881,7 @@ endpoints:
       student_id:
         custom: []
         name: student_id
-        description: 'Must match an existing stored value.'
+        description: ''
         required: false
         example: null
         type: string
@@ -21825,7 +21905,7 @@ endpoints:
         name: payment_method
         description: ''
         required: true
-        example: card
+        example: mobile_money
         type: string
         enumValues:
           - card
@@ -21848,7 +21928,7 @@ endpoints:
     cleanBodyParameters:
       invoice_id: architecto
       amount: 39
-      payment_method: card
+      payment_method: mobile_money
       provider: architecto
     fileParameters: []
     responses: []
@@ -21947,7 +22027,7 @@ endpoints:
         name: penalty_type
         description: ''
         required: true
-        example: percentage
+        example: fixed
         type: string
         enumValues:
           - fixed
@@ -21971,7 +22051,7 @@ endpoints:
         name: frequency
         description: ''
         required: false
-        example: monthly
+        example: daily
         type: string
         enumValues:
           - once
@@ -21985,7 +22065,7 @@ endpoints:
         name: is_active
         description: ''
         required: false
-        example: false
+        example: true
         type: boolean
         enumValues: []
         exampleWasSpecified: false
@@ -21994,10 +22074,10 @@ endpoints:
     cleanBodyParameters:
       name: architecto
       grace_days: 39
-      penalty_type: percentage
+      penalty_type: fixed
       penalty_value: 84
-      frequency: monthly
-      is_active: false
+      frequency: daily
+      is_active: true
     fileParameters: []
     responses: []
     responseFields: []
@@ -22071,7 +22151,7 @@ endpoints:
       payment_id:
         custom: []
         name: payment_id
-        description: 'Must match an existing stored value.'
+        description: ''
         required: true
         example: architecto
         type: string
@@ -22116,7 +22196,7 @@ endpoints:
     custom: []
     httpMethods:
       - POST
-    uri: 'api/v1/platform/refunds/{id}/approve'
+    uri: 'api/v1/platform/refunds/{refund_id}/approve'
     metadata:
       custom: []
       groupName: Endpoints
@@ -22131,19 +22211,19 @@ endpoints:
       Content-Type: application/json
       Accept: application/json
     urlParameters:
-      id:
+      refund_id:
         custom: []
-        name: id
+        name: refund_id
         description: 'The ID of the refund.'
         required: true
-        example: architecto
-        type: string
+        example: 16
+        type: integer
         enumValues: []
         exampleWasSpecified: false
         nullable: false
         deprecated: false
     cleanUrlParameters:
-      id: architecto
+      refund_id: 16
     queryParameters: []
     cleanQueryParameters: []
     bodyParameters: []
@@ -22267,7 +22347,7 @@ endpoints:
         name: recorded_on
         description: 'Must be a valid date.'
         required: false
-        example: '2026-06-27T20:02:56'
+        example: '2026-07-02T21:34:06'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -22278,7 +22358,7 @@ endpoints:
       points: 16
       category: architecto
       description: 'Eius et animi quos velit et.'
-      recorded_on: '2026-06-27T20:02:56'
+      recorded_on: '2026-07-02T21:34:06'
     fileParameters: []
     responses: []
     responseFields: []
@@ -22310,14 +22390,14 @@ endpoints:
         name: studentId
         description: ''
         required: true
-        example: 1
+        example: 16
         type: integer
         enumValues: []
         exampleWasSpecified: false
         nullable: false
         deprecated: false
     cleanUrlParameters:
-      studentId: 1
+      studentId: 16
     queryParameters: []
     cleanQueryParameters: []
     bodyParameters: []
@@ -22461,7 +22541,7 @@ endpoints:
         name: start_date
         description: 'Must be a valid date.'
         required: false
-        example: '2026-06-27T20:02:56'
+        example: '2026-07-02T21:34:06'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -22472,7 +22552,7 @@ endpoints:
         name: follow_up_date
         description: 'Must be a valid date.'
         required: false
-        example: '2026-06-27T20:02:56'
+        example: '2026-07-02T21:34:06'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -22483,8 +22563,8 @@ endpoints:
       intervention_type: architecto
       summary: architecto
       action_plan: architecto
-      start_date: '2026-06-27T20:02:56'
-      follow_up_date: '2026-06-27T20:02:56'
+      start_date: '2026-07-02T21:34:06'
+      follow_up_date: '2026-07-02T21:34:06'
     fileParameters: []
     responses: []
     responseFields: []
@@ -22593,7 +22673,7 @@ endpoints:
         name: priority
         description: ''
         required: false
-        example: high
+        example: low
         type: string
         enumValues:
           - low
@@ -22608,7 +22688,7 @@ endpoints:
         name: due_date
         description: 'Must be a valid date.'
         required: false
-        example: '2026-06-27T20:02:57'
+        example: '2026-07-02T21:34:06'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -22618,8 +22698,8 @@ endpoints:
       title: architecto
       description: 'Eius et animi quos velit et.'
       assigned_to: architecto
-      priority: high
-      due_date: '2026-06-27T20:02:57'
+      priority: low
+      due_date: '2026-07-02T21:34:06'
     fileParameters: []
     responses: []
     responseFields: []
@@ -22788,7 +22868,7 @@ endpoints:
         name: visibility
         description: ''
         required: false
-        example: department
+        example: staff
         type: string
         enumValues:
           - staff
@@ -22798,7 +22878,7 @@ endpoints:
         deprecated: false
     cleanBodyParameters:
       body: architecto
-      visibility: department
+      visibility: staff
     fileParameters: []
     responses: []
     responseFields: []
@@ -23411,7 +23491,7 @@ endpoints:
         name: assessed_on
         description: 'Must be a valid date.'
         required: false
-        example: '2026-06-27T20:02:57'
+        example: '2026-07-02T21:34:06'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -23423,7 +23503,7 @@ endpoints:
       outcome_code: architecto
       competency_level: architecto
       score: 4326.41688
-      assessed_on: '2026-06-27T20:02:57'
+      assessed_on: '2026-07-02T21:34:06'
     fileParameters: []
     responses: []
     responseFields: []
@@ -23510,7 +23590,7 @@ endpoints:
         name: type
         description: ''
         required: true
-        example: exam
+        example: ca
         type: string
         enumValues:
           - ca
@@ -23544,7 +23624,7 @@ endpoints:
         deprecated: false
     cleanBodyParameters:
       name: architecto
-      type: exam
+      type: ca
       weight: 22
     fileParameters: []
     responses: []
@@ -23691,7 +23771,7 @@ endpoints:
         name: studentId
         description: ''
         required: true
-        example: 1
+        example: 16
         type: integer
         enumValues: []
         exampleWasSpecified: false
@@ -23702,15 +23782,15 @@ endpoints:
         name: subjectId
         description: ''
         required: true
-        example: architecto
-        type: string
+        example: 16
+        type: integer
         enumValues: []
         exampleWasSpecified: false
         nullable: false
         deprecated: false
     cleanUrlParameters:
-      studentId: 1
-      subjectId: architecto
+      studentId: 16
+      subjectId: 16
     queryParameters: []
     cleanQueryParameters: []
     bodyParameters: []
@@ -23872,7 +23952,7 @@ endpoints:
         name: studentId
         description: ''
         required: true
-        example: 1
+        example: 16
         type: integer
         enumValues: []
         exampleWasSpecified: false
@@ -23883,15 +23963,15 @@ endpoints:
         name: subjectId
         description: ''
         required: true
-        example: architecto
-        type: string
+        example: 16
+        type: integer
         enumValues: []
         exampleWasSpecified: false
         nullable: false
         deprecated: false
     cleanUrlParameters:
-      studentId: 1
-      subjectId: architecto
+      studentId: 16
+      subjectId: 16
     queryParameters: []
     cleanQueryParameters: []
     bodyParameters: []
@@ -24002,7 +24082,7 @@ endpoints:
         name: action
         description: ''
         required: true
-        example: repeat
+        example: promote
         type: string
         enumValues:
           - promote
@@ -24014,7 +24094,7 @@ endpoints:
     cleanBodyParameters:
       name: architecto
       conditions: []
-      action: repeat
+      action: promote
     fileParameters: []
     responses: []
     responseFields: []
@@ -24046,14 +24126,14 @@ endpoints:
         name: studentId
         description: ''
         required: true
-        example: 1
+        example: 16
         type: integer
         enumValues: []
         exampleWasSpecified: false
         nullable: false
         deprecated: false
     cleanUrlParameters:
-      studentId: 1
+      studentId: 16
     queryParameters: []
     cleanQueryParameters: []
     bodyParameters: []
@@ -24164,7 +24244,7 @@ endpoints:
         name: start_date
         description: 'Must be a valid date.'
         required: true
-        example: '2026-06-27T20:02:57'
+        example: '2026-07-02T21:34:06'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -24175,7 +24255,7 @@ endpoints:
         name: end_date
         description: 'Must be a valid date.'
         required: false
-        example: '2026-06-27T20:02:57'
+        example: '2026-07-02T21:34:06'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -24186,7 +24266,7 @@ endpoints:
         name: is_holiday
         description: ''
         required: false
-        example: false
+        example: true
         type: boolean
         enumValues: []
         exampleWasSpecified: false
@@ -24206,9 +24286,9 @@ endpoints:
     cleanBodyParameters:
       entry_type: architecto
       title: architecto
-      start_date: '2026-06-27T20:02:57'
-      end_date: '2026-06-27T20:02:57'
-      is_holiday: false
+      start_date: '2026-07-02T21:34:06'
+      end_date: '2026-07-02T21:34:06'
+      is_holiday: true
     fileParameters: []
     responses: []
     responseFields: []
@@ -24326,7 +24406,7 @@ endpoints:
         name: entry_date
         description: 'Must be a valid date.'
         required: false
-        example: '2026-06-27T20:02:57'
+        example: '2026-07-02T21:34:06'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -24358,7 +24438,7 @@ endpoints:
       'lines[].account_id':
         custom: []
         name: 'lines[].account_id'
-        description: 'Must match an existing stored value.'
+        description: ''
         required: true
         example: architecto
         type: string
@@ -24390,7 +24470,7 @@ endpoints:
         deprecated: false
     cleanBodyParameters:
       description: 'Eius et animi quos velit et.'
-      entry_date: '2026-06-27T20:02:57'
+      entry_date: '2026-07-02T21:34:06'
       currency: vdl
       lines:
         - account_id: architecto
@@ -24504,7 +24584,7 @@ endpoints:
         name: effective_date
         description: 'Must be a valid date.'
         required: true
-        example: '2026-06-27T20:02:57'
+        example: '2026-07-02T21:34:06'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -24514,7 +24594,7 @@ endpoints:
       from_currency: bng
       to_currency: zmi
       rate: 76
-      effective_date: '2026-06-27T20:02:57'
+      effective_date: '2026-07-02T21:34:06'
     fileParameters: []
     responses: []
     responseFields: []
@@ -24588,7 +24668,7 @@ endpoints:
       student_id:
         custom: []
         name: student_id
-        description: 'Must match an existing stored value.'
+        description: ''
         required: true
         example: architecto
         type: string
@@ -24599,7 +24679,7 @@ endpoints:
       invoice_id:
         custom: []
         name: invoice_id
-        description: 'Must match an existing stored value.'
+        description: ''
         required: false
         example: null
         type: string
@@ -24646,7 +24726,7 @@ endpoints:
         name: 'schedule[].due_date'
         description: 'Must be a valid date.'
         required: true
-        example: '2026-06-27T20:02:57'
+        example: '2026-07-02T21:34:06'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -24668,7 +24748,7 @@ endpoints:
       total_amount: 4326.41688
       currency: miy
       schedule:
-        - due_date: '2026-06-27T20:02:57'
+        - due_date: '2026-07-02T21:34:06'
           amount: 4326.41688
     fileParameters: []
     responses: []
@@ -24745,7 +24825,7 @@ endpoints:
         name: transaction_date
         description: 'Must be a valid date.'
         required: true
-        example: '2026-06-27T20:02:57'
+        example: '2026-07-02T21:34:06'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -24796,7 +24876,7 @@ endpoints:
         nullable: true
         deprecated: false
     cleanBodyParameters:
-      transaction_date: '2026-06-27T20:02:57'
+      transaction_date: '2026-07-02T21:34:06'
       amount: 4326.41688
       reference: architecto
       description: 'Eius et animi quos velit et.'
@@ -24812,7 +24892,7 @@ endpoints:
     custom: []
     httpMethods:
       - POST
-    uri: 'api/v1/enterprise/finance/bank-statements/{lineId}/reconcile'
+    uri: 'api/v1/enterprise/finance/bank-statements/{line_id}/reconcile'
     metadata:
       custom: []
       groupName: Endpoints
@@ -24827,26 +24907,26 @@ endpoints:
       Content-Type: application/json
       Accept: application/json
     urlParameters:
-      lineId:
+      line_id:
         custom: []
-        name: lineId
-        description: ''
+        name: line_id
+        description: 'The ID of the line.'
         required: true
-        example: architecto
-        type: string
+        example: 16
+        type: integer
         enumValues: []
         exampleWasSpecified: false
         nullable: false
         deprecated: false
     cleanUrlParameters:
-      lineId: architecto
+      line_id: 16
     queryParameters: []
     cleanQueryParameters: []
     bodyParameters:
       payment_id:
         custom: []
         name: payment_id
-        description: 'Must match an existing stored value.'
+        description: ''
         required: true
         example: architecto
         type: string
@@ -25215,7 +25295,7 @@ endpoints:
         name: difficulty
         description: ''
         required: false
-        example: medium
+        example: easy
         type: string
         enumValues:
           - easy
@@ -25250,7 +25330,7 @@ endpoints:
       question_text: architecto
       question_type: architecto
       correct_answer: architecto
-      difficulty: medium
+      difficulty: easy
       marks: 16
     fileParameters: []
     responses: []
@@ -25735,7 +25815,7 @@ endpoints:
         name: starts_on
         description: 'Must be a valid date.'
         required: true
-        example: '2026-06-27T20:02:57'
+        example: '2026-07-02T21:34:06'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -25746,7 +25826,7 @@ endpoints:
         name: ends_on
         description: 'Must be a valid date.'
         required: true
-        example: '2026-06-27T20:02:57'
+        example: '2026-07-02T21:34:06'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -25766,8 +25846,8 @@ endpoints:
     cleanBodyParameters:
       delegator_id: architecto
       delegate_id: architecto
-      starts_on: '2026-06-27T20:02:57'
-      ends_on: '2026-06-27T20:02:57'
+      starts_on: '2026-07-02T21:34:06'
+      ends_on: '2026-07-02T21:34:06'
       scope: architecto
     fileParameters: []
     responses: []
@@ -25879,14 +25959,14 @@ endpoints:
         name: id
         description: 'The ID of the student.'
         required: true
-        example: 1
+        example: 16
         type: integer
         enumValues: []
         exampleWasSpecified: false
         nullable: false
         deprecated: false
     cleanUrlParameters:
-      id: 1
+      id: 16
     queryParameters: []
     cleanQueryParameters: []
     bodyParameters: []
@@ -25931,14 +26011,14 @@ endpoints:
         name: id
         description: 'The ID of the student.'
         required: true
-        example: 1
+        example: 16
         type: integer
         enumValues: []
         exampleWasSpecified: false
         nullable: false
         deprecated: false
     cleanUrlParameters:
-      id: 1
+      id: 16
     queryParameters: []
     cleanQueryParameters: []
     bodyParameters: []
@@ -25983,14 +26063,14 @@ endpoints:
         name: id
         description: 'The ID of the student.'
         required: true
-        example: 1
+        example: 16
         type: integer
         enumValues: []
         exampleWasSpecified: false
         nullable: false
         deprecated: false
     cleanUrlParameters:
-      id: 1
+      id: 16
     queryParameters: []
     cleanQueryParameters: []
     bodyParameters:
@@ -26142,14 +26222,14 @@ endpoints:
         name: studentId
         description: ''
         required: true
-        example: 1
+        example: 16
         type: integer
         enumValues: []
         exampleWasSpecified: false
         nullable: false
         deprecated: false
     cleanUrlParameters:
-      studentId: 1
+      studentId: 16
     queryParameters: []
     cleanQueryParameters: []
     bodyParameters:
@@ -26320,7 +26400,7 @@ endpoints:
         name: scheduled_at
         description: 'Must be a valid date.'
         required: false
-        example: '2026-06-27T20:02:57'
+        example: '2026-07-02T21:34:07'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -26331,7 +26411,7 @@ endpoints:
       channels: []
       audience_filter: []
       message_body: architecto
-      scheduled_at: '2026-06-27T20:02:57'
+      scheduled_at: '2026-07-02T21:34:07'
     fileParameters: []
     responses: []
     responseFields: []
@@ -26602,7 +26682,7 @@ endpoints:
         name: start_date
         description: 'Must be a valid date.'
         required: true
-        example: '2026-06-27T20:02:57'
+        example: '2026-07-02T21:34:07'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -26613,7 +26693,7 @@ endpoints:
         name: end_date
         description: 'Must be a valid date.'
         required: false
-        example: '2026-06-27T20:02:57'
+        example: '2026-07-02T21:34:07'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -26633,8 +26713,8 @@ endpoints:
     cleanBodyParameters:
       user_id: architecto
       contract_type: architecto
-      start_date: '2026-06-27T20:02:57'
-      end_date: '2026-06-27T20:02:57'
+      start_date: '2026-07-02T21:34:07'
+      end_date: '2026-07-02T21:34:07'
       salary: 4326.41688
     fileParameters: []
     responses: []
@@ -26744,7 +26824,7 @@ endpoints:
         name: issued_on
         description: 'Must be a valid date.'
         required: false
-        example: '2026-06-27T20:02:57'
+        example: '2026-07-02T21:34:07'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -26755,7 +26835,7 @@ endpoints:
         name: expires_on
         description: 'Must be a valid date.'
         required: false
-        example: '2026-06-27T20:02:57'
+        example: '2026-07-02T21:34:07'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -26765,8 +26845,8 @@ endpoints:
       user_id: architecto
       certification_name: architecto
       issuer: architecto
-      issued_on: '2026-06-27T20:02:57'
-      expires_on: '2026-06-27T20:02:57'
+      issued_on: '2026-07-02T21:34:07'
+      expires_on: '2026-07-02T21:34:07'
     fileParameters: []
     responses: []
     responseFields: []
@@ -26875,7 +26955,7 @@ endpoints:
         name: due_date
         description: 'Must be a valid date.'
         required: false
-        example: '2026-06-27T20:02:57'
+        example: '2026-07-02T21:34:07'
         type: string
         enumValues: []
         exampleWasSpecified: false
@@ -26885,7 +26965,7 @@ endpoints:
       authority: architecto
       requirement_code: architecto
       title: architecto
-      due_date: '2026-06-27T20:02:57'
+      due_date: '2026-07-02T21:34:07'
     fileParameters: []
     responses: []
     responseFields: []
@@ -26972,7 +27052,7 @@ endpoints:
         name: connector_type
         description: ''
         required: true
-        example: lms
+        example: payment
         type: string
         enumValues:
           - payment
@@ -27007,7 +27087,7 @@ endpoints:
         deprecated: false
     cleanBodyParameters:
       provider: architecto
-      connector_type: lms
+      connector_type: payment
       config: []
       is_active: false
     fileParameters: []
@@ -27173,7 +27253,7 @@ endpoints:
         name: effect
         description: ''
         required: false
-        example: allow
+        example: deny
         type: string
         enumValues:
           - allow
@@ -27185,7 +27265,7 @@ endpoints:
       name: architecto
       resource: architecto
       conditions: []
-      effect: allow
+      effect: deny
     fileParameters: []
     responses: []
     responseFields: []

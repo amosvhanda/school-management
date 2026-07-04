@@ -7,10 +7,12 @@ use App\Models\BankStatementLine;
 use App\Models\ChartOfAccount;
 use App\Models\ExchangeRate;
 use App\Models\InstalmentPlan;
+use App\Models\Payment;
 use App\Models\RevenueRecognitionRule;
 use App\Services\Enterprise\FinanceEnterpriseService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\Rule;
 
 class EnterpriseFinanceController extends Controller
 {
@@ -35,7 +37,11 @@ class EnterpriseFinanceController extends Controller
             'entry_date' => 'nullable|date',
             'currency' => 'nullable|string|size:3',
             'lines' => 'required|array|min:2',
-            'lines.*.account_id' => 'required|exists:chart_of_accounts,id',
+            'lines.*.account_id' => [
+                'required',
+                Rule::exists('chart_of_accounts', 'id')
+                    ->where('school_id', $request->user()->school_id),
+            ],
             'lines.*.debit' => 'nullable|numeric',
             'lines.*.credit' => 'nullable|numeric',
         ])->validate();
@@ -70,8 +76,16 @@ class EnterpriseFinanceController extends Controller
     public function createInstalmentPlan(Request $request)
     {
         $data = Validator::make($request->all(), [
-            'student_id' => 'required|exists:students,id',
-            'invoice_id' => 'nullable|exists:invoices,id',
+            'student_id' => [
+                'required',
+                Rule::exists('students', 'id')
+                    ->where('school_id', $request->user()->school_id),
+            ],
+            'invoice_id' => [
+                'nullable',
+                Rule::exists('invoices', 'id')
+                    ->where('school_id', $request->user()->school_id),
+            ],
             'total_amount' => 'required|numeric',
             'currency' => 'nullable|string|size:3',
             'schedule' => 'required|array|min:1',
@@ -102,11 +116,19 @@ class EnterpriseFinanceController extends Controller
         return response()->json(['data' => BankStatementLine::create(array_merge($data, ['school_id' => $request->user()->school_id]))], 201);
     }
 
-    public function reconcile(Request $request, int $lineId)
+    public function reconcile(Request $request, BankStatementLine $line)
     {
-        $data = Validator::make($request->all(), ['payment_id' => 'required|exists:payments,id'])->validate();
+        $data = Validator::make($request->all(), [
+            'payment_id' => [
+                'required',
+                Rule::exists('payments', 'id')
+                    ->where('school_id', $request->user()->school_id),
+            ],
+        ])->validate();
 
-        return response()->json(['data' => $this->finance->reconcileBankLine($lineId, $data['payment_id'])]);
+        $payment = Payment::where('school_id', $request->user()->school_id)->findOrFail($data['payment_id']);
+
+        return response()->json(['data' => $this->finance->reconcileBankLine($line->id, $payment->id)]);
     }
 
     public function profitAndLoss(Request $request)

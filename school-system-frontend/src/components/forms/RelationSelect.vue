@@ -89,8 +89,17 @@ async function loadOptions() {
 onMounted(loadOptions)
 
 watch(parentValue, () => {
-  emit('update:modelValue', '')
-  loadOptions()
+  const rule = dependsOn.value
+  if (rule?.clearOnChange === false) {
+    void loadOptions()
+    return
+  }
+
+  if (props.modelValue != null && props.modelValue !== '') {
+    emit('update:modelValue', '')
+  }
+
+  void loadOptions()
 })
 
 function onChange(value: string) {
@@ -141,7 +150,6 @@ function clearSelection() {
       </div>
 
       <SearchableSelect
-        v-else
         :model-value="modelValue != null && modelValue !== '' ? String(modelValue) : ''"
         :options="selectOptions"
         :loading="loading"
