@@ -120,7 +120,7 @@ function resolveRelationValue(field: FormFieldSchema, row: Record<string, unknow
 
   const params = field.relation.queryParams ?? field.relation.params
   const idPath = field.rowKey ?? field.relation.rowKey ?? field.name
-  let id = getValueByPath(row, idPath) ?? row[field.name]
+  const id = getValueByPath(row, idPath) ?? row[field.name]
 
   if (id != null && id !== '') return String(id)
 

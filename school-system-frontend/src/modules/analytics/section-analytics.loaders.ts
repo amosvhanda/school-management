@@ -423,7 +423,7 @@ export async function loadSectionDetails(section: SectionKey): Promise<Record<st
     case 'people':
     case 'hr':
     case 'operations':
-    case 'communications':
+      return {}
     default:
       return {}
   }

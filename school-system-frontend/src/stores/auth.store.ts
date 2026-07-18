@@ -2,7 +2,7 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { getStoredToken, setStoredToken } from '@/lib/api'
 import { queryClient } from '@/lib/query-client'
-import { getDefaultRouteForRole } from '@/lib/permissions'
+import { getDefaultRouteForRole, hasCapability, hasPermission as checkPermission } from '@/lib/permissions'
 import {
   fetchCurrentUser,
   login as loginApi,
@@ -11,38 +11,17 @@ import {
 import { useConfigStore } from '@/stores/config.store'
 import { useNotificationStore } from '@/stores/notification.store'
 import type { AuthUser } from '@/types/auth'
+import type { NavCapability } from '@/types/navigation'
 
-/**
- * ROLE → PERMISSIONS MAP
- * Adjust these to match your Laravel backend roles
- */
-const rolePermissions: Record<string, string[]> = {
-  admin: [
-    'dashboard.view',
-    'users.manage',
-    'grades.view',
-    'grades.edit',
-    'classes.manage',
-  ],
-  teacher: [
-    'dashboard.view',
-    'grades.view',
-    'grades.edit',
-    'students.view',
-  ],
-  student: [
-    'dashboard.view',
-    'grades.view.own',
-  ],
-}
-
-/**
- * ROLE LABELS (what users should SEE)
- */
 const roleNames: Record<string, string> = {
+  super_admin: 'Super admin',
   admin: 'Admin',
   teacher: 'Teacher',
+  parent: 'Parent',
   student: 'Student',
+  finance: 'Finance',
+  accounts: 'Accounts',
+  examination_officer: 'Exam officer',
 }
 
 export const useAuthStore = defineStore('auth', () => {
@@ -53,40 +32,29 @@ export const useAuthStore = defineStore('auth', () => {
   let bootstrapPromise: Promise<void> | null = null
 
   const isAuthenticated = computed(() => Boolean(token.value))
-
-  /**
-   * raw role from backend
-   */
   const role = computed(() => user.value?.role ?? null)
 
-  /**
-   * human readable role
-   */
   const roleName = computed(() => {
     if (!role.value) return null
     return roleNames[role.value] ?? role.value
   })
 
-  /**
-   * default route per role
-   */
   const defaultRoute = computed(() =>
-    user.value ? getDefaultRouteForRole(user.value.role) : '/'
+    user.value ? getDefaultRouteForRole(user.value.role) : '/',
   )
 
-  /**
-   * permissions for current user
-   */
-  const permissions = computed(() => {
-    if (!role.value) return []
-    return rolePermissions[role.value] ?? []
-  })
+  /** Permission slugs from the API (custom roles included). */
+  const permissions = computed(() => user.value?.permissions ?? [])
 
-  /**
-   * check permission anywhere in app
-   */
+  /** Capability flags from the API (custom roles included). */
+  const capabilities = computed(() => user.value?.capabilities ?? null)
+
   function hasPermission(permission: string) {
-    return permissions.value.includes(permission)
+    return checkPermission(user.value, permission)
+  }
+
+  function checkCapability(capability: NavCapability) {
+    return hasCapability(user.value, capability)
   }
 
   async function bootstrapSession() {
@@ -204,7 +172,9 @@ export const useAuthStore = defineStore('auth', () => {
     role,
     roleName,
     permissions,
+    capabilities,
     hasPermission,
+    checkCapability,
 
     defaultRoute,
 

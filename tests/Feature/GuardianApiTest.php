@@ -11,13 +11,19 @@ class GuardianApiTest extends TestCase
     public function test_get_guardians_list(): void
     {
         $auth = $this->createAuthenticatedUser();
-        Guardian::factory()->create(['school_id' => $auth['school']->id]);
+        $guardian = Guardian::factory()->create(['school_id' => $auth['school']->id]);
+        $otherGuardian = Guardian::factory()->create();
 
         $response = $this->withHeaders([
             'Authorization' => 'Bearer '.$auth['token'],
         ])->getJson('/api/v1/guardians');
 
-        $response->assertOk();
+        $response->assertOk()
+            ->assertJsonCount(1)
+            ->assertJsonPath('0.id', $guardian->id)
+            ->assertJsonPath('0.school_id', $auth['school']->id);
+
+        $this->assertNotContains($otherGuardian->id, array_column($response->json(), 'id'));
     }
 
     public function test_create_guardian_and_link_student(): void
@@ -37,16 +43,32 @@ class GuardianApiTest extends TestCase
         ]);
 
         $create->assertCreated()
-            ->assertJsonPath('first_name', 'Mary');
+            ->assertJsonPath('first_name', 'Mary')
+            ->assertJsonPath('school_id', $auth['school']->id);
 
         $guardianId = $create->json('id');
+
+        $this->assertDatabaseHas('guardians', [
+            'id' => $guardianId,
+            'first_name' => 'Mary',
+            'last_name' => 'Moyo',
+            'email' => 'mary.moyo@example.com',
+            'school_id' => $auth['school']->id,
+        ]);
+        $this->assertDatabaseHas('guardian_student', [
+            'guardian_id' => $guardianId,
+            'student_id' => $student->id,
+            'relationship' => 'parent',
+            'is_primary' => 1,
+        ]);
 
         $students = $this->withHeaders([
             'Authorization' => 'Bearer '.$auth['token'],
         ])->getJson("/api/v1/guardians/{$guardianId}/students");
 
         $students->assertOk()
-            ->assertJsonCount(1);
+            ->assertJsonCount(1)
+            ->assertJsonPath('0.id', $student->id);
     }
 
     public function test_link_guardian_to_student(): void
@@ -63,13 +85,22 @@ class GuardianApiTest extends TestCase
             'is_primary' => true,
         ]);
 
-        $response->assertOk();
+        $response->assertOk()
+            ->assertJsonPath('id', $guardian->id);
+
+        $this->assertDatabaseHas('guardian_student', [
+            'guardian_id' => $guardian->id,
+            'student_id' => $student->id,
+            'relationship' => 'guardian',
+            'is_primary' => 1,
+        ]);
 
         $forStudent = $this->withHeaders([
             'Authorization' => 'Bearer '.$auth['token'],
         ])->getJson("/api/v1/students/{$student->id}/guardians");
 
         $forStudent->assertOk()
-            ->assertJsonCount(1);
+            ->assertJsonCount(1)
+            ->assertJsonPath('0.id', $guardian->id);
     }
 }

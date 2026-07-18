@@ -10,7 +10,10 @@ class ClassController extends Controller
 {
     public function index(Request $request)
     {
-        $query = ClassModel::query();
+        $schoolId = $request->user()?->school_id;
+
+        $query = ClassModel::query()
+            ->when($schoolId, fn ($builder) => $builder->where('school_id', $schoolId));
 
         if ($request->has('teacher_id')) {
             $query->where('teacher_id', $request->teacher_id);
@@ -36,8 +39,12 @@ class ClassController extends Controller
         ]);
     }
 
-    public function show(ClassModel $class)
+    public function show(Request $request, ClassModel $class)
     {
+        if ($request->user()?->school_id && $class->school_id !== $request->user()->school_id) {
+            abort(403, 'Unauthorized action.');
+        }
+
         $class->load(['teacher', 'students']);
 
         return response()->json([
@@ -47,6 +54,8 @@ class ClassController extends Controller
 
     public function store(Request $request)
     {
+        $schoolId = $request->user()?->school_id;
+
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:255',
             'form' => 'nullable|string',
@@ -67,6 +76,7 @@ class ClassController extends Controller
             'capacity' => $request->capacity ?? 40,
             'status' => 'active',
             'teacher_id' => $request->teacher_id,
+            'school_id' => $schoolId,
         ]);
 
         return response()->json([
@@ -77,6 +87,10 @@ class ClassController extends Controller
 
     public function update(Request $request, ClassModel $class)
     {
+        if ($request->user()?->school_id && $class->school_id !== $request->user()->school_id) {
+            abort(403, 'Unauthorized action.');
+        }
+
         $validator = Validator::make($request->all(), [
             'name' => 'sometimes|string|max:255',
             'capacity' => 'nullable|integer|min:1',
@@ -99,8 +113,12 @@ class ClassController extends Controller
         ]);
     }
 
-    public function destroy(ClassModel $class)
+    public function destroy(Request $request, ClassModel $class)
     {
+        if ($request->user()?->school_id && $class->school_id !== $request->user()->school_id) {
+            abort(403, 'Unauthorized action.');
+        }
+
         $class->delete();
 
         return response()->json([

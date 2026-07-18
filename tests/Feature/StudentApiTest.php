@@ -2,24 +2,35 @@
 
 namespace Tests\Feature;
 
-use Tests\TestCase;
-use App\Models\Student;
 use App\Models\ClassModel;
 use App\Models\FeeStructure;
+use App\Models\Grade;
+use App\Models\Guardian;
+use App\Models\Invoice;
+use App\Models\Student;
+use App\Models\Subject;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
+use Tests\TestCase;
 
 class StudentApiTest extends TestCase
 {
     public function test_get_students_list(): void
     {
         $auth = $this->createAuthenticatedUser();
-        
-        $response = $this->withHeaders([
-            'Authorization' => 'Bearer ' . $auth['token'],
-        ])->getJson('/api/v1/students');
+        $student = Student::factory()->create(['school_id' => $auth['school']->id]);
+        $otherStudent = Student::factory()->create();
 
-        $response->assertStatus(200);
+        $response = $this->withHeaders([
+            'Authorization' => 'Bearer '.$auth['token'],
+        ])->getJson('/api/v1/students?all=true');
+
+        $response->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.id', $student->id)
+            ->assertJsonPath('data.0.school_id', $auth['school']->id);
+
+        $this->assertNotContains($otherStudent->id, array_column($response->json('data'), 'id'));
     }
 
     public function test_create_student_with_guardian_links_pivot(): void
@@ -61,7 +72,7 @@ class StudentApiTest extends TestCase
     {
         $auth = $this->createAuthenticatedUser();
         $class = ClassModel::factory()->create(['school_id' => $auth['school']->id]);
-        $guardian = \App\Models\Guardian::factory()->create(['school_id' => $auth['school']->id]);
+        $guardian = Guardian::factory()->create(['school_id' => $auth['school']->id]);
         $studentPayload = [
             'firstName' => 'Jane',
             'surname' => 'Smith',
@@ -93,23 +104,44 @@ class StudentApiTest extends TestCase
     {
         $auth = $this->createAuthenticatedUser();
         $class = ClassModel::factory()->create(['school_id' => $auth['school']->id]);
+        $email = 'john.doe@example.com';
 
         $response = $this->withHeaders([
-            'Authorization' => 'Bearer ' . $auth['token'],
+            'Authorization' => 'Bearer '.$auth['token'],
         ])->postJson('/api/v1/students', [
             'firstName' => 'John',
             'surname' => 'Doe',
-            'email' => 'john.doe@example.com',
+            'email' => $email,
             'dateOfBirth' => '2010-01-01',
             'gender' => 'male',
             'class' => $class->name,
+            'class_id' => $class->id,
         ]);
 
-        $response->assertStatus(201)
+        $response->assertCreated()
             ->assertJsonStructure([
-                'data' => ['id', 'first_name', 'last_name'],
+                'data' => ['id', 'first_name', 'last_name', 'class_id', 'school_id', 'status'],
                 'message',
-            ]);
+            ])
+            ->assertJsonPath('data.first_name', 'John')
+            ->assertJsonPath('data.last_name', 'Doe')
+            ->assertJsonPath('data.class_id', $class->id)
+            ->assertJsonPath('data.school_id', $auth['school']->id)
+            ->assertJsonPath('data.status', 'active');
+
+        $studentId = $response->json('data.id');
+
+        $this->assertDatabaseHas('students', [
+            'id' => $studentId,
+            'first_name' => 'John',
+            'last_name' => 'Doe',
+            'full_name' => 'John Doe',
+            'email' => $email,
+            'class' => $class->name,
+            'class_id' => $class->id,
+            'school_id' => $auth['school']->id,
+            'status' => 'active',
+        ]);
     }
 
     public function test_get_student_by_id(): void
@@ -118,11 +150,13 @@ class StudentApiTest extends TestCase
         $student = Student::factory()->create(['school_id' => $auth['school']->id]);
 
         $response = $this->withHeaders([
-            'Authorization' => 'Bearer ' . $auth['token'],
+            'Authorization' => 'Bearer '.$auth['token'],
         ])->getJson("/api/v1/students/{$student->id}");
 
-        $response->assertStatus(200)
-            ->assertJsonStructure(['data' => ['id', 'first_name', 'last_name']]);
+        $response->assertOk()
+            ->assertJsonStructure(['data' => ['id', 'first_name', 'last_name', 'school_id']])
+            ->assertJsonPath('data.id', $student->id)
+            ->assertJsonPath('data.school_id', $auth['school']->id);
     }
 
     public function test_update_student(): void
@@ -131,13 +165,26 @@ class StudentApiTest extends TestCase
         $student = Student::factory()->create(['school_id' => $auth['school']->id]);
 
         $response = $this->withHeaders([
-            'Authorization' => 'Bearer ' . $auth['token'],
+            'Authorization' => 'Bearer '.$auth['token'],
         ])->putJson("/api/v1/students/{$student->id}", [
-            'first_name' => 'Jane',
-            'last_name' => 'Updated',
+            'firstName' => 'Jane',
+            'surname' => 'Updated',
+            'status' => 'inactive',
         ]);
 
-        $response->assertStatus(200);
+        $response->assertOk()
+            ->assertJsonPath('data.first_name', 'Jane')
+            ->assertJsonPath('data.last_name', 'Updated')
+            ->assertJsonPath('data.full_name', 'Jane Updated')
+            ->assertJsonPath('data.status', 'inactive');
+
+        $this->assertDatabaseHas('students', [
+            'id' => $student->id,
+            'first_name' => 'Jane',
+            'last_name' => 'Updated',
+            'full_name' => 'Jane Updated',
+            'status' => 'inactive',
+        ]);
     }
 
     public function test_delete_student(): void
@@ -146,34 +193,67 @@ class StudentApiTest extends TestCase
         $student = Student::factory()->create(['school_id' => $auth['school']->id]);
 
         $response = $this->withHeaders([
-            'Authorization' => 'Bearer ' . $auth['token'],
+            'Authorization' => 'Bearer '.$auth['token'],
         ])->deleteJson("/api/v1/students/{$student->id}");
 
-        $response->assertStatus(200);
+        $response->assertOk()
+            ->assertJsonPath('message', 'Student deleted successfully');
+
+        $this->assertDatabaseMissing('students', [
+            'id' => $student->id,
+        ]);
     }
 
     public function test_get_student_performance(): void
     {
         $auth = $this->createAuthenticatedUser();
         $student = Student::factory()->create(['school_id' => $auth['school']->id]);
+        $subject = Subject::factory()->create(['school_id' => $auth['school']->id, 'name' => 'Mathematics']);
+        Grade::factory()->create([
+            'school_id' => $auth['school']->id,
+            'student_id' => $student->id,
+            'subject_id' => $subject->id,
+            'subject' => $subject->name,
+            'score' => 80,
+            'total' => 100,
+        ]);
+        Grade::factory()->create([
+            'school_id' => $auth['school']->id,
+            'student_id' => $student->id,
+            'subject_id' => $subject->id,
+            'subject' => $subject->name,
+            'score' => 90,
+            'total' => 100,
+        ]);
 
         $response = $this->withHeaders([
-            'Authorization' => 'Bearer ' . $auth['token'],
+            'Authorization' => 'Bearer '.$auth['token'],
         ])->getJson("/api/v1/students/{$student->id}/performance");
 
-        $response->assertStatus(200);
+        $response->assertOk()
+            ->assertJsonPath('data.student.id', $student->id)
+            ->assertJsonPath('data.average_score', 85)
+            ->assertJsonPath('data.total_grades', 2);
     }
 
     public function test_get_student_invoices(): void
     {
         $auth = $this->createAuthenticatedUser();
         $student = Student::factory()->create(['school_id' => $auth['school']->id]);
+        $invoice = Invoice::factory()->create([
+            'school_id' => $auth['school']->id,
+            'student_id' => $student->id,
+            'currency' => $auth['school']->currency_default,
+        ]);
 
         $response = $this->withHeaders([
-            'Authorization' => 'Bearer ' . $auth['token'],
+            'Authorization' => 'Bearer '.$auth['token'],
         ])->getJson("/api/v1/students/{$student->id}/invoices");
 
-        $response->assertStatus(200);
+        $response->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.id', $invoice->id)
+            ->assertJsonPath('data.0.student_id', $student->id);
     }
 
     public function test_create_student_invoice(): void
@@ -182,14 +262,28 @@ class StudentApiTest extends TestCase
         $student = Student::factory()->create(['school_id' => $auth['school']->id]);
 
         $response = $this->withHeaders([
-            'Authorization' => 'Bearer ' . $auth['token'],
+            'Authorization' => 'Bearer '.$auth['token'],
         ])->postJson("/api/v1/students/{$student->id}/invoices", [
             'amount' => 1000.00,
             'description' => 'Tuition fee for Term 1',
             'dueDate' => now()->addMonth()->format('Y-m-d'),
         ]);
 
-        $response->assertStatus(201);
+        $response->assertCreated()
+            ->assertJsonPath('data.student_id', $student->id)
+            ->assertJsonPath('data.amount', '1000.00')
+            ->assertJsonPath('data.balance', '1000.00')
+            ->assertJsonPath('data.status', 'pending');
+
+        $this->assertDatabaseHas('invoices', [
+            'id' => $response->json('data.id'),
+            'student_id' => $student->id,
+            'school_id' => $auth['school']->id,
+            'amount' => 1000,
+            'balance' => 1000,
+            'description' => 'Tuition fee for Term 1',
+            'status' => 'pending',
+        ]);
     }
 
     public function test_promote_students(): void
@@ -199,7 +293,7 @@ class StudentApiTest extends TestCase
         $newClass = ClassModel::factory()->create(['school_id' => $auth['school']->id]);
 
         $response = $this->withHeaders([
-            'Authorization' => 'Bearer ' . $auth['token'],
+            'Authorization' => 'Bearer '.$auth['token'],
         ])->postJson('/api/v1/students/promote', [
             'student_ids' => [$student->id],
             'new_class_id' => $newClass->id,
@@ -215,7 +309,7 @@ class StudentApiTest extends TestCase
         $feeStructure = FeeStructure::factory()->create(['school_id' => $auth['school']->id]);
 
         $response = $this->withHeaders([
-            'Authorization' => 'Bearer ' . $auth['token'],
+            'Authorization' => 'Bearer '.$auth['token'],
         ])->postJson('/api/v1/students/bulk/invoices', [
             'studentIds' => $students->pluck('id')->toArray(),
             'feeStructureId' => $feeStructure->id,
@@ -224,22 +318,41 @@ class StudentApiTest extends TestCase
             'dueDate' => now()->addMonth()->format('Y-m-d'),
         ]);
 
-        $response->assertStatus(201);
+        $response->assertCreated()
+            ->assertJsonPath('data.created', 2)
+            ->assertJsonPath('message', 'Invoices created for 2 students');
+
+        $this->assertSame(2, Invoice::whereIn('student_id', $students->pluck('id'))->count());
     }
 
     public function test_bulk_status_update(): void
     {
         $auth = $this->createAuthenticatedUser();
         $students = Student::factory()->count(2)->create(['school_id' => $auth['school']->id]);
+        $otherStudent = Student::factory()->create(['status' => 'active']);
 
         $response = $this->withHeaders([
-            'Authorization' => 'Bearer ' . $auth['token'],
+            'Authorization' => 'Bearer '.$auth['token'],
         ])->postJson('/api/v1/students/bulk/status', [
-            'studentIds' => $students->pluck('id')->toArray(),
-            'status' => 'active',
+            'studentIds' => array_merge($students->pluck('id')->toArray(), [$otherStudent->id]),
+            'status' => 'inactive',
         ]);
 
-        $response->assertStatus(200);
+        $response->assertOk()
+            ->assertJsonPath('data.updated', 2)
+            ->assertJsonPath('message', 'Status updated for 2 students');
+
+        foreach ($students as $student) {
+            $this->assertDatabaseHas('students', [
+                'id' => $student->id,
+                'status' => 'inactive',
+            ]);
+        }
+
+        $this->assertDatabaseHas('students', [
+            'id' => $otherStudent->id,
+            'status' => 'active',
+        ]);
     }
 
     public function test_upload_student_documents(): void

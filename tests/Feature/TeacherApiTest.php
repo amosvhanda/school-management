@@ -2,41 +2,66 @@
 
 namespace Tests\Feature;
 
-use Tests\TestCase;
+use App\Models\School;
 use App\Models\Teacher;
+use Tests\TestCase;
 
 class TeacherApiTest extends TestCase
 {
     public function test_get_teachers_list(): void
     {
         $auth = $this->createAuthenticatedUser();
+        $teacher = Teacher::factory()->create(['school_id' => $auth['school']->id]);
+        $otherTeacher = Teacher::factory()->create();
 
         $response = $this->withHeaders([
-            'Authorization' => 'Bearer ' . $auth['token'],
-        ])->getJson('/api/v1/teachers');
+            'Authorization' => 'Bearer '.$auth['token'],
+        ])->getJson('/api/v1/teachers?all=true');
 
-        $response->assertStatus(200);
+        $response->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.id', $teacher->id)
+            ->assertJsonPath('data.0.school_id', $auth['school']->id);
+
+        $this->assertNotContains($otherTeacher->id, array_column($response->json('data'), 'id'));
     }
 
     public function test_create_teacher(): void
     {
         $auth = $this->createAuthenticatedUser();
+        $email = 'jane.smith'.fake()->unique()->numberBetween(1000, 9999).'@example.com';
 
         $response = $this->withHeaders([
-            'Authorization' => 'Bearer ' . $auth['token'],
+            'Authorization' => 'Bearer '.$auth['token'],
         ])->postJson('/api/v1/teachers', [
             'name' => 'Jane Smith',
-            'email' => 'jane.smith' . fake()->unique()->numberBetween(1000, 9999) . '@example.com',
+            'email' => $email,
             'phone' => '+263771234567',
             'subject' => 'Mathematics',
             'department' => 'Science',
         ]);
 
-        $response->assertStatus(201)
+        $response->assertCreated()
             ->assertJsonStructure([
-                'data' => ['id', 'name', 'email'],
+                'data' => ['id', 'name', 'email', 'school_id', 'status'],
                 'message',
-            ]);
+            ])
+            ->assertJsonPath('data.name', 'Jane Smith')
+            ->assertJsonPath('data.email', $email)
+            ->assertJsonPath('data.school_id', $auth['school']->id)
+            ->assertJsonPath('data.status', 'active');
+
+        $teacherId = $response->json('data.id');
+
+        $this->assertDatabaseHas('teachers', [
+            'id' => $teacherId,
+            'name' => 'Jane Smith',
+            'email' => $email,
+            'subject' => 'Mathematics',
+            'department' => 'Science',
+            'status' => 'active',
+            'school_id' => $auth['school']->id,
+        ]);
     }
 
     public function test_get_teacher_by_id(): void
@@ -45,21 +70,23 @@ class TeacherApiTest extends TestCase
         $teacher = Teacher::factory()->create(['school_id' => $auth['school']->id]);
 
         $response = $this->withHeaders([
-            'Authorization' => 'Bearer ' . $auth['token'],
+            'Authorization' => 'Bearer '.$auth['token'],
         ])->getJson("/api/v1/teachers/{$teacher->id}");
 
-        $response->assertStatus(200)
-            ->assertJsonStructure(['data' => ['id', 'name']]);
+        $response->assertOk()
+            ->assertJsonStructure(['data' => ['id', 'name', 'email', 'school_id']])
+            ->assertJsonPath('data.id', $teacher->id)
+            ->assertJsonPath('data.school_id', $auth['school']->id);
     }
 
     public function test_cannot_access_teacher_from_different_school(): void
     {
         $auth = $this->createAuthenticatedUser();
-        $otherSchool = \App\Models\School::factory()->create();
+        $otherSchool = School::factory()->create();
         $teacher = Teacher::factory()->create(['school_id' => $otherSchool->id]);
 
         $response = $this->withHeaders([
-            'Authorization' => 'Bearer ' . $auth['token'],
+            'Authorization' => 'Bearer '.$auth['token'],
         ])->getJson("/api/v1/teachers/{$teacher->id}");
 
         $response->assertStatus(404);
@@ -71,13 +98,26 @@ class TeacherApiTest extends TestCase
         $teacher = Teacher::factory()->create(['school_id' => $auth['school']->id]);
 
         $response = $this->withHeaders([
-            'Authorization' => 'Bearer ' . $auth['token'],
+            'Authorization' => 'Bearer '.$auth['token'],
         ])->putJson("/api/v1/teachers/{$teacher->id}", [
-            'first_name' => 'Updated',
-            'last_name' => 'Name',
+            'firstName' => 'Updated',
+            'surname' => 'Name',
+            'department' => 'Languages',
         ]);
 
-        $response->assertStatus(200);
+        $response->assertOk()
+            ->assertJsonPath('data.first_name', 'Updated')
+            ->assertJsonPath('data.last_name', 'Name')
+            ->assertJsonPath('data.name', 'Updated Name')
+            ->assertJsonPath('data.department', 'Languages');
+
+        $this->assertDatabaseHas('teachers', [
+            'id' => $teacher->id,
+            'first_name' => 'Updated',
+            'last_name' => 'Name',
+            'name' => 'Updated Name',
+            'department' => 'Languages',
+        ]);
     }
 
     public function test_update_teacher_status(): void
@@ -86,12 +126,19 @@ class TeacherApiTest extends TestCase
         $teacher = Teacher::factory()->create(['school_id' => $auth['school']->id]);
 
         $response = $this->withHeaders([
-            'Authorization' => 'Bearer ' . $auth['token'],
+            'Authorization' => 'Bearer '.$auth['token'],
         ])->patchJson("/api/v1/teachers/{$teacher->id}/status", [
-            'status' => 'active',
+            'status' => 'on_leave',
         ]);
 
-        $response->assertStatus(200);
+        $response->assertOk()
+            ->assertJsonPath('data.status', 'on_leave')
+            ->assertJsonPath('message', 'Teacher status updated successfully');
+
+        $this->assertDatabaseHas('teachers', [
+            'id' => $teacher->id,
+            'status' => 'on_leave',
+        ]);
     }
 
     public function test_delete_teacher(): void
@@ -100,9 +147,14 @@ class TeacherApiTest extends TestCase
         $teacher = Teacher::factory()->create(['school_id' => $auth['school']->id]);
 
         $response = $this->withHeaders([
-            'Authorization' => 'Bearer ' . $auth['token'],
+            'Authorization' => 'Bearer '.$auth['token'],
         ])->deleteJson("/api/v1/teachers/{$teacher->id}");
 
-        $response->assertStatus(200);
+        $response->assertOk()
+            ->assertJsonPath('message', 'Teacher deleted successfully');
+
+        $this->assertDatabaseMissing('teachers', [
+            'id' => $teacher->id,
+        ]);
     }
 }

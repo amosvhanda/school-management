@@ -4,7 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Resources\Api\V1\InvoiceResource;
 use App\Models\Invoice;
-use App\Models\School;
+use App\Models\NotificationQueue;
 use App\Models\Student;
 use App\Services\FinancialLedgerService;
 use Illuminate\Http\Request;
@@ -74,8 +74,12 @@ class InvoiceController extends Controller
             ->additional(['message' => 'Success']);
     }
 
-    public function show(Invoice $invoice)
+    public function show(Request $request, Invoice $invoice)
     {
+        if ($request->user()->school_id && $invoice->school_id !== $request->user()->school_id) {
+            abort(403, 'Unauthorized action.');
+        }
+
         $invoice->load([
             'student:id,full_name,student_number,class,balance,currency',
             'payments' => fn ($q) => $q->orderByDesc('date')->limit(50),
@@ -135,7 +139,7 @@ class InvoiceController extends Controller
 
         foreach ($guardians as $guardian) {
             if (! empty($guardian->email)) {
-                \App\Models\NotificationQueue::create([
+                NotificationQueue::create([
                     'school_id' => $invoice->school_id,
                     'type' => 'invoice_created',
                     'notifiable_type' => Student::class,
@@ -157,7 +161,7 @@ class InvoiceController extends Controller
         }
 
         if (! empty($student->email)) {
-            \App\Models\NotificationQueue::create([
+            NotificationQueue::create([
                 'school_id' => $invoice->school_id,
                 'type' => 'invoice_created',
                 'notifiable_type' => Student::class,
@@ -177,6 +181,10 @@ class InvoiceController extends Controller
 
     public function update(Request $request, Invoice $invoice)
     {
+        if ($request->user()->school_id && $invoice->school_id !== $request->user()->school_id) {
+            abort(403, 'Unauthorized action.');
+        }
+
         if (in_array($invoice->status, ['paid'], true)) {
             return response()->json(['message' => 'Paid invoices cannot be edited.'], 422);
         }

@@ -30,7 +30,7 @@ class PaymentController extends Controller
         // Optimized Eager Loading
         $query = Payment::with([
             'student:id,full_name,student_number',
-            'invoice:id,invoice_number,balance'
+            'invoice:id,invoice_number,balance',
         ])->when($schoolId, fn ($q) => $q->where('school_id', $schoolId));
 
         // Mass assignment filter safety
@@ -55,10 +55,10 @@ class PaymentController extends Controller
                     $sq->where('full_name', 'like', "%{$search}%")
                         ->orWhere('student_number', 'like', "%{$search}%");
                 })
-                ->orWhere('reference', 'like', "%{$search}%")
-                ->orWhereHas('invoice', function ($iq) use ($search) {
-                    $iq->where('invoice_number', 'like', "%{$search}%");
-                });
+                    ->orWhere('reference', 'like', "%{$search}%")
+                    ->orWhereHas('invoice', function ($iq) use ($search) {
+                        $iq->where('invoice_number', 'like', "%{$search}%");
+                    });
             });
         }
 
@@ -79,6 +79,7 @@ class PaymentController extends Controller
 
         if ($request->filled('limit') && ! $request->filled('page')) {
             $limit = min((int) $request->limit, 100); // Caps unpaginated custom limits
+
             return PaymentResource::collection($query->limit($limit)->get())
                 ->additional(['message' => 'Success']);
         }
@@ -130,7 +131,7 @@ class PaymentController extends Controller
             $payment = $this->ledgerService->recordPayment(
                 invoiceId: (int) $request->invoice_id,
                 amount: (float) $request->amount,
-                method: strtolower(trim($request->filled('method'))),
+                method: strtolower(trim((string) $request->input('method'))),
                 schoolId: $schoolId,
                 createdBy: $request->user()->id,
                 reference: $request->reference,

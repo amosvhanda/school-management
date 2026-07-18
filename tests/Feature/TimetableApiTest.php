@@ -2,24 +2,41 @@
 
 namespace Tests\Feature;
 
-use Tests\TestCase;
-use App\Models\Timetable;
 use App\Models\ClassModel;
 use App\Models\Subject;
 use App\Models\Teacher;
 use App\Models\TeacherAssignment;
+use App\Models\Timetable;
+use Tests\TestCase;
 
 class TimetableApiTest extends TestCase
 {
     public function test_get_timetable_list(): void
     {
         $auth = $this->createAuthenticatedUser();
-        
+        $class = ClassModel::factory()->create(['school_id' => $auth['school']->id]);
+        $subject = Subject::factory()->create(['school_id' => $auth['school']->id]);
+        $teacher = Teacher::factory()->create(['school_id' => $auth['school']->id]);
+        $entry = Timetable::factory()->create([
+            'school_id' => $auth['school']->id,
+            'class_id' => $class->id,
+            'subject_id' => $subject->id,
+            'subject' => $subject->name,
+            'teacher_id' => $teacher->id,
+        ]);
+
+        $otherEntry = Timetable::factory()->create();
+
         $response = $this->withHeaders([
-            'Authorization' => 'Bearer ' . $auth['token'],
+            'Authorization' => 'Bearer '.$auth['token'],
         ])->getJson('/api/v1/timetable');
 
-        $response->assertStatus(200);
+        $response->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.id', $entry->id)
+            ->assertJsonPath('data.0.school_id', $auth['school']->id);
+
+        $this->assertNotContains($otherEntry->id, array_column($response->json('data'), 'id'));
     }
 
     public function test_create_timetable_entry(): void
@@ -30,9 +47,10 @@ class TimetableApiTest extends TestCase
         $teacher = Teacher::factory()->create(['school_id' => $auth['school']->id]);
 
         $response = $this->withHeaders([
-            'Authorization' => 'Bearer ' . $auth['token'],
+            'Authorization' => 'Bearer '.$auth['token'],
         ])->postJson('/api/v1/timetable', [
             'class_id' => $class->id,
+            'subject_id' => $subject->id,
             'subject' => $subject->name,
             'teacher_id' => $teacher->id,
             'day' => 'Monday',
@@ -40,11 +58,28 @@ class TimetableApiTest extends TestCase
             'end_time' => '09:00',
         ]);
 
-        $response->assertStatus(201)
+        $response->assertCreated()
             ->assertJsonStructure([
-                'data' => ['id', 'class_id', 'subject', 'day'],
+                'data' => ['id', 'class_id', 'subject', 'day', 'teacher_id', 'school_id'],
                 'message',
-            ]);
+            ])
+            ->assertJsonPath('data.class_id', $class->id)
+            ->assertJsonPath('data.subject_id', $subject->id)
+            ->assertJsonPath('data.subject.name', $subject->name)
+            ->assertJsonPath('data.teacher_id', $teacher->id)
+            ->assertJsonPath('data.school_id', $auth['school']->id);
+
+        $entryId = $response->json('data.id');
+
+        $this->assertDatabaseHas('timetable', [
+            'id' => $entryId,
+            'class_id' => $class->id,
+            'subject_id' => $subject->id,
+            'subject' => $subject->name,
+            'teacher_id' => $teacher->id,
+            'day' => 'Monday',
+            'school_id' => $auth['school']->id,
+        ]);
     }
 
     public function test_update_timetable_entry(): void
@@ -53,13 +88,21 @@ class TimetableApiTest extends TestCase
         $timetable = Timetable::factory()->create(['school_id' => $auth['school']->id]);
 
         $response = $this->withHeaders([
-            'Authorization' => 'Bearer ' . $auth['token'],
+            'Authorization' => 'Bearer '.$auth['token'],
         ])->putJson("/api/v1/timetable/{$timetable->id}", [
             'start_time' => '09:00',
             'end_time' => '10:00',
         ]);
 
-        $response->assertStatus(200);
+        $response->assertOk()
+            ->assertJsonPath('data.id', $timetable->id)
+            ->assertJsonPath('data.start_time', $timetable->fresh()->start_time?->setTimezone(new \DateTimeZone('UTC'))->format('Y-m-d\TH:i:s.u\Z'));
+
+        $this->assertDatabaseHas('timetable', [
+            'id' => $timetable->id,
+        ]);
+        $this->assertSame('09:00:00', $timetable->fresh()->start_time?->format('H:i:s'));
+        $this->assertSame('10:00:00', $timetable->fresh()->end_time?->format('H:i:s'));
     }
 
     public function test_delete_timetable_entry(): void
@@ -68,10 +111,15 @@ class TimetableApiTest extends TestCase
         $timetable = Timetable::factory()->create(['school_id' => $auth['school']->id]);
 
         $response = $this->withHeaders([
-            'Authorization' => 'Bearer ' . $auth['token'],
+            'Authorization' => 'Bearer '.$auth['token'],
         ])->deleteJson("/api/v1/timetable/{$timetable->id}");
 
-        $response->assertStatus(200);
+        $response->assertOk()
+            ->assertJsonPath('message', 'Timetable slot deleted successfully');
+
+        $this->assertDatabaseMissing('timetable', [
+            'id' => $timetable->id,
+        ]);
     }
 
     public function test_generate_timetable(): void
