@@ -309,6 +309,41 @@ export function mapFormToPayload(
     return mapLeaveFormToPayload(values)
   }
 
+  if (listKey === 'academics-assignments') {
+    const subjectLabel = values.subject_id
+      ? findRelationLabel(moduleEndpoints.subjects, values.subject_id)
+      : undefined
+    return {
+      title: values.title,
+      subject: subjectLabel?.split(' · ')[0] ?? values.subject,
+      class_id: values.class_id ? Number(values.class_id) : undefined,
+      teacher_id: values.teacher_id ? Number(values.teacher_id) : undefined,
+      due_date: values.due_date,
+    }
+  }
+
+  if (listKey === 'ops-inventory-sales') {
+    return {
+      items: [
+        {
+          item_id: values.item_id ? Number(values.item_id) : undefined,
+          quantity: values.quantity,
+        },
+      ],
+      payment_method: values.payment_method,
+      ...(values.student_id ? { student_id: Number(values.student_id) } : {}),
+    }
+  }
+
+  if (listKey === 'finance-fees') {
+    return {
+      class: values.class,
+      category: values.category,
+      amount: values.amount,
+      currency: values.currency,
+    }
+  }
+
   const payload = { ...values }
 
   for (const field of mappingFields) {

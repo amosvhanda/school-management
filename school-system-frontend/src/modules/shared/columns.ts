@@ -281,12 +281,12 @@ export const timetableColumns: ColumnDef<Record<string, unknown>>[] = [
   nestedColumn('Class', 'class_model', 'name'),
   nestedColumn('Subject', 'subject', 'name'),
 ]
-export const holidayProgramColumns = defaultColumns(['name', 'start_date', 'end_date', 'fee', 'status'])
+export const holidayProgramColumns = defaultColumns(['name', 'start_date', 'end_date', 'fee_amount', 'status'])
 export const feeStructureColumns: ColumnDef<Record<string, unknown>>[] = [
-  textColumn('Name', 'name'),
+  textColumn('Class', 'class_name'),
+  textColumn('Category', 'category'),
   currencyColumn('Amount', 'amount'),
-  textColumn('Grade', 'grade_level'),
-  textColumn('Term', 'term'),
+  textColumn('Currency', 'currency'),
 ]
 
 export const payrollColumns: ColumnDef<Record<string, unknown>>[] = [
@@ -322,8 +322,8 @@ export const leaveColumns: ColumnDef<Record<string, unknown>>[] = [
 ]
 export const disciplineColumns: ColumnDef<Record<string, unknown>>[] = [
   dateColumn('Date', 'incident_date'),
+  textColumn('Category', 'category'),
   textColumn('Severity', 'severity'),
-  statusColumn(),
   nestedColumn('Student', 'student', 'full_name'),
 ]
 export const complianceColumns = defaultColumns(['title', 'category', 'status'])
@@ -334,7 +334,7 @@ export const auditColumns: ColumnDef<Record<string, unknown>>[] = [
   personNameColumn('User', 'user'),
   dateTimeColumn('When', 'created_at'),
 ]
-export const inventoryColumns = defaultColumns(['name', 'sku', 'quantity', 'status'])
+export const inventoryColumns = defaultColumns(['name', 'sku', 'stock_quantity', 'unit_price'])
 export const procurementColumns: ColumnDef<Record<string, unknown>>[] = [
   textColumn('Title', 'title'),
   nestedColumn('Department', 'department', 'name'),
@@ -345,14 +345,14 @@ export const libraryColumns = defaultColumns(['title', 'author', 'isbn', 'status
 export const transportColumns = defaultColumns(['registration_number', 'make', 'capacity', 'status'])
 export const assetColumns = defaultColumns(['name', 'category', 'purchase_date', 'status'])
 export const hostelColumns = defaultColumns(['name', 'capacity', 'gender', 'status'])
-export const visitorColumns = defaultColumns(['full_name', 'purpose', 'check_in', 'status'])
+export const visitorColumns = defaultColumns(['name', 'purpose', 'check_in_at', 'status'])
 export const healthColumns: ColumnDef<Record<string, unknown>>[] = [
   nestedColumn('Student', 'student', 'full_name'),
   dateColumn('Visit date', 'visit_date'),
+  textColumn('Complaint', 'complaint'),
   textColumn('Diagnosis', 'diagnosis'),
-  statusColumn(),
 ]
-export const eventColumns = defaultColumns(['title', 'event_date', 'location', 'status'])
+export const eventColumns = defaultColumns(['title', 'starts_at', 'location', 'status'])
 export const roleColumns: ColumnDef<Record<string, unknown>>[] = [
   textColumn('Role', 'name'),
   textColumn('Slug', 'slug'),

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\ClassModel;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\Rule;
 
 class ClassController extends Controller
 {
@@ -60,7 +61,10 @@ class ClassController extends Controller
             'name' => 'required|string|max:255',
             'form' => 'nullable|string',
             'capacity' => 'nullable|integer|min:1',
-            'teacher_id' => 'nullable|exists:teachers,id',
+            'teacher_id' => [
+                'nullable',
+                Rule::exists('teachers', 'id')->where(fn ($q) => $q->where('school_id', $schoolId)),
+            ],
         ]);
 
         if ($validator->fails()) {
@@ -91,10 +95,16 @@ class ClassController extends Controller
             abort(403, 'Unauthorized action.');
         }
 
+        $schoolId = $request->user()?->school_id;
+
         $validator = Validator::make($request->all(), [
             'name' => 'sometimes|string|max:255',
+            'form' => 'nullable|string',
             'capacity' => 'nullable|integer|min:1',
-            'teacher_id' => 'nullable|exists:teachers,id',
+            'teacher_id' => [
+                'nullable',
+                Rule::exists('teachers', 'id')->where(fn ($q) => $q->where('school_id', $schoolId)),
+            ],
         ]);
 
         if ($validator->fails()) {
@@ -104,7 +114,7 @@ class ClassController extends Controller
             ], 422);
         }
 
-        $class->fill($request->only(['name', 'capacity', 'teacher_id']));
+        $class->fill($request->only(['name', 'form', 'capacity', 'teacher_id']));
         $class->save();
 
         return response()->json([

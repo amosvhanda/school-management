@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import { RouterLink } from 'vue-router'
-import { Settings2, SlidersHorizontal } from '@lucide/vue'
+import { SlidersHorizontal } from '@lucide/vue'
 import PageShell from '@/components/layout/PageShell.vue'
 import FormCard from '@/components/forms/FormCard.vue'
 import PageLoader from '@/components/feedback/PageLoader.vue'
@@ -74,28 +74,20 @@ onMounted(load)
     <PageLoader v-if="loading" label="Loading school settings" />
     <ErrorState v-else-if="error" :description="error" @retry="load" />
     <div v-else class="mx-auto max-w-2xl space-y-6">
-      <div class="grid gap-4 sm:grid-cols-2">
-        <RouterLink to="/settings/custom-fields" class="block rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-          <Card class="h-full transition-colors hover:bg-muted/40">
-            <CardHeader>
-              <CardTitle class="flex items-center gap-2 text-base">
-                <SlidersHorizontal class="h-4 w-4" aria-hidden="true" />
-                Custom fields
-              </CardTitle>
-              <CardDescription>Define extra fields for students, staff, and records.</CardDescription>
-            </CardHeader>
-          </Card>
-        </RouterLink>
-        <Card>
+      <RouterLink
+        to="/settings/custom-fields"
+        class="block rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        <Card class="transition-colors hover:bg-muted/40">
           <CardHeader>
             <CardTitle class="flex items-center gap-2 text-base">
-              <Settings2 class="h-4 w-4" aria-hidden="true" />
-              Terminology
+              <SlidersHorizontal class="h-4 w-4" aria-hidden="true" />
+              Custom fields
             </CardTitle>
-            <CardDescription>Customize labels used across the portal (coming soon).</CardDescription>
+            <CardDescription>Define extra fields for students, staff, and records.</CardDescription>
           </CardHeader>
         </Card>
-      </div>
+      </RouterLink>
       <FormCard
         ref="formCardRef"
         title="School profile"

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\Rule;
 
 class AssignmentController extends Controller
 {
@@ -89,7 +90,7 @@ class AssignmentController extends Controller
         }
         $assignment = $query->first();
 
-        if (!$assignment) {
+        if (! $assignment) {
             return response()->json([
                 'message' => 'Assignment not found',
             ], 404);
@@ -105,11 +106,28 @@ class AssignmentController extends Controller
      */
     public function store(Request $request)
     {
+        $user = $request->user();
+        if ($user->school_id === null) {
+            return response()->json(['message' => 'User must belong to a school to create assignments.'], 403);
+        }
+
+        $schoolId = $user->school_id;
+
         $validator = Validator::make($request->all(), [
             'title' => 'required|string|max:255',
-            'subject' => 'required|string|max:255',
-            'class_id' => 'required|exists:classes,id',
-            'teacher_id' => 'required|exists:teachers,id',
+            'subject' => 'required_without:subject_id|string|max:255',
+            'subject_id' => [
+                'required_without:subject',
+                Rule::exists('subjects', 'id')->where(fn ($q) => $q->where('school_id', $schoolId)),
+            ],
+            'class_id' => [
+                'required',
+                Rule::exists('classes', 'id')->where(fn ($q) => $q->where('school_id', $schoolId)),
+            ],
+            'teacher_id' => [
+                'required',
+                Rule::exists('teachers', 'id')->where(fn ($q) => $q->where('school_id', $schoolId)),
+            ],
             'due_date' => 'required|date',
             'total_marks' => 'sometimes|numeric|min:0',
             'description' => 'sometimes|string',
@@ -123,13 +141,15 @@ class AssignmentController extends Controller
             ], 422);
         }
 
-        $user = $request->user();
-        if ($user->school_id === null) {
-            return response()->json(['message' => 'User must belong to a school to create assignments.'], 403);
+        $subject = $request->subject;
+        if ($request->filled('subject_id')) {
+            $subject = DB::table('subjects')->where('id', $request->subject_id)->where('school_id', $schoolId)->value('name')
+                ?? $subject;
         }
+
         $data = [
             'title' => $request->title,
-            'subject' => $request->subject,
+            'subject' => $subject,
             'class_id' => $request->class_id,
             'teacher_id' => $request->teacher_id,
             'due_date' => $request->due_date,
@@ -174,7 +194,7 @@ class AssignmentController extends Controller
         }
         $assignment = $q->first();
 
-        if (!$assignment) {
+        if (! $assignment) {
             return response()->json([
                 'message' => 'Assignment not found',
             ], 404);
@@ -183,8 +203,20 @@ class AssignmentController extends Controller
         $validator = Validator::make($request->all(), [
             'title' => 'sometimes|required|string|max:255',
             'subject' => 'sometimes|required|string|max:255',
-            'class_id' => 'sometimes|required|exists:classes,id',
-            'teacher_id' => 'sometimes|required|exists:teachers,id',
+            'class_id' => [
+                'sometimes',
+                'required',
+                $schoolId !== null
+                    ? Rule::exists('classes', 'id')->where('school_id', $schoolId)
+                    : 'exists:classes,id',
+            ],
+            'teacher_id' => [
+                'sometimes',
+                'required',
+                $schoolId !== null
+                    ? Rule::exists('teachers', 'id')->where('school_id', $schoolId)
+                    : 'exists:teachers,id',
+            ],
             'due_date' => 'sometimes|required|date',
             'total_marks' => 'sometimes|numeric|min:0',
             'status' => 'sometimes|string|in:active,completed,cancelled',
@@ -237,7 +269,7 @@ class AssignmentController extends Controller
         }
         $assignment = $q->first();
 
-        if (!$assignment) {
+        if (! $assignment) {
             return response()->json([
                 'message' => 'Assignment not found',
             ], 404);

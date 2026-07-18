@@ -6,7 +6,9 @@ import type { SectionKpi } from '@/components/analytics/SectionAnalyticsHub.vue'
 import AcademicsAnalyticsPanel from '@/modules/analytics/components/AcademicsAnalyticsPanel.vue'
 import CommunicationsAnalyticsPanel from '@/modules/analytics/components/CommunicationsAnalyticsPanel.vue'
 import FinanceAnalyticsPanel from '@/modules/analytics/components/FinanceAnalyticsPanel.vue'
+import { useAuth } from '@/composables/useAuth'
 import { getErrorMessage } from '@/lib/api-response'
+import { canAccessNavItem } from '@/lib/permissions'
 import { getSectionHub, type SectionKey } from '@/lib/section-hubs'
 import {
   loadAcademicsDetails,
@@ -25,8 +27,14 @@ import type { FinanceDetails } from '@/modules/analytics/types/finance-analytics
 import type { AttendanceSummary } from '@/types/dashboard'
 
 const route = useRoute()
+const { user } = useAuth()
 const sectionKey = computed(() => route.meta.sectionKey as SectionKey | undefined)
 const hub = computed(() => getSectionHub(sectionKey.value))
+const quickLinks = computed(() =>
+  (hub.value?.quickLinks ?? []).filter((link) =>
+    canAccessNavItem(user.value, link.capability),
+  ),
+)
 
 const loading = ref(true)
 const detailsLoading = ref(false)
@@ -118,7 +126,7 @@ onMounted(load)
     :title="hub.title"
     :description="hub.description"
     :kpis="kpis"
-    :quick-links="hub.quickLinks"
+    :quick-links="quickLinks"
     :loading="loading"
     :error="error"
     @retry="load"

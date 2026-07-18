@@ -2,12 +2,15 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Timetable;
 use App\Models\ClassModel;
+use App\Models\Room;
+use App\Models\Subject;
+use App\Models\Timetable;
 use App\Services\TimetableConflictService;
 use App\Services\TimetableGeneratorService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\Rule;
 
 class TimetableController extends Controller
 {
@@ -51,15 +54,29 @@ class TimetableController extends Controller
 
     public function store(Request $request)
     {
+        $schoolId = $request->user()?->school_id;
+
         $validator = Validator::make($request->all(), [
-            'class_id' => 'required|exists:classes,id',
-            'subject_id' => 'required_without:subject|exists:subjects,id',
+            'class_id' => [
+                'required',
+                Rule::exists('classes', 'id')->where(fn ($q) => $q->where('school_id', $schoolId)),
+            ],
+            'subject_id' => [
+                'required_without:subject',
+                Rule::exists('subjects', 'id')->where(fn ($q) => $q->where('school_id', $schoolId)),
+            ],
             'subject' => 'required_without:subject_id|string',
             'day' => 'required|string',
             'start_time' => 'required|date_format:H:i',
             'end_time' => 'required|date_format:H:i',
-            'teacher_id' => 'nullable|exists:teachers,id',
-            'room_id' => 'nullable|exists:rooms,id',
+            'teacher_id' => [
+                'nullable',
+                Rule::exists('teachers', 'id')->where(fn ($q) => $q->where('school_id', $schoolId)),
+            ],
+            'room_id' => [
+                'nullable',
+                Rule::exists('rooms', 'id')->where(fn ($q) => $q->where('school_id', $schoolId)),
+            ],
             'room' => 'nullable|string',
         ]);
 
@@ -70,18 +87,16 @@ class TimetableController extends Controller
             ], 422);
         }
 
-        $schoolId = $request->user()?->school_id;
-
         $subjectName = $request->subject;
         $subjectId = $request->subject_id;
         if ($subjectId) {
-            $subject = \App\Models\Subject::where('school_id', $schoolId)->findOrFail($subjectId);
+            $subject = Subject::where('school_id', $schoolId)->findOrFail($subjectId);
             $subjectName = $subject->name;
         }
 
         $roomName = $request->room;
         if ($request->room_id) {
-            $room = \App\Models\Room::where('school_id', $schoolId)->findOrFail($request->room_id);
+            $room = Room::where('school_id', $schoolId)->findOrFail($request->room_id);
             $roomName = $room->name;
         }
 
@@ -94,7 +109,7 @@ class TimetableController extends Controller
         ]);
         $validation = $this->conflictService->validateTimetableEntry($timetableData);
 
-        if (!$validation['valid']) {
+        if (! $validation['valid']) {
             return response()->json([
                 'message' => 'Timetable conflicts detected',
                 'conflicts' => $validation['conflicts'],
@@ -113,14 +128,25 @@ class TimetableController extends Controller
     {
         $timetable = Timetable::findOrFail($id);
 
+        $schoolId = $request->user()?->school_id;
+
         $validator = Validator::make($request->all(), [
-            'subject_id' => 'sometimes|exists:subjects,id',
+            'subject_id' => [
+                'sometimes',
+                Rule::exists('subjects', 'id')->where(fn ($q) => $q->where('school_id', $schoolId)),
+            ],
             'subject' => 'sometimes|string',
             'day' => 'sometimes|string',
             'start_time' => 'sometimes|date_format:H:i',
             'end_time' => 'sometimes|date_format:H:i',
-            'teacher_id' => 'nullable|exists:teachers,id',
-            'room_id' => 'nullable|exists:rooms,id',
+            'teacher_id' => [
+                'nullable',
+                Rule::exists('teachers', 'id')->where(fn ($q) => $q->where('school_id', $schoolId)),
+            ],
+            'room_id' => [
+                'nullable',
+                Rule::exists('rooms', 'id')->where(fn ($q) => $q->where('school_id', $schoolId)),
+            ],
             'room' => 'nullable|string',
         ]);
 
@@ -130,19 +156,17 @@ class TimetableController extends Controller
                 'errors' => $validator->errors(),
             ], 422);
         }
-
-        $schoolId = $request->user()?->school_id;
         $subjectName = $request->input('subject', $timetable->subject);
         $subjectId = $request->input('subject_id', $timetable->subject_id);
 
         if ($request->filled('subject_id')) {
-            $subject = \App\Models\Subject::where('school_id', $schoolId)->findOrFail($request->subject_id);
+            $subject = Subject::where('school_id', $schoolId)->findOrFail($request->subject_id);
             $subjectName = $subject->name;
         }
 
         $roomName = $request->input('room', $timetable->room);
         if ($request->filled('room_id')) {
-            $room = \App\Models\Room::where('school_id', $schoolId)->findOrFail($request->room_id);
+            $room = Room::where('school_id', $schoolId)->findOrFail($request->room_id);
             $roomName = $room->name;
         }
 

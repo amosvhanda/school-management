@@ -27,6 +27,8 @@ export const studentFormSchema = z
     }),
     phone: zimPhoneOptionalSchema,
     email: emailOptionalSchema,
+    suburb: z.string().trim().optional().or(z.literal('')),
+    address: z.string().trim().optional().or(z.literal('')),
     guardianMode: z.enum(['existing', 'new', 'none']).default('new'),
     guardian_id: z.string().optional().or(z.literal('')),
     guardianFirstName: z.string().trim().optional().or(z.literal('')),

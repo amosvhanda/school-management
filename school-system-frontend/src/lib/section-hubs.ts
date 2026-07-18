@@ -13,6 +13,7 @@ export interface SectionQuickLink {
   description: string
   href: string
   icon: string
+  capability?: NavCapability | NavCapability[]
 }
 
 export interface SectionHubDefinition {
@@ -32,11 +33,11 @@ export const SECTION_HUBS: Record<SectionKey, SectionHubDefinition> = {
     analyticsPath: '/people/analytics',
     capability: 'canManageStudents',
     quickLinks: [
-      { title: 'Students', description: 'Browse and manage learners', href: '/students', icon: 'GraduationCap' },
-      { title: 'Teachers', description: 'Staff records and assignments', href: '/teachers', icon: 'Users' },
-      { title: 'Guardians', description: 'Parents and contacts', href: '/guardians', icon: 'UserCheck' },
-      { title: 'Enrollment', description: 'Applications and intake', href: '/enrollment', icon: 'ClipboardList' },
-      { title: 'Add student', description: 'Register a new learner', href: '/students?create=1', icon: 'UserPlus' },
+      { title: 'Students', description: 'Browse and manage learners', href: '/students', icon: 'GraduationCap', capability: 'canManageStudents' },
+      { title: 'Teachers', description: 'Staff records and assignments', href: '/teachers', icon: 'Users', capability: 'canManageTeachers' },
+      { title: 'Guardians', description: 'Parents and contacts', href: '/guardians', icon: 'UserCheck', capability: 'canManageStudents' },
+      { title: 'Enrollment', description: 'Applications and intake', href: '/enrollment', icon: 'ClipboardList', capability: 'canManageStudents' },
+      { title: 'Add student', description: 'Register a new learner', href: '/students?create=1', icon: 'UserPlus', capability: 'canManageStudents' },
     ],
   },
   academics: {
@@ -46,12 +47,12 @@ export const SECTION_HUBS: Record<SectionKey, SectionHubDefinition> = {
     analyticsPath: '/academics/analytics',
     capability: ['canManageTeachers', 'canManageStudents', 'canEnterExamResults'],
     quickLinks: [
-      { title: 'Attendance register', description: 'Mark daily class attendance', href: '/academics/attendance', icon: 'ClipboardCheck' },
-      { title: 'Exams', description: 'Enter marks and review results', href: '/academics/exams', icon: 'FileText' },
-      { title: 'Gradebook', description: 'Enter and review marks', href: '/academics/grades', icon: 'NotebookPen' },
-      { title: 'Classes', description: 'Class and grade setup', href: '/academics/setup', icon: 'BookOpen' },
-      { title: 'Timetable', description: 'Weekly class schedule', href: '/academics/timetable', icon: 'CalendarDays' },
-      { title: 'Terms', description: 'Academic calendar terms', href: '/academics/terms', icon: 'Calendar' },
+      { title: 'Attendance register', description: 'Mark daily class attendance', href: '/academics/attendance', icon: 'ClipboardCheck', capability: ['canManageStudents', 'canManageTeachers'] },
+      { title: 'Exams', description: 'Enter marks and review results', href: '/academics/exams', icon: 'FileText', capability: ['canManageExaminations', 'canEnterExamResults'] },
+      { title: 'Gradebook', description: 'Enter and review marks', href: '/academics/grades', icon: 'NotebookPen', capability: ['canManageTeachers', 'canEnterExamResults'] },
+      { title: 'Classes', description: 'Class and grade setup', href: '/academics/setup', icon: 'BookOpen', capability: 'canManageTeachers' },
+      { title: 'Timetable', description: 'Weekly class schedule', href: '/academics/timetable', icon: 'CalendarDays', capability: 'canManageTeachers' },
+      { title: 'Terms', description: 'Academic calendar terms', href: '/academics/terms', icon: 'Calendar', capability: 'canManageTeachers' },
     ],
   },
   finance: {
@@ -105,10 +106,10 @@ export const SECTION_HUBS: Record<SectionKey, SectionHubDefinition> = {
     analyticsPath: '/communications/analytics',
     capability: 'isStaff',
     quickLinks: [
-      { title: 'Announcements', description: 'Broadcast to school', href: '/communications/announcements', icon: 'Megaphone' },
-      { title: 'Messages', description: 'Staff and parent inbox', href: '/communications/threads', icon: 'MessageSquare' },
-      { title: 'Assistant', description: 'AI school assistant', href: '/assistant', icon: 'Bot' },
-      { title: 'Reports', description: 'Download school reports', href: '/reports', icon: 'FileBarChart' },
+      { title: 'Announcements', description: 'Broadcast to school', href: '/communications/announcements', icon: 'Megaphone', capability: 'isStaff' },
+      { title: 'Messages', description: 'Staff and parent inbox', href: '/communications/threads', icon: 'MessageSquare', capability: 'isStaff' },
+      { title: 'Assistant', description: 'AI school assistant', href: '/assistant', icon: 'Bot', capability: 'isStaff' },
+      { title: 'Reports', description: 'Download school reports', href: '/reports', icon: 'FileBarChart', capability: 'canManageTeachers' },
     ],
   },
 }

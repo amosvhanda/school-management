@@ -26,8 +26,34 @@ const section = computed(() => {
   return 'dashboard'
 })
 
-const studentName = computed(() => {
-  return user.value?.name || 'Student'
+const pageTitle = computed(() => {
+  switch (section.value) {
+    case 'performance':
+      return 'My performance'
+    case 'attendance':
+      return 'My attendance'
+    case 'exams':
+      return 'My exams'
+    case 'fees':
+      return 'My fees'
+    default:
+      return `Welcome, ${user.value?.name?.split(' ')[0] || 'Student'}`
+  }
+})
+
+const pageDescription = computed(() => {
+  switch (section.value) {
+    case 'performance':
+      return 'Grades and assessment results linked to your account.'
+    case 'attendance':
+      return 'Presence summary for the current term.'
+    case 'exams':
+      return 'Upcoming and completed exams.'
+    case 'fees':
+      return 'Invoices and outstanding balances.'
+    default:
+      return 'Student portal overview'
+  }
 })
 
 const studentId = computed<number | null>(() => {
@@ -165,49 +191,50 @@ onMounted(loadStudentPortal)
 <template>
   <div class="mx-auto max-w-6xl space-y-6 pb-8">
     <div>
-      <h1 class="text-2xl font-semibold tracking-tight">Welcome, {{ studentName }}</h1>
-      <p class="text-sm text-muted-foreground">Student portal</p>
+      <h1 class="text-2xl font-semibold tracking-tight">{{ pageTitle }}</h1>
+      <p class="text-sm text-muted-foreground">{{ pageDescription }}</p>
     </div>
 
     <Alert v-if="error" variant="destructive">
       <AlertDescription>{{ error }}</AlertDescription>
     </Alert>
 
-    <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-      <Card>
-        <CardHeader class="pb-2">
-          <CardTitle class="text-sm font-medium">Average score</CardTitle>
-          <CardDescription>Across recorded assessments</CardDescription>
-        </CardHeader>
-        <CardContent class="text-2xl font-semibold">{{ averageScore.toFixed(1) }}%</CardContent>
-      </Card>
+    <template v-if="section === 'dashboard'">
+      <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <Card>
+          <CardHeader class="pb-2">
+            <CardTitle class="text-sm font-medium">Average score</CardTitle>
+            <CardDescription>Across recorded assessments</CardDescription>
+          </CardHeader>
+          <CardContent class="text-2xl font-semibold">{{ averageScore.toFixed(1) }}%</CardContent>
+        </Card>
 
-      <Card>
-        <CardHeader class="pb-2">
-          <CardTitle class="text-sm font-medium">Attendance rate</CardTitle>
-          <CardDescription>Current attendance summary</CardDescription>
-        </CardHeader>
-        <CardContent class="text-2xl font-semibold">{{ attendanceRate.toFixed(1) }}%</CardContent>
-      </Card>
+        <Card>
+          <CardHeader class="pb-2">
+            <CardTitle class="text-sm font-medium">Attendance rate</CardTitle>
+            <CardDescription>Current attendance summary</CardDescription>
+          </CardHeader>
+          <CardContent class="text-2xl font-semibold">{{ attendanceRate.toFixed(1) }}%</CardContent>
+        </Card>
 
-      <Card>
-        <CardHeader class="pb-2">
-          <CardTitle class="text-sm font-medium">Outstanding balance</CardTitle>
-          <CardDescription>Total unpaid amount</CardDescription>
-        </CardHeader>
-        <CardContent class="text-2xl font-semibold">{{ formatCurrency(totalOutstanding) }}</CardContent>
-      </Card>
+        <Card>
+          <CardHeader class="pb-2">
+            <CardTitle class="text-sm font-medium">Outstanding balance</CardTitle>
+            <CardDescription>Total unpaid amount</CardDescription>
+          </CardHeader>
+          <CardContent class="text-2xl font-semibold">{{ formatCurrency(totalOutstanding) }}</CardContent>
+        </Card>
 
-      <Card>
-        <CardHeader class="pb-2">
-          <CardTitle class="text-sm font-medium">Pending invoices</CardTitle>
-          <CardDescription>Unpaid or partial invoices</CardDescription>
-        </CardHeader>
-        <CardContent class="text-2xl font-semibold">{{ pendingInvoices }}</CardContent>
-      </Card>
-    </div>
+        <Card>
+          <CardHeader class="pb-2">
+            <CardTitle class="text-sm font-medium">Pending invoices</CardTitle>
+            <CardDescription>Unpaid or partial invoices</CardDescription>
+          </CardHeader>
+          <CardContent class="text-2xl font-semibold">{{ pendingInvoices }}</CardContent>
+        </Card>
+      </div>
 
-    <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <Card>
           <CardHeader class="pb-2">
             <CardTitle class="text-sm font-medium">Student number</CardTitle>
@@ -255,7 +282,9 @@ onMounted(loadStudentPortal)
           </CardHeader>
           <CardContent class="text-lg font-semibold">{{ profileView.email }}</CardContent>
         </Card>
-    </div>
+      </div>
+    </template>
+
     <Card v-if="section === 'dashboard' || section === 'performance'">
       <CardHeader>
         <CardTitle>Performance</CardTitle>

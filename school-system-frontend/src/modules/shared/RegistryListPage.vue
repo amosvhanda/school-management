@@ -32,6 +32,7 @@ const crudAccess = computed(() => {
     :title="config.title"
     :description="config.description"
     :endpoint="config.endpoint"
+    :create-endpoint="config.createEndpoint"
     :columns="config.columns"
     :form-fields="crud.formFields"
     :form-schema="crud.formSchema"

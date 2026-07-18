@@ -48,6 +48,7 @@ const props = defineProps<{
   title: string
   description?: string
   endpoint: string
+  createEndpoint?: string
   columns: ColumnDef<Record<string, unknown>, unknown>[]
   formFields?: FormFieldSchema[]
   formSchema?: z.ZodTypeAny
@@ -365,7 +366,7 @@ async function onSubmit(values: Record<string, unknown>) {
       await updateRecord(`${props.endpoint}/${id}`, payload)
       toast.success('Record updated')
     } else {
-      await createRecord(props.endpoint, payload)
+      await createRecord(props.createEndpoint ?? props.endpoint, payload)
       toast.success('Record created')
     }
     sheetOpen.value = false

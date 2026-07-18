@@ -33,12 +33,15 @@ import {
   workflowColumns,
 } from '@/modules/shared/columns'
 import type { ColumnDef } from '@tanstack/vue-table'
+import { endpoints } from '@/services/endpoints'
 import { moduleEndpoints } from '@/services/index'
 
 export interface ListPageConfig {
   title: string
   description?: string
   endpoint: string
+  /** When create uses a different path than list (e.g. visitors check-in). */
+  createEndpoint?: string
   columns: ColumnDef<Record<string, unknown>, unknown>[]
 }
 
@@ -49,8 +52,8 @@ export const listPageRegistry: Record<string, ListPageConfig> = {
   enrollment: { title: 'Enrollment Applications', endpoint: moduleEndpoints.enrollment, columns: enrollmentColumns },
 
   'academics-setup': { title: 'Classes', description: 'Class and grade setup', endpoint: moduleEndpoints.classes, columns: defaultColumns(['name', 'grade_level', 'capacity', 'status']) },
-  'academics-subjects': { title: 'Subjects', endpoint: moduleEndpoints.subjects, columns: defaultColumns(['name', 'code', 'department_id', 'status']) },
-  'academics-departments': { title: 'Departments', endpoint: moduleEndpoints.departments, columns: defaultColumns(['name', 'head_id', 'status']) },
+  'academics-subjects': { title: 'Subjects', endpoint: moduleEndpoints.subjects, columns: defaultColumns(['name', 'code', 'status']) },
+  'academics-departments': { title: 'Departments', endpoint: moduleEndpoints.departments, columns: defaultColumns(['name', 'head_teacher_id', 'status']) },
   'academics-grade-levels': { title: 'Grade Levels', endpoint: moduleEndpoints.gradeLevels, columns: defaultColumns(['name', 'order', 'status']) },
   'academics-grading-scales': { title: 'Grading Scales', endpoint: moduleEndpoints.gradingScales, columns: defaultColumns(['name', 'min_score', 'max_score', 'grade']) },
   'academics-rooms': { title: 'Rooms', endpoint: moduleEndpoints.rooms, columns: defaultColumns(['name', 'building', 'capacity', 'status']) },
@@ -82,7 +85,12 @@ export const listPageRegistry: Record<string, ListPageConfig> = {
   'ops-transport-routes': { title: 'Transport Routes', endpoint: moduleEndpoints.transportRoutes, columns: defaultColumns(['name', 'vehicle_id', 'driver_id', 'status']) },
   'ops-assets': { title: 'Assets', endpoint: moduleEndpoints.assets, columns: assetColumns },
   'ops-hostels': { title: 'Hostels', endpoint: moduleEndpoints.hostels, columns: hostelColumns },
-  'ops-visitors': { title: 'Visitors', endpoint: moduleEndpoints.visitors, columns: visitorColumns },
+  'ops-visitors': {
+    title: 'Visitors',
+    endpoint: moduleEndpoints.visitors,
+    createEndpoint: endpoints.visitors.checkIn,
+    columns: visitorColumns,
+  },
   'ops-health': { title: 'Clinic Visits', endpoint: moduleEndpoints.healthVisits, columns: healthColumns },
   'ops-events': { title: 'Events', endpoint: moduleEndpoints.events, columns: eventColumns },
 

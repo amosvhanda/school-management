@@ -22,7 +22,7 @@ class DepartmentController extends Controller
 
         // Support 'all=true' parameter
         if ($request->get('all') === 'true' || $request->get('all') === true) {
-            if (!$request->has('is_active')) {
+            if (! $request->has('is_active')) {
                 $query->where('is_active', true);
             }
         }
@@ -30,10 +30,10 @@ class DepartmentController extends Controller
         // Filter by search if provided
         if ($request->has('search')) {
             $search = $request->search;
-            $query->where(function($q) use ($search) {
+            $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('code', 'like', "%{$search}%")
-                  ->orWhere('description', 'like', "%{$search}%");
+                    ->orWhere('code', 'like', "%{$search}%")
+                    ->orWhere('description', 'like', "%{$search}%");
             });
         }
 
@@ -76,7 +76,7 @@ class DepartmentController extends Controller
                 'max:255',
                 Rule::unique('departments')->where(function ($query) use ($schoolId) {
                     return $query->where('school_id', $schoolId);
-                })
+                }),
             ],
             'code' => [
                 'nullable',
@@ -84,10 +84,13 @@ class DepartmentController extends Controller
                 'max:20',
                 Rule::unique('departments')->where(function ($query) use ($schoolId) {
                     return $query->where('school_id', $schoolId);
-                })
+                }),
             ],
             'description' => 'nullable|string',
-            'head_teacher_id' => 'nullable|exists:teachers,id',
+            'head_teacher_id' => [
+                'nullable',
+                Rule::exists('teachers', 'id')->where(fn ($q) => $q->where('school_id', $schoolId)),
+            ],
             'is_active' => 'nullable|boolean',
         ]);
 
@@ -130,7 +133,7 @@ class DepartmentController extends Controller
                 'max:255',
                 Rule::unique('departments')->where(function ($query) use ($schoolId) {
                     return $query->where('school_id', $schoolId);
-                })->ignore($department->id)
+                })->ignore($department->id),
             ],
             'code' => [
                 'nullable',
@@ -138,10 +141,13 @@ class DepartmentController extends Controller
                 'max:20',
                 Rule::unique('departments')->where(function ($query) use ($schoolId) {
                     return $query->where('school_id', $schoolId);
-                })->ignore($department->id)
+                })->ignore($department->id),
             ],
             'description' => 'nullable|string',
-            'head_teacher_id' => 'nullable|exists:teachers,id',
+            'head_teacher_id' => [
+                'nullable',
+                Rule::exists('teachers', 'id')->where(fn ($q) => $q->where('school_id', $schoolId)),
+            ],
             'is_active' => 'nullable|boolean',
         ]);
 
