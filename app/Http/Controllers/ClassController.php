@@ -61,6 +61,14 @@ class ClassController extends Controller
             'name' => 'required|string|max:255',
             'form' => 'nullable|string',
             'capacity' => 'nullable|integer|min:1',
+            'grade_level_id' => [
+                'nullable',
+                Rule::exists('grade_levels', 'id')->where(fn ($q) => $q->where('school_id', $schoolId)),
+            ],
+            'stream_id' => [
+                'nullable',
+                Rule::exists('streams', 'id')->where(fn ($q) => $q->where('school_id', $schoolId)),
+            ],
             'teacher_id' => [
                 'nullable',
                 Rule::exists('teachers', 'id')->where(fn ($q) => $q->where('school_id', $schoolId)),
@@ -79,6 +87,8 @@ class ClassController extends Controller
             'form' => $request->form,
             'capacity' => $request->capacity ?? 40,
             'status' => 'active',
+            'grade_level_id' => $request->grade_level_id,
+            'stream_id' => $request->stream_id,
             'teacher_id' => $request->teacher_id,
             'school_id' => $schoolId,
         ]);
@@ -101,6 +111,14 @@ class ClassController extends Controller
             'name' => 'sometimes|string|max:255',
             'form' => 'nullable|string',
             'capacity' => 'nullable|integer|min:1',
+            'grade_level_id' => [
+                'nullable',
+                Rule::exists('grade_levels', 'id')->where(fn ($q) => $q->where('school_id', $schoolId)),
+            ],
+            'stream_id' => [
+                'nullable',
+                Rule::exists('streams', 'id')->where(fn ($q) => $q->where('school_id', $schoolId)),
+            ],
             'teacher_id' => [
                 'nullable',
                 Rule::exists('teachers', 'id')->where(fn ($q) => $q->where('school_id', $schoolId)),
@@ -114,7 +132,7 @@ class ClassController extends Controller
             ], 422);
         }
 
-        $class->fill($request->only(['name', 'form', 'capacity', 'teacher_id']));
+        $class->fill($request->only(['name', 'form', 'capacity', 'grade_level_id', 'stream_id', 'teacher_id']));
         $class->save();
 
         return response()->json([

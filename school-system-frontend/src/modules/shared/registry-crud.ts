@@ -60,6 +60,15 @@ export const moduleCrudRegistry: Record<string, ModuleCrudConfig> = {
       { name: 'form', label: 'Form / level label', type: 'text', section: 'Class details', placeholder: 'Form 1', colSpan: 1 },
       { name: 'capacity', label: 'Capacity', type: 'number', section: 'Class details', colSpan: 1 },
       {
+        name: 'stream_id',
+        label: 'Stream',
+        type: 'relation',
+        section: 'Class details',
+        placeholder: 'Optional stream',
+        colSpan: 1,
+        relation: { endpoint: moduleEndpoints.streams },
+      },
+      {
         name: 'teacher_id',
         label: 'Class teacher',
         type: 'relation',
@@ -74,8 +83,86 @@ export const moduleCrudRegistry: Record<string, ModuleCrudConfig> = {
       name: z.string().min(1),
       form: z.string().optional(),
       capacity: z.coerce.number().optional(),
+      stream_id: z.string().optional().or(z.literal('')),
       teacher_id: z.string().optional().or(z.literal('')),
     }),
+  ),
+  'academics-streams': crud(
+    [
+      { name: 'name', label: 'Stream name', type: 'text', required: true, section: 'Stream', colSpan: 1 },
+      { name: 'code', label: 'Code', type: 'text', section: 'Stream', colSpan: 1 },
+      { name: 'description', label: 'Description', type: 'textarea', section: 'Stream', colSpan: 2 },
+    ],
+    z.object({
+      name: z.string().min(1),
+      code: z.string().optional(),
+      description: z.string().optional(),
+    }),
+  ),
+  'academics-houses': crud(
+    [
+      { name: 'name', label: 'House name', type: 'text', required: true, section: 'House', colSpan: 1 },
+      { name: 'code', label: 'Code', type: 'text', section: 'House', colSpan: 1 },
+      { name: 'color', label: 'Colour', type: 'text', section: 'House', colSpan: 1 },
+      {
+        name: 'teacher_id',
+        label: 'House master / mistress',
+        type: 'relation',
+        section: 'House',
+        colSpan: 1,
+        relation: { endpoint: moduleEndpoints.teachers },
+      },
+    ],
+    z.object({
+      name: z.string().min(1),
+      code: z.string().optional(),
+      color: z.string().optional(),
+      teacher_id: z.string().optional().or(z.literal('')),
+    }),
+  ),
+  'academics-subject-packages': crud(
+    [
+      {
+        name: 'grade_level_id',
+        label: 'Grade level',
+        type: 'relation',
+        required: true,
+        section: 'Package',
+        relation: { endpoint: moduleEndpoints.gradeLevels },
+      },
+      {
+        name: 'subject_id',
+        label: 'Subject',
+        type: 'relation',
+        required: true,
+        section: 'Package',
+        relation: { endpoint: moduleEndpoints.subjects },
+      },
+      {
+        name: 'stream_id',
+        label: 'Stream (optional)',
+        type: 'relation',
+        section: 'Package',
+        relation: { endpoint: moduleEndpoints.streams },
+      },
+      {
+        name: 'is_core',
+        label: 'Core subject',
+        type: 'select',
+        section: 'Package',
+        options: [
+          { label: 'Core', value: 'true' },
+          { label: 'Elective', value: 'false' },
+        ],
+      },
+    ],
+    z.object({
+      grade_level_id: z.string().min(1),
+      subject_id: z.string().min(1),
+      stream_id: z.string().optional().or(z.literal('')),
+      is_core: z.string().optional(),
+    }),
+    { canEdit: false, canDelete: false },
   ),
   'academics-subjects': crud(
     [

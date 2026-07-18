@@ -41,6 +41,7 @@ import {
   studentInvoiceSchema,
 } from '@/modules/students/student-form'
 import { studentsApi } from '@/services/api.service'
+import StudentJourneyPanel from '@/modules/students/components/StudentJourneyPanel.vue'
 
 interface Student {
   id: number
@@ -406,12 +407,17 @@ onMounted(load)
         </Card>
       </div>
 
-      <Tabs default-value="performance">
-        <TabsList>
+      <Tabs default-value="journey">
+        <TabsList class="flex h-auto flex-wrap gap-1">
+          <TabsTrigger value="journey">Journey</TabsTrigger>
           <TabsTrigger value="performance">Performance</TabsTrigger>
           <TabsTrigger value="fees">Fees & invoices</TabsTrigger>
           <TabsTrigger value="attendance">Attendance</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="journey" class="mt-4">
+          <StudentJourneyPanel :student-id="id" @refreshed="load" />
+        </TabsContent>
 
         <TabsContent value="performance" class="space-y-4">
           <div class="grid gap-4 sm:grid-cols-2">

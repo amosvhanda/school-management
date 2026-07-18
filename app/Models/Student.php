@@ -4,9 +4,8 @@ namespace App\Models;
 
 use App\Models\Concerns\Auditable;
 use App\Models\Concerns\BelongsToSchool;
-use App\Models\Concerns\Versionable;
 use App\Models\Concerns\HasCustomFields;
-use App\Models\CustomField;
+use App\Models\Concerns\Versionable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -32,12 +31,17 @@ class Student extends Model
         'class',
         'school',
         'status',
+        'status_reason',
+        'status_changed_at',
+        'exited_at',
         'repetition_count',
         'previous_school',
         'balance',
         'currency',
         'user_id',
         'class_id',
+        'stream_id',
+        'house_id',
         'school_id',
         'grade_level_id',
         'guardian_first_name',
@@ -52,9 +56,11 @@ class Student extends Model
     protected function casts(): array
     {
         return [
-        'date_of_birth' => 'date',
-        'balance' => 'decimal:2',
-    ];
+            'date_of_birth' => 'date',
+            'exited_at' => 'date',
+            'status_changed_at' => 'datetime',
+            'balance' => 'decimal:2',
+        ];
     }
 
     public function user(): BelongsTo
@@ -90,6 +96,21 @@ class Student extends Model
     public function classModel(): BelongsTo
     {
         return $this->belongsTo(ClassModel::class, 'class_id');
+    }
+
+    public function stream(): BelongsTo
+    {
+        return $this->belongsTo(Stream::class);
+    }
+
+    public function house(): BelongsTo
+    {
+        return $this->belongsTo(House::class);
+    }
+
+    public function statusEvents(): HasMany
+    {
+        return $this->hasMany(StudentStatusEvent::class);
     }
 
     /**
@@ -148,6 +169,7 @@ class Student extends Model
         $phone = array_key_exists('guardian_phone', $this->attributes) ? ($this->guardian_phone ?? '') : '';
         $email = array_key_exists('guardian_email', $this->attributes) ? ($this->guardian_email ?? '') : '';
         $rel = array_key_exists('guardian_relationship', $this->attributes) ? ($this->guardian_relationship ?? 'parent') : 'parent';
+
         return [
             'first_name' => $fn,
             'last_name' => $sn,

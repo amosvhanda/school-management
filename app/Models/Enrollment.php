@@ -14,19 +14,23 @@ class Enrollment extends Model
     protected $fillable = [
         'student_id',
         'class_id',
+        'stream_id',
+        'house_id',
         'academic_year',
         'enrolled_at',
         'left_at',
         'status',
+        'reason',
+        'changed_by',
         'school_id',
     ];
 
     protected function casts(): array
     {
         return [
-        'enrolled_at' => 'date',
-        'left_at' => 'date',
-    ];
+            'enrolled_at' => 'date',
+            'left_at' => 'date',
+        ];
     }
 
     public function student(): BelongsTo
@@ -37,6 +41,16 @@ class Enrollment extends Model
     public function classModel(): BelongsTo
     {
         return $this->belongsTo(ClassModel::class, 'class_id');
+    }
+
+    public function stream(): BelongsTo
+    {
+        return $this->belongsTo(Stream::class);
+    }
+
+    public function house(): BelongsTo
+    {
+        return $this->belongsTo(House::class);
     }
 
     public function school(): BelongsTo

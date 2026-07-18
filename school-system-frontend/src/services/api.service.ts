@@ -45,6 +45,20 @@ export const studentsApi = {
   bulkPromote: (payload: Record<string, unknown>) => postRecord(e.students.bulkPromote, payload),
   performance: (id: number | string) => fetchOne(e.students.performance(id)),
   lifecycle: (id: number | string) => fetchOne(e.students.lifecycle(id)),
+  place: (id: number | string, payload: Record<string, unknown>) =>
+    postRecord(e.students.placements(id), payload),
+  lifecycleTransition: (id: number | string, payload: Record<string, unknown>) =>
+    postRecord(e.students.lifecycleTransition(id), payload),
+  lifecyclePromote: (id: number | string, payload: Record<string, unknown>) =>
+    postRecord(e.students.lifecyclePromote(id), payload),
+  downloadTransferCertificate: async (id: number | string) => {
+    const { data } = await api.get(e.students.transferCertificate(id), { responseType: 'blob' })
+    return data as Blob
+  },
+  downloadTranscript: async (id: number | string) => {
+    const { data } = await api.get(e.students.transcript(id), { responseType: 'blob' })
+    return data as Blob
+  },
   invoices: (id: number | string) => fetchList(e.students.invoices(id)),
   createInvoice: (id: number | string, payload: Record<string, unknown>) =>
     createRecord(e.students.createInvoice(id), payload),
@@ -59,6 +73,25 @@ export const studentsApi = {
     return data as Blob
   },
   guardians: (id: number | string) => fetchList(e.students.guardians(id)),
+}
+
+export const academicStructureApi = {
+  streams: {
+    list: (params?: ListQueryParams) => fetchList(e.streams.list, params),
+    create: (payload: Record<string, unknown>) => createRecord(e.streams.list, payload),
+    update: (id: number | string, payload: Record<string, unknown>) =>
+      updateRecord(e.streams.detail(id), payload),
+  },
+  houses: {
+    list: (params?: ListQueryParams) => fetchList(e.houses.list, params),
+    create: (payload: Record<string, unknown>) => createRecord(e.houses.list, payload),
+    update: (id: number | string, payload: Record<string, unknown>) =>
+      updateRecord(e.houses.detail(id), payload),
+  },
+  subjectPackages: {
+    list: (params?: ListQueryParams) => fetchList(e.subjectPackages.list, params),
+    create: (payload: Record<string, unknown>) => createRecord(e.subjectPackages.store, payload),
+  },
 }
 
 export const teachersApi = {
@@ -597,7 +630,11 @@ export const platformApi = {
   paymentGateways: () => fetchList(e.platform.paymentGateways),
   refunds: () => fetchList(e.platform.refunds),
   behaviorPoints: () => fetchList(e.platform.behaviorPoints),
+  storeBehaviorPoint: (payload: Record<string, unknown>) =>
+    createRecord(e.platform.behaviorPoints, payload),
   interventions: () => fetchList(e.platform.interventions),
+  storeIntervention: (payload: Record<string, unknown>) =>
+    createRecord(e.platform.interventions, payload),
   staffTasks: () => fetchList(e.platform.staffTasks),
   staffFeed: () => fetchList(e.platform.staffFeed),
   predictiveAnalytics: () => fetchOne(e.platform.predictiveAnalytics),

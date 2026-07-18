@@ -106,10 +106,21 @@ class EnrollmentController extends Controller
             return response()->json(['message' => 'Cannot approve a rejected application.'], 422);
         }
 
+        $validated = Validator::make($request->all(), [
+            'class_id' => 'nullable|integer|exists:classes,id',
+            'stream_id' => 'nullable|integer|exists:streams,id',
+            'house_id' => 'nullable|integer|exists:houses,id',
+        ])->validate();
+
         $student = $this->approvalService->approve(
             $application,
-            $request->input('class_id'),
+            $validated['class_id'] ?? null,
             $user->id,
+            [
+                'class_id' => $validated['class_id'] ?? null,
+                'stream_id' => $validated['stream_id'] ?? null,
+                'house_id' => $validated['house_id'] ?? null,
+            ],
         );
 
         return response()->json([

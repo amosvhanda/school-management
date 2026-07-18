@@ -52,6 +52,9 @@ export const listPageRegistry: Record<string, ListPageConfig> = {
   enrollment: { title: 'Enrollment Applications', endpoint: moduleEndpoints.enrollment, columns: enrollmentColumns },
 
   'academics-setup': { title: 'Classes', description: 'Class and grade setup', endpoint: moduleEndpoints.classes, columns: defaultColumns(['name', 'grade_level', 'capacity', 'status']) },
+  'academics-streams': { title: 'Streams', description: 'Academic streams (e.g. Sciences, Arts)', endpoint: moduleEndpoints.streams, columns: defaultColumns(['name', 'code', 'is_active']) },
+  'academics-houses': { title: 'Houses', description: 'Pastoral houses', endpoint: moduleEndpoints.houses, columns: defaultColumns(['name', 'code', 'color', 'is_active']) },
+  'academics-subject-packages': { title: 'Subject packages', description: 'Subjects by grade and stream', endpoint: moduleEndpoints.subjectPackages, columns: defaultColumns(['grade_level_id', 'subject_id', 'stream_id', 'is_core']) },
   'academics-subjects': { title: 'Subjects', endpoint: moduleEndpoints.subjects, columns: defaultColumns(['name', 'code', 'status']) },
   'academics-departments': { title: 'Departments', endpoint: moduleEndpoints.departments, columns: defaultColumns(['name', 'head_teacher_id', 'status']) },
   'academics-grade-levels': { title: 'Grade Levels', endpoint: moduleEndpoints.gradeLevels, columns: defaultColumns(['name', 'order', 'status']) },

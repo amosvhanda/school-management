@@ -77,6 +77,9 @@ export const staffRoutes: RouteRecordRaw[] = [
     meta: { capability: 'canManageStudents' },
   },
   staffListRoute('academics/setup', 'academics-setup', 'academics-setup', 'canManageTeachers'),
+  staffListRoute('academics/streams', 'academics-streams', 'academics-streams', 'canManageTeachers'),
+  staffListRoute('academics/houses', 'academics-houses', 'academics-houses', 'canManageTeachers'),
+  staffListRoute('academics/subject-packages', 'academics-subject-packages', 'academics-subject-packages', 'canManageTeachers'),
   sectionAnalyticsRoute('academics/analytics', 'academics-analytics', 'academics', [
     'canManageTeachers',
     'canManageStudents',

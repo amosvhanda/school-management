@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AcademicStructureController;
 use App\Http\Controllers\AnalyticsController;
 use App\Http\Controllers\AnnouncementController;
 use App\Http\Controllers\Api\V1\AdminLicenseController;
@@ -184,12 +185,26 @@ Route::middleware(['auth:sanctum', 'school.isolated', 'school.licensed'])->group
     Route::delete('/students/{student}', [App\Http\Controllers\Api\V1\StudentController::class, 'destroy']);
     Route::get('/students/{student}/performance', [StudentController::class, 'performance']);
     Route::get('/students/{student}/lifecycle', [StudentLifecycleController::class, 'show']);
+    Route::post('/students/{student}/placements', [StudentLifecycleController::class, 'place']);
+    Route::post('/students/{student}/lifecycle/transition', [StudentLifecycleController::class, 'transition']);
+    Route::post('/students/{student}/lifecycle/promote', [StudentLifecycleController::class, 'promoteOne']);
+    Route::get('/students/{student}/transfer-certificate', [StudentLifecycleController::class, 'transferCertificate']);
+    Route::get('/students/{student}/transcript', [StudentLifecycleController::class, 'transcript']);
     Route::get('/students/{student}/invoices', [StudentController::class, 'invoices']);
     Route::post('/students/{student}/invoices', [StudentController::class, 'createInvoice']);
     Route::post('/students/{student}/documents', [StudentController::class, 'uploadDocuments']);
     Route::get('/students/{student}/exams', [StudentController::class, 'exams']);
     Route::get('/students/{student}/results/download', [StudentController::class, 'downloadResults']);
     Route::get('/students/{student}/guardians', [GuardianController::class, 'forStudent']);
+
+    Route::get('/streams', [AcademicStructureController::class, 'streams']);
+    Route::post('/streams', [AcademicStructureController::class, 'storeStream']);
+    Route::put('/streams/{id}', [AcademicStructureController::class, 'updateStream']);
+    Route::get('/houses', [AcademicStructureController::class, 'houses']);
+    Route::post('/houses', [AcademicStructureController::class, 'storeHouse']);
+    Route::put('/houses/{id}', [AcademicStructureController::class, 'updateHouse']);
+    Route::get('/subject-packages', [AcademicStructureController::class, 'subjectPackages']);
+    Route::post('/subject-packages', [AcademicStructureController::class, 'storeSubjectPackage']);
 
     // Inventory / uniform store
     Route::get('/inventory/items', [InventoryController::class, 'index']);

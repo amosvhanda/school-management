@@ -25,12 +25,18 @@ class ClassModel extends Model
         'status',
         'school_id',
         'grade_level_id',
+        'stream_id',
         'room_id',
     ];
 
     public function teacher(): BelongsTo
     {
         return $this->belongsTo(Teacher::class);
+    }
+
+    public function stream(): BelongsTo
+    {
+        return $this->belongsTo(Stream::class);
     }
 
     public function students(): HasMany

@@ -59,12 +59,43 @@ class CertificateGeneratorService
 
     protected function renderHtml(School $school, Student $student, string $title, string $type, string $code, array $metadata): string
     {
-        $date = now()->format('F j, Y');
-        $studentName = e($student->full_name);
-        $schoolName = e($school->name);
+        $date = now()->timezone('Africa/Harare')->format('d M Y');
+        $studentName = e((string) $student->full_name);
+        $schoolName = e((string) $school->name);
         $titleEsc = e($title);
         $typeEsc = e($type);
         $codeEsc = e($code);
+        $studentNumber = e((string) ($student->student_number ?? '—'));
+        $className = e((string) ($metadata['class'] ?? $student->class ?? '—'));
+        $reason = e((string) ($metadata['reason'] ?? '—'));
+        $effective = e((string) ($metadata['effective_date'] ?? $date));
+
+        if ($type === 'transfer_certificate') {
+            return <<<HTML
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><title>{$titleEsc}</title>
+<style>
+body{font-family:Georgia,serif;margin:40px;color:#111}
+h1,h2{font-family:Arial,Helvetica,sans-serif}
+.meta{margin:20px 0;line-height:1.6}
+.footer{margin-top:48px;font-size:12px;color:#555}
+</style></head>
+<body>
+<h1>{$schoolName}</h1>
+<h2>{$titleEsc}</h2>
+<p>This is to certify that</p>
+<h3>{$studentName}</h3>
+<div class="meta">
+<div><strong>Student number:</strong> {$studentNumber}</div>
+<div><strong>Last class:</strong> {$className}</div>
+<div><strong>Effective date:</strong> {$effective}</div>
+<div><strong>Reason / remarks:</strong> {$reason}</div>
+</div>
+<p>was a bona fide student of this school and is hereby issued this transfer / leaving certificate.</p>
+<p class="footer">Issued on {$date}. Verification code: {$codeEsc}</p>
+</body></html>
+HTML;
+        }
 
         return <<<HTML
 <!DOCTYPE html>

@@ -10,6 +10,8 @@ use App\Models\Guardian;
 use App\Models\Student;
 use App\Services\CustomFieldService;
 use App\Services\GuardianService;
+use App\Services\StudentAdmissionService;
+use App\Services\StudentPlacementService;
 use Illuminate\Http\Request;
 
 class StudentController extends Controller
@@ -17,6 +19,8 @@ class StudentController extends Controller
     public function __construct(
         private CustomFieldService $customFieldService,
         private GuardianService $guardianService,
+        private StudentAdmissionService $admissionService,
+        private StudentPlacementService $placementService,
     ) {}
 
     public function index(Request $request)
@@ -80,14 +84,11 @@ class StudentController extends Controller
             'first_name' => $request->firstName,
             'last_name' => $request->surname,
             'full_name' => trim($request->firstName.' '.$request->surname),
-            'student_number' => 'SCH'.date('Y').str_pad(
-                Student::withoutGlobalScopes()->where('school_id', $schoolId)->count() + 1,
-                4,
-                '0',
-                STR_PAD_LEFT
-            ),
+            'student_number' => $this->admissionService->generateStudentNumber((int) $schoolId),
             'class' => $request->class,
             'class_id' => $request->class_id,
+            'stream_id' => $request->input('stream_id'),
+            'house_id' => $request->input('house_id'),
             'grade_level_id' => $request->grade_level_id,
             'date_of_birth' => $request->dateOfBirth,
             'gender' => $request->gender,
@@ -120,8 +121,22 @@ class StudentController extends Controller
             $schoolId,
         );
 
+        if ($request->filled('class_id')) {
+            $academicYear = (string) ($request->input('academic_year')
+                ?? $request->user()?->school?->academic_year
+                ?? date('Y'));
+            $this->placementService->place($student->fresh(), [
+                'class_id' => (int) $request->class_id,
+                'stream_id' => $request->input('stream_id'),
+                'house_id' => $request->input('house_id'),
+                'academic_year' => $academicYear,
+                'reason' => 'admission',
+                'apply_fees' => false,
+            ], $request->user()?->id);
+        }
+
         return $this->created(
-            new StudentResource($student->fresh()->load('guardians')),
+            new StudentResource($student->fresh()->load(['guardians', 'classModel', 'stream', 'house'])),
             'Student created successfully',
         );
     }
