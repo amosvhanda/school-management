@@ -1,3 +1,6 @@
+/** School-facing locale: day-first dates familiar in Zimbabwe / Southern Africa. */
+const SCHOOL_LOCALE = 'en-GB'
+const SCHOOL_TIME_ZONE = 'Africa/Harare'
 const FALLBACK = '—'
 
 export function parseDateValue(value: unknown): Date | null {
@@ -44,34 +47,41 @@ export function isTimeFieldKey(key: string): boolean {
   return key.endsWith('_time')
 }
 
+/** Calendar date for school records — e.g. 19 Jul 2026 */
 export function formatDate(value: unknown, fallback = FALLBACK): string {
   const date = parseDateValue(value)
   if (!date) return fallback
-  return date.toLocaleDateString(undefined, {
+  return date.toLocaleDateString(SCHOOL_LOCALE, {
     year: 'numeric',
     month: 'short',
     day: 'numeric',
   })
 }
 
+/** Date and time — e.g. 19 Jul 2026, 14:30 (Harare time for timestamps) */
 export function formatDateTime(value: unknown, fallback = FALLBACK): string {
   const date = parseDateValue(value)
   if (!date) return fallback
-  return date.toLocaleString(undefined, {
+  return date.toLocaleString(SCHOOL_LOCALE, {
     year: 'numeric',
     month: 'short',
     day: 'numeric',
-    hour: 'numeric',
+    hour: '2-digit',
     minute: '2-digit',
+    hour12: false,
+    timeZone: SCHOOL_TIME_ZONE,
   })
 }
 
+/** Clock time — e.g. 14:30 */
 export function formatTime(value: unknown, fallback = FALLBACK): string {
   const date = parseDateValue(value)
   if (!date) return fallback
-  return date.toLocaleTimeString(undefined, {
-    hour: 'numeric',
+  return date.toLocaleTimeString(SCHOOL_LOCALE, {
+    hour: '2-digit',
     minute: '2-digit',
+    hour12: false,
+    timeZone: SCHOOL_TIME_ZONE,
   })
 }
 
@@ -89,10 +99,12 @@ export function formatRelativeTime(value: unknown, fallback = FALLBACK): string 
   if (diffHour < 24) return `${diffHour} hour${diffHour === 1 ? '' : 's'} ago`
   if (diffDay === 1) return `Yesterday at ${formatTime(date)}`
   if (diffDay < 7) {
-    return date.toLocaleString(undefined, {
+    return date.toLocaleString(SCHOOL_LOCALE, {
       weekday: 'long',
-      hour: 'numeric',
+      hour: '2-digit',
       minute: '2-digit',
+      hour12: false,
+      timeZone: SCHOOL_TIME_ZONE,
     })
   }
   return formatDateTime(date, fallback)
@@ -105,7 +117,7 @@ export function formatMonth(value: unknown, fallback = FALLBACK): string {
   if (/^\d{4}-\d{2}$/.test(str)) {
     const date = parseDateValue(str)
     if (date) {
-      return date.toLocaleDateString(undefined, { month: 'short', year: 'numeric' })
+      return date.toLocaleDateString(SCHOOL_LOCALE, { month: 'short', year: 'numeric' })
     }
   }
 
@@ -115,7 +127,7 @@ export function formatMonth(value: unknown, fallback = FALLBACK): string {
 export function formatChartDay(value: unknown, fallback = ''): string {
   const date = parseDateValue(value)
   if (!date) return fallback
-  return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+  return date.toLocaleDateString(SCHOOL_LOCALE, { month: 'short', day: 'numeric' })
 }
 
 export function formatCellValue(key: string, value: unknown): string {

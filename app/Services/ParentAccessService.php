@@ -59,6 +59,14 @@ class ParentAccessService
             return $student;
         }
 
+        if ($user->role === UserRole::Student) {
+            $linked = (int) ($student->user_id ?? 0) === (int) $user->id
+                || (int) ($user->student_id ?? 0) === (int) $student->id;
+            if ($linked) {
+                return $student;
+            }
+        }
+
         if ($this->isParent($user) && $this->accessibleStudentIds($user)->contains($studentId)) {
             return $student;
         }

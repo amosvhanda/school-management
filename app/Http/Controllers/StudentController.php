@@ -2,18 +2,32 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Student;
-use App\Models\Setting;
-use App\Models\Grade;
+use App\Enums\UserRole;
+use App\Models\ClassModel;
 use App\Models\Exam;
+use App\Models\ExamResult;
+use App\Models\Grade;
+use App\Models\Invoice;
+use App\Models\School;
+use App\Models\Setting;
+use App\Models\Student;
 use App\Models\StudentDocument;
+use App\Services\ParentAccessService;
 use App\Services\StudentPromotionService;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Validator;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class StudentController extends Controller
 {
-    public function __construct(private StudentPromotionService $promotionService) {}
+    public function __construct(
+        private StudentPromotionService $promotionService,
+        private ParentAccessService $parentAccess,
+    ) {}
+
     public function index(Request $request)
     {
         $query = Student::query();
@@ -25,11 +39,11 @@ class StudentController extends Controller
         if ($request->has('class_id')) {
             $classId = $request->class_id;
             if (is_numeric($classId)) {
-                $class = \App\Models\ClassModel::find($classId);
+                $class = ClassModel::find($classId);
                 if ($class) {
                     $query->where(function ($q) use ($class) {
                         $q->where('class_id', $class->id)
-                          ->orWhere('class', $class->name);
+                            ->orWhere('class', $class->name);
                     });
                 } else {
                     $query->where('class_id', $classId);
@@ -41,12 +55,12 @@ class StudentController extends Controller
         }
         if ($request->has('search')) {
             $search = $request->search;
-            $query->where(function($q) use ($search) {
+            $query->where(function ($q) use ($search) {
                 $q->where('full_name', 'like', "%{$search}%")
-                  ->orWhere('first_name', 'like', "%{$search}%")
-                  ->orWhere('last_name', 'like', "%{$search}%")
-                  ->orWhere('student_number', 'like', "%{$search}%")
-                  ->orWhere('email', 'like', "%{$search}%");
+                    ->orWhere('first_name', 'like', "%{$search}%")
+                    ->orWhere('last_name', 'like', "%{$search}%")
+                    ->orWhere('student_number', 'like', "%{$search}%")
+                    ->orWhere('email', 'like', "%{$search}%");
             });
         }
 
@@ -70,12 +84,12 @@ class StudentController extends Controller
     {
         $user = $request->user();
         $query = Student::query();
-        
+
         // Ensure school isolation (unless super_admin)
         if ($user && ! $user->isSuperAdmin() && $user->school_id) {
             $query->where('school_id', $user->school_id);
         }
-        
+
         $student = $query->findOrFail($id);
 
         return response()->json([
@@ -112,7 +126,7 @@ class StudentController extends Controller
 
         $user = $request->user();
         $guardian = $request->input('guardian', []);
-        
+
         // Ensure school_id is set (BelongsToSchool trait should handle this, but explicit is better)
         $schoolId = $user?->school_id;
         if (! $schoolId && $user && ! $user->isSuperAdmin()) {
@@ -121,12 +135,12 @@ class StudentController extends Controller
                 'errors' => ['school_id' => ['User is not associated with a school']],
             ], 422);
         }
-        
+
         $student = Student::create([
             'first_name' => $request->firstName,
             'last_name' => $request->surname,
-            'full_name' => $request->firstName . ' ' . $request->surname,
-            'student_number' => 'SCH' . date('Y') . str_pad(
+            'full_name' => $request->firstName.' '.$request->surname,
+            'student_number' => 'SCH'.date('Y').str_pad(
                 Student::withoutGlobalScopes()->where('school_id', $schoolId)->count() + 1,
                 4,
                 '0',
@@ -159,12 +173,12 @@ class StudentController extends Controller
     {
         $user = $request->user();
         $query = Student::query();
-        
+
         // Ensure school isolation (unless super_admin)
         if ($user && ! $user->isSuperAdmin() && $user->school_id) {
             $query->where('school_id', $user->school_id);
         }
-        
+
         $student = $query->findOrFail($id);
 
         $validator = Validator::make($request->all(), [
@@ -192,12 +206,12 @@ class StudentController extends Controller
         if ($request->has('firstName') || $request->has('surname')) {
             $student->first_name = $request->firstName ?? $student->first_name;
             $student->last_name = $request->surname ?? $student->last_name;
-            $student->full_name = $student->first_name . ' ' . $student->last_name;
+            $student->full_name = $student->first_name.' '.$student->last_name;
         }
 
         $student->fill($request->only(['class', 'phone', 'email', 'address', 'suburb']));
         $guardian = $request->input('guardian', []);
-        if (!empty($guardian)) {
+        if (! empty($guardian)) {
             $student->guardian_first_name = $guardian['firstName'] ?? $guardian['first_name'] ?? $student->guardian_first_name;
             $student->guardian_last_name = $guardian['surname'] ?? $guardian['last_name'] ?? $student->guardian_last_name;
             $student->guardian_phone = $guardian['phone'] ?? $student->guardian_phone;
@@ -216,12 +230,12 @@ class StudentController extends Controller
     {
         $user = $request->user();
         $query = Student::query();
-        
+
         // Ensure school isolation (unless super_admin)
         if ($user && ! $user->isSuperAdmin() && $user->school_id) {
             $query->where('school_id', $user->school_id);
         }
-        
+
         $student = $query->findOrFail($id);
         $student->delete();
 
@@ -234,12 +248,12 @@ class StudentController extends Controller
     {
         $user = $request->user();
         $query = Student::with(['grades', 'attendance']);
-        
+
         // Ensure school isolation (unless super_admin)
         if ($user && ! $user->isSuperAdmin() && $user->school_id) {
             $query->where('school_id', $user->school_id);
         }
-        
+
         $student = $query->findOrFail($student);
 
         // Calculate performance metrics
@@ -262,12 +276,12 @@ class StudentController extends Controller
     {
         $user = $request->user();
         $query = Student::with('invoices');
-        
+
         // Ensure school isolation (unless super_admin)
         if ($user && ! $user->isSuperAdmin() && $user->school_id) {
             $query->where('school_id', $user->school_id);
         }
-        
+
         $student = $query->findOrFail($student);
 
         return response()->json([
@@ -325,28 +339,27 @@ class StudentController extends Controller
 
     public function exams(Request $request, $student)
     {
-        $user = $request->user();
-        $query = Student::query();
-        
-        // Ensure school isolation (unless super_admin)
-        if ($user && ! $user->isSuperAdmin() && $user->school_id) {
-            $query->where('school_id', $user->school_id);
-        }
-        
-        $student = $query->findOrFail($student);
+        $student = $this->parentAccess->assertCanAccessStudent($request->user(), (int) $student);
+        $viewerIsLearner = in_array($request->user()->role, [UserRole::Student, UserRole::Parent], true);
 
-        // Get exams for the student's grade level
-        $exams = Exam::where('school_id', $student->school_id)
+        $examsQuery = Exam::where('school_id', $student->school_id)
             ->where('grade_level_id', $student->grade_level_id)
-            ->with(['term', 'gradeLevel', 'subject', 'examResults' => function($q) use ($student) {
+            ->with(['term', 'gradeLevel', 'subject', 'examResults' => function ($q) use ($student) {
                 $q->where('student_id', $student->id);
             }])
-            ->orderBy('exam_date', 'desc')
-            ->get();
+            ->orderBy('exam_date', 'desc');
 
-        // Format exam data with results
-        $formattedExams = $exams->map(function($exam) {
+        if ($viewerIsLearner) {
+            $examsQuery->where(function ($q) {
+                $q->where('is_published', true)
+                    ->orWhereNotNull('results_approved_at');
+            });
+        }
+
+        $formattedExams = $examsQuery->get()->map(function ($exam) use ($viewerIsLearner) {
             $result = $exam->examResults->first();
+            $showResult = $result && (! $viewerIsLearner || $exam->is_published || $exam->results_approved_at);
+
             return [
                 'id' => $exam->id,
                 'name' => $exam->name,
@@ -359,8 +372,8 @@ class StudentController extends Controller
                 'passing_marks' => $exam->passing_marks,
                 'term' => $exam->term->name ?? null,
                 'academic_year' => $exam->academic_year,
-                'is_published' => $exam->is_published,
-                'result' => $result ? [
+                'is_published' => (bool) $exam->is_published,
+                'result' => $showResult ? [
                     'marks_obtained' => $result->marks_obtained,
                     'percentage' => $result->percentage,
                     'grade' => $result->grade,
@@ -374,16 +387,225 @@ class StudentController extends Controller
         ]);
     }
 
+    /**
+     * Download an individual student's results as CSV or printable HTML report card.
+     */
+    public function downloadResults(Request $request, $student): StreamedResponse|Response
+    {
+        $student = $this->parentAccess->assertCanAccessStudent($request->user(), (int) $student);
+        $format = strtolower((string) $request->query('format', 'html'));
+        if (! in_array($format, ['html', 'csv'], true)) {
+            $format = 'html';
+        }
+
+        $grades = Grade::query()
+            ->where('student_id', $student->id)
+            ->orderByDesc('year')
+            ->orderBy('term')
+            ->orderBy('subject')
+            ->get();
+
+        $examResults = ExamResult::query()
+            ->where('student_id', $student->id)
+            ->whereHas('exam', function ($q) {
+                $q->where(function ($inner) {
+                    $inner->where('is_published', true)
+                        ->orWhereNotNull('results_approved_at');
+                });
+            })
+            ->with(['exam:id,name,exam_date,total_marks,academic_year,term_id', 'exam.term:id,name', 'subject:id,name'])
+            ->orderByDesc('created_at')
+            ->get();
+
+        $school = School::query()->find($student->school_id);
+        $schoolName = $school?->name ?? 'School';
+        $safeName = preg_replace('/[^A-Za-z0-9_-]+/', '_', (string) ($student->full_name ?: 'student')) ?: 'student';
+        $generatedAt = now()->timezone('Africa/Harare')->format('d M Y, H:i');
+
+        if ($format === 'csv') {
+            $filename = "{$safeName}_results_{$student->student_number}.csv";
+
+            return response()->streamDownload(function () use ($grades, $examResults, $student, $schoolName, $generatedAt) {
+                $out = fopen('php://output', 'w');
+                fputcsv($out, ['School', $schoolName]);
+                fputcsv($out, ['Student', $student->full_name]);
+                fputcsv($out, ['Student number', $student->student_number]);
+                fputcsv($out, ['Class', $student->class]);
+                fputcsv($out, ['Generated', $generatedAt]);
+                fputcsv($out, []);
+                fputcsv($out, ['Report card grades']);
+                fputcsv($out, ['Subject', 'Score', 'Total', 'Grade', 'Term', 'Year']);
+                foreach ($grades as $grade) {
+                    fputcsv($out, [
+                        $grade->subject,
+                        $grade->score,
+                        $grade->total,
+                        $grade->grade,
+                        $grade->term,
+                        $grade->year,
+                    ]);
+                }
+                fputcsv($out, []);
+                fputcsv($out, ['Exam results']);
+                fputcsv($out, ['Exam', 'Subject', 'Exam date', 'Marks', 'Total', 'Percentage', 'Grade', 'Term', 'Year']);
+                foreach ($examResults as $result) {
+                    $examDate = $result->exam?->exam_date;
+                    fputcsv($out, [
+                        $result->exam?->name,
+                        $result->subject?->name,
+                        $examDate ? Carbon::parse($examDate)->format('d M Y') : '',
+                        $result->marks_obtained,
+                        $result->total_marks,
+                        $result->percentage,
+                        $result->grade,
+                        $result->exam?->term?->name,
+                        $result->exam?->academic_year,
+                    ]);
+                }
+                fclose($out);
+            }, $filename, [
+                'Content-Type' => 'text/csv; charset=UTF-8',
+            ]);
+        }
+
+        $html = $this->buildReportCardHtml($schoolName, $student, $grades, $examResults, $generatedAt);
+        $filename = "{$safeName}_report_card.html";
+
+        return response($html, 200, [
+            'Content-Type' => 'text/html; charset=UTF-8',
+            'Content-Disposition' => "attachment; filename=\"{$filename}\"",
+        ]);
+    }
+
+    /**
+     * @param  Collection<int, Grade>  $grades
+     * @param  Collection<int, ExamResult>  $examResults
+     */
+    private function buildReportCardHtml(
+        string $schoolName,
+        Student $student,
+        $grades,
+        $examResults,
+        string $generatedAt,
+    ): string {
+        $gradeRows = $grades->map(function (Grade $grade) {
+            return '<tr>'
+                .'<td>'.e((string) ($grade->subject ?? '—')).'</td>'
+                .'<td>'.e((string) ($grade->score ?? '—')).'</td>'
+                .'<td>'.e((string) ($grade->total ?? '—')).'</td>'
+                .'<td>'.e((string) ($grade->grade ?? '—')).'</td>'
+                .'<td>'.e((string) ($grade->term ?? '—')).'</td>'
+                .'<td>'.e((string) ($grade->year ?? '—')).'</td>'
+                .'</tr>';
+        })->implode('');
+
+        if ($gradeRows === '') {
+            $gradeRows = '<tr><td colspan="6">No report-card grades recorded yet.</td></tr>';
+        }
+
+        $examRows = $examResults->map(function (ExamResult $result) {
+            $examDate = $result->exam?->exam_date
+                ? Carbon::parse($result->exam->exam_date)->format('d M Y')
+                : '—';
+
+            return '<tr>'
+                .'<td>'.e((string) ($result->exam?->name ?? '—')).'</td>'
+                .'<td>'.e((string) ($result->subject?->name ?? '—')).'</td>'
+                .'<td>'.e($examDate).'</td>'
+                .'<td>'.e((string) ($result->marks_obtained ?? '—')).'</td>'
+                .'<td>'.e((string) ($result->total_marks ?? '—')).'</td>'
+                .'<td>'.e((string) ($result->percentage ?? '—')).'%</td>'
+                .'<td>'.e((string) ($result->grade ?? '—')).'</td>'
+                .'<td>'.e((string) ($result->exam?->term?->name ?? '—')).'</td>'
+                .'</tr>';
+        })->implode('');
+
+        if ($examRows === '') {
+            $examRows = '<tr><td colspan="8">No published exam results yet.</td></tr>';
+        }
+
+        $title = e((string) ($student->full_name ?? 'Student')).' — Report card';
+        $school = e($schoolName);
+        $fullName = e((string) ($student->full_name ?? '—'));
+        $studentNumber = e((string) ($student->student_number ?? '—'));
+        $className = e((string) ($student->class ?? '—'));
+        $generated = e($generatedAt);
+
+        return <<<HTML
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>{$title}</title>
+  <style>
+    body { font-family: Georgia, "Times New Roman", serif; color: #111; margin: 32px; }
+    h1, h2 { font-family: Arial, Helvetica, sans-serif; margin: 0 0 8px; }
+    .meta { color: #444; margin-bottom: 24px; font-size: 14px; }
+    table { width: 100%; border-collapse: collapse; margin: 12px 0 28px; font-size: 14px; }
+    th, td { border: 1px solid #bbb; padding: 8px 10px; text-align: left; }
+    th { background: #f3f4f6; font-family: Arial, Helvetica, sans-serif; }
+    .footer { margin-top: 32px; font-size: 12px; color: #666; }
+    @media print { body { margin: 16px; } }
+  </style>
+</head>
+<body>
+  <h1>{$school}</h1>
+  <h2>Student report card</h2>
+  <div class="meta">
+    <div><strong>Student:</strong> {$fullName}</div>
+    <div><strong>Student number:</strong> {$studentNumber}</div>
+    <div><strong>Class:</strong> {$className}</div>
+    <div><strong>Generated:</strong> {$generated}</div>
+  </div>
+
+  <h2>Continuous assessment / report grades</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Subject</th>
+        <th>Score</th>
+        <th>Total</th>
+        <th>Grade</th>
+        <th>Term</th>
+        <th>Year</th>
+      </tr>
+    </thead>
+    <tbody>{$gradeRows}</tbody>
+  </table>
+
+  <h2>Examination results</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Exam</th>
+        <th>Subject</th>
+        <th>Date</th>
+        <th>Marks</th>
+        <th>Total</th>
+        <th>%</th>
+        <th>Grade</th>
+        <th>Term</th>
+      </tr>
+    </thead>
+    <tbody>{$examRows}</tbody>
+  </table>
+
+  <p class="footer">This document was generated from the school management system. Open and use Print → Save as PDF if needed.</p>
+</body>
+</html>
+HTML;
+    }
+
     public function createInvoice(Request $request, $student)
     {
         $user = $request->user();
         $query = Student::query();
-        
+
         // Ensure school isolation (unless super_admin)
         if ($user && ! $user->isSuperAdmin() && $user->school_id) {
             $query->where('school_id', $user->school_id);
         }
-        
+
         $student = $query->findOrFail($student);
 
         $validator = Validator::make($request->all(), [
@@ -406,10 +628,10 @@ class StudentController extends Controller
         }
 
         // Create invoice using Invoice model
-        $invoice = \App\Models\Invoice::create([
+        $invoice = Invoice::create([
             'student_id' => $student->id,
             'school_id' => $schoolId,
-            'invoice_number' => 'INV-' . date('Y') . '-' . str_pad(\App\Models\Invoice::where('school_id', $schoolId)->count() + 1, 5, '0', STR_PAD_LEFT),
+            'invoice_number' => 'INV-'.date('Y').'-'.str_pad(Invoice::where('school_id', $schoolId)->count() + 1, 5, '0', STR_PAD_LEFT),
             'amount' => $request->amount,
             'amount_paid' => 0,
             'balance' => $request->amount,
@@ -469,16 +691,16 @@ class StudentController extends Controller
         if (! in_array($currency, ['USD', 'ZWG'], true)) {
             $currency = 'USD';
         }
-        
+
         $created = 0;
         foreach ($request->studentIds as $studentId) {
             $student = Student::when($schoolId, fn ($q) => $q->where('school_id', $schoolId))->find($studentId);
             if ($student) {
                 $studentSchoolId = $schoolId ?? $student->school_id;
-                \App\Models\Invoice::create([
+                Invoice::create([
                     'student_id' => $student->id,
                     'school_id' => $studentSchoolId,
-                    'invoice_number' => 'INV-' . date('Y') . '-' . str_pad(\App\Models\Invoice::where('school_id', $studentSchoolId)->count() + 1, 5, '0', STR_PAD_LEFT),
+                    'invoice_number' => 'INV-'.date('Y').'-'.str_pad(Invoice::where('school_id', $studentSchoolId)->count() + 1, 5, '0', STR_PAD_LEFT),
                     'amount' => $request->amount,
                     'amount_paid' => 0,
                     'balance' => $request->amount,

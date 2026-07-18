@@ -3,6 +3,7 @@ import { computed, nextTick, onMounted, ref } from 'vue'
 import { useRoute, RouterLink } from 'vue-router'
 import {
   ArrowLeft,
+  Download,
   Mail,
   MapPin,
   Pencil,
@@ -106,6 +107,7 @@ const { checkCapability } = useAuth()
 const canEditStudent = computed(() => checkCapability('canManageStudents'))
 const canCreateInvoice = computed(() => checkCapability('canManageFinance'))
 const loading = ref(true)
+const downloading = ref(false)
 const error = ref<string | null>(null)
 const student = ref<Student | null>(null)
 const performance = ref<PerformanceData | null>(null)
@@ -170,6 +172,25 @@ function statusVariant(status?: string) {
   if (status === 'active' || status === 'paid') return 'default'
   if (status === 'pending' || status === 'partial') return 'secondary'
   return 'destructive'
+}
+
+async function downloadResults() {
+  downloading.value = true
+  try {
+    const blob = await studentsApi.downloadResults(id, 'html')
+    const number = student.value?.student_number ?? 'student'
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `${number}_report_card.html`
+    link.click()
+    URL.revokeObjectURL(url)
+    toast.success('Report card downloaded')
+  } catch (err) {
+    toast.error('Download failed', getErrorMessage(err))
+  } finally {
+    downloading.value = false
+  }
 }
 
 async function load() {
@@ -252,10 +273,22 @@ onMounted(load)
           Back to students
         </RouterLink>
       </Button>
-      <Button v-if="student && !loading && canEditStudent" variant="outline" size="sm" @click="openEdit">
-        <Pencil class="mr-1 h-4 w-4" />
-        Edit student
-      </Button>
+      <div class="flex flex-wrap gap-2">
+        <Button
+          v-if="student && !loading"
+          variant="outline"
+          size="sm"
+          :disabled="downloading"
+          @click="downloadResults"
+        >
+          <Download class="mr-1 h-4 w-4" aria-hidden="true" />
+          Download report card
+        </Button>
+        <Button v-if="student && !loading && canEditStudent" variant="outline" size="sm" @click="openEdit">
+          <Pencil class="mr-1 h-4 w-4" />
+          Edit student
+        </Button>
+      </div>
     </div>
 
     <PageLoader v-if="loading" />

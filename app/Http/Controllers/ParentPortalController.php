@@ -84,7 +84,13 @@ class ParentPortalController extends Controller
 
         $examResults = ExamResult::query()
             ->where('student_id', $student->id)
-            ->with(['exam:id,name,exam_date,total_marks,academic_year', 'subject:id,name'])
+            ->whereHas('exam', function ($q) {
+                $q->where(function ($inner) {
+                    $inner->where('is_published', true)
+                        ->orWhereNotNull('results_approved_at');
+                });
+            })
+            ->with(['exam:id,name,exam_date,total_marks,academic_year,term_id', 'exam.term:id,name', 'subject:id,name'])
             ->orderByDesc('created_at')
             ->get()
             ->map(fn (ExamResult $result) => [
@@ -98,6 +104,7 @@ class ParentPortalController extends Controller
                 'percentage' => (float) $result->percentage,
                 'grade' => $result->grade,
                 'remarks' => $result->remarks,
+                'term' => $result->exam?->term?->name,
                 'academic_year' => $result->exam?->academic_year,
             ]);
 

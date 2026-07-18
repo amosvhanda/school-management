@@ -1,15 +1,32 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
+import { Download, FileSpreadsheet } from '@lucide/vue'
 import { useAuth } from '@/composables/useAuth'
+import { useToast } from '@/composables/useToast'
 import { academicsApi, studentsApi } from '@/services/api.service'
+import { getErrorMessage } from '@/lib/api-response'
+import { formatDate } from '@/lib/format'
+import { formatMoney } from '@/lib/finance-constants'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
 
 const route = useRoute()
 const { user } = useAuth()
+const toast = useToast()
 
 const loading = ref(false)
+const downloading = ref(false)
 const error = ref<string | null>(null)
 
 const studentProfile = ref<Record<string, unknown> | null>(null)
@@ -44,15 +61,15 @@ const pageTitle = computed(() => {
 const pageDescription = computed(() => {
   switch (section.value) {
     case 'performance':
-      return 'Grades and assessment results linked to your account.'
+      return 'Your continuous assessment marks by subject and term.'
     case 'attendance':
       return 'Presence summary for the current term.'
     case 'exams':
-      return 'Upcoming and completed exams.'
+      return 'Published examination timetable and results.'
     case 'fees':
       return 'Invoices and outstanding balances.'
     default:
-      return 'Student portal overview'
+      return 'Your school records at a glance.'
   }
 })
 
@@ -87,8 +104,10 @@ const attendanceBreakdown = computed(() => {
 
 const averageScore = computed(() => {
   if (!performanceRows.value.length) return 0
-  const total = performanceRows.value.reduce((sum, row) => sum + Number(row.score ?? 0), 0)
-  return total / performanceRows.value.length
+  const scored = performanceRows.value.filter((row) => row.score != null)
+  if (!scored.length) return 0
+  const total = scored.reduce((sum, row) => sum + Number(row.score ?? 0), 0)
+  return total / scored.length
 })
 
 const totalOutstanding = computed(() =>
@@ -108,10 +127,10 @@ const profileView = computed(() => {
   return {
     studentNumber: String(profile.student_number ?? 'Not assigned'),
     className: String(profile.class ?? 'Not assigned'),
-    dateOfBirth: formatDate(profile.date_of_birth),
+    dateOfBirth: formatDate(profile.date_of_birth, 'Not on file'),
     guardian: guardianName || 'Not available',
-    phone: String(profile.phone ?? '-'),
-    email: String(profile.email ?? user.value?.email ?? '-'),
+    phone: String(profile.phone ?? '—'),
+    email: String(profile.email ?? user.value?.email ?? '—'),
   }
 })
 
@@ -125,28 +144,44 @@ function asRecordArray(value: unknown): Array<Record<string, unknown>> {
   return value.filter((item): item is Record<string, unknown> => !!item && typeof item === 'object' && !Array.isArray(item))
 }
 
-function formatDate(value: unknown): string {
-  if (!value) return 'N/A'
-  const date = new Date(String(value))
-  if (Number.isNaN(date.getTime())) return String(value)
-  return date.toLocaleDateString()
-}
-
-function formatCurrency(value: number): string {
-  return new Intl.NumberFormat(undefined, { style: 'currency', currency: 'USD' }).format(value)
-}
-
 function examResultSummary(row: Record<string, unknown>): string {
   const result = asRecord(row.result)
-  if (!result) return 'Result pending'
-  const grade = String(result.grade ?? '-')
-  const percentage = result.percentage == null ? '-' : String(result.percentage)
-  return `Result: ${grade} (${percentage}%)`
+  if (!result) return row.is_published ? 'Awaiting marks' : 'Not published'
+  const grade = String(result.grade ?? '—')
+  const percentage = result.percentage == null ? '—' : `${result.percentage}%`
+  return `${grade} · ${percentage}`
+}
+
+function triggerBlobDownload(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = filename
+  link.click()
+  URL.revokeObjectURL(url)
+}
+
+async function downloadResults(format: 'html' | 'csv') {
+  if (!studentId.value) return
+  downloading.value = true
+  try {
+    const blob = await studentsApi.downloadResults(studentId.value, format)
+    const number = String(studentProfile.value?.student_number ?? 'student')
+    const filename = format === 'csv'
+      ? `${number}_results.csv`
+      : `${number}_report_card.html`
+    triggerBlobDownload(blob, filename)
+    toast.success(format === 'csv' ? 'Results CSV downloaded' : 'Report card downloaded')
+  } catch (err) {
+    toast.error('Download failed', getErrorMessage(err))
+  } finally {
+    downloading.value = false
+  }
 }
 
 async function loadStudentPortal() {
   if (!studentId.value) {
-    error.value = 'Student profile is not linked to this account yet.'
+    error.value = 'Student profile is not linked to this account yet. Please contact the school office.'
     return
   }
 
@@ -190,9 +225,32 @@ onMounted(loadStudentPortal)
 
 <template>
   <div class="mx-auto max-w-6xl space-y-6 pb-8">
-    <div>
-      <h1 class="text-2xl font-semibold tracking-tight">{{ pageTitle }}</h1>
-      <p class="text-sm text-muted-foreground">{{ pageDescription }}</p>
+    <div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+      <div>
+        <h1 class="text-2xl font-semibold tracking-tight">{{ pageTitle }}</h1>
+        <p class="text-sm text-muted-foreground">{{ pageDescription }}</p>
+      </div>
+      <div
+        v-if="studentId && (section === 'dashboard' || section === 'performance' || section === 'exams')"
+        class="flex flex-wrap gap-2"
+      >
+        <Button
+          variant="outline"
+          :disabled="downloading || loading"
+          @click="downloadResults('html')"
+        >
+          <Download class="mr-2 size-4" aria-hidden="true" />
+          Download report card
+        </Button>
+        <Button
+          variant="outline"
+          :disabled="downloading || loading"
+          @click="downloadResults('csv')"
+        >
+          <FileSpreadsheet class="mr-2 size-4" aria-hidden="true" />
+          Download CSV
+        </Button>
+      </div>
     </div>
 
     <Alert v-if="error" variant="destructive">
@@ -206,7 +264,7 @@ onMounted(loadStudentPortal)
             <CardTitle class="text-sm font-medium">Average score</CardTitle>
             <CardDescription>Across recorded assessments</CardDescription>
           </CardHeader>
-          <CardContent class="text-2xl font-semibold">{{ averageScore.toFixed(1) }}%</CardContent>
+          <CardContent class="text-2xl font-semibold tabular-nums">{{ averageScore.toFixed(1) }}%</CardContent>
         </Card>
 
         <Card>
@@ -214,7 +272,7 @@ onMounted(loadStudentPortal)
             <CardTitle class="text-sm font-medium">Attendance rate</CardTitle>
             <CardDescription>Current attendance summary</CardDescription>
           </CardHeader>
-          <CardContent class="text-2xl font-semibold">{{ attendanceRate.toFixed(1) }}%</CardContent>
+          <CardContent class="text-2xl font-semibold tabular-nums">{{ attendanceRate.toFixed(1) }}%</CardContent>
         </Card>
 
         <Card>
@@ -222,7 +280,7 @@ onMounted(loadStudentPortal)
             <CardTitle class="text-sm font-medium">Outstanding balance</CardTitle>
             <CardDescription>Total unpaid amount</CardDescription>
           </CardHeader>
-          <CardContent class="text-2xl font-semibold">{{ formatCurrency(totalOutstanding) }}</CardContent>
+          <CardContent class="text-2xl font-semibold tabular-nums">{{ formatMoney(totalOutstanding) }}</CardContent>
         </Card>
 
         <Card>
@@ -230,7 +288,7 @@ onMounted(loadStudentPortal)
             <CardTitle class="text-sm font-medium">Pending invoices</CardTitle>
             <CardDescription>Unpaid or partial invoices</CardDescription>
           </CardHeader>
-          <CardContent class="text-2xl font-semibold">{{ pendingInvoices }}</CardContent>
+          <CardContent class="text-2xl font-semibold tabular-nums">{{ pendingInvoices }}</CardContent>
         </Card>
       </div>
 
@@ -238,47 +296,36 @@ onMounted(loadStudentPortal)
         <Card>
           <CardHeader class="pb-2">
             <CardTitle class="text-sm font-medium">Student number</CardTitle>
-            <CardDescription>Official learner identifier</CardDescription>
           </CardHeader>
-          <CardContent class="text-2xl font-semibold">{{ profileView.studentNumber }}</CardContent>
+          <CardContent class="text-lg font-semibold">{{ profileView.studentNumber }}</CardContent>
         </Card>
-
         <Card>
           <CardHeader class="pb-2">
             <CardTitle class="text-sm font-medium">Current class</CardTitle>
-            <CardDescription>Assigned class for this term</CardDescription>
           </CardHeader>
           <CardContent class="text-lg font-semibold">{{ profileView.className }}</CardContent>
         </Card>
-
         <Card>
           <CardHeader class="pb-2">
             <CardTitle class="text-sm font-medium">Date of birth</CardTitle>
-            <CardDescription>Student profile record</CardDescription>
           </CardHeader>
-          <CardContent class="text-2xl font-semibold">{{ profileView.dateOfBirth }}</CardContent>
+          <CardContent class="text-lg font-semibold">{{ profileView.dateOfBirth }}</CardContent>
         </Card>
-
         <Card>
           <CardHeader class="pb-2">
             <CardTitle class="text-sm font-medium">Guardian</CardTitle>
-            <CardDescription>Primary guardian on file</CardDescription>
           </CardHeader>
           <CardContent class="text-lg font-semibold">{{ profileView.guardian }}</CardContent>
         </Card>
-
         <Card>
           <CardHeader class="pb-2">
             <CardTitle class="text-sm font-medium">Contact phone</CardTitle>
-            <CardDescription>Student contact information</CardDescription>
           </CardHeader>
           <CardContent class="text-lg font-semibold">{{ profileView.phone }}</CardContent>
         </Card>
-
         <Card>
           <CardHeader class="pb-2">
             <CardTitle class="text-sm font-medium">Contact email</CardTitle>
-            <CardDescription>Student profile email</CardDescription>
           </CardHeader>
           <CardContent class="text-lg font-semibold">{{ profileView.email }}</CardContent>
         </Card>
@@ -287,54 +334,73 @@ onMounted(loadStudentPortal)
 
     <Card v-if="section === 'dashboard' || section === 'performance'">
       <CardHeader>
-        <CardTitle>Performance</CardTitle>
-        <CardDescription>Recent scores and grades</CardDescription>
+        <CardTitle>Continuous assessment</CardTitle>
+        <CardDescription>Subject scores by term (as recorded by teachers)</CardDescription>
       </CardHeader>
-      <CardContent>
-        <div v-if="loading" class="text-sm text-muted-foreground">Loading performance records...</div>
-        <div v-else-if="!performanceRows.length" class="text-sm text-muted-foreground">No performance records found.</div>
-        <div v-else class="space-y-2">
-          <div v-for="row in performanceRows.slice(0, 8)" :key="String(row.id ?? row.subject ?? Math.random())" class="rounded-lg border p-3">
-            <p class="text-sm font-medium">{{ row.subject ?? 'Subject' }}</p>
-            <p class="text-xs text-muted-foreground">{{ row.assessment_type ?? 'Assessment' }} - {{ row.term ?? 'Term' }}</p>
-            <p class="mt-1 text-sm">Score: {{ row.score ?? '-' }} / {{ row.total ?? '-' }} ({{ row.grade ?? '-' }})</p>
-          </div>
-        </div>
+      <CardContent class="overflow-x-auto p-0">
+        <div v-if="loading" class="p-6 text-sm text-muted-foreground">Loading performance records…</div>
+        <Table v-else-if="performanceRows.length">
+          <TableHeader>
+            <TableRow>
+              <TableHead>Subject</TableHead>
+              <TableHead>Assessment</TableHead>
+              <TableHead>Term</TableHead>
+              <TableHead>Year</TableHead>
+              <TableHead>Score</TableHead>
+              <TableHead>Grade</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            <TableRow v-for="row in performanceRows" :key="String(row.id ?? `${row.subject}-${row.term}`)">
+              <TableCell class="font-medium">{{ row.subject ?? '—' }}</TableCell>
+              <TableCell>{{ row.assessment_type ?? 'Assessment' }}</TableCell>
+              <TableCell>{{ row.term ?? '—' }}</TableCell>
+              <TableCell>{{ row.year ?? '—' }}</TableCell>
+              <TableCell class="tabular-nums">
+                {{ row.score ?? '—' }}{{ row.total != null ? ` / ${row.total}` : '' }}
+              </TableCell>
+              <TableCell>
+                <Badge variant="outline">{{ row.grade ?? '—' }}</Badge>
+              </TableCell>
+            </TableRow>
+          </TableBody>
+        </Table>
+        <p v-else class="p-6 text-sm text-muted-foreground">No performance records found yet.</p>
       </CardContent>
     </Card>
 
     <Card v-if="section === 'dashboard' || section === 'attendance'">
       <CardHeader>
         <CardTitle>Attendance</CardTitle>
-        <CardDescription>Attendance summary and consistency</CardDescription>
+        <CardDescription>Summary of your presence this term</CardDescription>
       </CardHeader>
       <CardContent>
-        <div v-if="loading" class="text-sm text-muted-foreground">Loading attendance summary...</div>
+        <div v-if="loading" class="text-sm text-muted-foreground">Loading attendance summary…</div>
         <div v-else-if="!attendanceSummary" class="text-sm text-muted-foreground">No attendance summary found.</div>
         <div v-else class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
           <div class="rounded-lg border p-3">
             <p class="text-xs text-muted-foreground">Present</p>
-            <p class="text-lg font-semibold">{{ attendanceBreakdown.present }}</p>
+            <p class="text-lg font-semibold tabular-nums">{{ attendanceBreakdown.present }}</p>
           </div>
           <div class="rounded-lg border p-3">
             <p class="text-xs text-muted-foreground">Late</p>
-            <p class="text-lg font-semibold">{{ attendanceBreakdown.late }}</p>
+            <p class="text-lg font-semibold tabular-nums">{{ attendanceBreakdown.late }}</p>
           </div>
           <div class="rounded-lg border p-3">
             <p class="text-xs text-muted-foreground">Absent</p>
-            <p class="text-lg font-semibold">{{ attendanceBreakdown.absent }}</p>
+            <p class="text-lg font-semibold tabular-nums">{{ attendanceBreakdown.absent }}</p>
           </div>
           <div class="rounded-lg border p-3">
             <p class="text-xs text-muted-foreground">Excused</p>
-            <p class="text-lg font-semibold">{{ attendanceBreakdown.excused }}</p>
+            <p class="text-lg font-semibold tabular-nums">{{ attendanceBreakdown.excused }}</p>
           </div>
           <div class="rounded-lg border p-3">
             <p class="text-xs text-muted-foreground">Total days</p>
-            <p class="text-lg font-semibold">{{ attendanceBreakdown.totalDays }}</p>
+            <p class="text-lg font-semibold tabular-nums">{{ attendanceBreakdown.totalDays }}</p>
           </div>
           <div class="rounded-lg border p-3">
-            <p class="text-xs text-muted-foreground">Counted statuses</p>
-            <p class="text-lg font-semibold">{{ attendanceBreakdown.counted }}</p>
+            <p class="text-xs text-muted-foreground">Attendance rate</p>
+            <p class="text-lg font-semibold tabular-nums">{{ attendanceRate.toFixed(1) }}%</p>
           </div>
         </div>
       </CardContent>
@@ -342,19 +408,32 @@ onMounted(loadStudentPortal)
 
     <Card v-if="section === 'dashboard' || section === 'exams'">
       <CardHeader>
-        <CardTitle>Exams</CardTitle>
-        <CardDescription>Upcoming and completed exams</CardDescription>
+        <CardTitle>Examinations</CardTitle>
+        <CardDescription>Published exams and your results</CardDescription>
       </CardHeader>
-      <CardContent>
-        <div v-if="loading" class="text-sm text-muted-foreground">Loading exam records...</div>
-        <div v-else-if="!examRows.length" class="text-sm text-muted-foreground">No exams found.</div>
-        <div v-else class="space-y-2">
-          <div v-for="row in examRows.slice(0, 8)" :key="String(row.id ?? row.name ?? Math.random())" class="rounded-lg border p-3">
-            <p class="text-sm font-medium">{{ row.name ?? 'Exam' }}</p>
-            <p class="text-xs text-muted-foreground">{{ row.subject ?? 'Subject' }} - {{ formatDate(row.exam_date) }}</p>
-            <p class="mt-1 text-sm">{{ examResultSummary(row) }}</p>
-          </div>
-        </div>
+      <CardContent class="overflow-x-auto p-0">
+        <div v-if="loading" class="p-6 text-sm text-muted-foreground">Loading exam records…</div>
+        <Table v-else-if="examRows.length">
+          <TableHeader>
+            <TableRow>
+              <TableHead>Exam</TableHead>
+              <TableHead>Subject</TableHead>
+              <TableHead>Date</TableHead>
+              <TableHead>Term</TableHead>
+              <TableHead>Result</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            <TableRow v-for="row in examRows" :key="String(row.id ?? row.name)">
+              <TableCell class="font-medium">{{ row.name ?? 'Exam' }}</TableCell>
+              <TableCell>{{ row.subject ?? '—' }}</TableCell>
+              <TableCell>{{ formatDate(row.exam_date) }}</TableCell>
+              <TableCell>{{ row.term ?? '—' }}</TableCell>
+              <TableCell>{{ examResultSummary(row) }}</TableCell>
+            </TableRow>
+          </TableBody>
+        </Table>
+        <p v-else class="p-6 text-sm text-muted-foreground">No published exams found yet.</p>
       </CardContent>
     </Card>
 
@@ -363,16 +442,29 @@ onMounted(loadStudentPortal)
         <CardTitle>Fees</CardTitle>
         <CardDescription>Invoice and payment status</CardDescription>
       </CardHeader>
-      <CardContent>
-        <div v-if="loading" class="text-sm text-muted-foreground">Loading fee records...</div>
-        <div v-else-if="!invoiceRows.length" class="text-sm text-muted-foreground">No invoices found.</div>
-        <div v-else class="space-y-2">
-          <div v-for="row in invoiceRows.slice(0, 8)" :key="String(row.id ?? row.invoice_number ?? Math.random())" class="rounded-lg border p-3">
-            <p class="text-sm font-medium">{{ row.description ?? 'Invoice' }}</p>
-            <p class="text-xs text-muted-foreground">Due: {{ formatDate(row.due_date) }} - Status: {{ String(row.status ?? 'pending').toUpperCase() }}</p>
-            <p class="mt-1 text-sm">Amount: {{ formatCurrency(Number(row.amount ?? 0)) }} | Balance: {{ formatCurrency(Number(row.balance ?? 0)) }}</p>
-          </div>
-        </div>
+      <CardContent class="overflow-x-auto p-0">
+        <div v-if="loading" class="p-6 text-sm text-muted-foreground">Loading fee records…</div>
+        <Table v-else-if="invoiceRows.length">
+          <TableHeader>
+            <TableRow>
+              <TableHead>Description</TableHead>
+              <TableHead>Due date</TableHead>
+              <TableHead>Amount</TableHead>
+              <TableHead>Balance</TableHead>
+              <TableHead>Status</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            <TableRow v-for="row in invoiceRows" :key="String(row.id ?? row.invoice_number)">
+              <TableCell class="font-medium">{{ row.description ?? row.invoice_number ?? 'Invoice' }}</TableCell>
+              <TableCell>{{ formatDate(row.due_date) }}</TableCell>
+              <TableCell class="tabular-nums">{{ formatMoney(row.amount, String(row.currency ?? 'USD')) }}</TableCell>
+              <TableCell class="tabular-nums">{{ formatMoney(row.balance, String(row.currency ?? 'USD')) }}</TableCell>
+              <TableCell class="capitalize">{{ row.status ?? 'pending' }}</TableCell>
+            </TableRow>
+          </TableBody>
+        </Table>
+        <p v-else class="p-6 text-sm text-muted-foreground">No invoices found.</p>
       </CardContent>
     </Card>
   </div>

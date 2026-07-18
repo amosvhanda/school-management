@@ -4,8 +4,9 @@ namespace Tests\Feature;
 
 use App\Enums\UserRole;
 use App\Models\DisciplinaryRecord;
-use App\Models\Guardian;
+use App\Models\Grade;
 use App\Models\ParentNotification;
+use App\Models\School;
 use App\Models\Student;
 use App\Models\User;
 use App\Services\GuardianService;
@@ -15,7 +16,7 @@ class ParentPortalApiTest extends TestCase
 {
     public function test_parent_portal_dashboard_and_children(): void
     {
-        $school = \App\Models\School::factory()->create();
+        $school = School::factory()->create();
         $parent = User::factory()->create([
             'role' => UserRole::Parent,
             'school_id' => $school->id,
@@ -45,7 +46,7 @@ class ParentPortalApiTest extends TestCase
 
     public function test_auth_me_includes_children_for_parent(): void
     {
-        $school = \App\Models\School::factory()->create();
+        $school = School::factory()->create();
         $parent = User::factory()->create([
             'role' => UserRole::Parent,
             'school_id' => $school->id,
@@ -69,7 +70,7 @@ class ParentPortalApiTest extends TestCase
 
     public function test_parent_cannot_access_unlinked_student(): void
     {
-        $school = \App\Models\School::factory()->create();
+        $school = School::factory()->create();
         $parent = User::factory()->create([
             'role' => UserRole::Parent,
             'school_id' => $school->id,
@@ -141,7 +142,7 @@ class ParentPortalApiTest extends TestCase
 
     public function test_parent_can_view_discipline_and_notifications(): void
     {
-        $school = \App\Models\School::factory()->create();
+        $school = School::factory()->create();
         $parent = User::factory()->create([
             'role' => UserRole::Parent,
             'school_id' => $school->id,
@@ -194,5 +195,53 @@ class ParentPortalApiTest extends TestCase
         $this->withHeaders(['Authorization' => 'Bearer '.$auth['token']])
             ->getJson('/api/v1/parent/portal/dashboard')
             ->assertForbidden();
+    }
+
+    public function test_parent_can_view_and_download_linked_child_results(): void
+    {
+        $school = School::factory()->create();
+        $parent = User::factory()->create([
+            'role' => UserRole::Parent,
+            'school_id' => $school->id,
+        ]);
+        $student = Student::factory()->create([
+            'school_id' => $school->id,
+            'full_name' => 'Child One',
+            'student_number' => 'STU-2002',
+        ]);
+
+        $parent->students()->attach($student->id, [
+            'school_id' => $school->id,
+            'relationship' => 'parent',
+            'is_primary' => true,
+        ]);
+
+        Grade::factory()->create([
+            'school_id' => $school->id,
+            'student_id' => $student->id,
+            'subject' => 'English',
+            'score' => 71,
+            'total' => 100,
+            'grade' => 'B',
+            'term' => 'Term 2',
+            'year' => now()->year,
+        ]);
+
+        $token = $parent->createToken('test')->plainTextToken;
+        $headers = ['Authorization' => 'Bearer '.$token];
+
+        $this->withHeaders($headers)
+            ->getJson("/api/v1/parent/portal/students/{$student->id}/results")
+            ->assertOk()
+            ->assertJsonPath('data.student.id', $student->id)
+            ->assertJsonCount(1, 'data.report_card_grades')
+            ->assertJsonPath('data.report_card_grades.0.subject', 'English');
+
+        $download = $this->withHeaders($headers)
+            ->get("/api/v1/students/{$student->id}/results/download?format=html");
+
+        $download->assertOk();
+        $this->assertStringContainsString('Child One', $download->getContent());
+        $this->assertStringContainsString('English', $download->getContent());
     }
 }

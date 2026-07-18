@@ -26,6 +26,7 @@ import {
 import { useParentPortalScope } from '@/composables/useParentPortalScope'
 import { useToast } from '@/composables/useToast'
 import { getErrorMessage } from '@/lib/api-response'
+import { formatDateTime } from '@/lib/format'
 import { parentPortalApi } from '@/services/index'
 
 interface ThreadRow {
@@ -234,7 +235,7 @@ watch(
               >
                 <header class="mb-1 flex items-center justify-between gap-2 text-xs text-muted-foreground">
                   <span class="font-medium text-foreground">{{ senderName(msg) }}</span>
-                  <time>{{ msg.created_at ?? '' }}</time>
+                  <time>{{ formatDateTime(msg.created_at) }}</time>
                 </header>
                 <p class="whitespace-pre-wrap text-sm">{{ msg.body }}</p>
               </article>

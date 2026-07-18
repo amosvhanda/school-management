@@ -375,4 +375,58 @@ class StudentApiTest extends TestCase
             ->assertJsonCount(1, 'data')
             ->assertJsonPath('data.0.type', 'birth_certificate');
     }
+
+    public function test_student_can_download_own_results_report_card(): void
+    {
+        $auth = $this->createAuthenticatedUser('student');
+        $student = Student::factory()->create([
+            'school_id' => $auth['school']->id,
+            'user_id' => $auth['user']->id,
+            'full_name' => 'Ada Lovelace',
+            'student_number' => 'STU-1001',
+        ]);
+
+        Grade::factory()->create([
+            'school_id' => $auth['school']->id,
+            'student_id' => $student->id,
+            'subject' => 'Mathematics',
+            'score' => 82,
+            'total' => 100,
+            'grade' => 'A',
+            'term' => 'Term 1',
+            'year' => now()->year,
+        ]);
+
+        $html = $this->withHeaders([
+            'Authorization' => 'Bearer '.$auth['token'],
+        ])->get("/api/v1/students/{$student->id}/results/download?format=html");
+
+        $html->assertOk();
+        $this->assertStringContainsString('text/html', (string) $html->headers->get('content-type'));
+        $this->assertStringContainsString('Ada Lovelace', $html->getContent());
+        $this->assertStringContainsString('Mathematics', $html->getContent());
+
+        $csv = $this->withHeaders([
+            'Authorization' => 'Bearer '.$auth['token'],
+        ])->get("/api/v1/students/{$student->id}/results/download?format=csv");
+
+        $csv->assertOk();
+        $this->assertStringContainsString('text/csv', (string) $csv->headers->get('content-type'));
+        $this->assertStringContainsString('Mathematics', $csv->streamedContent());
+    }
+
+    public function test_student_cannot_download_another_students_results(): void
+    {
+        $auth = $this->createAuthenticatedUser('student');
+        Student::factory()->create([
+            'school_id' => $auth['school']->id,
+            'user_id' => $auth['user']->id,
+        ]);
+        $other = Student::factory()->create(['school_id' => $auth['school']->id]);
+
+        $this->withHeaders([
+            'Authorization' => 'Bearer '.$auth['token'],
+        ])->get("/api/v1/students/{$other->id}/results/download")
+            ->assertForbidden();
+    }
 }

@@ -43,6 +43,7 @@ import { useAuth } from '@/composables/useAuth'
 import { useFormSheetLoader } from '@/composables/useFormSheetLoader'
 import { useListFilters } from '@/composables/useListFilters'
 import { getErrorMessage } from '@/lib/api-response'
+import { formatDate } from '@/lib/format'
 import {
   examCreateDefaults,
   examFormFields,
@@ -342,8 +343,8 @@ onMounted(load)
         </template>
 
         <template #cell-exam_date="{ row }">
-          <span class="text-sm text-muted-foreground font-mono">
-            {{ row.original.exam_date ? new Date(row.original.exam_date).toLocaleDateString() : '—' }}
+          <span class="text-sm text-muted-foreground">
+            {{ formatDate(row.original.exam_date) }}
           </span>
         </template>
 

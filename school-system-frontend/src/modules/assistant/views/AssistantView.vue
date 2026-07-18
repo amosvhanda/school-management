@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { useToast } from '@/composables/useToast'
 import { getErrorMessage } from '@/lib/api-response'
+import { formatDateTime } from '@/lib/format'
 import { assistantApi } from '@/services/api.service'
 
 interface ConversationRow {
@@ -124,7 +125,7 @@ onMounted(loadConversations)
             @click="loadConversation(conv.id)"
           >
             <span class="font-medium line-clamp-2">{{ conv.title ?? 'Conversation' }}</span>
-            <span class="text-xs text-muted-foreground">{{ conv.updated_at ?? '' }}</span>
+            <span class="text-xs text-muted-foreground">{{ formatDateTime(conv.updated_at) }}</span>
           </button>
           <p v-if="!conversations.length" class="p-4 text-sm text-muted-foreground">No past conversations.</p>
         </CardContent>

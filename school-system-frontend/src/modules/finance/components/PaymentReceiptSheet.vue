@@ -10,6 +10,7 @@ import {
 } from '@/components/ui/sheet'
 import { Button } from '@/components/ui/button'
 import { formatMoney, formatPaymentMethod } from '@/lib/finance-constants'
+import { formatDate } from '@/lib/format'
 
 const props = defineProps<{
   open: boolean
@@ -58,7 +59,7 @@ function printReceipt() {
         <dl class="grid gap-3 text-sm">
           <div class="flex justify-between gap-4">
             <dt class="text-muted-foreground">Date</dt>
-            <dd>{{ payment.date ?? '—' }}</dd>
+            <dd>{{ formatDate(payment.date) }}</dd>
           </div>
           <div class="flex justify-between gap-4">
             <dt class="text-muted-foreground">Student</dt>

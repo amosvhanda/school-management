@@ -9,6 +9,24 @@ abstract class TestCase extends BaseTestCase
 {
     use RefreshDatabase;
 
+    public function createApplication()
+    {
+        // Isolate tests from the local Herd/sqlite file before config is loaded.
+        putenv('DB_CONNECTION=sqlite');
+        putenv('DB_DATABASE=:memory:');
+        $_ENV['DB_CONNECTION'] = 'sqlite';
+        $_ENV['DB_DATABASE'] = ':memory:';
+        $_SERVER['DB_CONNECTION'] = 'sqlite';
+        $_SERVER['DB_DATABASE'] = ':memory:';
+
+        $app = parent::createApplication();
+
+        $app['config']->set('database.default', 'sqlite');
+        $app['config']->set('database.connections.sqlite.database', ':memory:');
+
+        return $app;
+    }
+
     protected function setUp(): void
     {
         parent::setUp();

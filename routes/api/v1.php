@@ -188,6 +188,7 @@ Route::middleware(['auth:sanctum', 'school.isolated', 'school.licensed'])->group
     Route::post('/students/{student}/invoices', [StudentController::class, 'createInvoice']);
     Route::post('/students/{student}/documents', [StudentController::class, 'uploadDocuments']);
     Route::get('/students/{student}/exams', [StudentController::class, 'exams']);
+    Route::get('/students/{student}/results/download', [StudentController::class, 'downloadResults']);
     Route::get('/students/{student}/guardians', [GuardianController::class, 'forStudent']);
 
     // Inventory / uniform store

@@ -51,6 +51,13 @@ export const studentsApi = {
   uploadDocuments: (id: number | string, payload: Record<string, unknown>) =>
     postRecord(e.students.documents(id), payload),
   exams: (id: number | string) => fetchList(e.students.exams(id)),
+  downloadResults: async (id: number | string, format: 'html' | 'csv' = 'html') => {
+    const { data } = await api.get(e.students.resultsDownload(id), {
+      params: { format },
+      responseType: 'blob',
+    })
+    return data as Blob
+  },
   guardians: (id: number | string) => fetchList(e.students.guardians(id)),
 }
 
@@ -427,10 +434,24 @@ export const reportsApi = {
 export const parentPortalApi = {
   dashboard: () => fetchOne(e.parentPortal.dashboard),
   children: () => fetchList(e.parentPortal.children),
-  results: (studentId: number | string) => fetchList(e.parentPortal.results(studentId)),
-  attendance: (studentId: number | string) => fetchList(e.parentPortal.attendance(studentId)),
+  results: (studentId: number | string) =>
+    fetchOne<{
+      student?: Record<string, unknown>
+      exam_results?: Record<string, unknown>[]
+      report_card_grades?: Record<string, unknown>[]
+    }>(e.parentPortal.results(studentId)),
+  attendance: (studentId: number | string) =>
+    fetchOne<{
+      student?: Record<string, unknown>
+      summary?: Record<string, number>
+      records?: Record<string, unknown>[]
+    }>(e.parentPortal.attendance(studentId)),
   fees: (studentId: number | string) => fetchOne(e.parentPortal.fees(studentId)),
-  discipline: (studentId: number | string) => fetchList(e.parentPortal.discipline(studentId)),
+  discipline: (studentId: number | string) =>
+    fetchOne<{
+      student?: Record<string, unknown>
+      records?: Record<string, unknown>[]
+    }>(e.parentPortal.discipline(studentId)),
   progress: (studentId: number | string) => fetchOne(e.parentPortal.progress(studentId)),
   announcements: () => fetchList(e.parentPortal.announcements),
   notifications: (params?: ListQueryParams) => fetchList(e.parentPortal.notifications, params),

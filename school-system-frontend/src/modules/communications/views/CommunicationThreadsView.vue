@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge'
 import { Textarea } from '@/components/ui/textarea'
 import { useToast } from '@/composables/useToast'
 import { getErrorMessage } from '@/lib/api-response'
+import { formatDateTime } from '@/lib/format'
 import { commsApi } from '@/services/api.service'
 
 interface ThreadRow {
@@ -125,6 +126,9 @@ onMounted(loadThreads)
             <span class="text-xs text-muted-foreground">
               {{ thread.student?.full_name ?? thread.parent?.name ?? 'Parent message' }}
             </span>
+            <span v-if="thread.last_message_at" class="text-xs text-muted-foreground">
+              {{ formatDateTime(thread.last_message_at) }}
+            </span>
             <Badge variant="outline" class="w-fit capitalize">{{ thread.status ?? 'open' }}</Badge>
           </button>
           <p v-if="!threads.length" class="p-4 text-sm text-muted-foreground">No message threads yet.</p>
@@ -149,7 +153,7 @@ onMounted(loadThreads)
               >
                 <header class="mb-1 flex items-center justify-between gap-2 text-xs text-muted-foreground">
                   <span class="font-medium text-foreground">{{ senderName(msg) }}</span>
-                  <time>{{ msg.created_at ?? '' }}</time>
+                  <time>{{ formatDateTime(msg.created_at) }}</time>
                 </header>
                 <p class="whitespace-pre-wrap text-sm">{{ msg.body }}</p>
               </article>

@@ -250,7 +250,7 @@ export const enrollmentColumns: ColumnDef<Record<string, unknown>>[] = [
   textColumn('Grade', 'grade_applying_for'),
   textColumn('Year', 'academic_year'),
   statusColumn(),
-  dateColumn('Applied', 'created_at'),
+  dateTimeColumn('Applied', 'created_at'),
 ]
 
 export const examColumns: ColumnDef<Record<string, unknown>>[] = [
@@ -314,8 +314,8 @@ export const threadColumns = defaultColumns(['subject', 'status', 'created_at'])
 export const leaveColumns: ColumnDef<Record<string, unknown>>[] = [
   textColumn('Staff', 'teacher_name'),
   textColumn('Type', 'type'),
-  textColumn('Start', 'start_date'),
-  textColumn('End', 'end_date'),
+  dateColumn('Start', 'start_date'),
+  dateColumn('End', 'end_date'),
   textColumn('Days', 'days'),
   statusColumn(),
   textColumn('Reviewed by', 'reviewed_by'),

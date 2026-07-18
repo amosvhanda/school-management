@@ -70,6 +70,7 @@ export const endpoints = {
     createInvoice: (id: number | string) => `/students/${id}/invoices`,
     documents: (id: number | string) => `/students/${id}/documents`,
     exams: (id: number | string) => `/students/${id}/exams`,
+    resultsDownload: (id: number | string) => `/students/${id}/results/download`,
     guardians: (id: number | string) => `/students/${id}/guardians`,
   },
   teachers: {

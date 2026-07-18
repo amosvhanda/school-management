@@ -15,6 +15,7 @@ import {
 } from '@/components/ui/table'
 import { financeApi } from '@/services/api.service'
 import { formatMoney } from '@/lib/finance-constants'
+import { formatDate } from '@/lib/format'
 
 const loading = ref(true)
 const error = ref<string | null>(null)
@@ -102,7 +103,7 @@ onMounted(load)
               <TableRow v-for="row in invoices.slice(0, 100)" :key="String(row.invoice_id)">
                 <TableCell class="font-mono text-xs">{{ row.invoice_number }}</TableCell>
                 <TableCell>{{ row.student_name }}</TableCell>
-                <TableCell>{{ row.due_date }}</TableCell>
+                <TableCell>{{ formatDate(row.due_date) }}</TableCell>
                 <TableCell>{{ row.days_past_due }}</TableCell>
                 <TableCell class="text-right tabular-nums">
                   {{ formatMoney(row.balance, String(row.currency ?? currency)) }}
