@@ -104,12 +104,9 @@ async function selectThread(thread: ThreadRow) {
   activeThread.value = thread
   messagesLoading.value = true
   try {
-    const data = await parentPortalApi.threadMessages(thread.id) as {
-      thread?: ThreadRow
-      messages?: MessageRow[]
-    }
-    messages.value = data.messages ?? []
-    if (data.thread) activeThread.value = data.thread
+    const data = await parentPortalApi.threadMessages(thread.id)
+    messages.value = (data.messages ?? []) as unknown as MessageRow[]
+    if (data.thread) activeThread.value = data.thread as unknown as ThreadRow
   } catch (err) {
     toast.error('Could not load messages', getErrorMessage(err))
     messages.value = []

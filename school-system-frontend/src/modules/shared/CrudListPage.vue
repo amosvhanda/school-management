@@ -295,12 +295,15 @@ async function executeAction(action: RowActionConfig, row: Record<string, unknow
   const id = row[idKey.value]
   if (id == null) return
 
+  const resolvedBody = typeof action.body === 'function' ? action.body(row) : action.body ?? {}
+  if (resolvedBody == null) return
+
   const key = `${action.label}-${id}`
   actionLoading.value = key
   try {
     const body = {
-        ...(typeof action.body === 'function' ? action.body(row) : action.body ?? {}),
-        ...extraBody,
+      ...resolvedBody,
+      ...extraBody,
     }
     const path = action.path(id as string | number)
 
@@ -322,7 +325,8 @@ async function confirmReverse() {
   if (!reverseTarget.value) return
   const { action, row } = reverseTarget.value
   reverseTarget.value = null
-  await executeAction(action, row, reverseReason.value ? { notes: reverseReason.value } : {})
+  const reason = reverseReason.value.trim()
+  await executeAction(action, row, reason ? { notes: reason, reason } : {})
   reverseReason.value = ''
 }
 
@@ -330,10 +334,15 @@ async function runToolbarAction(action: RowActionConfig) {
   actionLoading.value = action.label
   try {
     const body = typeof action.body === 'function' ? action.body({}) : action.body
+    if (body == null && action.method !== 'delete') {
+      actionLoading.value = null
+      return
+    }
     const path = action.path(0)
-    if (action.method === 'post') await postRecord(path, body)
-    else if (action.method === 'put') await updateRecord(path, body ?? {})
-    else if (action.method === 'patch') await patchRecord(path, body)
+    const payload = body ?? {}
+    if (action.method === 'post') await postRecord(path, payload)
+    else if (action.method === 'put') await updateRecord(path, payload)
+    else if (action.method === 'patch') await patchRecord(path, payload)
     toast.success(action.successMessage ?? `${action.label} completed`)
     await load()
   } catch (err) {
@@ -470,22 +479,24 @@ defineExpose({ load, openEdit })
     <Dialog :open="!!reverseTarget" @update:open="(v) => !v && (reverseTarget = null)">
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Reverse payment?</DialogTitle>
+          <DialogTitle>{{ reverseTarget?.action.label ?? 'Confirm' }}?</DialogTitle>
           <DialogDescription>
-            This restores the invoice balance and posts a reversal to the student ledger. This cannot be undone.
+            Provide a reason for this action. This may be recorded in the audit trail.
           </DialogDescription>
         </DialogHeader>
         <div class="space-y-2">
-          <Label for="reverse-reason">Reason (optional)</Label>
+          <Label for="action-reason">Reason</Label>
           <Input
-            id="reverse-reason"
+            id="action-reason"
             v-model="reverseReason"
-            placeholder="Duplicate entry, wrong invoice, etc."
+            placeholder="Optional note"
           />
         </div>
         <DialogFooter class="gap-2">
           <Button variant="outline" @click="reverseTarget = null">Cancel</Button>
-          <Button variant="destructive" @click="confirmReverse">Reverse payment</Button>
+          <Button variant="destructive" @click="confirmReverse">
+            {{ reverseTarget?.action.label ?? 'Confirm' }}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

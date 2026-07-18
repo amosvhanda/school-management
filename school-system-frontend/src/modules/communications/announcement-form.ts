@@ -10,19 +10,17 @@ export const ANNOUNCEMENT_TYPES = [
   { label: 'Success / celebration', value: 'success' },
 ] as const
 
+/** Audiences with a working recipient feed today (parent portal). */
 export const ANNOUNCEMENT_AUDIENCES = [
   { label: 'Everyone', value: 'all' },
   { label: 'Parents', value: 'parents' },
-  { label: 'Students', value: 'students' },
-  { label: 'Teachers', value: 'teachers' },
-  { label: 'Staff', value: 'staff' },
 ] as const
 
 export const announcementFormSchema = z.object({
   title: z.string().trim().min(1, 'Title is required').max(255),
   message: z.string().trim().min(1, 'Message is required'),
   type: z.enum(['info', 'important', 'warning', 'success']),
-  target_audience: z.enum(['all', 'students', 'parents', 'teachers', 'staff']),
+  target_audience: z.enum(['all', 'parents']),
   date: z
     .string()
     .min(1, 'Publish date is required')

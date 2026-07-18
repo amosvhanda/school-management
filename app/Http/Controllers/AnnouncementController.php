@@ -136,6 +136,8 @@ class AnnouncementController extends Controller
             ], 422);
         }
 
+        $wasActive = (bool) $announcement->is_active;
+
         $announcement->update($request->only([
             'title',
             'message',
@@ -145,9 +147,15 @@ class AnnouncementController extends Controller
             'is_active',
         ]));
 
+        $announcement->refresh();
+
+        if (! $wasActive && $announcement->is_active) {
+            $this->parentNotifications->notifyAnnouncement($announcement);
+        }
+
         return response()->json([
             'message' => 'Announcement updated successfully',
-            'data' => $announcement->fresh()->load('creator:id,name,first_name,last_name'),
+            'data' => $announcement->load('creator:id,name,first_name,last_name'),
         ]);
     }
 

@@ -508,15 +508,34 @@ export const moduleCrudRegistry: Record<string, ModuleCrudConfig> = {
     { canEdit: false, canDelete: false },
   ),
   'ops-procurement': crud(
-    [
-      { name: 'title', label: 'Title', type: 'text', required: true },
-      { name: 'department', label: 'Department', type: 'text' },
-      { name: 'estimated_cost', label: 'Estimated cost', type: 'number' },
-    ],
+    formSection('Requisition', [
+      { name: 'title', label: 'Title', type: 'text', required: true, colSpan: 2 },
+      {
+        name: 'department_id',
+        label: 'Department',
+        type: 'relation',
+        placeholder: 'Select department',
+        colSpan: 2,
+        relation: { endpoint: moduleEndpoints.departments },
+      },
+      { name: 'item_description', label: 'Item description', type: 'text', required: true, colSpan: 2 },
+      { name: 'item_quantity', label: 'Quantity', type: 'number', required: true, placeholder: '1' },
+      { name: 'item_unit_cost', label: 'Unit cost', type: 'number', required: true, placeholder: '0.00' },
+      {
+        name: 'submit',
+        label: 'Submit for approval',
+        type: 'checkbox',
+        description: 'Start the purchase approval workflow immediately.',
+        colSpan: 2,
+      },
+    ]),
     z.object({
       title: z.string().min(1),
-      department: z.string().optional(),
-      estimated_cost: z.coerce.number().optional(),
+      department_id: z.string().optional().or(z.literal('')),
+      item_description: z.string().min(1, 'Item description is required'),
+      item_quantity: z.coerce.number().min(1),
+      item_unit_cost: z.coerce.number().min(0),
+      submit: z.boolean().optional(),
     }),
     { canEdit: false, canDelete: false },
   ),
@@ -553,11 +572,11 @@ export const moduleCrudRegistry: Record<string, ModuleCrudConfig> = {
   ),
   'ops-transport-drivers': crud(
     [
-      { name: 'full_name', label: 'Full name', type: 'text', required: true },
+      { name: 'name', label: 'Full name', type: 'text', required: true },
       { name: 'license_number', label: 'License number', type: 'text' },
       { name: 'phone', label: 'Phone', type: 'text' },
     ],
-    z.object({ full_name: z.string().min(1), license_number: z.string().optional(), phone: z.string().optional() }),
+    z.object({ name: z.string().min(1), license_number: z.string().optional(), phone: z.string().optional() }),
     { canEdit: false, canDelete: false },
   ),
   'ops-transport-routes': crud(
@@ -587,11 +606,15 @@ export const moduleCrudRegistry: Record<string, ModuleCrudConfig> = {
   ),
   'ops-assets': crud(
     [
-      { name: 'name', label: 'Asset name', type: 'text' },
-      { name: 'category', label: 'Category', type: 'text' },
-      { name: 'purchase_date', label: 'Purchase date', type: 'text' },
+      { name: 'name', label: 'Asset name', type: 'text', required: true },
+      { name: 'category', label: 'Category', type: 'text', required: true, placeholder: 'Furniture, IT, Lab…' },
+      { name: 'purchase_date', label: 'Purchase date', type: 'date' },
     ],
-    z.object({ name: z.string().min(1), category: z.string().optional(), purchase_date: z.string().optional() }),
+    z.object({
+      name: z.string().min(1),
+      category: z.string().min(1, 'Category is required'),
+      purchase_date: z.string().optional().or(z.literal('')),
+    }),
     { canEdit: false, canDelete: false },
   ),
   'ops-hostels': crud(
@@ -648,7 +671,7 @@ export const moduleCrudRegistry: Record<string, ModuleCrudConfig> = {
       location: z.string().optional(),
       description: z.string().optional(),
     }),
-    { canDelete: false },
+    { canEdit: false, canDelete: false },
   ),
   'comms-announcements': crud(
     [
@@ -672,9 +695,6 @@ export const moduleCrudRegistry: Record<string, ModuleCrudConfig> = {
         options: [
           { label: 'Everyone', value: 'all' },
           { label: 'Parents', value: 'parents' },
-          { label: 'Students', value: 'students' },
-          { label: 'Teachers', value: 'teachers' },
-          { label: 'Staff', value: 'staff' },
         ],
       },
       { name: 'date', label: 'Publish date', type: 'date' },
@@ -684,7 +704,7 @@ export const moduleCrudRegistry: Record<string, ModuleCrudConfig> = {
       title: z.string().min(1),
       message: z.string().min(1),
       type: z.string().min(1),
-      target_audience: z.string().min(1),
+      target_audience: z.enum(['all', 'parents']),
       date: z.string().min(1),
     }),
   ),
@@ -769,9 +789,9 @@ export const moduleCrudRegistry: Record<string, ModuleCrudConfig> = {
   'compliance-consent': crud(
     [
       { name: 'title', label: 'Form title', type: 'text', required: true },
-      { name: 'description', label: 'Description', type: 'textarea' },
+      { name: 'content', label: 'Form content', type: 'textarea', required: true, colSpan: 2 },
     ],
-    z.object({ title: z.string().min(1), description: z.string().optional() }),
+    z.object({ title: z.string().min(1), content: z.string().min(1, 'Form content is required') }),
     { canEdit: false, canDelete: false },
   ),
   'settings-custom-fields': crud(

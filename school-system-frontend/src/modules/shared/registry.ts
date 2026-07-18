@@ -81,7 +81,7 @@ export const listPageRegistry: Record<string, ListPageConfig> = {
   'ops-procurement-vendors': { title: 'Procurement Vendors', endpoint: moduleEndpoints.procurementVendors, columns: defaultColumns(['name', 'contact_person', 'phone', 'status']) },
   'ops-library': { title: 'Library Books', endpoint: moduleEndpoints.libraryBooks, columns: libraryColumns },
   'ops-transport': { title: 'Transport Vehicles', endpoint: moduleEndpoints.transportVehicles, columns: transportColumns },
-  'ops-transport-drivers': { title: 'Transport Drivers', endpoint: moduleEndpoints.transportDrivers, columns: defaultColumns(['full_name', 'license_number', 'phone', 'status']) },
+  'ops-transport-drivers': { title: 'Transport Drivers', endpoint: moduleEndpoints.transportDrivers, columns: defaultColumns(['name', 'license_number', 'phone', 'status']) },
   'ops-transport-routes': { title: 'Transport Routes', endpoint: moduleEndpoints.transportRoutes, columns: defaultColumns(['name', 'vehicle_id', 'driver_id', 'status']) },
   'ops-assets': { title: 'Assets', endpoint: moduleEndpoints.assets, columns: assetColumns },
   'ops-hostels': { title: 'Hostels', endpoint: moduleEndpoints.hostels, columns: hostelColumns },

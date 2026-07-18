@@ -19,6 +19,7 @@ use App\Models\User;
 use App\Services\ParentAccessService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\Rule;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 
 class ParentPortalController extends Controller
@@ -379,7 +380,10 @@ class ParentPortalController extends Controller
             'subject' => 'required|string|max:255',
             'message' => 'required|string',
             'student_id' => 'nullable|exists:students,id',
-            'staff_user_id' => 'nullable|exists:users,id',
+            'staff_user_id' => [
+                'nullable',
+                Rule::exists('users', 'id')->where(fn ($q) => $q->where('school_id', $parent->school_id)),
+            ],
         ]);
 
         if ($validator->fails()) {
@@ -388,6 +392,19 @@ class ParentPortalController extends Controller
 
         if ($request->filled('student_id')) {
             $this->parentAccess->assertCanAccessStudent($parent, (int) $request->student_id);
+        }
+
+        if ($request->filled('staff_user_id')) {
+            $staff = User::query()
+                ->where('school_id', $parent->school_id)
+                ->whereKey($request->staff_user_id)
+                ->first();
+            if (! $staff || in_array($staff->role, [UserRole::Parent, UserRole::Student], true)) {
+                return response()->json([
+                    'message' => 'Validation failed',
+                    'errors' => ['staff_user_id' => ['Selected staff member is invalid.']],
+                ], 422);
+            }
         }
 
         $thread = CommunicationThread::create([

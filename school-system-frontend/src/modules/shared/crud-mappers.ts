@@ -344,6 +344,21 @@ export function mapFormToPayload(
     }
   }
 
+  if (listKey === 'ops-procurement') {
+    return {
+      title: values.title,
+      ...(values.department_id ? { department_id: Number(values.department_id) } : {}),
+      items: [
+        {
+          description: values.item_description,
+          quantity: values.item_quantity,
+          unit_cost: values.item_unit_cost,
+        },
+      ],
+      submit: values.submit === true,
+    }
+  }
+
   const payload = { ...values }
 
   for (const field of mappingFields) {

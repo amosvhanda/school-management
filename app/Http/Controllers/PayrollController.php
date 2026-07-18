@@ -6,12 +6,13 @@ use App\Http\Resources\Api\V1\PayrollPayslipResource;
 use App\Http\Resources\Api\V1\PayrollResource;
 use App\Http\Resources\Api\V1\TransactionResource;
 use App\Models\Payroll;
+use App\Models\School;
 use App\Models\Teacher;
 use App\Models\Transaction;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 
 class PayrollController extends Controller
@@ -88,7 +89,7 @@ class PayrollController extends Controller
         $validator = Validator::make($request->all(), [
             'month' => 'required|integer|min:1|max:12',
             'year' => 'required|integer|min:2020|max:2100',
-            'teacher_ids' => 'required|array|min:1',
+            'teacher_ids' => 'nullable|array',
             'teacher_ids.*' => $teacherRule,
         ]);
 
@@ -101,10 +102,28 @@ class PayrollController extends Controller
 
         $month = (int) $request->month;
         $year = (int) $request->year;
-        $schoolId = $request->user()?->school_id ?? \App\Models\School::first()?->id;
-        
-        if (!$schoolId) {
+        $schoolId = $request->user()?->school_id ?? School::first()?->id;
+
+        if (! $schoolId) {
             return response()->json(['message' => 'No school context'], 400);
+        }
+
+        $teacherIds = $request->input('teacher_ids', []);
+        if (empty($teacherIds)) {
+            $teacherIds = Teacher::query()
+                ->where('school_id', $schoolId)
+                ->where(function ($q) {
+                    $q->where('status', 'active')->orWhereNull('status');
+                })
+                ->pluck('id')
+                ->all();
+        }
+
+        if (empty($teacherIds)) {
+            return response()->json([
+                'message' => 'Validation failed',
+                'errors' => ['teacher_ids' => ['No active teachers available to generate payroll for.']],
+            ], 422);
         }
 
         $created = 0;
@@ -112,10 +131,11 @@ class PayrollController extends Controller
 
         DB::beginTransaction();
         try {
-            foreach ($request->teacher_ids as $tid) {
+            foreach ($teacherIds as $tid) {
                 $teacher = Teacher::where('school_id', $schoolId)->find($tid);
-                if (!$teacher) {
+                if (! $teacher) {
                     $errors[] = "Teacher ID {$tid} not found or not part of the current school";
+
                     continue;
                 }
 
@@ -127,11 +147,13 @@ class PayrollController extends Controller
                     $rate = (float) ($teacher->period_rate ?? 0);
                     if ($rate <= 0) {
                         $errors[] = "Part-time teacher {$teacher->name} has no period rate assigned";
+
                         continue;
                     }
                     $baseSalary = $rate * $periods;
                 } elseif ($baseSalary <= 0) {
                     $errors[] = "Teacher {$teacher->name} has no base salary assigned";
+
                     continue;
                 }
 
@@ -140,11 +162,11 @@ class PayrollController extends Controller
                 $deductions = $teacher->deductions ?? [];
 
                 // Calculate totals
-                $allowancesTotal = is_array($allowances) 
-                    ? array_sum(array_values($allowances)) 
+                $allowancesTotal = is_array($allowances)
+                    ? array_sum(array_values($allowances))
                     : 0;
-                $deductionsTotal = is_array($deductions) 
-                    ? array_sum(array_values($deductions)) 
+                $deductionsTotal = is_array($deductions)
+                    ? array_sum(array_values($deductions))
                     : 0;
 
                 $grossSalary = $baseSalary + $allowancesTotal;
@@ -198,8 +220,8 @@ class PayrollController extends Controller
             DB::commit();
 
             $message = "Payroll generated for {$created} teacher(s).";
-            if (!empty($errors)) {
-                $message .= " Errors: " . implode(', ', $errors);
+            if (! empty($errors)) {
+                $message .= ' Errors: '.implode(', ', $errors);
             }
 
             return response()->json([
@@ -211,7 +233,8 @@ class PayrollController extends Controller
             ], 201);
         } catch (\Exception $e) {
             DB::rollBack();
-            Log::error('Payroll generation failed: ' . $e->getMessage());
+            Log::error('Payroll generation failed: '.$e->getMessage());
+
             return response()->json([
                 'message' => 'Failed to generate payroll',
                 'error' => $e->getMessage(),
@@ -278,6 +301,7 @@ class PayrollController extends Controller
                 ->response();
         } catch (\Exception $e) {
             DB::rollBack();
+
             return response()->json([
                 'message' => 'Failed to update payroll',
                 'error' => $e->getMessage(),
@@ -373,7 +397,8 @@ class PayrollController extends Controller
             ]);
         } catch (\Exception $e) {
             DB::rollBack();
-            Log::error('Payroll processing failed: ' . $e->getMessage());
+            Log::error('Payroll processing failed: '.$e->getMessage());
+
             return response()->json([
                 'message' => 'Failed to process payroll',
                 'error' => $e->getMessage(),
@@ -404,7 +429,7 @@ class PayrollController extends Controller
         $schoolId = $request->user()?->school_id;
         $baseQuery = Payroll::query()
             ->when($schoolId, fn ($q) => $q->where('school_id', $schoolId));
-        
+
         if ($request->filled('month')) {
             $baseQuery->where('month', (int) $request->month);
         }
@@ -531,6 +556,7 @@ class PayrollController extends Controller
         if ($status === 'cancelled') {
             return 'Cancelled';
         }
+
         return 'Unpaid';
     }
 }

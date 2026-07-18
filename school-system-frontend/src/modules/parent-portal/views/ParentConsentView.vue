@@ -22,6 +22,7 @@ import { parentPortalApi } from '@/services/index'
 interface ConsentForm {
   id: number
   title?: string
+  content?: string
   description?: string
   status?: string
   response_status?: string
@@ -113,7 +114,9 @@ watch(studentId, (value) => {
           <div class="flex flex-wrap items-start justify-between gap-2">
             <div>
               <CardTitle class="text-lg">{{ form.title ?? 'Consent form' }}</CardTitle>
-              <CardDescription v-if="form.description">{{ form.description }}</CardDescription>
+              <CardDescription v-if="form.content || form.description">
+                {{ form.content || form.description }}
+              </CardDescription>
             </div>
             <Badge variant="outline" class="capitalize">{{ form.response_status ?? form.status ?? 'pending' }}</Badge>
           </div>

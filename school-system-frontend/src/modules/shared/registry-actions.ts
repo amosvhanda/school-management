@@ -8,7 +8,9 @@ export interface RowActionConfig {
   path: (id: string | number) => string
   variant?: 'default' | 'outline' | 'destructive' | 'secondary'
   when?: (row: Record<string, unknown>) => boolean
-  body?: Record<string, unknown> | ((row: Record<string, unknown>) => Record<string, unknown>)
+  body?:
+    | Record<string, unknown>
+    | ((row: Record<string, unknown>) => Record<string, unknown> | null)
   successMessage?: string
   /** Opens payment receipt sheet instead of calling API directly */
   openReceipt?: boolean
@@ -102,7 +104,12 @@ export const moduleActionsRegistry: Record<string, RowActionConfig[]> = {
       method: 'post',
       path: (id) => endpoints.inventory.restock(id),
       variant: 'outline',
-      body: { quantity: 10 },
+      body: () => {
+        const raw = window.prompt('Restock quantity', '10')
+        if (raw == null) return null
+        const quantity = Math.max(1, Number(raw) || 1)
+        return { quantity }
+      },
       successMessage: 'Stock updated',
     },
   ],
@@ -121,8 +128,12 @@ export const moduleActionsRegistry: Record<string, RowActionConfig[]> = {
       method: 'post',
       path: (id) => endpoints.assets.dispose(id),
       variant: 'destructive',
-      body: { reason: 'Disposed from admin panel' },
-      successMessage: 'Asset disposed',
+      confirmReason: true,
+      body: () => ({
+        disposed_at: new Date().toISOString().slice(0, 10),
+        reason: 'Disposed from admin panel',
+      }),
+      successMessage: 'Asset disposal submitted',
     },
   ],
   teachers: [
@@ -152,17 +163,20 @@ export const moduleToolbarActionsRegistry: Record<string, RowActionConfig[]> = {
       label: 'Generate payroll',
       method: 'post',
       path: () => endpoints.payroll.generate,
-      body: { month: new Date().getMonth() + 1, year: new Date().getFullYear() },
-      successMessage: 'Payroll generation started',
+      body: {
+        month: new Date().getMonth() + 1,
+        year: new Date().getFullYear(),
+      },
+      successMessage: 'Payroll generated for active staff',
     },
   ],
   'academics-timetable': [
     {
       label: 'Auto-generate',
       method: 'post',
-      path: () => endpoints.timetable.generate,
-      body: {},
-      successMessage: 'Timetable generation started',
+      path: () => endpoints.timetable.generateBulk,
+      body: { all_classes: true },
+      successMessage: 'Timetable generated for all classes',
     },
   ],
 }

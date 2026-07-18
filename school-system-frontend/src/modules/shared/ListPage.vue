@@ -132,14 +132,17 @@ async function runAction(action: RowActionConfig, row: Record<string, unknown>) 
   const id = row[idKey.value]
   if (id == null) return
 
+  const resolvedBody = typeof action.body === 'function' ? action.body(row) : action.body
+  if (resolvedBody == null && action.method !== 'delete') return
+
   actionLoading.value = `${action.label}-${id}`
   try {
-    const body = typeof action.body === 'function' ? action.body(row) : action.body
     const path = action.path(id as string | number)
+    const payload = resolvedBody ?? {}
 
-    if (action.method === 'post') await postRecord(path, body)
-    else if (action.method === 'put') await updateRecord(path, body ?? {})
-    else if (action.method === 'patch') await patchRecord(path, body)
+    if (action.method === 'post') await postRecord(path, payload)
+    else if (action.method === 'put') await updateRecord(path, payload)
+    else if (action.method === 'patch') await patchRecord(path, payload)
     else await deleteRecord(path)
 
     toast.success(action.successMessage ?? `${action.label} completed`)
