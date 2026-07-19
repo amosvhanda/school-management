@@ -115,4 +115,44 @@ class SchoolSettingsTest extends TestCase
             ->assertJsonPath('data.slug', 'blood-type')
             ->assertJsonPath('data.entity_type', 'student');
     }
+
+    public function test_custom_fields_index_returns_all_entity_types_by_default(): void
+    {
+        $auth = $this->createAuthenticatedUser();
+        $schoolId = $auth['school']->id;
+
+        CustomField::withoutGlobalScopes()->create([
+            'school_id' => $schoolId,
+            'entity_type' => CustomField::ENTITY_STUDENT,
+            'name' => 'Allergy notes',
+            'slug' => 'allergy-notes',
+            'field_type' => 'text',
+            'is_active' => true,
+            'sort_order' => 0,
+        ]);
+        CustomField::withoutGlobalScopes()->create([
+            'school_id' => $schoolId,
+            'entity_type' => CustomField::ENTITY_TEACHER,
+            'name' => 'Qualification',
+            'slug' => 'qualification',
+            'field_type' => 'text',
+            'is_active' => true,
+            'sort_order' => 0,
+        ]);
+
+        $all = $this->withHeaders(['Authorization' => 'Bearer '.$auth['token']])
+            ->getJson('/api/v1/settings/custom-fields')
+            ->assertOk()
+            ->json('data');
+
+        $this->assertCount(2, $all);
+
+        $teachersOnly = $this->withHeaders(['Authorization' => 'Bearer '.$auth['token']])
+            ->getJson('/api/v1/settings/custom-fields?entity_type=teacher')
+            ->assertOk()
+            ->json('data');
+
+        $this->assertCount(1, $teachersOnly);
+        $this->assertSame('teacher', $teachersOnly[0]['entity_type']);
+    }
 }

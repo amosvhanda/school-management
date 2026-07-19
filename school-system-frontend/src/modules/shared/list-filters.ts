@@ -592,6 +592,22 @@ export const moduleListMetaRegistry: Record<string, ListPageMeta> = {
       },
     ],
   },
+  'settings-custom-fields': {
+    filterMode: 'server',
+    filters: [
+      {
+        key: 'entity_type',
+        label: 'Entity',
+        type: 'select',
+        placeholder: 'All entities',
+        options: [
+          { label: 'Student', value: 'student' },
+          { label: 'Teacher', value: 'teacher' },
+          { label: 'Staff', value: 'staff' },
+        ],
+      },
+    ],
+  },
 }
 
 export function getListMeta(listKey?: string): ListPageMeta | undefined {

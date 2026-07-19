@@ -248,6 +248,7 @@ export const listPageRegistry: Record<string, ListPageConfig> = {
   settings: { title: 'Settings', endpoint: moduleEndpoints.settingsSchool, columns: genericColumns },
   'settings-custom-fields': {
     title: 'Custom Fields',
+    description: 'Extra fields on student, teacher, and staff forms.',
     endpoint: moduleEndpoints.customFields,
     columns: [
       textColumn('Name', 'name'),

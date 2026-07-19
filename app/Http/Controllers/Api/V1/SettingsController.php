@@ -92,11 +92,12 @@ class SettingsController extends Controller
         $school = School::findOrFail($request->user()->school_id);
         $entityType = $request->get('entity_type');
 
-        $fields = $this->customFieldService->listForEntity($school, $entityType ?? CustomField::ENTITY_STUDENT);
-
-        if ($entityType) {
-            $fields = $fields->where('entity_type', $entityType);
-        }
+        // No entity_type → return all school fields (admin settings list).
+        // With entity_type → scoped list for student/teacher forms.
+        $fields = $this->customFieldService->listForEntity(
+            $school,
+            is_string($entityType) && $entityType !== '' ? $entityType : null,
+        );
 
         return $this->success(CustomFieldResource::collection($fields));
     }

@@ -12,13 +12,19 @@ use Illuminate\Validation\ValidationException;
 
 class CustomFieldService
 {
-    public function listForEntity(School $school, string $entityType): Collection
+    public function listForEntity(School $school, ?string $entityType = null): Collection
     {
-        return CustomField::withoutGlobalScopes()
+        $query = CustomField::withoutGlobalScopes()
             ->where('school_id', $school->id)
-            ->where('entity_type', $entityType)
+            ->orderBy('entity_type')
             ->orderBy('sort_order')
-            ->get();
+            ->orderBy('name');
+
+        if ($entityType) {
+            $query->where('entity_type', $entityType);
+        }
+
+        return $query->get();
     }
 
     public function create(School $school, array $data): CustomField
