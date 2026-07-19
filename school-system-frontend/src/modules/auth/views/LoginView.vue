@@ -67,7 +67,11 @@ async function completeLogin(email: string, password: string) {
   }
 
   if (result.user.platform_terms_accepted === false) {
-    await router.push({ name: 'platform-terms-accept' })
+    const next = typeof route.query.redirect === 'string' ? route.query.redirect : undefined
+    await router.push({
+      name: 'platform-terms-accept',
+      query: next && next !== '/terms/accept' ? { redirect: next } : undefined,
+    })
     return
   }
 
