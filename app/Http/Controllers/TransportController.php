@@ -11,13 +11,26 @@ use Illuminate\Http\Request;
 
 class TransportController extends Controller
 {
+    private function authorizeTransport(Request $request): void
+    {
+        $this->authorizeModuleAccess(
+            $request,
+            ['canManageTransport'],
+            ['transport.manage', 'operations.manage'],
+        );
+    }
+
     public function vehicles(Request $request)
     {
+        $this->authorizeTransport($request);
+
         return response()->json(['data' => Vehicle::where('school_id', $request->user()->school_id)->get()]);
     }
 
     public function storeVehicle(Request $request)
     {
+        $this->authorizeTransport($request);
+
         $data = $request->validate([
             'registration_number' => 'required|string|max:50',
             'make' => 'nullable|string',
@@ -32,11 +45,15 @@ class TransportController extends Controller
 
     public function drivers(Request $request)
     {
+        $this->authorizeTransport($request);
+
         return response()->json(['data' => Driver::where('school_id', $request->user()->school_id)->get()]);
     }
 
     public function storeDriver(Request $request)
     {
+        $this->authorizeTransport($request);
+
         $data = $request->validate([
             'name' => 'required|string|max:255',
             'license_number' => 'nullable|string',
@@ -51,6 +68,8 @@ class TransportController extends Controller
 
     public function routes(Request $request)
     {
+        $this->authorizeTransport($request);
+
         return response()->json([
             'data' => TransportRoute::where('school_id', $request->user()->school_id)
                 ->with(['vehicle', 'driver'])
@@ -60,6 +79,8 @@ class TransportController extends Controller
 
     public function storeRoute(Request $request)
     {
+        $this->authorizeTransport($request);
+
         $data = $request->validate([
             'name' => 'required|string|max:255',
             'vehicle_id' => 'nullable|exists:vehicles,id',
@@ -74,6 +95,8 @@ class TransportController extends Controller
 
     public function allocateStudent(Request $request)
     {
+        $this->authorizeTransport($request);
+
         $data = $request->validate([
             'student_id' => 'required|exists:students,id',
             'route_id' => 'required|exists:transport_routes,id',

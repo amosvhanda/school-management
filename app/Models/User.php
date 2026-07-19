@@ -26,6 +26,7 @@ class User extends Authenticatable
         'email',
         'password',
         'role',
+        'permission_ids',
         'status',
         'platform_terms_version',
         'platform_terms_accepted_at',
@@ -104,6 +105,7 @@ class User extends Authenticatable
             'two_factor_confirmed_at' => 'datetime',
             'platform_terms_accepted_at' => 'datetime',
             'role' => UserRole::class,
+            'permission_ids' => 'array',
         ];
     }
 

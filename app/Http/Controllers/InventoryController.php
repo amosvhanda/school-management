@@ -11,8 +11,19 @@ class InventoryController extends Controller
 {
     public function __construct(private InventoryService $inventoryService) {}
 
+    private function authorizeInventory(Request $request): void
+    {
+        $this->authorizeModuleAccess(
+            $request,
+            ['canManageInventory'],
+            ['inventory.manage', 'operations.manage'],
+        );
+    }
+
     public function index(Request $request)
     {
+        $this->authorizeInventory($request);
+
         $schoolId = $request->user()->school_id;
         $items = InventoryItem::where('school_id', $schoolId)
             ->when($request->type, fn ($q, $t) => $q->where('type', $t))
@@ -24,6 +35,8 @@ class InventoryController extends Controller
 
     public function store(Request $request)
     {
+        $this->authorizeInventory($request);
+
         $schoolId = $request->user()->school_id;
         $data = $request->validate([
             'name' => 'required|string|max:255',
@@ -51,6 +64,8 @@ class InventoryController extends Controller
 
     public function update(Request $request, int $id)
     {
+        $this->authorizeInventory($request);
+
         $item = InventoryItem::where('school_id', $request->user()->school_id)->findOrFail($id);
         $item->update($request->validate([
             'name' => 'sometimes|string|max:255',
@@ -66,6 +81,8 @@ class InventoryController extends Controller
 
     public function restock(Request $request, int $id)
     {
+        $this->authorizeInventory($request);
+
         $item = InventoryItem::where('school_id', $request->user()->school_id)->findOrFail($id);
         $data = $request->validate([
             'quantity' => 'required|integer|min:1',
@@ -79,6 +96,8 @@ class InventoryController extends Controller
 
     public function sales(Request $request)
     {
+        $this->authorizeInventory($request);
+
         $sales = InventorySale::where('school_id', $request->user()->school_id)
             ->with(['student', 'items.item'])
             ->orderByDesc('created_at')
@@ -89,6 +108,8 @@ class InventoryController extends Controller
 
     public function createSale(Request $request)
     {
+        $this->authorizeInventory($request);
+
         $data = $request->validate([
             'items' => 'required|array|min:1',
             'items.*.item_id' => 'required|integer|exists:inventory_items,id',

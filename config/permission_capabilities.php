@@ -24,6 +24,16 @@ return [
     'finance.manage' => ['isStaff', 'canManageFinance'],
     'hr.manage' => ['isStaff', 'canManageTeachers'],
     'communications.manage' => ['isStaff'],
-    'operations.manage' => ['isStaff', 'canManageTeachers'],
+    'operations.manage' => [
+        'isStaff',
+        'canManageLibrary',
+        'canManageTransport',
+        'canManageInventory',
+        'canManageReception',
+    ],
+    'library.manage' => ['isStaff', 'canManageLibrary'],
+    'transport.manage' => ['isStaff', 'canManageTransport'],
+    'inventory.manage' => ['isStaff', 'canManageInventory'],
+    'reception.manage' => ['isStaff', 'canManageReception'],
     'compliance.manage' => ['isStaff', 'canManageTeachers'],
 ];

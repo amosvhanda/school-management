@@ -43,6 +43,11 @@ export function hasCapability(user: AuthUser | null, capability: NavCapability):
       return ['super_admin', 'admin', 'examination_officer'].includes(role)
     case 'canEnterExamResults':
       return ['super_admin', 'admin', 'teacher', 'examination_officer'].includes(role)
+    case 'canManageLibrary':
+    case 'canManageTransport':
+    case 'canManageInventory':
+    case 'canManageReception':
+      return ['super_admin', 'admin'].includes(role)
     default:
       return false
   }

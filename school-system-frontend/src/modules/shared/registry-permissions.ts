@@ -45,6 +45,18 @@ function inferPermissions(listKey: string): ModulePermissionConfig {
   if (listKey.startsWith('academics-')) {
     return { create: ADMIN, edit: ADMIN, delete: ADMIN }
   }
+  if (listKey.startsWith('ops-library')) {
+    return { create: 'canManageLibrary', edit: 'canManageLibrary', delete: 'canManageLibrary' }
+  }
+  if (listKey.startsWith('ops-transport')) {
+    return { create: 'canManageTransport', edit: 'canManageTransport', delete: 'canManageTransport' }
+  }
+  if (listKey.startsWith('ops-inventory')) {
+    return { create: 'canManageInventory', edit: 'canManageInventory', delete: 'canManageInventory' }
+  }
+  if (listKey.startsWith('ops-visitors')) {
+    return { create: 'canManageReception', edit: 'canManageReception', delete: 'canManageReception' }
+  }
   if (listKey.startsWith('enterprise-exams')) {
     return { create: EXAMS, edit: EXAMS, delete: ADMIN }
   }

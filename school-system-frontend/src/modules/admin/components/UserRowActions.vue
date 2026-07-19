@@ -18,6 +18,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   edit: []
+  permissions: []
   refresh: []
 }>()
 
@@ -75,6 +76,10 @@ async function resetPassword() {
     <DropdownMenuContent align="end" class="w-[160px]">
       <DropdownMenuItem @click="emit('edit')">
         Edit details
+      </DropdownMenuItem>
+
+      <DropdownMenuItem @click="emit('permissions')">
+        Extra module access
       </DropdownMenuItem>
 
       <DropdownMenuItem @click="resetPassword">

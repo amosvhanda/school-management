@@ -19,14 +19,14 @@ class RoleSeeder extends Seeder
             [
                 'name' => 'Administrator',
                 'slug' => 'admin',
-                'description' => 'Full system access',
+                'description' => 'Full system access. Grant module permissions to other roles instead of creating new login types.',
                 'permission_ids' => $allPermissionIds,
             ],
             [
                 'name' => 'Teacher',
                 'slug' => 'teacher',
-                'description' => 'Teaching staff — attendance, gradebook, and class tools',
-                'permission_ids' => [5, 10, 12, 14, 15, 22],
+                'description' => 'Teaching staff — attendance, marks, and class tools. Add library/transport etc. via extra permissions on the user or role.',
+                'permission_ids' => [5, 10, 12, 14, 15, 19, 22],
             ],
             [
                 'name' => 'Parent',

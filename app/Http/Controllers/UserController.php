@@ -155,6 +155,8 @@ class UserController extends Controller
             'role' => 'nullable|string',
             'status' => 'nullable|string|in:active,inactive',
             'password' => 'nullable|string|min:8|confirmed',
+            'permission_ids' => 'nullable|array',
+            'permission_ids.*' => 'integer',
         ]);
 
         if ($validator->fails()) {
@@ -198,6 +200,11 @@ class UserController extends Controller
 
         if ($request->filled('password')) {
             $user->password = Hash::make($request->input('password'));
+        }
+
+        if ($request->has('permission_ids')) {
+            $ids = array_values(array_unique(array_map('intval', $request->input('permission_ids', []))));
+            $user->permission_ids = $ids === [] ? null : $ids;
         }
 
         $user->save();
@@ -375,6 +382,7 @@ class UserController extends Controller
             'firstName' => $firstName,
             'surname' => $surname,
             'school_id' => $user->school_id,
+            'permission_ids' => is_array($user->permission_ids) ? array_values($user->permission_ids) : [],
             'lastLogin' => $user->updated_at ? $user->updated_at->format('Y-m-d H:i') : 'Never',
         ];
     }

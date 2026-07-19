@@ -7,6 +7,7 @@ import ErrorState from '@/components/feedback/ErrorState.vue'
 import DataTable from '@/components/data-table/DataTable.vue'
 import FormSheet from '@/components/forms/FormSheet.vue'
 import UserRowActions from '@/modules/admin/components/UserRowActions.vue'
+import UserExtraPermissionsSheet from '@/modules/admin/components/UserExtraPermissionsSheet.vue'
 import { useDataTable } from '@/components/data-table/useDataTable'
 import PageShell from '@/components/layout/PageShell.vue'
 import { Badge } from '@/components/ui/badge'
@@ -17,7 +18,7 @@ import { getErrorMessage } from '@/lib/api-response'
 import { usersApi, rolesApi } from '@/services/api.service'
 import { moduleEndpoints } from '@/services'
 import { userFormFields, userFormSchema } from '@/modules/admin/user-form'
-import type { RoleRecord } from '@/modules/admin/types'
+import type { PermissionRecord, RoleRecord } from '@/modules/admin/types'
 
 interface UserRow {
   id: number
@@ -25,6 +26,7 @@ interface UserRow {
   email: string
   role: string
   status: string
+  permission_ids?: number[]
 }
 
 const { toast } = useToast()
@@ -37,6 +39,12 @@ const editing = ref<UserRow | null>(null)
 const formResetValues = ref<Record<string, unknown> | undefined>()
 const formSheetRef = ref<{ applyServerErrors: (error: unknown) => void } | null>(null)
 const roleOptions = ref<Array<{ label: string; value: string }>>([])
+const permissionCatalog = ref<PermissionRecord[]>([])
+const permissionsOpen = ref(false)
+const permissionsSaving = ref(false)
+const permissionsLoading = ref(false)
+const permissionsUser = ref<UserRow | null>(null)
+const permissionsIds = ref<number[]>([])
 
 const formFields = computed(() => {
   const base = editing.value ? userFormFields.filter((field) => field.name !== 'password') : userFormFields
@@ -78,16 +86,64 @@ async function loadRoles() {
   }
 }
 
+async function loadPermissionCatalog() {
+  try {
+    permissionCatalog.value = await rolesApi.permissions() as PermissionRecord[]
+  } catch {
+    permissionCatalog.value = []
+  }
+}
+
 async function load() {
   loading.value = true
   error.value = null
   try {
-    await loadRoles()
+    await Promise.all([loadRoles(), loadPermissionCatalog()])
     rows.value = await usersApi.list() as UserRow[]
   } catch (err) {
     error.value = err instanceof Error ? err.message : 'Failed to load users'
   } finally {
     loading.value = false
+  }
+}
+
+async function openPermissions(user: UserRow) {
+  permissionsUser.value = user
+  permissionsOpen.value = true
+  permissionsLoading.value = true
+  try {
+    if (!permissionCatalog.value.length) await loadPermissionCatalog()
+    const record = await usersApi.get(user.id) as UserRow
+    permissionsIds.value = Array.isArray(record.permission_ids) ? record.permission_ids : []
+    permissionsUser.value = { ...user, ...record }
+  } catch (err) {
+    toast({
+      title: 'Could not load access',
+      description: getErrorMessage(err),
+      variant: 'destructive',
+    })
+    permissionsOpen.value = false
+  } finally {
+    permissionsLoading.value = false
+  }
+}
+
+async function savePermissions(ids: number[]) {
+  if (!permissionsUser.value) return
+  permissionsSaving.value = true
+  try {
+    await usersApi.update(permissionsUser.value.id, { permission_ids: ids })
+    toast({ title: 'Extra module access saved' })
+    permissionsOpen.value = false
+    await load()
+  } catch (err) {
+    toast({
+      title: 'Save failed',
+      description: getErrorMessage(err),
+      variant: 'destructive',
+    })
+  } finally {
+    permissionsSaving.value = false
   }
 }
 
@@ -185,6 +241,7 @@ onMounted(load)
           <UserRowActions
             :user="row.original"
             @edit="openEdit(row.original)"
+            @permissions="openPermissions(row.original)"
             @refresh="load"
           />
         </div>
@@ -205,5 +262,15 @@ onMounted(load)
     :saving="saving"
     :save-label="editing ? 'Save changes' : 'Create user'"
     @submit="onSubmit"
+  />
+
+  <UserExtraPermissionsSheet
+    v-model:open="permissionsOpen"
+    :user-name="permissionsUser?.name ?? 'user'"
+    :permissions="permissionCatalog"
+    :permission-ids="permissionsIds"
+    :saving="permissionsSaving"
+    :loading="permissionsLoading"
+    @submit="savePermissions"
   />
 </template>

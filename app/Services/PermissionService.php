@@ -35,22 +35,16 @@ class PermissionService
             return $this->allSlugs();
         }
 
-        if ($user->role === UserRole::Parent) {
+        if ($user->role === UserRole::Parent || $user->role === UserRole::Student) {
             return ['dashboard.view'];
         }
 
-        if ($user->role === UserRole::Student) {
-            return ['dashboard.view'];
-        }
-
-        $dbRole = $this->roleForUser($user);
-        if ($dbRole && is_array($dbRole->permission_ids) && $dbRole->permission_ids !== []) {
-            return $this->slugsForPermissionIds($dbRole->permission_ids);
-        }
-
-        return $this->defaultSlugsForEnumRole(
-            $user->role instanceof UserRole ? $user->role : UserRole::tryFromMixed($user->roleValue())
+        $roleSlugs = $this->roleSlugsForUser($user);
+        $overrideSlugs = $this->slugsForPermissionIds(
+            is_array($user->permission_ids) ? $user->permission_ids : []
         );
+
+        return array_values(array_unique([...$roleSlugs, ...$overrideSlugs]));
     }
 
     /**
@@ -72,14 +66,21 @@ class PermissionService
             return $base;
         }
 
+        $slugs = $this->permissionSlugsForUser($user);
+        $fromSlugs = $this->capabilitiesFromSlugs($slugs);
+
+        // If role has no DB permissions and no user overrides, fall back to enum defaults.
         $dbRole = $this->roleForUser($user);
-        if (! $dbRole || ! is_array($dbRole->permission_ids) || $dbRole->permission_ids === []) {
+        $hasRolePerms = $dbRole && is_array($dbRole->permission_ids) && $dbRole->permission_ids !== [];
+        $hasOverrides = is_array($user->permission_ids) && $user->permission_ids !== [];
+
+        if (! $hasRolePerms && ! $hasOverrides) {
             $role = $user->role instanceof UserRole ? $user->role : UserRole::tryFromMixed($user->roleValue());
 
             return $role?->capabilities() ?? $base;
         }
 
-        return $this->capabilitiesFromSlugs($this->permissionSlugsForUser($user));
+        return $fromSlugs;
     }
 
     public function hasCapability(User $user, string $capability): bool
@@ -109,11 +110,30 @@ class PermissionService
     }
 
     /**
-     * @param  list<int>  $ids
+     * @return list<string>
+     */
+    protected function roleSlugsForUser(User $user): array
+    {
+        $dbRole = $this->roleForUser($user);
+        if ($dbRole && is_array($dbRole->permission_ids) && $dbRole->permission_ids !== []) {
+            return $this->slugsForPermissionIds($dbRole->permission_ids);
+        }
+
+        return $this->defaultSlugsForEnumRole(
+            $user->role instanceof UserRole ? $user->role : UserRole::tryFromMixed($user->roleValue())
+        );
+    }
+
+    /**
+     * @param  list<int|string>  $ids
      * @return list<string>
      */
     protected function slugsForPermissionIds(array $ids): array
     {
+        if ($ids === []) {
+            return [];
+        }
+
         $idSet = array_flip(array_map('intval', $ids));
         $slugs = [];
 

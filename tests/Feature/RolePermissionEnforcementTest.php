@@ -70,4 +70,32 @@ class RolePermissionEnforcementTest extends TestCase
                 ],
             ]);
     }
+
+    public function test_user_permission_override_grants_library_without_admin_role(): void
+    {
+        $auth = $this->createAuthenticatedUser(role: 'teacher');
+        $libraryPermissionId = collect(config('permissions'))
+            ->firstWhere('slug', 'library.manage')['id'] ?? null;
+
+        $this->assertNotNull($libraryPermissionId);
+
+        $auth['user']->update(['permission_ids' => [$libraryPermissionId]]);
+
+        $service = app(PermissionService::class);
+        $this->assertTrue($service->hasCapability($auth['user']->fresh(), 'canManageLibrary'));
+        $this->assertTrue($service->hasPermission($auth['user']->fresh(), 'library.manage'));
+
+        $this->withHeaders(['Authorization' => 'Bearer '.$auth['token']])
+            ->getJson('/api/v1/library/books')
+            ->assertOk();
+    }
+
+    public function test_teacher_without_library_permission_cannot_access_library(): void
+    {
+        $auth = $this->createAuthenticatedUser(role: 'teacher');
+
+        $this->withHeaders(['Authorization' => 'Bearer '.$auth['token']])
+            ->getJson('/api/v1/library/books')
+            ->assertForbidden();
+    }
 }

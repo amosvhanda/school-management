@@ -77,6 +77,26 @@ enum UserRole: string
      *
      * @return array<string, bool>
      */
+    public function canManageLibrary(): bool
+    {
+        return in_array($this, [self::SuperAdmin, self::Admin, self::SchoolAdmin], true);
+    }
+
+    public function canManageTransport(): bool
+    {
+        return in_array($this, [self::SuperAdmin, self::Admin, self::SchoolAdmin], true);
+    }
+
+    public function canManageInventory(): bool
+    {
+        return in_array($this, [self::SuperAdmin, self::Admin, self::SchoolAdmin], true);
+    }
+
+    public function canManageReception(): bool
+    {
+        return in_array($this, [self::SuperAdmin, self::Admin, self::SchoolAdmin], true);
+    }
+
     public function capabilities(): array
     {
         return [
@@ -89,6 +109,10 @@ enum UserRole: string
             'canViewAuditLogs' => $this->canViewAuditLogs(),
             'canManageExaminations' => $this->canManageExaminations(),
             'canEnterExamResults' => $this->canEnterExamResults(),
+            'canManageLibrary' => $this->canManageLibrary(),
+            'canManageTransport' => $this->canManageTransport(),
+            'canManageInventory' => $this->canManageInventory(),
+            'canManageReception' => $this->canManageReception(),
         ];
     }
 }

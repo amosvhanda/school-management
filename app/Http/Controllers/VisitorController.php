@@ -7,8 +7,19 @@ use Illuminate\Http\Request;
 
 class VisitorController extends Controller
 {
+    private function authorizeReception(Request $request): void
+    {
+        $this->authorizeModuleAccess(
+            $request,
+            ['canManageReception'],
+            ['reception.manage', 'operations.manage'],
+        );
+    }
+
     public function index(Request $request)
     {
+        $this->authorizeReception($request);
+
         $query = Visitor::where('school_id', $request->user()->school_id)->orderByDesc('check_in_at');
 
         if ($request->filled('status')) {
@@ -20,6 +31,8 @@ class VisitorController extends Controller
 
     public function checkIn(Request $request)
     {
+        $this->authorizeReception($request);
+
         $data = $request->validate([
             'name' => 'required|string|max:255',
             'phone' => 'nullable|string',
@@ -41,6 +54,8 @@ class VisitorController extends Controller
 
     public function checkOut(Request $request, int $id)
     {
+        $this->authorizeReception($request);
+
         $visitor = Visitor::where('school_id', $request->user()->school_id)->findOrFail($id);
         $visitor->update(['check_out_at' => now(), 'status' => 'checked_out']);
 
