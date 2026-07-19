@@ -13,12 +13,13 @@ class AcademicStructureController extends Controller
     public function streams(Request $request)
     {
         $schoolId = $request->user()->school_id;
-        $rows = Stream::query()
-            ->where('school_id', $schoolId)
-            ->orderBy('name')
-            ->get();
+        $query = Stream::query()->where('school_id', $schoolId);
 
-        return response()->json(['data' => $rows]);
+        if ($request->has('is_active')) {
+            $query->where('is_active', $request->boolean('is_active'));
+        }
+
+        return response()->json(['data' => $query->orderBy('name')->get()]);
     }
 
     public function storeStream(Request $request)
@@ -60,13 +61,15 @@ class AcademicStructureController extends Controller
     public function houses(Request $request)
     {
         $schoolId = $request->user()->school_id;
-        $rows = House::query()
+        $query = House::query()
             ->where('school_id', $schoolId)
-            ->with('teacher:id,first_name,last_name,full_name')
-            ->orderBy('name')
-            ->get();
+            ->with('teacher:id,first_name,last_name,full_name');
 
-        return response()->json(['data' => $rows]);
+        if ($request->has('is_active')) {
+            $query->where('is_active', $request->boolean('is_active'));
+        }
+
+        return response()->json(['data' => $query->orderBy('name')->get()]);
     }
 
     public function storeHouse(Request $request)

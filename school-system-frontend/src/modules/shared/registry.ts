@@ -4,7 +4,9 @@ import {
   attendanceColumns,
   auditColumns,
   complianceColumns,
+  complianceIncidentColumns,
   consentColumns,
+  dateColumn,
   defaultColumns,
   disciplineColumns,
   enrollmentColumns,
@@ -17,18 +19,24 @@ import {
   holidayProgramColumns,
   hostelColumns,
   inventoryColumns,
+  inventorySaleColumns,
   invoiceColumns,
   leaveColumns,
   libraryColumns,
+  nestedColumn,
   paymentColumns,
   payrollColumns,
   portalChildColumns,
   procurementColumns,
+  procurementVendorColumns,
+  statusColumn,
   studentColumns,
   teacherColumns,
   termColumns,
+  textColumn,
   threadColumns,
   timetableColumns,
+  transactionColumns,
   transportColumns,
   transportDriverColumns,
   transportRouteColumns,
@@ -55,24 +63,107 @@ export const listPageRegistry: Record<string, ListPageConfig> = {
   guardians: { title: 'Guardians', description: 'Manage parent and guardian records', endpoint: moduleEndpoints.guardians, columns: guardianColumns },
   enrollment: { title: 'Enrollment Applications', endpoint: moduleEndpoints.enrollment, columns: enrollmentColumns },
 
-  'academics-setup': { title: 'Classes', description: 'Class and grade setup', endpoint: moduleEndpoints.classes, columns: defaultColumns(['name', 'grade_level', 'capacity', 'status']) },
-  'academics-streams': { title: 'Streams', description: 'Academic streams (e.g. Sciences, Arts)', endpoint: moduleEndpoints.streams, columns: defaultColumns(['name', 'code', 'is_active']) },
-  'academics-houses': { title: 'Houses', description: 'Pastoral houses', endpoint: moduleEndpoints.houses, columns: defaultColumns(['name', 'code', 'color', 'is_active']) },
-  'academics-subject-packages': { title: 'Subject packages', description: 'Subjects by grade and stream', endpoint: moduleEndpoints.subjectPackages, columns: defaultColumns(['grade_level_id', 'subject_id', 'stream_id', 'is_core']) },
-  'academics-subjects': { title: 'Subjects', endpoint: moduleEndpoints.subjects, columns: defaultColumns(['name', 'code', 'status']) },
-  'academics-departments': { title: 'Departments', endpoint: moduleEndpoints.departments, columns: defaultColumns(['name', 'head_teacher_id', 'status']) },
-  'academics-grade-levels': { title: 'Grade Levels', endpoint: moduleEndpoints.gradeLevels, columns: defaultColumns(['name', 'order', 'status']) },
-  'academics-grading-scales': { title: 'Grading Scales', endpoint: moduleEndpoints.gradingScales, columns: defaultColumns(['name', 'min_score', 'max_score', 'grade']) },
-  'academics-rooms': { title: 'Rooms', endpoint: moduleEndpoints.rooms, columns: defaultColumns(['name', 'building', 'capacity', 'status']) },
+  'academics-setup': {
+    title: 'Classes',
+    description: 'Class and grade setup',
+    endpoint: moduleEndpoints.classes,
+    columns: [
+      ...defaultColumns(['name', 'form']),
+      { id: 'grade_level', header: 'Grade level', cell: ({ row }) => {
+        const grade = row.original.grade_level ?? row.original.gradeLevel
+        return grade && typeof grade === 'object' ? String((grade as Record<string, unknown>).name ?? '—') : '—'
+      } },
+      ...defaultColumns(['capacity']),
+      { id: 'teacher', header: 'Class teacher', cell: ({ row }) => {
+        const teacher = row.original.teacher
+        return teacher && typeof teacher === 'object' ? String((teacher as Record<string, unknown>).name ?? '—') : '—'
+      } },
+      ...defaultColumns(['status']),
+    ],
+  },
+  'academics-streams': { title: 'Streams', description: 'Academic streams (e.g. Sciences, Arts)', endpoint: moduleEndpoints.streams, columns: defaultColumns(['name', 'code', 'description', 'is_active']) },
+  'academics-houses': {
+    title: 'Houses',
+    description: 'Pastoral houses',
+    endpoint: moduleEndpoints.houses,
+    columns: [
+      ...defaultColumns(['name', 'code', 'color']),
+      { id: 'teacher', header: 'House teacher', cell: ({ row }) => {
+        const teacher = row.original.teacher
+        return teacher && typeof teacher === 'object' ? String((teacher as Record<string, unknown>).full_name ?? (teacher as Record<string, unknown>).name ?? '—') : '—'
+      } },
+      ...defaultColumns(['is_active']),
+    ],
+  },
+  'academics-subject-packages': {
+    title: 'Subject packages',
+    description: 'Subjects by grade and stream',
+    endpoint: moduleEndpoints.subjectPackages,
+    columns: [
+      nestedColumn('Grade level', 'gradeLevel', 'name'),
+      nestedColumn('Subject', 'subject', 'name'),
+      nestedColumn('Stream', 'stream', 'name'),
+      { id: 'is_core', header: 'Core', cell: ({ row }) => (row.original.is_core ? 'Core' : 'Elective') },
+    ],
+  },
+  'academics-subjects': { title: 'Subjects', endpoint: moduleEndpoints.subjects, columns: defaultColumns(['name', 'code', 'is_active']) },
+  'academics-departments': {
+    title: 'Departments',
+    endpoint: moduleEndpoints.departments,
+    columns: [
+      ...defaultColumns(['name', 'code']),
+      { id: 'head_teacher', header: 'Head', cell: ({ row }) => {
+        const head = row.original.headTeacher ?? row.original.head_teacher
+        return head && typeof head === 'object' ? String((head as Record<string, unknown>).name ?? '—') : '—'
+      } },
+      ...defaultColumns(['is_active']),
+    ],
+  },
+  'academics-grade-levels': { title: 'Grade Levels', endpoint: moduleEndpoints.gradeLevels, columns: defaultColumns(['name', 'code', 'order', 'is_active']) },
+  'academics-grading-scales': { title: 'Grading Scales', endpoint: moduleEndpoints.gradingScales, columns: defaultColumns(['grade', 'min_score', 'max_score', 'description']) },
+  'academics-rooms': { title: 'Rooms', endpoint: moduleEndpoints.rooms, columns: defaultColumns(['name', 'code', 'type', 'location', 'capacity', 'is_active']) },
   'academics-terms': {
     title: 'Terms',
     description: 'Academic calendar terms — set one current term for gradebook, exams, and reports.',
     endpoint: moduleEndpoints.terms,
     columns: termColumns,
   },
-  'academics-assignments': { title: 'Assignments', endpoint: moduleEndpoints.assignments, columns: defaultColumns(['title', 'class_id', 'subject_id', 'due_date', 'status']) },
-  'academics-tests': { title: 'Tests', endpoint: moduleEndpoints.tests, columns: defaultColumns(['name', 'class_id', 'subject_id', 'test_date', 'status']) },
-  'academics-teacher-assignments': { title: 'Teacher Assignments', endpoint: moduleEndpoints.teacherAssignments, columns: defaultColumns(['teacher_id', 'class_id', 'subject_id', 'status']) },
+  'academics-assignments': {
+    title: 'Assignments',
+    endpoint: moduleEndpoints.assignments,
+    columns: [
+      textColumn('Title', 'title'),
+      textColumn('Class', 'class_name'),
+      textColumn('Subject', 'subject'),
+      textColumn('Teacher', 'teacher_name'),
+      dateColumn('Due', 'due_date'),
+      statusColumn(),
+    ],
+  },
+  'academics-tests': {
+    title: 'Tests',
+    endpoint: moduleEndpoints.tests,
+    columns: [
+      textColumn('Name', 'name'),
+      nestedColumn('Class', 'class', 'name'),
+      nestedColumn('Subject', 'subject', 'name'),
+      nestedColumn('Teacher', 'teacher', 'name'),
+      dateColumn('Test date', 'test_date'),
+      textColumn('Total marks', 'total_marks'),
+    ],
+  },
+  'academics-teacher-assignments': {
+    title: 'Teacher Assignments',
+    endpoint: moduleEndpoints.teacherAssignments,
+    columns: [
+      nestedColumn('Teacher', 'teacher', 'name'),
+      nestedColumn('Class', 'classModel', 'name'),
+      nestedColumn('Grade level', 'gradeLevel', 'name'),
+      nestedColumn('Subject', 'subject', 'name'),
+      textColumn('Role', 'role'),
+      { id: 'is_active', header: 'Status', cell: ({ row }) => (row.original.is_active === false ? 'Inactive' : 'Active') },
+    ],
+  },
   'academics-grades': { title: 'Gradebook', endpoint: moduleEndpoints.classes, columns: genericColumns },
   'academics-timetable': { title: 'Timetable', endpoint: moduleEndpoints.timetable, columns: timetableColumns },
   'academics-exams': { title: 'Exams', endpoint: moduleEndpoints.exams, columns: genericColumns },
@@ -94,7 +185,7 @@ export const listPageRegistry: Record<string, ListPageConfig> = {
     columns: feeCategoryColumns,
     description: 'Shared categories used by fee structures (tuition, levies, exams…).',
   },
-  'finance-transactions': { title: 'Transactions', endpoint: moduleEndpoints.transactions, columns: defaultColumns(['date', 'type', 'amount', 'reference', 'status']) },
+  'finance-transactions': { title: 'Transactions', endpoint: moduleEndpoints.transactions, columns: transactionColumns },
   'finance-payroll': { title: 'Payroll', endpoint: moduleEndpoints.payroll, columns: payrollColumns },
 
   'ops-inventory': {
@@ -103,9 +194,9 @@ export const listPageRegistry: Record<string, ListPageConfig> = {
     endpoint: moduleEndpoints.inventoryItems,
     columns: inventoryColumns,
   },
-  'ops-inventory-sales': { title: 'Inventory Sales', endpoint: moduleEndpoints.inventorySales, columns: defaultColumns(['item_id', 'quantity', 'total', 'created_at']) },
+  'ops-inventory-sales': { title: 'Inventory Sales', endpoint: moduleEndpoints.inventorySales, columns: inventorySaleColumns },
   'ops-procurement': { title: 'Procurement Requisitions', endpoint: moduleEndpoints.procurementRequisitions, columns: procurementColumns },
-  'ops-procurement-vendors': { title: 'Procurement Vendors', endpoint: moduleEndpoints.procurementVendors, columns: defaultColumns(['name', 'contact_person', 'phone', 'status']) },
+  'ops-procurement-vendors': { title: 'Procurement Vendors', endpoint: moduleEndpoints.procurementVendors, columns: procurementVendorColumns },
   'ops-library': { title: 'Library Books', endpoint: moduleEndpoints.libraryBooks, columns: libraryColumns },
   'ops-transport': {
     title: 'Transport Vehicles',
@@ -144,7 +235,7 @@ export const listPageRegistry: Record<string, ListPageConfig> = {
   'hr-discipline': { title: 'Disciplinary Records', endpoint: moduleEndpoints.discipline, columns: disciplineColumns },
 
   compliance: { title: 'Compliance Policies', endpoint: moduleEndpoints.compliancePolicies, columns: complianceColumns },
-  'compliance-incidents': { title: 'Compliance Incidents', endpoint: moduleEndpoints.complianceIncidents, columns: defaultColumns(['category', 'severity', 'description', 'created_at']) },
+  'compliance-incidents': { title: 'Compliance Incidents', endpoint: moduleEndpoints.complianceIncidents, columns: complianceIncidentColumns },
   'compliance-consent': { title: 'Consent Forms', endpoint: moduleEndpoints.consentForms, columns: consentColumns },
   'compliance-audit': { title: 'Audit Trail', endpoint: moduleEndpoints.auditLogs, columns: auditColumns },
   'compliance-login-history': { title: 'Login History', endpoint: moduleEndpoints.auditLoginHistory, columns: defaultColumns(['user_id', 'ip_address', 'created_at']) },
@@ -155,7 +246,17 @@ export const listPageRegistry: Record<string, ListPageConfig> = {
   'admin-roles': { title: 'Roles', endpoint: moduleEndpoints.roles, columns: defaultColumns(['name', 'slug']) },
 
   settings: { title: 'Settings', endpoint: moduleEndpoints.settingsSchool, columns: genericColumns },
-  'settings-custom-fields': { title: 'Custom Fields', endpoint: moduleEndpoints.customFields, columns: defaultColumns(['entity_type', 'field_name', 'field_type', 'created_at']) },
+  'settings-custom-fields': {
+    title: 'Custom Fields',
+    endpoint: moduleEndpoints.customFields,
+    columns: [
+      textColumn('Name', 'name'),
+      textColumn('Entity', 'entity_type'),
+      textColumn('Field type', 'field_type'),
+      { id: 'is_required', header: 'Required', cell: ({ row }) => (row.original.is_required ? 'Yes' : 'No') },
+      { id: 'is_active', header: 'Status', cell: ({ row }) => (row.original.is_active === false ? 'Inactive' : 'Active') },
+    ],
+  },
 
   assistant: { title: 'Assistant Conversations', endpoint: moduleEndpoints.assistantConversations, columns: defaultColumns(['title', 'created_at', 'updated_at']) },
 

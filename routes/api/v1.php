@@ -145,6 +145,7 @@ Route::middleware(['auth:sanctum', 'school.isolated', 'school.licensed'])->group
     Route::put('/settings/terminology', [SettingsController::class, 'updateTerminology']);
     Route::get('/settings/custom-fields', [SettingsController::class, 'customFields']);
     Route::post('/settings/custom-fields', [SettingsController::class, 'storeCustomField']);
+    Route::put('/settings/custom-fields/{customField}', [SettingsController::class, 'updateCustomField']);
     Route::delete('/settings/custom-fields/{customField}', [SettingsController::class, 'destroyCustomField']);
 
     // AI school assistant
@@ -374,6 +375,7 @@ Route::middleware(['auth:sanctum', 'school.isolated', 'school.licensed'])->group
     Route::get('/disciplinary-records', [DisciplinaryRecordController::class, 'index']);
     Route::post('/disciplinary-records', [DisciplinaryRecordController::class, 'store']);
     Route::get('/disciplinary-records/{id}', [DisciplinaryRecordController::class, 'show']);
+    Route::put('/disciplinary-records/{id}', [DisciplinaryRecordController::class, 'update']);
 
     Route::get('/communications/threads', [CommunicationController::class, 'index']);
     Route::get('/communications/threads/{id}', [CommunicationController::class, 'show']);
@@ -418,11 +420,14 @@ Route::middleware(['auth:sanctum', 'school.isolated', 'school.licensed'])->group
     Route::post('/workflows/{id}/reject', [WorkflowController::class, 'reject']);
     Route::get('/procurement/requisitions', [ProcurementController::class, 'requisitions']);
     Route::post('/procurement/requisitions', [ProcurementController::class, 'storeRequisition']);
+    Route::put('/procurement/requisitions/{id}', [ProcurementController::class, 'updateRequisition']);
     Route::get('/procurement/vendors', [ProcurementController::class, 'vendors']);
     Route::post('/procurement/vendors', [ProcurementController::class, 'storeVendor']);
+    Route::put('/procurement/vendors/{id}', [ProcurementController::class, 'updateVendor']);
     Route::post('/procurement/goods-receipts', [ProcurementController::class, 'receiveGoods']);
     Route::get('/assets', [AssetController::class, 'index']);
     Route::post('/assets', [AssetController::class, 'store']);
+    Route::put('/assets/{id}', [AssetController::class, 'update']);
     Route::post('/assets/{id}/maintenance', [AssetController::class, 'logMaintenance']);
     Route::post('/assets/{id}/dispose', [AssetController::class, 'dispose']);
     Route::get('/transport/vehicles', [TransportController::class, 'vehicles']);
@@ -437,10 +442,12 @@ Route::middleware(['auth:sanctum', 'school.isolated', 'school.licensed'])->group
     Route::post('/transport/allocations', [TransportController::class, 'allocateStudent']);
     Route::get('/hostels', [HostelController::class, 'index']);
     Route::post('/hostels', [HostelController::class, 'store']);
+    Route::put('/hostels/{id}', [HostelController::class, 'update']);
     Route::post('/hostels/{id}/rooms', [HostelController::class, 'storeRoom']);
     Route::post('/hostels/allocations', [HostelController::class, 'allocate']);
     Route::get('/library/books', [LibraryController::class, 'books']);
     Route::post('/library/books', [LibraryController::class, 'storeBook']);
+    Route::put('/library/books/{id}', [LibraryController::class, 'updateBook']);
     Route::post('/library/loans', [LibraryController::class, 'borrow']);
     Route::post('/library/loans/{id}/return', [LibraryController::class, 'returnBook']);
     Route::get('/visitors', [VisitorController::class, 'index']);
@@ -451,14 +458,19 @@ Route::middleware(['auth:sanctum', 'school.isolated', 'school.licensed'])->group
     Route::put('/health/students/{id}/profile', [HealthController::class, 'updateProfile']);
     Route::get('/health/clinic-visits', [HealthController::class, 'visits']);
     Route::post('/health/clinic-visits', [HealthController::class, 'recordVisit']);
+    Route::put('/health/clinic-visits/{id}', [HealthController::class, 'updateVisit']);
     Route::get('/events', [SchoolEventController::class, 'index']);
     Route::post('/events', [SchoolEventController::class, 'store']);
+    Route::put('/events/{id}', [SchoolEventController::class, 'update']);
     Route::get('/compliance/policies', [ComplianceController::class, 'policies']);
     Route::post('/compliance/policies', [ComplianceController::class, 'storePolicy']);
+    Route::put('/compliance/policies/{id}', [ComplianceController::class, 'updatePolicy']);
     Route::get('/compliance/incidents', [ComplianceController::class, 'incidents']);
     Route::post('/compliance/incidents', [ComplianceController::class, 'storeIncident']);
+    Route::put('/compliance/incidents/{id}', [ComplianceController::class, 'updateIncident']);
     Route::get('/consent-forms', [ConsentFormController::class, 'index']);
     Route::post('/consent-forms', [ConsentFormController::class, 'store']);
+    Route::put('/consent-forms/{id}', [ConsentFormController::class, 'update']);
     Route::get('/parent/portal/consent-forms', [ConsentFormController::class, 'parentForms']);
     Route::post('/parent/portal/consent-forms/{id}/respond', [ConsentFormController::class, 'respond']);
 

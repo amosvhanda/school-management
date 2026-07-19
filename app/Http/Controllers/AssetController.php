@@ -20,6 +20,10 @@ class AssetController extends Controller
             $query->where('category', $request->category);
         }
 
+        if ($request->filled('status')) {
+            $query->where('status', $request->string('status'));
+        }
+
         return response()->json(['data' => $query->orderBy('name')->get()]);
     }
 
@@ -38,6 +42,26 @@ class AssetController extends Controller
         $asset = Asset::create([...$data, 'school_id' => $request->user()->school_id]);
 
         return response()->json(['data' => $asset], 201);
+    }
+
+    public function update(Request $request, int $id)
+    {
+        $asset = Asset::where('school_id', $request->user()->school_id)->findOrFail($id);
+
+        $data = $request->validate([
+            'asset_tag' => 'nullable|string|max:100',
+            'name' => 'sometimes|string|max:255',
+            'category' => 'sometimes|string|max:100',
+            'purchase_date' => 'nullable|date',
+            'purchase_cost' => 'nullable|numeric|min:0',
+            'location' => 'nullable|string',
+            'custodian_user_id' => 'nullable|exists:users,id',
+            'status' => 'nullable|string|in:active,maintenance,disposed',
+        ]);
+
+        $asset->update($data);
+
+        return response()->json(['data' => $asset->fresh()->load('custodian:id,name'), 'message' => 'Asset updated']);
     }
 
     public function logMaintenance(Request $request, int $id)

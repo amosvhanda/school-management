@@ -350,7 +350,21 @@ export const timetableColumns: ColumnDef<Record<string, unknown>>[] = [
   nestedColumn('Class', 'class_model', 'name'),
   nestedColumn('Subject', 'subject', 'name'),
 ]
-export const holidayProgramColumns = defaultColumns(['name', 'start_date', 'end_date', 'fee_amount', 'status'])
+export const holidayProgramColumns: ColumnDef<Record<string, unknown>>[] = [
+  textColumn('Name', 'name'),
+  textColumn('Academic year', 'academic_year'),
+  dateColumn('Start', 'start_date'),
+  dateColumn('End', 'end_date'),
+  currencyColumn('Fee', 'fee_amount'),
+  {
+    id: 'is_active',
+    header: 'Status',
+    cell: ({ row }) => {
+      const active = row.original.is_active !== false && row.original.is_active !== 0
+      return h(Badge, { variant: active ? 'default' : 'secondary' }, () => (active ? 'Active' : 'Inactive'))
+    },
+  },
+]
 export const feeStructureColumns: ColumnDef<Record<string, unknown>>[] = [
   {
     id: 'class_name',
@@ -474,12 +488,36 @@ export const leaveColumns: ColumnDef<Record<string, unknown>>[] = [
 ]
 export const disciplineColumns: ColumnDef<Record<string, unknown>>[] = [
   dateColumn('Date', 'incident_date'),
+  studentRelationColumn(),
   textColumn('Category', 'category'),
   textColumn('Severity', 'severity'),
-  studentRelationColumn(),
+  textColumn('Action taken', 'action_taken'),
 ]
-export const complianceColumns = defaultColumns(['title', 'category', 'status'])
-export const consentColumns = defaultColumns(['title', 'status', 'created_at'])
+export const complianceColumns: ColumnDef<Record<string, unknown>>[] = [
+  textColumn('Title', 'title'),
+  textColumn('Category', 'category'),
+  dateColumn('Effective', 'effective_date'),
+  dateColumn('Review', 'review_date'),
+  statusColumn(),
+]
+export const complianceIncidentColumns: ColumnDef<Record<string, unknown>>[] = [
+  textColumn('Category', 'category'),
+  textColumn('Severity', 'severity'),
+  nestedColumn('Reported by', 'reporter', 'name'),
+  statusColumn(),
+  dateTimeColumn('Reported', 'created_at'),
+]
+export const consentColumns: ColumnDef<Record<string, unknown>>[] = [
+  textColumn('Title', 'title'),
+  textColumn('Audience', 'target_audience'),
+  dateColumn('Due', 'due_date'),
+  {
+    id: 'requires_signature',
+    header: 'Signature',
+    cell: ({ row }) => (row.original.requires_signature ? 'Required' : 'Not required'),
+  },
+  statusColumn(),
+]
 export const auditColumns: ColumnDef<Record<string, unknown>>[] = [
   textColumn('Module', 'module'),
   textColumn('Action', 'action'),
@@ -530,11 +568,38 @@ export const inventoryColumns: ColumnDef<Record<string, unknown>>[] = [
 ]
 export const procurementColumns: ColumnDef<Record<string, unknown>>[] = [
   textColumn('Title', 'title'),
-  nestedColumn('Department', 'department', 'name'),
+  nestedColumn('Requester', 'requester', 'name'),
   currencyColumn('Est. cost', 'estimated_cost'),
   statusColumn(),
+  dateTimeColumn('Created', 'created_at'),
 ]
-export const libraryColumns = defaultColumns(['title', 'author', 'isbn', 'status'])
+export const procurementVendorColumns: ColumnDef<Record<string, unknown>>[] = [
+  textColumn('Name', 'name'),
+  textColumn('Contact person', 'contact_person'),
+  textColumn('Email', 'email'),
+  textColumn('Phone', 'phone'),
+  statusColumn(),
+]
+export const libraryColumns: ColumnDef<Record<string, unknown>>[] = [
+  textColumn('Title', 'title'),
+  textColumn('Author', 'author'),
+  textColumn('ISBN', 'isbn'),
+  textColumn('Category', 'category'),
+  textColumn('Total copies', 'total_copies'),
+  textColumn('Available', 'available_copies'),
+]
+export const inventorySaleColumns: ColumnDef<Record<string, unknown>>[] = [
+  textColumn('Sale #', 'sale_number'),
+  studentRelationColumn(),
+  currencyColumn('Total', 'total_amount'),
+  {
+    id: 'payment_method',
+    header: 'Payment method',
+    cell: ({ row }) => String(row.original.payment_method ?? '—').replaceAll('_', ' '),
+  },
+  statusColumn(),
+  dateTimeColumn('Date', 'created_at'),
+]
 export const transportColumns: ColumnDef<Record<string, unknown>>[] = [
   textColumn('Registration', 'registration_number'),
   textColumn('Make', 'make'),
@@ -578,8 +643,47 @@ export const transportRouteColumns: ColumnDef<Record<string, unknown>>[] = [
   statusColumn(),
 ]
 
-export const assetColumns = defaultColumns(['name', 'category', 'purchase_date', 'status'])
-export const hostelColumns = defaultColumns(['name', 'capacity', 'gender', 'status'])
+export const assetColumns: ColumnDef<Record<string, unknown>>[] = [
+  textColumn('Asset tag', 'asset_tag'),
+  textColumn('Name', 'name'),
+  textColumn('Category', 'category'),
+  textColumn('Location', 'location'),
+  currencyColumn('Purchase cost', 'purchase_cost'),
+  statusColumn(),
+  {
+    id: 'custodian',
+    header: 'Custodian',
+    cell: ({ row }) => {
+      const custodian = row.original.custodian as Record<string, unknown> | undefined
+      if (custodian && typeof custodian === 'object') {
+        return String(custodian.name ?? '—')
+      }
+      return '—'
+    },
+  },
+]
+export const hostelColumns: ColumnDef<Record<string, unknown>>[] = [
+  textColumn('Name', 'name'),
+  {
+    id: 'gender',
+    header: 'Gender',
+    cell: ({ row }) => {
+      const gender = String(row.original.gender ?? '—')
+      return gender === '—' ? gender : gender.charAt(0).toUpperCase() + gender.slice(1)
+    },
+  },
+  textColumn('Capacity', 'capacity'),
+  {
+    id: 'rooms_count',
+    header: 'Rooms',
+    cell: ({ row }) => {
+      const rooms = row.original.rooms
+      if (Array.isArray(rooms)) return String(rooms.length)
+      return String(row.original.rooms_count ?? '—')
+    },
+  },
+  statusColumn(),
+]
 export const visitorColumns: ColumnDef<Record<string, unknown>>[] = [
   textColumn('Name', 'name'),
   textColumn('Phone', 'phone'),
@@ -616,8 +720,16 @@ export const healthColumns: ColumnDef<Record<string, unknown>>[] = [
   dateColumn('Visit date', 'visit_date'),
   textColumn('Complaint', 'complaint'),
   textColumn('Diagnosis', 'diagnosis'),
+  textColumn('Treatment', 'treatment'),
 ]
-export const eventColumns = defaultColumns(['title', 'starts_at', 'location', 'status'])
+export const eventColumns: ColumnDef<Record<string, unknown>>[] = [
+  textColumn('Title', 'title'),
+  textColumn('Type', 'type'),
+  dateTimeColumn('Starts', 'starts_at'),
+  dateTimeColumn('Ends', 'ends_at'),
+  textColumn('Location', 'location'),
+  statusColumn(),
+]
 export const roleColumns: ColumnDef<Record<string, unknown>>[] = [
   textColumn('Role', 'name'),
   textColumn('Slug', 'slug'),
@@ -654,6 +766,15 @@ export const paymentColumns: ColumnDef<Record<string, unknown>>[] = [
   nestedColumn('Invoice', 'invoice', 'invoice_number'),
   currencyColumn('Amount', 'amount'),
   textColumn('Method', 'method'),
+  textColumn('Reference', 'reference'),
+  statusColumn(),
+]
+
+export const transactionColumns: ColumnDef<Record<string, unknown>>[] = [
+  dateTimeColumn('Date', 'created_at'),
+  textColumn('Type', 'type'),
+  currencyColumn('Debit', 'debit'),
+  currencyColumn('Credit', 'credit'),
   textColumn('Reference', 'reference'),
   statusColumn(),
 ]

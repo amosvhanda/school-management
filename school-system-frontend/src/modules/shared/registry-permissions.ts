@@ -30,6 +30,14 @@ const modulePermissionRegistry: Record<string, ModulePermissionConfig> = {
   'settings-custom-fields': { create: ADMIN, edit: ADMIN, delete: ADMIN },
   'compliance-audit': { create: AUDIT, edit: AUDIT, delete: AUDIT },
   'compliance-login-history': { create: AUDIT, edit: AUDIT, delete: AUDIT },
+  'ops-assets': { create: FINANCE, edit: FINANCE, delete: FINANCE },
+  'ops-procurement': { create: FINANCE, edit: FINANCE, delete: FINANCE },
+  'ops-procurement-vendors': { create: FINANCE, edit: FINANCE, delete: FINANCE },
+  'ops-hostels': { create: ADMIN, edit: ADMIN, delete: ADMIN },
+  'ops-health': { create: ADMIN, edit: ADMIN, delete: ADMIN },
+  'ops-events': { create: ADMIN, edit: ADMIN, delete: ADMIN },
+  compliance: { create: ADMIN, edit: ADMIN, delete: ADMIN },
+  'compliance-incidents': { create: STAFF, edit: STAFF, delete: ADMIN },
 }
 
 function inferPermissions(listKey: string): ModulePermissionConfig {

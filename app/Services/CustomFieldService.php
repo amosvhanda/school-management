@@ -38,6 +38,21 @@ class CustomFieldService
         ]);
     }
 
+    public function update(CustomField $customField, array $data): CustomField
+    {
+        $customField->update([
+            'name' => $data['name'] ?? $customField->name,
+            'slug' => $data['slug'] ?? $customField->slug,
+            'field_type' => $data['field_type'] ?? $customField->field_type,
+            'options' => $data['options'] ?? $customField->options,
+            'is_required' => $data['is_required'] ?? $customField->is_required,
+            'is_active' => $data['is_active'] ?? $customField->is_active,
+            'sort_order' => $data['sort_order'] ?? $customField->sort_order,
+        ]);
+
+        return $customField;
+    }
+
     public function validateAndSync(Model $entity, string $entityType, array $customFields): void
     {
         $definitions = CustomField::withoutGlobalScopes()

@@ -319,6 +319,8 @@ export function mapFormToPayload(
       class_id: values.class_id ? Number(values.class_id) : undefined,
       teacher_id: values.teacher_id ? Number(values.teacher_id) : undefined,
       due_date: values.due_date,
+      ...(values.total_marks != null && values.total_marks !== '' ? { total_marks: Number(values.total_marks) } : {}),
+      ...(values.description ? { description: String(values.description).trim() } : {}),
     }
   }
 
@@ -332,6 +334,7 @@ export function mapFormToPayload(
       ],
       payment_method: values.payment_method,
       ...(values.student_id ? { student_id: Number(values.student_id) } : {}),
+      ...(values.notes ? { notes: String(values.notes).trim() } : {}),
     }
   }
 
@@ -424,10 +427,36 @@ export function mapFormToPayload(
     }
   }
 
+  if (listKey === 'ops-events') {
+    return {
+      title: values.title,
+      starts_at: values.starts_at,
+      ...(values.type ? { type: String(values.type).trim() } : {}),
+      ...(values.ends_at ? { ends_at: values.ends_at } : {}),
+      ...(values.location ? { location: String(values.location).trim() } : {}),
+      ...(values.status ? { status: values.status } : {}),
+      ...(values.description ? { description: String(values.description).trim() } : {}),
+    }
+  }
+
+  if (listKey === 'ops-assets') {
+    return {
+      name: values.name,
+      category: values.category,
+      ...(values.asset_tag ? { asset_tag: String(values.asset_tag).trim() } : {}),
+      ...(values.purchase_date ? { purchase_date: values.purchase_date } : {}),
+      ...(values.purchase_cost != null && values.purchase_cost !== '' ? { purchase_cost: Number(values.purchase_cost) } : {}),
+      ...(values.location ? { location: String(values.location).trim() } : {}),
+      ...(values.custodian_user_id ? { custodian_user_id: Number(values.custodian_user_id) } : {}),
+      ...(values.status ? { status: values.status } : {}),
+    }
+  }
+
   if (listKey === 'ops-procurement') {
     return {
       title: values.title,
       ...(values.department_id ? { department_id: Number(values.department_id) } : {}),
+      ...(values.description ? { description: String(values.description).trim() } : {}),
       items: [
         {
           description: values.item_description,
@@ -487,6 +516,8 @@ export const backendCrudSupport: Record<string, { create: boolean; update: boole
   teachers: { create: true, update: true, delete: true },
   guardians: { create: true, update: true, delete: false },
   'academics-setup': { create: true, update: true, delete: true },
+  'academics-streams': { create: true, update: true, delete: false },
+  'academics-houses': { create: true, update: true, delete: false },
   'academics-subjects': { create: true, update: true, delete: true },
   'academics-departments': { create: true, update: true, delete: true },
   'academics-grade-levels': { create: true, update: true, delete: true },
@@ -506,11 +537,23 @@ export const backendCrudSupport: Record<string, { create: boolean; update: boole
   'finance-fee-categories': { create: true, update: true, delete: true },
   'finance-payroll': { create: false, update: true, delete: false },
   'ops-inventory': { create: true, update: true, delete: false },
+  'ops-inventory-sales': { create: true, update: false, delete: false },
+  'ops-procurement': { create: true, update: false, delete: false },
+  'ops-procurement-vendors': { create: true, update: true, delete: false },
+  'ops-library': { create: true, update: true, delete: false },
   'ops-transport': { create: true, update: true, delete: false },
   'ops-transport-drivers': { create: true, update: true, delete: false },
   'ops-transport-routes': { create: true, update: true, delete: false },
+  'ops-assets': { create: true, update: true, delete: false },
+  'ops-hostels': { create: true, update: true, delete: false },
   'ops-visitors': { create: true, update: false, delete: false },
+  'ops-health': { create: true, update: true, delete: false },
+  'ops-events': { create: true, update: true, delete: false },
   'comms-announcements': { create: true, update: true, delete: true },
   'hr-leave': { create: true, update: false, delete: false },
-  'settings-custom-fields': { create: true, update: false, delete: true },
+  'hr-discipline': { create: true, update: true, delete: false },
+  compliance: { create: true, update: true, delete: false },
+  'compliance-incidents': { create: true, update: true, delete: false },
+  'compliance-consent': { create: true, update: true, delete: false },
+  'settings-custom-fields': { create: true, update: true, delete: true },
 }

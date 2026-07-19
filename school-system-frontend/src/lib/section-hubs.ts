@@ -95,13 +95,17 @@ export const SECTION_HUBS: Record<SectionKey, SectionHubDefinition> = {
     capability: ['canManageInventory', 'canManageLibrary', 'canManageTransport', 'canManageReception'],
     quickLinks: [
       { title: 'Inventory', description: 'Stock and supplies', href: '/operations/inventory', icon: 'Package', capability: 'canManageInventory' },
+      { title: 'Inventory sales', description: 'Sales to students', href: '/operations/inventory/sales', icon: 'ShoppingBag', capability: 'canManageInventory' },
       { title: 'Library', description: 'Books and lending', href: '/operations/library', icon: 'Library', capability: 'canManageLibrary' },
       { title: 'Transport', description: 'Vehicles, drivers, and routes', href: '/operations/transport', icon: 'Bus', capability: 'canManageTransport' },
       { title: 'Drivers', description: 'Transport drivers', href: '/operations/transport/drivers', icon: 'IdCard', capability: 'canManageTransport' },
       { title: 'Routes', description: 'Pickup routes', href: '/operations/transport/routes', icon: 'Map', capability: 'canManageTransport' },
       { title: 'Visitors', description: 'Sign-in register', href: '/operations/visitors', icon: 'UserCheck', capability: 'canManageReception' },
       { title: 'Events', description: 'School calendar events', href: '/operations/events', icon: 'CalendarHeart', capability: 'canManageTeachers' },
+      { title: 'Hostels', description: 'Boarding houses and rooms', href: '/operations/hostels', icon: 'Building2', capability: 'canManageTeachers' },
+      { title: 'Clinic visits', description: 'Student health records', href: '/operations/health', icon: 'HeartPulse', capability: 'canManageTeachers' },
       { title: 'Procurement', description: 'Purchase requests', href: '/operations/procurement', icon: 'ShoppingCart', capability: 'canManageFinance' },
+      { title: 'Assets', description: 'School asset register', href: '/operations/assets', icon: 'HardDrive', capability: 'canManageFinance' },
     ],
   },
   communications: {

@@ -24,7 +24,7 @@ class ClassController extends Controller
             $query->where('form', $request->form);
         }
 
-        $query->with('teacher');
+        $query->with(['teacher', 'gradeLevel']);
 
         // Support 'all=true' parameter to get all classes without pagination
         if ($request->get('all') === 'true' || $request->get('all') === true) {

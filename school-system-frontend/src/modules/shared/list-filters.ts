@@ -357,6 +357,219 @@ export const moduleListMetaRegistry: Record<string, ListPageMeta> = {
       },
     ],
   },
+  'academics-streams': {
+    filterMode: 'server',
+    filters: [
+      {
+        key: 'is_active',
+        label: 'Status',
+        type: 'select',
+        placeholder: 'Any status',
+        options: [
+          { label: 'Active', value: '1' },
+          { label: 'Inactive', value: '0' },
+        ],
+      },
+    ],
+  },
+  'academics-houses': {
+    filterMode: 'server',
+    filters: [
+      {
+        key: 'is_active',
+        label: 'Status',
+        type: 'select',
+        placeholder: 'Any status',
+        options: [
+          { label: 'Active', value: '1' },
+          { label: 'Inactive', value: '0' },
+        ],
+      },
+    ],
+  },
+  'ops-library': {
+    filterMode: 'server',
+    filters: [
+      {
+        key: 'category',
+        label: 'Category',
+        type: 'select',
+        placeholder: 'Any category',
+        options: [
+          { label: 'Fiction', value: 'Fiction' },
+          { label: 'Non-fiction', value: 'Non-fiction' },
+          { label: 'Textbook', value: 'Textbook' },
+          { label: 'Reference', value: 'Reference' },
+        ],
+      },
+    ],
+  },
+  'ops-events': {
+    filterMode: 'server',
+    filters: [
+      {
+        key: 'type',
+        label: 'Type',
+        type: 'select',
+        placeholder: 'Any type',
+        options: [
+          { label: 'Sports day', value: 'Sports day' },
+          { label: 'Meeting', value: 'Meeting' },
+          { label: 'Holiday', value: 'Holiday' },
+          { label: 'Exam', value: 'Exam' },
+          { label: 'Other', value: 'Other' },
+        ],
+      },
+      {
+        key: 'status',
+        label: 'Status',
+        type: 'select',
+        placeholder: 'Any status',
+        options: [
+          { label: 'Scheduled', value: 'scheduled' },
+          { label: 'Ongoing', value: 'ongoing' },
+          { label: 'Completed', value: 'completed' },
+          { label: 'Cancelled', value: 'cancelled' },
+        ],
+      },
+    ],
+  },
+  'ops-assets': {
+    filterMode: 'server',
+    filters: [
+      {
+        key: 'category',
+        label: 'Category',
+        type: 'select',
+        placeholder: 'Any category',
+        options: [
+          { label: 'Furniture', value: 'Furniture' },
+          { label: 'IT equipment', value: 'IT' },
+          { label: 'Lab equipment', value: 'Lab' },
+          { label: 'Vehicle', value: 'Vehicle' },
+          { label: 'Other', value: 'Other' },
+        ],
+      },
+      {
+        key: 'status',
+        label: 'Status',
+        type: 'select',
+        placeholder: 'Any status',
+        options: [
+          { label: 'Active', value: 'active' },
+          { label: 'Maintenance', value: 'maintenance' },
+          { label: 'Disposed', value: 'disposed' },
+        ],
+      },
+    ],
+  },
+  'ops-hostels': {
+    filterMode: 'server',
+    filters: [
+      {
+        key: 'gender',
+        label: 'Gender',
+        type: 'select',
+        placeholder: 'Any gender',
+        options: [
+          { label: 'Male', value: 'male' },
+          { label: 'Female', value: 'female' },
+          { label: 'Mixed', value: 'mixed' },
+        ],
+      },
+      {
+        key: 'status',
+        label: 'Status',
+        type: 'select',
+        placeholder: 'Any status',
+        options: [
+          { label: 'Active', value: 'active' },
+          { label: 'Inactive', value: 'inactive' },
+        ],
+      },
+    ],
+  },
+  'ops-procurement': {
+    filterMode: 'server',
+    filters: [
+      {
+        key: 'status',
+        label: 'Status',
+        type: 'select',
+        placeholder: 'Any status',
+        options: [
+          { label: 'Draft', value: 'draft' },
+          { label: 'Pending approval', value: 'pending_approval' },
+          { label: 'Approved', value: 'approved' },
+          { label: 'Received', value: 'received' },
+          { label: 'Rejected', value: 'rejected' },
+        ],
+      },
+    ],
+  },
+  'ops-procurement-vendors': {
+    filterMode: 'server',
+    filters: [
+      {
+        key: 'status',
+        label: 'Status',
+        type: 'select',
+        placeholder: 'Any status',
+        options: [
+          { label: 'Active', value: 'active' },
+          { label: 'Inactive', value: 'inactive' },
+        ],
+      },
+    ],
+  },
+  compliance: {
+    filterMode: 'server',
+    filters: [
+      {
+        key: 'status',
+        label: 'Status',
+        type: 'select',
+        placeholder: 'Any status',
+        options: [
+          { label: 'Active', value: 'active' },
+          { label: 'Draft', value: 'draft' },
+          { label: 'Archived', value: 'archived' },
+        ],
+      },
+    ],
+  },
+  'compliance-incidents': {
+    filterMode: 'server',
+    filters: [
+      {
+        key: 'status',
+        label: 'Status',
+        type: 'select',
+        placeholder: 'Any status',
+        options: [
+          { label: 'Open', value: 'open' },
+          { label: 'Investigating', value: 'investigating' },
+          { label: 'Resolved', value: 'resolved' },
+          { label: 'Closed', value: 'closed' },
+        ],
+      },
+    ],
+  },
+  'compliance-consent': {
+    filterMode: 'server',
+    filters: [
+      {
+        key: 'status',
+        label: 'Status',
+        type: 'select',
+        placeholder: 'Any status',
+        options: [
+          { label: 'Active', value: 'active' },
+          { label: 'Archived', value: 'archived' },
+        ],
+      },
+    ],
+  },
   'finance-invoices': {
     serverSearch: true,
     filterMode: 'server',

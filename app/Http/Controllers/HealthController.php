@@ -80,4 +80,21 @@ class HealthController extends Controller
 
         return response()->json(['data' => $visit], 201);
     }
+
+    public function updateVisit(Request $request, int $id)
+    {
+        $schoolId = $request->user()->school_id;
+        $visit = ClinicVisit::where('school_id', $schoolId)->findOrFail($id);
+
+        $data = $request->validate([
+            'visit_date' => 'sometimes|date',
+            'complaint' => 'sometimes|string',
+            'diagnosis' => 'nullable|string',
+            'treatment' => 'nullable|string',
+        ]);
+
+        $visit->update($data);
+
+        return response()->json(['data' => $visit->fresh()->load('student:id,full_name,student_number'), 'message' => 'Visit updated']);
+    }
 }

@@ -284,6 +284,27 @@ async function openCreate() {
     }
   } else if (props.listKey === 'ops-transport' || props.listKey === 'ops-transport-drivers' || props.listKey === 'ops-transport-routes') {
     formResetValues.value = { status: 'active' }
+  } else if (props.listKey === 'ops-hostels' || props.listKey === 'ops-assets') {
+    formResetValues.value = { status: 'active' }
+  } else if (props.listKey === 'ops-events') {
+    formResetValues.value = { status: 'scheduled' }
+  } else if (props.listKey === 'compliance') {
+    formResetValues.value = { status: 'active' }
+  } else if (props.listKey === 'compliance-incidents') {
+    formResetValues.value = { severity: 'low', status: 'open' }
+  } else if (props.listKey === 'compliance-consent') {
+    formResetValues.value = { requires_signature: false }
+  } else if (
+    props.listKey === 'academics-streams'
+    || props.listKey === 'academics-houses'
+    || props.listKey === 'academics-subjects'
+    || props.listKey === 'academics-departments'
+    || props.listKey === 'academics-grade-levels'
+    || props.listKey === 'academics-holiday-programs'
+    || props.listKey === 'academics-teacher-assignments'
+    || props.listKey === 'settings-custom-fields'
+  ) {
+    formResetValues.value = { is_active: true }
   } else {
     formResetValues.value = {}
   }

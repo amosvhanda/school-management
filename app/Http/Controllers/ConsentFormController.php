@@ -15,7 +15,7 @@ class ConsentFormController extends Controller
     {
         return response()->json([
             'data' => ConsentForm::where('school_id', $request->user()->school_id)
-                ->where('status', 'active')
+                ->when($request->filled('status'), fn ($q) => $q->where('status', $request->string('status')))
                 ->orderByDesc('created_at')
                 ->get(),
         ]);
@@ -38,6 +38,24 @@ class ConsentFormController extends Controller
         ]);
 
         return response()->json(['data' => $form], 201);
+    }
+
+    public function update(Request $request, int $id)
+    {
+        $form = ConsentForm::where('school_id', $request->user()->school_id)->findOrFail($id);
+
+        $data = $request->validate([
+            'title' => 'sometimes|string|max:255',
+            'content' => 'sometimes|string',
+            'target_audience' => 'nullable|string',
+            'due_date' => 'nullable|date',
+            'requires_signature' => 'nullable|boolean',
+            'status' => 'nullable|string|in:active,archived',
+        ]);
+
+        $form->update($data);
+
+        return response()->json(['data' => $form->fresh(), 'message' => 'Consent form updated']);
     }
 
     public function parentForms(Request $request)

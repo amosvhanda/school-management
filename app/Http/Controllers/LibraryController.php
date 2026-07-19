@@ -22,7 +22,13 @@ class LibraryController extends Controller
     {
         $this->authorizeLibrary($request);
 
-        return response()->json(['data' => LibraryBook::where('school_id', $request->user()->school_id)->orderBy('title')->get()]);
+        $query = LibraryBook::where('school_id', $request->user()->school_id);
+
+        if ($request->filled('category')) {
+            $query->where('category', $request->string('category'));
+        }
+
+        return response()->json(['data' => $query->orderBy('title')->get()]);
     }
 
     public function storeBook(Request $request)
@@ -46,6 +52,30 @@ class LibraryController extends Controller
         ]);
 
         return response()->json(['data' => $book], 201);
+    }
+
+    public function updateBook(Request $request, int $id)
+    {
+        $this->authorizeLibrary($request);
+
+        $book = LibraryBook::where('school_id', $request->user()->school_id)->findOrFail($id);
+
+        $data = $request->validate([
+            'isbn' => 'nullable|string|max:50',
+            'title' => 'sometimes|string|max:255',
+            'author' => 'nullable|string|max:255',
+            'total_copies' => 'nullable|integer|min:1',
+            'category' => 'nullable|string',
+        ]);
+
+        if (array_key_exists('total_copies', $data) && $data['total_copies'] !== null) {
+            $delta = (int) $data['total_copies'] - (int) $book->total_copies;
+            $data['available_copies'] = max(0, (int) $book->available_copies + $delta);
+        }
+
+        $book->update($data);
+
+        return response()->json(['data' => $book->fresh(), 'message' => 'Book updated']);
     }
 
     public function borrow(Request $request)

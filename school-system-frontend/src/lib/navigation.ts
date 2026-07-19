@@ -68,12 +68,15 @@ export const staffNavigation: NavGroup[] = [
     items: [
       { title: 'Analytics', href: '/operations/analytics', icon: 'BarChart3', capability: ['canManageInventory', 'canManageLibrary', 'canManageTransport', 'canManageReception'] },
       { title: 'Inventory', href: '/operations/inventory', icon: 'Package', capability: 'canManageInventory' },
+      { title: 'Inventory sales', href: '/operations/inventory/sales', icon: 'ShoppingBag', capability: 'canManageInventory' },
       { title: 'Library', href: '/operations/library', icon: 'Library', capability: 'canManageLibrary' },
       { title: 'Transport', href: '/operations/transport', icon: 'Bus', capability: 'canManageTransport' },
       { title: 'Drivers', href: '/operations/transport/drivers', icon: 'IdCard', capability: 'canManageTransport' },
       { title: 'Routes', href: '/operations/transport/routes', icon: 'Map', capability: 'canManageTransport' },
       { title: 'Visitors', href: '/operations/visitors', icon: 'UserCheck', capability: 'canManageReception' },
       { title: 'Events', href: '/operations/events', icon: 'CalendarHeart', capability: 'canManageTeachers' },
+      { title: 'Hostels', href: '/operations/hostels', icon: 'Building2', capability: 'canManageTeachers' },
+      { title: 'Clinic visits', href: '/operations/health', icon: 'HeartPulse', capability: 'canManageTeachers' },
     ],
   },
   {

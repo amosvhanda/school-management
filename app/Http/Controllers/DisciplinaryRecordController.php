@@ -77,4 +77,34 @@ class DisciplinaryRecordController extends Controller
 
         return response()->json(['data' => $record->fresh()->load(['student', 'recorder'])], 201);
     }
+
+    public function update(Request $request, int $id)
+    {
+        $schoolId = $request->user()?->school_id;
+
+        $record = DisciplinaryRecord::query()
+            ->when($schoolId, fn ($q) => $q->where('school_id', $schoolId))
+            ->findOrFail($id);
+
+        $validator = Validator::make($request->all(), [
+            'incident_date' => 'sometimes|date',
+            'category' => 'sometimes|string|max:255',
+            'severity' => 'nullable|string|in:minor,moderate,major',
+            'description' => 'sometimes|string',
+            'action_taken' => 'nullable|string',
+            'notify_parents' => 'nullable|boolean',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['message' => 'Validation failed', 'errors' => $validator->errors()], 422);
+        }
+
+        $record->update($validator->validated());
+
+        if ($request->boolean('notify_parents', false)) {
+            $this->notifications->notifyDisciplinaryNotice($record);
+        }
+
+        return response()->json(['data' => $record->fresh()->load(['student', 'recorder']), 'message' => 'Disciplinary record updated']);
+    }
 }

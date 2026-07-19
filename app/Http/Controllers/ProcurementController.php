@@ -16,13 +16,15 @@ class ProcurementController extends Controller
 
     public function requisitions(Request $request)
     {
-        $items = PurchaseRequisition::query()
+        $query = PurchaseRequisition::query()
             ->where('school_id', $request->user()->school_id)
-            ->with(['requester:id,name', 'items', 'workflowInstance'])
-            ->orderByDesc('created_at')
-            ->get();
+            ->with(['requester:id,name', 'items', 'workflowInstance']);
 
-        return response()->json(['data' => $items]);
+        if ($request->filled('status')) {
+            $query->where('status', $request->string('status'));
+        }
+
+        return response()->json(['data' => $query->orderByDesc('created_at')->get()]);
     }
 
     public function storeRequisition(Request $request)
@@ -71,9 +73,34 @@ class ProcurementController extends Controller
         return response()->json(['data' => $requisition], 201);
     }
 
+    public function updateRequisition(Request $request, int $id)
+    {
+        $requisition = PurchaseRequisition::where('school_id', $request->user()->school_id)->findOrFail($id);
+
+        if ($requisition->status !== 'draft') {
+            return response()->json(['message' => 'Only draft requisitions can be edited'], 422);
+        }
+
+        $data = $request->validate([
+            'title' => 'sometimes|string|max:255',
+            'description' => 'nullable|string',
+            'department_id' => 'nullable|exists:departments,id',
+        ]);
+
+        $requisition->update($data);
+
+        return response()->json(['data' => $requisition->fresh()->load(['items', 'requester:id,name']), 'message' => 'Requisition updated']);
+    }
+
     public function vendors(Request $request)
     {
-        return response()->json(['data' => Vendor::where('school_id', $request->user()->school_id)->orderBy('name')->get()]);
+        $query = Vendor::where('school_id', $request->user()->school_id);
+
+        if ($request->filled('status')) {
+            $query->where('status', $request->string('status'));
+        }
+
+        return response()->json(['data' => $query->orderBy('name')->get()]);
     }
 
     public function storeVendor(Request $request)
@@ -89,6 +116,24 @@ class ProcurementController extends Controller
         $vendor = Vendor::create([...$data, 'school_id' => $request->user()->school_id]);
 
         return response()->json(['data' => $vendor], 201);
+    }
+
+    public function updateVendor(Request $request, int $id)
+    {
+        $vendor = Vendor::where('school_id', $request->user()->school_id)->findOrFail($id);
+
+        $data = $request->validate([
+            'name' => 'sometimes|string|max:255',
+            'contact_person' => 'nullable|string',
+            'email' => 'nullable|email',
+            'phone' => 'nullable|string',
+            'address' => 'nullable|string',
+            'status' => 'nullable|string|in:active,inactive',
+        ]);
+
+        $vendor->update($data);
+
+        return response()->json(['data' => $vendor->fresh(), 'message' => 'Vendor updated']);
     }
 
     public function receiveGoods(Request $request)

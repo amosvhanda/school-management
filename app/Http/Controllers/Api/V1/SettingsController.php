@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Requests\Api\V1\Settings\StoreCustomFieldRequest;
+use App\Http\Requests\Api\V1\Settings\UpdateCustomFieldRequest;
 use App\Http\Requests\Api\V1\Settings\UpdateSchoolSettingsRequest;
 use App\Http\Requests\Api\V1\Settings\UpdateTerminologyRequest;
 use App\Http\Resources\Api\V1\CustomFieldResource;
@@ -106,6 +107,13 @@ class SettingsController extends Controller
         $field = $this->customFieldService->create($school, $request->validated());
 
         return $this->created(new CustomFieldResource($field), 'Custom field created successfully');
+    }
+
+    public function updateCustomField(UpdateCustomFieldRequest $request, CustomField $customField)
+    {
+        $field = $this->customFieldService->update($customField, $request->validated());
+
+        return $this->success(new CustomFieldResource($field), 'Custom field updated successfully');
     }
 
     public function destroyCustomField(CustomField $customField)

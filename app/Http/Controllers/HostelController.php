@@ -16,10 +16,18 @@ class HostelController extends Controller
 {
     public function index(Request $request)
     {
+        $query = Hostel::where('school_id', $request->user()->school_id)->with(['rooms.beds']);
+
+        if ($request->filled('gender')) {
+            $query->where('gender', $request->string('gender'));
+        }
+
+        if ($request->filled('status')) {
+            $query->where('status', $request->string('status'));
+        }
+
         return response()->json([
-            'data' => Hostel::where('school_id', $request->user()->school_id)
-                ->with(['rooms.beds'])
-                ->get(),
+            'data' => $query->get(),
         ]);
     }
 
@@ -34,6 +42,22 @@ class HostelController extends Controller
         $hostel = Hostel::create([...$data, 'school_id' => $request->user()->school_id]);
 
         return response()->json(['data' => $hostel], 201);
+    }
+
+    public function update(Request $request, int $id)
+    {
+        $hostel = Hostel::where('school_id', $request->user()->school_id)->findOrFail($id);
+
+        $data = $request->validate([
+            'name' => 'sometimes|string|max:255',
+            'gender' => 'nullable|string|in:male,female,mixed',
+            'capacity' => 'nullable|integer|min:1',
+            'status' => 'nullable|string|in:active,inactive',
+        ]);
+
+        $hostel->update($data);
+
+        return response()->json(['data' => $hostel->fresh(), 'message' => 'Hostel updated']);
     }
 
     public function storeRoom(Request $request, int $hostelId)
