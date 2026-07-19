@@ -209,8 +209,11 @@ watch(
         </span>
       </Button>
     </DropdownMenuTrigger>
-    <DropdownMenuContent align="end" class="w-80 p-0 rounded-xl shadow-lg border">
-      <DropdownMenuLabel class="flex items-center justify-between px-4 py-3 text-sm font-semibold">
+    <DropdownMenuContent
+      align="end"
+      class="flex w-80 max-h-[min(28rem,var(--reka-dropdown-menu-content-available-height,90vh))] flex-col overflow-hidden rounded-xl border p-0 shadow-lg"
+    >
+      <DropdownMenuLabel class="flex shrink-0 items-center justify-between px-4 py-3 text-sm font-semibold">
         <span>Notifications</span>
         <Badge v-if="isParent && parentUnreadCount" variant="secondary" class="text-xs font-normal">
           {{ parentUnreadCount }} unread
@@ -221,13 +224,13 @@ watch(
       </DropdownMenuLabel>
 
       <template v-if="isParent">
-        <div class="px-3 pb-2">
+        <div class="shrink-0 px-3 pb-2">
           <p class="mb-1 text-[11px] uppercase tracking-wide text-muted-foreground">Scope</p>
           <Select :model-value="selectedStudentId" @update:model-value="onChildFilterChange">
             <SelectTrigger class="h-8 text-xs">
               <SelectValue :placeholder="selectedChildLabel" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent class="z-[100]">
               <SelectItem value="all">All linked children</SelectItem>
               <SelectItem
                 v-for="child in parentChildren"
@@ -241,8 +244,10 @@ watch(
         </div>
       </template>
 
-      <DropdownMenuSeparator />
-      <ScrollArea class="max-h-80">
+      <DropdownMenuSeparator class="shrink-0" />
+
+      <!-- Only the list scrolls; footer button stays pinned and never overlaps -->
+      <ScrollArea class="min-h-0 flex-1">
         <div
           v-if="isParent && parentLoading"
           class="px-4 py-6 text-center text-sm text-muted-foreground"
@@ -260,40 +265,40 @@ watch(
         <div v-else-if="isParent && !parentItems.length" class="flex flex-col items-center gap-2 px-4 py-8 text-center">
           <CheckCircle2 class="size-8 text-muted-foreground/40" aria-hidden="true" />
           <p class="text-sm font-medium text-foreground">You're all caught up</p>
-          <p class="text-xs text-muted-foreground leading-normal max-w-[200px]">No alerts for this profile scope.</p>
+          <p class="max-w-[200px] text-xs leading-normal text-muted-foreground">No alerts for this profile scope.</p>
         </div>
 
         <div v-else-if="!isParent && !items.length" class="flex flex-col items-center gap-2 px-4 py-8 text-center">
           <CheckCircle2 class="size-8 text-muted-foreground/40" aria-hidden="true" />
           <p class="text-sm font-medium text-foreground">You're all caught up</p>
-          <p class="text-xs text-muted-foreground leading-normal max-w-[200px]">Recent activity will appear here.</p>
+          <p class="max-w-[200px] text-xs leading-normal text-muted-foreground">Recent activity will appear here.</p>
         </div>
 
         <div v-else-if="isParent" class="divide-y divide-muted/60">
           <div
             v-for="item in parentItems"
             :key="String(item.id)"
-            class="flex gap-3 px-4 py-3 transition-colors hover:bg-muted/40"
+            class="flex items-start gap-3 px-4 py-3 transition-colors hover:bg-muted/40"
           >
             <div class="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
               <component :is="item.Icon" class="size-3.5" aria-hidden="true" />
             </div>
-            <div class="min-w-0 flex-1">
-              <p class="truncate text-sm font-medium text-foreground leading-snug">{{ item.displayTitle }}</p>
-              <p v-if="item.displayBody" class="mt-0.5 text-xs text-muted-foreground truncate">{{ item.displayBody }}</p>
-              <p class="mt-0.5 text-xs text-muted-foreground truncate">
+            <div class="min-w-0 flex-1 space-y-1">
+              <p class="text-sm font-medium leading-snug text-foreground">{{ item.displayTitle }}</p>
+              <p v-if="item.displayBody" class="line-clamp-2 text-xs text-muted-foreground">{{ item.displayBody }}</p>
+              <p class="text-xs text-muted-foreground">
                 {{ item.displayStudent ?? 'Parent portal' }} · {{ item.time }}
               </p>
+              <Button
+                v-if="!item.read_at"
+                variant="ghost"
+                size="sm"
+                class="h-7 px-2 text-[11px]"
+                @click="markRead(item.id)"
+              >
+                Mark read
+              </Button>
             </div>
-            <Button
-              v-if="!item.read_at"
-              variant="ghost"
-              size="sm"
-              class="h-7 px-2 text-[11px]"
-              @click="markRead(item.id)"
-            >
-              Mark read
-            </Button>
           </div>
         </div>
 
@@ -301,21 +306,22 @@ watch(
           <div
             v-for="item in items"
             :key="String(item.id)"
-            class="flex gap-3 px-4 py-3 transition-colors hover:bg-muted/40"
+            class="flex items-start gap-3 px-4 py-3 transition-colors hover:bg-muted/40"
           >
             <div class="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
               <component :is="item.Icon" class="size-3.5" aria-hidden="true" />
             </div>
             <div class="min-w-0 flex-1">
-              <p class="truncate text-sm font-medium text-foreground leading-snug">{{ item.description }}</p>
-              <p class="mt-0.5 text-xs text-muted-foreground truncate">{{ item.user }} · {{ item.time }}</p>
+              <p class="text-sm font-medium leading-snug text-foreground">{{ item.description }}</p>
+              <p class="mt-0.5 text-xs text-muted-foreground">{{ item.user }} · {{ item.time }}</p>
             </div>
           </div>
         </div>
       </ScrollArea>
-      <DropdownMenuSeparator />
-      <div class="p-2 bg-muted/5">
-        <Button variant="ghost" size="sm" class="w-full justify-center h-8 text-xs font-medium" as-child>
+
+      <DropdownMenuSeparator class="shrink-0" />
+      <div class="shrink-0 border-t border-border/40 bg-muted/5 p-2">
+        <Button variant="ghost" size="sm" class="h-8 w-full justify-center text-xs font-medium" as-child>
           <RouterLink :to="viewAllRoute">{{ isParent ? 'View all parent notifications' : 'View dashboard activity' }}</RouterLink>
         </Button>
       </div>

@@ -172,9 +172,9 @@ onMounted(async () => {
         <h1 class="text-2xl font-semibold tracking-tight">Notifications</h1>
         <p class="text-muted-foreground">Alerts for {{ selectedChildLabel }}</p>
       </div>
-      <div class="flex flex-col gap-2 sm:flex-row sm:items-center">
+      <div class="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
         <Select :model-value="selectedStudentId" @update:model-value="onChildFilterChange">
-          <SelectTrigger class="w-[220px]">
+          <SelectTrigger class="w-full sm:w-[220px]">
             <SelectValue placeholder="Filter by child" />
           </SelectTrigger>
           <SelectContent>
@@ -191,6 +191,7 @@ onMounted(async () => {
 
         <Button
           variant="outline"
+          class="w-full shrink-0 sm:w-auto"
           :disabled="markingAll || !notifications.some((n) => !n.read_at)"
           @click="markAllRead"
         >
