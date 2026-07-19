@@ -17,7 +17,7 @@ import { useAuth } from '@/composables/useAuth'
 import { useToast } from '@/composables/useToast'
 import { resolvePostLoginRedirect } from '@/app/router/guards'
 import { isStaffDashboardRole } from '@/lib/permissions'
-import { DEMO_ACCOUNTS, WEB_DEMO_ACCOUNTS, type DemoAccount } from '@/lib/demo-accounts'
+import { DEMO_ACCOUNTS, type DemoAccount } from '@/lib/demo-accounts'
 import {
   formButtonClass,
   formFieldsAnimateOptions,
@@ -166,10 +166,7 @@ async function quickSignIn(account: DemoAccount) {
                 <h1 class="font-heading text-2xl font-semibold tracking-tight md:text-[1.75rem]">
                   Welcome back
                 </h1>
-                <p v-if="isDev" class="text-balance text-sm text-muted-foreground">
-                  Or enter credentials manually. Demo passwords match the role name (e.g. admin123).
-                </p>
-                <p v-else class="text-balance text-sm text-muted-foreground">
+                <p class="text-balance text-sm text-muted-foreground">
                   Staff, parents, finance, and platform administrators use one secure login.
                 </p>
               </div>
@@ -230,20 +227,6 @@ async function quickSignIn(account: DemoAccount) {
                   <FormMessage />
                 </FormItem>
               </FormField>
-            </div>
-
-            <div v-if="isDev" class="flex flex-wrap gap-1.5">
-              <Button
-                v-for="account in WEB_DEMO_ACCOUNTS"
-                :key="`fill-${account.email}`"
-                type="button"
-                variant="ghost"
-                size="sm"
-                class="h-7 px-2 text-xs text-muted-foreground"
-                @click="fillAccount(account)"
-              >
-                Fill {{ account.label }}
-              </Button>
             </div>
 
             <Button
