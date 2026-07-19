@@ -113,6 +113,22 @@ class InventoryService
                 ]);
             }
 
+            // Cash / upfront till sales hit the school ledger as income so cash-in balances.
+            if (in_array($paymentMethod, ['cash', 'upfront'], true) && $total > 0) {
+                $this->ledgerService->recordCashIncome(
+                    schoolId: $schoolId,
+                    amount: $total,
+                    currency: $currency,
+                    category: 'inventory',
+                    description: "Inventory sale {$saleNumber}",
+                    paymentMethod: $paymentMethod,
+                    reference: $saleNumber,
+                    createdBy: $soldBy,
+                    studentId: $student?->id,
+                    notes: "inventory_sale_id:{$sale->id}",
+                );
+            }
+
             return $sale->load('items.item');
         });
     }

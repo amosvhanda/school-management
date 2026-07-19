@@ -9,6 +9,7 @@ use App\Models\School;
 use App\Models\Student;
 use App\Models\Transaction;
 use App\Services\AuditService;
+use App\Services\CashFlowService;
 use App\Services\FinancialLedgerService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -18,6 +19,7 @@ class FinanceController extends Controller
     public function __construct(
         private AuditService $auditService,
         private FinancialLedgerService $ledgerService,
+        private CashFlowService $cashFlowService,
     ) {}
 
     public function summary(Request $request)
@@ -322,6 +324,35 @@ class FinanceController extends Controller
     }
 
     /**
+     * Full cash 360: money in, money out, net, and ledger balance check.
+     */
+    public function cashFlow(Request $request)
+    {
+        $schoolId = $request->user()?->school_id;
+        $school = $schoolId ? School::find($schoolId) : null;
+        $currency = strtoupper($request->get('currency', $school?->getDefaultCurrency() ?? 'USD'));
+        $period = $request->input('period', 'monthly');
+        [$from, $to] = $this->resolvePeriodRange($period, $request);
+
+        $report = $this->cashFlowService->report($schoolId, $currency, $from, $to, $period);
+
+        $this->auditService->log(
+            module: 'finance',
+            action: 'cash_flow_view',
+            description: "Viewed {$period} cash flow 360 report",
+            metadata: [
+                'period' => $period,
+                'from' => $from->toDateString(),
+                'to' => $to->toDateString(),
+                'net_cash' => $report['net_cash'],
+                'is_balanced' => $report['balance_check']['is_balanced'],
+            ],
+        );
+
+        return response()->json(['data' => $report]);
+    }
+
+    /**
      * @return array{0: Carbon, 1: Carbon}
      */
     protected function resolvePeriodRange(string $period, Request $request): array
@@ -333,6 +364,8 @@ class FinanceController extends Controller
         return match ($period) {
             'weekly' => [now()->startOfWeek(), now()->endOfWeek()],
             'monthly' => [now()->startOfMonth(), now()->endOfMonth()],
+            'term' => [now()->startOfMonth()->subMonths(2), now()->endOfMonth()],
+            'ytd' => [now()->startOfYear(), now()->endOfDay()],
             default => [now()->startOfDay(), now()->endOfDay()],
         };
     }

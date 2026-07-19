@@ -248,9 +248,10 @@ export const moduleListMetaRegistry: Record<string, ListPageMeta> = {
         placeholder: 'Any type',
         options: [
           { label: 'Expense', value: 'expense' },
+          { label: 'Income', value: 'income' },
           { label: 'Payment', value: 'payment' },
-          { label: 'Invoice', value: 'invoice' },
-          { label: 'Refund', value: 'refund' },
+          { label: 'Invoice / fee', value: 'fee_applied' },
+          { label: 'Reversal', value: 'reversal' },
         ],
       },
       {
@@ -261,6 +262,7 @@ export const moduleListMetaRegistry: Record<string, ListPageMeta> = {
         options: [
           { label: 'Payroll', value: 'payroll' },
           { label: 'Student fees', value: 'student' },
+          { label: 'Inventory', value: 'inventory' },
           { label: 'Other', value: 'other' },
         ],
       },

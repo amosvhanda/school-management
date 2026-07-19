@@ -348,6 +348,7 @@ Route::middleware(['auth:sanctum', 'school.isolated', 'school.licensed'])->group
     Route::get('/finance/outstanding-balances', [FinanceController::class, 'outstandingBalances']);
     Route::get('/finance/aging', [FinanceController::class, 'aging']);
     Route::get('/finance/reconciliation', [FinanceController::class, 'reconciliation']);
+    Route::get('/finance/cash-flow', [FinanceController::class, 'cashFlow']);
     Route::get('/finance/reports/{period}', [FinanceController::class, 'periodReport']);
 
     // People & enrollment

@@ -37,6 +37,7 @@ export const staffNavigation: NavGroup[] = [
     items: [
       { title: 'Analytics', href: '/finance/analytics', icon: 'BarChart3', capability: 'canManageFinance' },
       { title: 'Overview', href: '/finance', icon: 'Wallet', capability: 'canManageFinance' },
+      { title: 'Cash flow 360', href: '/finance/cash-flow', icon: 'Scale', capability: 'canManageFinance' },
       { title: 'Payments', href: '/finance/payments', icon: 'CreditCard', capability: 'canManageFinance' },
       { title: 'Invoices', href: '/finance/invoices', icon: 'Receipt', capability: 'canManageFinance' },
       { title: 'Fee Structures', href: '/finance/fees', icon: 'Tags', capability: 'canManageFinance' },
@@ -150,6 +151,7 @@ export const financeNavigation: NavGroup[] = [
       { title: 'Dashboard', href: '/', icon: 'LayoutDashboard', roles: ['finance'] },
       { title: 'Finance overview', href: '/finance', icon: 'Wallet', capability: 'canManageFinance', roles: ['finance'] },
       { title: 'Finance analytics', href: '/finance/analytics', icon: 'BarChart3', capability: 'canManageFinance', roles: ['finance'] },
+      { title: 'Cash flow 360', href: '/finance/cash-flow', icon: 'Scale', capability: 'canManageFinance', roles: ['finance'] },
     ],
   },
   {
@@ -188,6 +190,7 @@ export const accountsNavigation: NavGroup[] = [
     label: 'Collections',
     items: [
       { title: 'Finance overview', href: '/finance', icon: 'Wallet', capability: 'canManageFinance', roles: ['accounts'] },
+      { title: 'Cash flow 360', href: '/finance/cash-flow', icon: 'Scale', capability: 'canManageFinance', roles: ['accounts'] },
       { title: 'Payments', href: '/finance/payments', icon: 'CreditCard', capability: 'canManageFinance', roles: ['accounts'] },
       { title: 'Invoices', href: '/finance/invoices', icon: 'Receipt', capability: 'canManageFinance', roles: ['accounts'] },
       { title: 'Fee structures', href: '/finance/fees', icon: 'Tags', capability: 'canManageFinance', roles: ['accounts'] },

@@ -54,7 +54,7 @@ const netCashToday = computed(() => Number(props.summary.netCashToday ?? (props.
         :value="formatMoney(netCashToday, currency)"
         subtitle="Collections − payroll"
         :icon="Scale"
-        href="/finance"
+        href="/finance/cash-flow"
       />
     </div>
 

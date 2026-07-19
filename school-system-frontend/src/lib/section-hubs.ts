@@ -66,6 +66,7 @@ export const SECTION_HUBS: Record<SectionKey, SectionHubDefinition> = {
     capability: 'canManageFinance',
     quickLinks: [
       { title: 'Finance overview', description: 'Daily collections snapshot', href: '/finance', icon: 'Wallet' },
+      { title: 'Cash flow 360', description: 'Money in vs money out', href: '/finance/cash-flow', icon: 'Scale' },
       { title: 'Record payment', description: 'Log a fee collection', href: '/finance/payments?create=1', icon: 'CreditCard' },
       { title: 'Invoices', description: 'Bill students', href: '/finance/invoices', icon: 'Receipt' },
       { title: 'Fee structures', description: 'Configure fees by class', href: '/finance/fees', icon: 'Tags' },

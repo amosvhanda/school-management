@@ -135,6 +135,12 @@ export const staffRoutes: RouteRecordRaw[] = [
   },
   sectionAnalyticsRoute('finance/analytics', 'finance-analytics', 'finance', 'canManageFinance'),
   {
+    path: 'finance/cash-flow',
+    name: 'finance-cash-flow',
+    component: () => import('@/modules/finance/views/FinanceCashFlowView.vue'),
+    meta: { capability: 'canManageFinance' },
+  },
+  {
     path: 'finance/reports',
     name: 'finance-reports',
     component: () => import('@/modules/finance/views/FinanceReportsView.vue'),

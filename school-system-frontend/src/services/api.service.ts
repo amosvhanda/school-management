@@ -202,6 +202,10 @@ export const financeApi = {
     const { data } = await api.get(e.finance.reconciliation, { params })
     return unwrapOne<Record<string, unknown>>(data)
   },
+  cashFlow: async (params?: ListQueryParams) => {
+    const { data } = await api.get(e.finance.cashFlow, { params })
+    return unwrapOne<Record<string, unknown>>(data)
+  },
   periodReport: (period: string) => fetchOne(e.finance.periodReport(period)),
   payments: {
     list: (params?: ListQueryParams) => fetchList(e.payments.list, params),

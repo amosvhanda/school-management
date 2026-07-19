@@ -193,6 +193,7 @@ export const endpoints = {
     outstandingBalances: '/finance/outstanding-balances',
     aging: '/finance/aging',
     reconciliation: '/finance/reconciliation',
+    cashFlow: '/finance/cash-flow',
     periodReport: (period: string) => `/finance/reports/${period}`,
   },
   payments: {
