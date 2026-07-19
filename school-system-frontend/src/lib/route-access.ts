@@ -42,14 +42,17 @@ export function canAccessRoute(
 
   const path = to.path
   const licensePath = path === '/license/activate'
+  const termsPath = path === '/terms/accept' || to.name === 'platform-terms-accept'
+
+  if (termsPath || licensePath) {
+    return true
+  }
 
   if (user.role === 'student') {
-    if (licensePath) return true
     return isStudentPath(path)
   }
 
   if (user.role === 'parent') {
-    if (licensePath) return true
     return isParentPath(path)
   }
 

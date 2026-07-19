@@ -66,6 +66,11 @@ async function completeLogin(email: string, password: string) {
     throw new Error('Your account role cannot access this application.')
   }
 
+  if (result.user.platform_terms_accepted === false) {
+    await router.push({ name: 'platform-terms-accept' })
+    return
+  }
+
   const redirect = resolvePostLoginRedirect(
     result.user,
     typeof route.query.redirect === 'string' ? route.query.redirect : null,
@@ -152,6 +157,9 @@ async function quickSignIn(account: DemoAccount) {
               </p>
               <p v-else class="text-balance text-sm text-muted-foreground">
                 Staff, parents, finance, and platform administrators use one secure login.
+              </p>
+              <p class="text-balance text-xs text-muted-foreground">
+                Using this ERP means you agree to the Platform Terms of Use for your role.
               </p>
             </div>
 

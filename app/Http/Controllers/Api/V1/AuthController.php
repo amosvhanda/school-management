@@ -61,6 +61,42 @@ class AuthController extends Controller
         ]);
     }
 
+    public function platformTerms()
+    {
+        return $this->success([
+            'version' => (string) config('platform_terms.version'),
+            'title' => (string) config('platform_terms.title'),
+            'summary' => (string) config('platform_terms.summary'),
+            'content' => (string) config('platform_terms.content'),
+        ]);
+    }
+
+    public function acceptPlatformTerms(Request $request)
+    {
+        $data = $request->validate([
+            'accepted' => ['required', 'accepted'],
+            'version' => ['required', 'string'],
+        ]);
+
+        $currentVersion = (string) config('platform_terms.version');
+        if ($data['version'] !== $currentVersion) {
+            throw ValidationException::withMessages([
+                'version' => ['These terms have been updated. Refresh and accept the latest version.'],
+            ]);
+        }
+
+        $user = $request->user();
+        $user->acceptCurrentPlatformTerms();
+        $context = $this->authService->resolveRoleContext($user->fresh());
+
+        return $this->success([
+            'user' => array_merge(
+                (new UserResource($user->fresh()))->resolve(),
+                $context
+            ),
+        ], 'Platform terms accepted');
+    }
+
     public function changePassword(ChangePasswordRequest $request, UpdateUserPassword $updater)
     {
         $updater->update($request->user(), $request->only([

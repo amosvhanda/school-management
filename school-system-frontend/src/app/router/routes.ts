@@ -38,10 +38,16 @@ export const publicRoutes: RouteRecordRaw[] = [
     meta: { guest: true },
   },
   {
+    path: 'terms/accept',
+    name: 'platform-terms-accept',
+    component: () => import('@/modules/auth/views/PlatformTermsAcceptView.vue'),
+    meta: { requiresAuth: true, allowWithoutTerms: true },
+  },
+  {
     path: 'license/activate',
     name: 'license-activate',
     component: () => import('@/modules/auth/views/LicenseActivateView.vue'),
-    meta: { requiresAuth: true },
+    meta: { requiresAuth: true, allowWithoutTerms: true },
   },
 ]
 

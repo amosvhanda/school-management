@@ -103,6 +103,7 @@ Route::post('/schools/register', [SchoolController::class, 'register'])
     ->middleware('throttle:registration');
 
 Route::get('/platform/certificates/verify/{code}', [PlatformDocumentController::class, 'verifyCertificate']);
+Route::get('/auth/platform-terms', [AuthController::class, 'platformTerms']);
 Route::post('/integrations/token', [ExternalIntegrationController::class, 'token'])
     ->middleware('throttle:login');
 
@@ -112,6 +113,7 @@ Route::middleware(['auth:sanctum', 'school.isolated', 'school.licensed'])->group
     // License (accessible even when expired — middleware excludes these paths)
     Route::get('/license/status', [LicenseController::class, 'status']);
     Route::post('/license/activate', [LicenseController::class, 'activate']);
+    Route::post('/auth/accept-platform-terms', [AuthController::class, 'acceptPlatformTerms']);
 
     // Vendor license management (super admin only)
     Route::middleware('super_admin')->group(function () {
@@ -146,6 +148,7 @@ Route::middleware(['auth:sanctum', 'school.isolated', 'school.licensed'])->group
     Route::delete('/settings/custom-fields/{customField}', [SettingsController::class, 'destroyCustomField']);
 
     // AI school assistant
+    Route::get('/assistant/status', [AssistantController::class, 'status']);
     Route::post('/assistant/chat', [AssistantController::class, 'chat'])
         ->middleware('throttle:assistant');
     Route::get('/assistant/conversations', [AssistantController::class, 'conversations']);

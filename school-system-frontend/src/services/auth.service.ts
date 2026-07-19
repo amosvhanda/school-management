@@ -22,6 +22,26 @@ export async function fetchCurrentUser() {
   return unwrapOne<{ user: AuthUser }>(data).user
 }
 
+export interface PlatformTermsPayload {
+  version: string
+  title: string
+  summary: string
+  content: string
+}
+
+export async function fetchPlatformTerms() {
+  const { data } = await api.get<ApiResponse<PlatformTermsPayload>>(endpoints.auth.platformTerms)
+  return unwrapOne<PlatformTermsPayload>(data)
+}
+
+export async function acceptPlatformTerms(version: string) {
+  const { data } = await api.post<ApiResponse<{ user: AuthUser }>>(endpoints.auth.acceptPlatformTerms, {
+    accepted: true,
+    version,
+  })
+  return unwrapOne<{ user: AuthUser }>(data).user
+}
+
 export async function activateLicense(licenseKey: string) {
   const { data } = await api.post(endpoints.license.activate, { license_key: licenseKey })
   return unwrapOne<Record<string, unknown>>(data)

@@ -19,6 +19,8 @@ class EnsureSchoolLicenseActive
         'api/v1/license/*',
         'api/v1/auth/logout',
         'api/v1/auth/me',
+        'api/v1/auth/platform-terms',
+        'api/v1/auth/accept-platform-terms',
     ];
 
     public function __construct(private LicenseService $licenses) {}

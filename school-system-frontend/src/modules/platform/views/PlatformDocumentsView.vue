@@ -211,7 +211,7 @@ onMounted(load)
 <template>
   <PageShell
     title="Signable documents"
-    description="Create and track e-sign documents across all schools — consent forms, policies, and agreements."
+    description="Optional school-specific e-sign documents. Platform use itself already requires agreement to the School ERP Terms of Use."
     max-width="wide"
   >
     <template #actions>

@@ -37,6 +37,10 @@ export interface AuthUser {
   license?: LicenseStatus
   permissions?: string[]
   capabilities?: UserCapabilities
+  platform_terms_accepted?: boolean
+  platform_terms_version?: string | null
+  platform_terms_accepted_at?: string | null
+  platform_terms_required_version?: string
   created_at?: string
   updated_at?: string
 }

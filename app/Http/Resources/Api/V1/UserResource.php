@@ -19,6 +19,10 @@ class UserResource extends JsonResource
             'role' => $this->roleValue(),
             'status' => $this->status ?? 'active',
             'school_id' => $this->school_id,
+            'platform_terms_accepted' => $this->hasAcceptedCurrentPlatformTerms(),
+            'platform_terms_version' => $this->platform_terms_version,
+            'platform_terms_accepted_at' => $this->platform_terms_accepted_at?->toIso8601String(),
+            'platform_terms_required_version' => (string) config('platform_terms.version'),
             'created_at' => $this->created_at?->toIso8601String(),
             'updated_at' => $this->updated_at?->toIso8601String(),
         ];

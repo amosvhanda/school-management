@@ -31,7 +31,17 @@ class UserFactory extends Factory
             'remember_token' => Str::random(10),
             'role' => 'admin',
             'school_id' => \App\Models\School::factory(),
+            'platform_terms_version' => (string) config('platform_terms.version'),
+            'platform_terms_accepted_at' => now(),
         ];
+    }
+
+    public function withoutPlatformTerms(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'platform_terms_version' => null,
+            'platform_terms_accepted_at' => null,
+        ]);
     }
 
     /**

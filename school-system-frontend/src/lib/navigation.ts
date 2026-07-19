@@ -75,6 +75,12 @@ export const staffNavigation: NavGroup[] = [
     ],
   },
   {
+    label: 'Tools',
+    items: [
+      { title: 'Assistant', href: '/assistant', icon: 'Bot', capability: 'isStaff' },
+    ],
+  },
+  {
     label: 'Administration',
     items: [
       { title: 'Users', href: '/admin/users', icon: 'UserCog', capability: 'canManageTeachers' },

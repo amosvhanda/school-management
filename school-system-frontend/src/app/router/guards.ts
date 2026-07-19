@@ -26,6 +26,14 @@ export function createRouteGuards(router: Router) {
     }
 
     if (to.meta.requiresAuth && authStore.user) {
+      const needsTerms = authStore.user.platform_terms_accepted === false
+      if (needsTerms && !to.meta.allowWithoutTerms) {
+        return { name: 'platform-terms-accept', query: { redirect: to.fullPath } }
+      }
+      if (!needsTerms && to.name === 'platform-terms-accept') {
+        return authStore.defaultRoute
+      }
+
       if (!canAccessRoute(authStore.user, to)) {
         useNotificationStore().notify({
           title: 'Access denied',

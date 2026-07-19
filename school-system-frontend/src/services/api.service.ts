@@ -546,6 +546,12 @@ export const enterpriseApi = {
 }
 
 export const assistantApi = {
+  status: () => fetchOne<{
+    configured: boolean
+    provider: string
+    mode: string
+    message: string
+  }>(e.assistant.status),
   chat: (payload: Record<string, unknown>) => postRecord(e.assistant.chat, payload),
   conversations: (params?: ListQueryParams) => fetchList(e.assistant.conversations, params),
   getConversation: (id: number | string) => fetchOne(e.assistant.conversation(id)),

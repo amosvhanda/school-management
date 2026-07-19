@@ -4,6 +4,7 @@ namespace Tests\Feature\Api\V1;
 
 use App\Ai\Agents\SchoolAssistant;
 use App\Models\Student;
+use Illuminate\Support\Facades\Config;
 use Laravel\Ai\Models\Conversation;
 use Tests\TestCase;
 
@@ -18,8 +19,48 @@ class AssistantTest extends TestCase
         $response->assertUnauthorized();
     }
 
+    public function test_status_reports_local_mode_without_api_key(): void
+    {
+        Config::set('ai.providers.openai.key', null);
+
+        $auth = $this->createAuthenticatedUser();
+
+        $this->withHeaders([
+            'Authorization' => 'Bearer '.$auth['token'],
+        ])->getJson('/api/v1/assistant/status')
+            ->assertOk()
+            ->assertJsonPath('data.mode', 'local')
+            ->assertJsonPath('data.configured', false);
+    }
+
+    public function test_local_mode_answers_school_stats(): void
+    {
+        Config::set('ai.providers.openai.key', null);
+
+        $auth = $this->createAuthenticatedUser();
+        Student::factory()->create([
+            'school_id' => $auth['school']->id,
+            'status' => 'active',
+        ]);
+
+        $response = $this->withHeaders([
+            'Authorization' => 'Bearer '.$auth['token'],
+        ])->postJson('/api/v1/assistant/chat', [
+            'message' => 'Show school stats',
+        ]);
+
+        $response->assertOk()
+            ->assertJsonPath('data.mode', 'local')
+            ->assertJsonStructure(['data' => ['reply', 'conversation_id', 'mode']]);
+
+        $this->assertStringContainsString('school snapshot', $response->json('data.reply'));
+        $this->assertNotEmpty($response->json('data.conversation_id'));
+    }
+
     public function test_chat_returns_assistant_reply(): void
     {
+        Config::set('ai.providers.openai.key', 'test-key');
+
         SchoolAssistant::fake([
             'You have 42 active students enrolled this term.',
         ]);
@@ -44,6 +85,8 @@ class AssistantTest extends TestCase
 
     public function test_chat_continues_existing_conversation(): void
     {
+        Config::set('ai.providers.openai.key', 'test-key');
+
         SchoolAssistant::fake([
             'First reply',
             'Follow-up reply',

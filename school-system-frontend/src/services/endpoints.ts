@@ -4,6 +4,8 @@ export const endpoints = {
     login: '/auth/login',
     logout: '/auth/logout',
     me: '/auth/me',
+    platformTerms: '/auth/platform-terms',
+    acceptPlatformTerms: '/auth/accept-platform-terms',
     forgotPassword: '/auth/forgot-password',
     resetPassword: '/auth/reset-password',
     changePassword: '/user/change-password',
@@ -35,6 +37,7 @@ export const endpoints = {
     },
   },
   assistant: {
+    status: '/assistant/status',
     chat: '/assistant/chat',
     conversations: '/assistant/conversations',
     conversation: (id: number | string) => `/assistant/conversations/${id}`,

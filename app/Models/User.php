@@ -27,6 +27,8 @@ class User extends Authenticatable
         'password',
         'role',
         'status',
+        'platform_terms_version',
+        'platform_terms_accepted_at',
         'phone',
         'address',
         'date_of_birth',
@@ -100,8 +102,25 @@ class User extends Authenticatable
             'password' => 'hashed',
             'date_of_birth' => 'date',
             'two_factor_confirmed_at' => 'datetime',
+            'platform_terms_accepted_at' => 'datetime',
             'role' => UserRole::class,
         ];
+    }
+
+    public function hasAcceptedCurrentPlatformTerms(): bool
+    {
+        $currentVersion = (string) config('platform_terms.version');
+
+        return $this->platform_terms_accepted_at !== null
+            && (string) $this->platform_terms_version === $currentVersion;
+    }
+
+    public function acceptCurrentPlatformTerms(): void
+    {
+        $this->forceFill([
+            'platform_terms_version' => (string) config('platform_terms.version'),
+            'platform_terms_accepted_at' => now(),
+        ])->save();
     }
 
     public function isActive(): bool
