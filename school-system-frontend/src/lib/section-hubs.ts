@@ -105,7 +105,7 @@ export const SECTION_HUBS: Record<SectionKey, SectionHubDefinition> = {
       { title: 'Events', description: 'School calendar events', href: '/operations/events', icon: 'CalendarHeart', capability: 'canManageTeachers' },
       { title: 'Hostels', description: 'Boarding houses and rooms', href: '/operations/hostels', icon: 'Building2', capability: 'canManageTeachers' },
       { title: 'Clinic visits', description: 'Student health records', href: '/operations/health', icon: 'HeartPulse', capability: 'canManageTeachers' },
-      { title: 'Procurement', description: 'Purchase requests', href: '/operations/procurement', icon: 'ShoppingCart', capability: 'canManageFinance' },
+      { title: 'Spend requests', description: 'Request → approve → pay', href: '/operations/procurement', icon: 'ShoppingCart', capability: 'canManageFinance' },
       { title: 'Assets', description: 'School asset register', href: '/operations/assets', icon: 'HardDrive', capability: 'canManageFinance' },
     ],
   },

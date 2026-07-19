@@ -85,23 +85,34 @@ class CashFlowService
             ->whereBetween('created_at', [$from, $rangeEnd])
             ->sum('debit');
 
-        $otherExpenseOut = (float) Transaction::query()
+        $operatingExpenses = Transaction::query()
             ->when($schoolId, fn ($q) => $q->where('school_id', $schoolId))
             ->where('status', 'completed')
             ->where('currency', $currency)
             ->where('type', 'expense')
             ->where('category', '!=', 'payroll')
             ->whereBetween('created_at', [$from, $rangeEnd])
+            ->get();
+
+        $procurementOut = (float) $operatingExpenses->where('category', 'procurement')->sum('debit');
+        $pettyCashOut = (float) $operatingExpenses->where('category', 'petty_cash')->sum('debit');
+        $utilitiesOut = (float) $operatingExpenses->where('category', 'utilities')->sum('debit');
+        $travelOut = (float) $operatingExpenses->where('category', 'travel')->sum('debit');
+        $maintenanceOut = (float) $operatingExpenses->where('category', 'maintenance')->sum('debit');
+        $otherExpenseOut = (float) $operatingExpenses
+            ->whereNotIn('category', ['procurement', 'petty_cash', 'utilities', 'travel', 'maintenance'])
             ->sum('debit');
 
         $moneyInTotal = round($netFeeCollections + $inventoryCash, 2);
-        $moneyOutTotal = round($payrollOut + $otherExpenseOut, 2);
+        $moneyOutTotal = round(
+            $payrollOut + $procurementOut + $pettyCashOut + $utilitiesOut + $travelOut + $maintenanceOut + $otherExpenseOut,
+            2
+        );
         $netCash = round($moneyInTotal - $moneyOutTotal, 2);
 
+        $ledgerMoneyOut = $moneyOutTotal;
         $inVariance = round($moneyInTotal - $ledgerMoneyIn, 2);
-        $outVariance = round($moneyOutTotal - ($payrollOut + $otherExpenseOut), 2);
-        // Out is taken from the ledger today, so out variance should be 0.
-        // In variance flags historical inventory cash sales not yet posted to the ledger.
+        $outVariance = round($moneyOutTotal - $ledgerMoneyOut, 2);
         $isBalanced = abs($inVariance) < 0.01 && abs($outVariance) < 0.01;
 
         $feesInvoiced = (float) Invoice::query()
@@ -144,10 +155,20 @@ class CashFlowService
             'money_out' => [
                 'total' => $moneyOutTotal,
                 'payroll' => round($payrollOut, 2),
+                'procurement' => round($procurementOut, 2),
+                'petty_cash' => round($pettyCashOut, 2),
+                'utilities' => round($utilitiesOut, 2),
+                'travel' => round($travelOut, 2),
+                'maintenance' => round($maintenanceOut, 2),
                 'other_expenses' => round($otherExpenseOut, 2),
                 'by_method' => $this->moneyOutByMethod($schoolId, $currency, $from, $rangeEnd),
                 'by_source' => [
                     ['source' => 'payroll', 'label' => 'Staff payroll', 'total' => round($payrollOut, 2)],
+                    ['source' => 'procurement', 'label' => 'Procurement / purchases', 'total' => round($procurementOut, 2)],
+                    ['source' => 'petty_cash', 'label' => 'Petty cash', 'total' => round($pettyCashOut, 2)],
+                    ['source' => 'utilities', 'label' => 'Utilities', 'total' => round($utilitiesOut, 2)],
+                    ['source' => 'travel', 'label' => 'Travel', 'total' => round($travelOut, 2)],
+                    ['source' => 'maintenance', 'label' => 'Maintenance', 'total' => round($maintenanceOut, 2)],
                     ['source' => 'other_expenses', 'label' => 'Other expenses', 'total' => round($otherExpenseOut, 2)],
                 ],
             ],
@@ -156,11 +177,11 @@ class CashFlowService
                 'fees_invoiced' => round($feesInvoiced, 2),
                 'fees_outstanding' => round($feesOutstanding, 2),
                 'payroll_pending' => round((float) $payrollPending, 2),
-                'note' => 'Books track what is owed; cash tracks what has moved through the till and bank.',
+                'note' => 'Books track what is owed; cash tracks what has moved through the till and bank. All school spending should be requested, approved, then paid.',
             ],
             'balance_check' => [
                 'ledger_money_in' => $ledgerMoneyIn,
-                'ledger_money_out' => round($payrollOut + $otherExpenseOut, 2),
+                'ledger_money_out' => $ledgerMoneyOut,
                 'source_money_in' => $moneyInTotal,
                 'source_money_out' => $moneyOutTotal,
                 'in_variance' => $inVariance,

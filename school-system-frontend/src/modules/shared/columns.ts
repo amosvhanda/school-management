@@ -116,15 +116,20 @@ const statusVariants: Record<string, 'default' | 'secondary' | 'destructive' | '
   active: 'default',
   completed: 'default',
   paid: 'default',
+  disbursed: 'default',
+  approved: 'default',
   checked_in: 'default',
   checked_out: 'secondary',
   pending: 'secondary',
+  pending_approval: 'secondary',
+  draft: 'outline',
   partial: 'outline',
   inactive: 'secondary',
   maintenance: 'outline',
   absent: 'destructive',
   overdue: 'destructive',
   cancelled: 'destructive',
+  rejected: 'destructive',
 }
 
 export function statusColumn(header = 'Status', key = 'status'): ColumnDef<Record<string, unknown>> {
@@ -623,8 +628,10 @@ export const inventoryColumns: ColumnDef<Record<string, unknown>>[] = [
 ]
 export const procurementColumns: ColumnDef<Record<string, unknown>>[] = [
   textColumn('Title', 'title'),
+  textColumn('Type', 'spend_type'),
   nestedColumn('Requester', 'requester', 'name'),
   currencyColumn('Est. cost', 'estimated_cost'),
+  currencyColumn('Paid', 'amount_paid'),
   statusColumn(),
   dateTimeColumn('Created', 'created_at'),
 ]

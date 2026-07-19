@@ -257,6 +257,9 @@ export const operationsApi = {
     requisitions: {
       list: (params?: ListQueryParams) => fetchList(e.procurement.requisitions, params),
       create: (payload: Record<string, unknown>) => createRecord(e.procurement.requisitions, payload),
+      submit: (id: number | string) => postRecord(e.procurement.submit(id)),
+      disburse: (id: number | string, payload: Record<string, unknown>) =>
+        postRecord(e.procurement.disburse(id), payload),
     },
     vendors: {
       list: (params?: ListQueryParams) => fetchList(e.procurement.vendors, params),

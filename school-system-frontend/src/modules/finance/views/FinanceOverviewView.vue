@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { RouterLink } from 'vue-router'
-import { CreditCard, Receipt, Tags, ArrowRight, BarChart3, Banknote, ArrowLeftRight, Scale } from '@lucide/vue'
+import { CreditCard, Receipt, Tags, ArrowRight, BarChart3, Banknote, ArrowLeftRight, Scale, ShoppingCart } from '@lucide/vue'
 import PageLoader from '@/components/feedback/PageLoader.vue'
 import ErrorState from '@/components/feedback/ErrorState.vue'
 import FinanceOverviewPanel from '@/components/dashboard/FinanceOverviewPanel.vue'
@@ -27,6 +27,7 @@ const currency = computed(() => String(summary.value?.currency ?? 'USD'))
 
 const quickLinks = [
   { title: 'Cash flow 360', description: 'Money in vs out — always balances', href: '/finance/cash-flow', icon: Scale },
+  { title: 'Spend requests', description: 'Request → approve → record payment', href: '/operations/procurement', icon: ShoppingCart },
   { title: 'Payments', description: 'Record and review fee collections', href: '/finance/payments', icon: CreditCard },
   { title: 'Payroll', description: 'Generate payslips and pay staff', href: '/finance/payroll', icon: Banknote },
   { title: 'Transactions', description: 'Full ledger — money in and out', href: '/finance/transactions', icon: ArrowLeftRight },

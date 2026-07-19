@@ -4,6 +4,8 @@ import {
   inventoryRestockPromptForm,
   payrollGeneratePromptForm,
   payrollProcessPromptForm,
+  receiveGoodsPromptForm,
+  spendDisbursePromptForm,
 } from '@/modules/shared/action-prompt-forms'
 
 export type RowActionMethod = 'post' | 'put' | 'patch' | 'delete'
@@ -128,6 +130,38 @@ export const moduleActionsRegistry: Record<string, RowActionConfig[]> = {
       variant: 'outline',
       promptForm: inventoryRestockPromptForm,
       successMessage: 'Stock updated',
+    },
+  ],
+  'ops-procurement': [
+    {
+      label: 'Submit',
+      method: 'post',
+      path: (id) => endpoints.procurement.submit(id),
+      when: (row) => String(row.status ?? '').toLowerCase() === 'draft',
+      successMessage: 'Submitted for approval',
+    },
+    {
+      label: 'Record payment',
+      method: 'post',
+      path: (id) => endpoints.procurement.disburse(id),
+      when: (row) => String(row.status ?? '').toLowerCase() === 'approved',
+      promptForm: spendDisbursePromptForm,
+      successMessage: 'Payment recorded on the ledger',
+    },
+    {
+      label: 'Receive goods',
+      method: 'post',
+      path: () => endpoints.procurement.goodsReceipts,
+      when: (row) => {
+        const status = String(row.status ?? '').toLowerCase()
+        const spendType = String(row.spend_type ?? 'procurement').toLowerCase()
+        return (status === 'approved' || status === 'disbursed') && spendType === 'procurement'
+      },
+      promptForm: receiveGoodsPromptForm,
+      body: (row) => ({
+        requisition_id: row.id,
+      }),
+      successMessage: 'Goods receipt recorded',
     },
   ],
   'ops-visitors': [

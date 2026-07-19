@@ -169,7 +169,7 @@ export const financeNavigation: NavGroup[] = [
     items: [
       { title: 'Transactions', href: '/finance/transactions', icon: 'ArrowLeftRight', capability: 'canManageFinance', roles: ['finance'] },
       { title: 'Payroll', href: '/finance/payroll', icon: 'Banknote', capability: 'canManageFinance', roles: ['finance'] },
-      { title: 'Procurement', href: '/operations/procurement', icon: 'ShoppingCart', capability: 'canManageFinance', roles: ['finance'] },
+      { title: 'Spend requests', href: '/operations/procurement', icon: 'ShoppingCart', capability: 'canManageFinance', roles: ['finance'] },
       { title: 'Vendors', href: '/operations/procurement/vendors', icon: 'Truck', capability: 'canManageFinance', roles: ['finance'] },
       { title: 'Assets', href: '/operations/assets', icon: 'HardDrive', capability: 'canManageFinance', roles: ['finance'] },
       { title: 'Enterprise finance', href: '/enterprise/finance', icon: 'Landmark', capability: 'canManageFinance', roles: ['finance'] },
@@ -203,7 +203,7 @@ export const accountsNavigation: NavGroup[] = [
     items: [
       { title: 'Transactions', href: '/finance/transactions', icon: 'ArrowLeftRight', capability: 'canManageFinance', roles: ['accounts'] },
       { title: 'Payroll', href: '/finance/payroll', icon: 'Banknote', capability: 'canManageFinance', roles: ['accounts'] },
-      { title: 'Procurement', href: '/operations/procurement', icon: 'ShoppingCart', capability: 'canManageFinance', roles: ['accounts'] },
+      { title: 'Spend requests', href: '/operations/procurement', icon: 'ShoppingCart', capability: 'canManageFinance', roles: ['accounts'] },
       { title: 'Vendors', href: '/operations/procurement/vendors', icon: 'Truck', capability: 'canManageFinance', roles: ['accounts'] },
       { title: 'Assets', href: '/operations/assets', icon: 'HardDrive', capability: 'canManageFinance', roles: ['accounts'] },
       { title: 'Instalment plans', href: '/enterprise/finance/instalments', icon: 'CalendarClock', capability: 'canManageFinance', roles: ['accounts'] },

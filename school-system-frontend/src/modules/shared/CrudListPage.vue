@@ -335,6 +335,12 @@ async function openCreate() {
     || props.listKey === 'settings-custom-fields'
   ) {
     formResetValues.value = { is_active: true }
+  } else if (props.listKey === 'ops-procurement') {
+    formResetValues.value = {
+      spend_type: 'procurement',
+      item_quantity: 1,
+      submit: true,
+    }
   } else {
     formResetValues.value = {}
   }

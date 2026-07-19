@@ -396,4 +396,40 @@ class FinancialLedgerService
             'notes' => $notes,
         ]);
     }
+
+    /**
+     * Record cash leaving the school (procurement, petty cash, utilities, etc.).
+     */
+    public function recordExpense(
+        int $schoolId,
+        float $amount,
+        string $currency,
+        string $category,
+        string $description,
+        string $paymentMethod,
+        ?string $reference = null,
+        ?int $createdBy = null,
+        ?string $notes = null,
+    ): Transaction {
+        if ($amount <= 0) {
+            throw new InvalidArgumentException('Expense amount must be greater than zero.');
+        }
+
+        return Transaction::create([
+            'school_id' => $schoolId,
+            'student_id' => null,
+            'type' => 'expense',
+            'category' => $category,
+            'description' => $description,
+            'reference' => $reference,
+            'debit' => round($amount, 2),
+            'credit' => 0,
+            'balance' => -round($amount, 2),
+            'currency' => $currency,
+            'status' => 'completed',
+            'payment_method' => $paymentMethod,
+            'created_by' => $createdBy,
+            'notes' => $notes,
+        ]);
+    }
 }

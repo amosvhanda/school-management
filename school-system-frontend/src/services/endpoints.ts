@@ -238,6 +238,8 @@ export const endpoints = {
   },
   procurement: {
     requisitions: '/procurement/requisitions',
+    submit: (id: number | string) => `/procurement/requisitions/${id}/submit`,
+    disburse: (id: number | string) => `/procurement/requisitions/${id}/disburse`,
     vendors: '/procurement/vendors',
     goodsReceipts: '/procurement/goods-receipts',
   },

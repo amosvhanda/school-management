@@ -422,6 +422,8 @@ Route::middleware(['auth:sanctum', 'school.isolated', 'school.licensed'])->group
     Route::get('/procurement/requisitions', [ProcurementController::class, 'requisitions']);
     Route::post('/procurement/requisitions', [ProcurementController::class, 'storeRequisition']);
     Route::put('/procurement/requisitions/{id}', [ProcurementController::class, 'updateRequisition']);
+    Route::post('/procurement/requisitions/{id}/submit', [ProcurementController::class, 'submit']);
+    Route::post('/procurement/requisitions/{id}/disburse', [ProcurementController::class, 'disburse']);
     Route::get('/procurement/vendors', [ProcurementController::class, 'vendors']);
     Route::post('/procurement/vendors', [ProcurementController::class, 'storeVendor']);
     Route::put('/procurement/vendors/{id}', [ProcurementController::class, 'updateVendor']);

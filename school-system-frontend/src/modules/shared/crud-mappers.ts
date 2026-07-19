@@ -465,6 +465,7 @@ export function mapFormToPayload(
   if (listKey === 'ops-procurement') {
     return {
       title: values.title,
+      spend_type: values.spend_type ?? 'procurement',
       ...(values.department_id ? { department_id: Number(values.department_id) } : {}),
       ...(values.description ? { description: String(values.description).trim() } : {}),
       items: [

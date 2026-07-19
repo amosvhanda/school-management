@@ -207,7 +207,13 @@ export const listPageRegistry: Record<string, ListPageConfig> = {
     columns: inventoryColumns,
   },
   'ops-inventory-sales': { title: 'Inventory Sales', endpoint: moduleEndpoints.inventorySales, columns: inventorySaleColumns },
-  'ops-procurement': { title: 'Procurement Requisitions', endpoint: moduleEndpoints.procurementRequisitions, columns: procurementColumns },
+  'ops-procurement': {
+    title: 'Spend requests',
+    description:
+      'Request money → approve in Workflows → Record payment. Nothing should leave the school till without this path (except payroll).',
+    endpoint: moduleEndpoints.procurementRequisitions,
+    columns: procurementColumns,
+  },
   'ops-procurement-vendors': { title: 'Procurement Vendors', endpoint: moduleEndpoints.procurementVendors, columns: procurementVendorColumns },
   'ops-library': { title: 'Library Books', endpoint: moduleEndpoints.libraryBooks, columns: libraryColumns },
   'ops-transport': {

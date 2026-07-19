@@ -144,6 +144,7 @@ class WorkflowService
 
             if ($instance->current_step_order >= $maxStep && $canAdvance) {
                 $instance->update(['status' => 'approved', 'completed_at' => now()]);
+                $this->syncSubjectStatus($instance->fresh(), 'approved');
             } elseif ($canAdvance) {
                 $instance->update(['current_step_order' => $instance->current_step_order + 1]);
                 $this->escalation?->setStepDueAt($instance->fresh());
@@ -165,25 +166,49 @@ class WorkflowService
     {
         $this->assertCanActOnStep($instance, $approver);
 
-        WorkflowApproval::create([
-            'instance_id' => $instance->id,
-            'step_order' => $instance->current_step_order,
-            'approver_id' => $approver->id,
-            'action' => 'rejected',
-            'comments' => $comments,
-        ]);
+        return DB::transaction(function () use ($instance, $approver, $comments) {
+            WorkflowApproval::create([
+                'instance_id' => $instance->id,
+                'step_order' => $instance->current_step_order,
+                'approver_id' => $approver->id,
+                'action' => 'rejected',
+                'comments' => $comments,
+            ]);
 
-        $instance->update(['status' => 'rejected', 'completed_at' => now()]);
+            $instance->update(['status' => 'rejected', 'completed_at' => now()]);
+            $this->syncSubjectStatus($instance->fresh(), 'rejected');
 
-        $this->audit->log(
-            module: 'workflow',
-            action: 'rejected',
-            auditable: $instance,
-            description: 'Workflow rejected',
-            metadata: ['comments' => $comments],
-        );
+            $this->audit->log(
+                module: 'workflow',
+                action: 'rejected',
+                auditable: $instance,
+                description: 'Workflow rejected',
+                metadata: ['comments' => $comments],
+            );
 
-        return $instance->fresh(['definition.steps', 'approvals']);
+            return $instance->fresh(['definition.steps', 'approvals']);
+        });
+    }
+
+    /**
+     * Keep the underlying request in sync when a workflow finishes.
+     */
+    protected function syncSubjectStatus(WorkflowInstance $instance, string $status): void
+    {
+        $subject = $instance->subject;
+        if (! $subject instanceof Model) {
+            return;
+        }
+
+        if ($subject instanceof \App\Models\PurchaseRequisition) {
+            if (! in_array($subject->status, ['pending_approval', 'draft'], true) && $status === 'approved') {
+                return;
+            }
+            if ($subject->status === 'disbursed' || $subject->status === 'received') {
+                return;
+            }
+            $subject->update(['status' => $status]);
+        }
     }
 
     public function pendingForUser(User $user)

@@ -139,3 +139,89 @@ export const inventoryRestockPromptForm: ActionPromptForm = {
   }),
   defaults: { quantity: 10 },
 }
+
+export const spendDisbursePromptForm: ActionPromptForm = {
+  title: 'Record spend payment',
+  description:
+    'Pays an approved request and posts the expense to the school ledger. Only do this after approval.',
+  saveLabel: 'Record payment',
+  size: 'md',
+  fields: [
+    {
+      name: 'payment_method',
+      label: 'Payment method',
+      type: 'select',
+      required: true,
+      options: [...PAYROLL_PAYMENT_METHOD_OPTIONS, { label: 'Cheque', value: 'cheque' }],
+    },
+    {
+      name: 'amount_paid',
+      label: 'Amount to pay',
+      type: 'number',
+      required: true,
+      description: 'Defaults to the estimated cost on the request.',
+    },
+    {
+      name: 'payment_reference',
+      label: 'Payment reference',
+      type: 'text',
+      placeholder: 'Optional bank or mobile money reference',
+    },
+    {
+      name: 'paid_at',
+      label: 'Payment date',
+      type: 'date',
+    },
+  ],
+  schema: z.object({
+    payment_method: z.enum([
+      'bank_transfer',
+      'cash',
+      'ecocash',
+      'onemoney',
+      'zipit',
+      'swipe',
+      'cheque',
+    ]),
+    amount_paid: z.coerce.number().positive('Enter an amount greater than zero'),
+    payment_reference: z.string().optional(),
+    paid_at: z.string().optional(),
+  }),
+  defaults: (row) => ({
+    payment_method: 'bank_transfer',
+    amount_paid: Number(row.estimated_cost ?? row.amount_paid ?? 0),
+    paid_at: new Date().toISOString().slice(0, 10),
+    payment_reference: '',
+  }),
+}
+
+export const receiveGoodsPromptForm: ActionPromptForm = {
+  title: 'Receive goods',
+  description: 'Confirm delivery for an approved or paid purchase request.',
+  saveLabel: 'Receive goods',
+  size: 'md',
+  fields: [
+    {
+      name: 'received_date',
+      label: 'Received date',
+      type: 'date',
+      required: true,
+    },
+    {
+      name: 'notes',
+      label: 'Notes',
+      type: 'textarea',
+      placeholder: 'Optional delivery notes',
+      colSpan: 2,
+    },
+  ],
+  schema: z.object({
+    received_date: z.string().min(1, 'Date is required'),
+    notes: z.string().optional(),
+  }),
+  defaults: () => ({
+    received_date: new Date().toISOString().slice(0, 10),
+    notes: '',
+  }),
+}
+
