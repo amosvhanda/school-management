@@ -171,6 +171,7 @@ export const staffRoutes: RouteRecordRaw[] = [
   staffListRoute('operations/visitors', 'ops-visitors', 'ops-visitors', 'canManageReception'),
   staffListRoute('operations/health', 'ops-health', 'ops-health', 'canManageTeachers'),
   staffListRoute('operations/events', 'ops-events', 'ops-events', 'canManageTeachers'),
+  staffListRoute('operations/school-trips', 'ops-school-trips', 'ops-school-trips', 'canManageTeachers'),
   {
     path: 'communications/announcements',
     name: 'comms-announcements',
@@ -304,6 +305,18 @@ export const parentRoutes: RouteRecordRaw[] = [
     path: 'portal/consent',
     name: 'portal-consent',
     component: () => import('@/modules/parent-portal/views/ParentConsentView.vue'),
+    meta: { roles: ['parent'] },
+  },
+  {
+    path: 'portal/store',
+    name: 'portal-store',
+    component: () => import('@/modules/parent-portal/views/ParentStoreView.vue'),
+    meta: { roles: ['parent'] },
+  },
+  {
+    path: 'portal/trips',
+    name: 'portal-trips',
+    component: () => import('@/modules/parent-portal/views/ParentTripsView.vue'),
     meta: { roles: ['parent'] },
   },
   {

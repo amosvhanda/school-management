@@ -103,6 +103,7 @@ export const SECTION_HUBS: Record<SectionKey, SectionHubDefinition> = {
       { title: 'Routes', description: 'Pickup routes', href: '/operations/transport/routes', icon: 'Map', capability: 'canManageTransport' },
       { title: 'Visitors', description: 'Sign-in register', href: '/operations/visitors', icon: 'UserCheck', capability: 'canManageReception' },
       { title: 'Events', description: 'School calendar events', href: '/operations/events', icon: 'CalendarHeart', capability: 'canManageTeachers' },
+      { title: 'School trips', description: 'Excursions and parent registration', href: '/operations/school-trips', icon: 'Bus', capability: 'canManageTeachers' },
       { title: 'Hostels', description: 'Boarding houses and rooms', href: '/operations/hostels', icon: 'Building2', capability: 'canManageTeachers' },
       { title: 'Clinic visits', description: 'Student health records', href: '/operations/health', icon: 'HeartPulse', capability: 'canManageTeachers' },
       { title: 'Spend requests', description: 'Request → approve → pay', href: '/operations/procurement', icon: 'ShoppingCart', capability: 'canManageFinance' },

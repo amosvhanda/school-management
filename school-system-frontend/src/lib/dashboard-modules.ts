@@ -787,6 +787,13 @@ export const STAFF_DASHBOARD_MODULE_GROUPS: DashboardModuleGroup[] = [
         icon: 'CalendarHeart',
         capability: 'canManageTeachers',
       },
+      {
+        title: 'School trips',
+        description: 'Excursions with parent registration',
+        href: '/operations/school-trips',
+        icon: 'Bus',
+        capability: 'canManageTeachers',
+      },
     ],
   },
   {

@@ -64,7 +64,13 @@ class InventoryService
             $invoice = null;
             $student = $studentId ? Student::where('school_id', $schoolId)->find($studentId) : null;
 
-            if ($paymentMethod === 'student_account' && $student) {
+            if ($paymentMethod === 'student_account') {
+                if (! $student) {
+                    throw ValidationException::withMessages([
+                        'student_id' => ['Select a student when charging the student account.'],
+                    ]);
+                }
+
                 $invoice = $this->ledgerService->createInvoice(
                     student: $student,
                     amount: $total,

@@ -370,6 +370,32 @@ export const holidayProgramColumns: ColumnDef<Record<string, unknown>>[] = [
     },
   },
 ]
+
+export const schoolTripColumns: ColumnDef<Record<string, unknown>>[] = [
+  textColumn('Name', 'name'),
+  textColumn('Destination', 'destination'),
+  dateColumn('Trip date', 'trip_date'),
+  dateColumn('Return', 'return_date'),
+  currencyColumn('Fee', 'fee_amount'),
+  textColumn('Capacity', 'capacity'),
+  textColumn('Enrolled', 'enrolled_count'),
+  {
+    id: 'open_for_registration',
+    header: 'Registration',
+    cell: ({ row }) => {
+      const open = row.original.open_for_registration !== false && row.original.open_for_registration !== 0
+      return h(Badge, { variant: open ? 'default' : 'secondary' }, () => (open ? 'Open' : 'Closed'))
+    },
+  },
+  {
+    id: 'is_active',
+    header: 'Status',
+    cell: ({ row }) => {
+      const active = row.original.is_active !== false && row.original.is_active !== 0
+      return h(Badge, { variant: active ? 'default' : 'secondary' }, () => (active ? 'Active' : 'Inactive'))
+    },
+  },
+]
 export const feeStructureColumns: ColumnDef<Record<string, unknown>>[] = [
   {
     id: 'class_name',

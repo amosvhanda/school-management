@@ -331,10 +331,13 @@ async function openCreate() {
     || props.listKey === 'academics-departments'
     || props.listKey === 'academics-grade-levels'
     || props.listKey === 'academics-holiday-programs'
+    || props.listKey === 'ops-school-trips'
     || props.listKey === 'academics-teacher-assignments'
     || props.listKey === 'settings-custom-fields'
   ) {
-    formResetValues.value = { is_active: true }
+    formResetValues.value = props.listKey === 'ops-school-trips'
+      ? { is_active: true, open_for_registration: true, currency: 'USD', fee_amount: 0 }
+      : { is_active: true }
   } else if (props.listKey === 'ops-procurement') {
     formResetValues.value = {
       spend_type: 'procurement',

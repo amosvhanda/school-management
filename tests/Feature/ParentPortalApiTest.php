@@ -5,8 +5,10 @@ namespace Tests\Feature;
 use App\Enums\UserRole;
 use App\Models\DisciplinaryRecord;
 use App\Models\Grade;
+use App\Models\InventoryItem;
 use App\Models\ParentNotification;
 use App\Models\School;
+use App\Models\SchoolTrip;
 use App\Models\Student;
 use App\Models\User;
 use App\Services\GuardianService;
@@ -243,5 +245,98 @@ class ParentPortalApiTest extends TestCase
         $download->assertOk();
         $this->assertStringContainsString('Child One', $download->getContent());
         $this->assertStringContainsString('English', $download->getContent());
+    }
+
+    public function test_parent_can_buy_store_items_for_linked_child(): void
+    {
+        $school = School::factory()->create();
+        $parent = User::factory()->create([
+            'role' => UserRole::Parent,
+            'school_id' => $school->id,
+        ]);
+        $student = Student::factory()->create(['school_id' => $school->id, 'balance' => 0, 'status' => 'active']);
+        $parent->students()->attach($student->id, [
+            'school_id' => $school->id,
+            'relationship' => 'parent',
+            'is_primary' => true,
+        ]);
+
+        $item = InventoryItem::create([
+            'school_id' => $school->id,
+            'name' => 'School Shirt',
+            'type' => 'uniform',
+            'size' => 'M',
+            'unit_price' => 20,
+            'currency' => 'USD',
+            'stock_quantity' => 5,
+            'billing_mode' => 'direct_sale',
+            'is_active' => true,
+        ]);
+
+        $token = $parent->createToken('test')->plainTextToken;
+        $headers = ['Authorization' => 'Bearer '.$token];
+
+        $this->withHeaders($headers)
+            ->getJson('/api/v1/parent/portal/store/items?type=uniform')
+            ->assertOk()
+            ->assertJsonPath('data.0.id', $item->id);
+
+        $this->withHeaders($headers)
+            ->postJson('/api/v1/parent/portal/store/buy', [
+                'student_id' => $student->id,
+                'items' => [['item_id' => $item->id, 'quantity' => 2]],
+            ])
+            ->assertCreated();
+
+        $this->assertEquals(3, $item->fresh()->stock_quantity);
+        $this->assertGreaterThan(0, (float) $student->fresh()->balance);
+    }
+
+    public function test_parent_can_enroll_linked_child_on_school_trip(): void
+    {
+        $school = School::factory()->create();
+        $parent = User::factory()->create([
+            'role' => UserRole::Parent,
+            'school_id' => $school->id,
+        ]);
+        $student = Student::factory()->create(['school_id' => $school->id, 'balance' => 0, 'status' => 'active']);
+        $parent->students()->attach($student->id, [
+            'school_id' => $school->id,
+            'relationship' => 'parent',
+            'is_primary' => true,
+        ]);
+
+        $trip = SchoolTrip::create([
+            'school_id' => $school->id,
+            'name' => 'Great Zimbabwe Tour',
+            'destination' => 'Masvingo',
+            'trip_date' => now()->addWeeks(2)->toDateString(),
+            'fee_amount' => 50,
+            'currency' => 'USD',
+            'capacity' => 30,
+            'is_active' => true,
+            'open_for_registration' => true,
+        ]);
+
+        $token = $parent->createToken('test')->plainTextToken;
+        $headers = ['Authorization' => 'Bearer '.$token];
+
+        $this->withHeaders($headers)
+            ->getJson('/api/v1/parent/portal/trips')
+            ->assertOk()
+            ->assertJsonPath('data.0.id', $trip->id);
+
+        $this->withHeaders($headers)
+            ->postJson("/api/v1/parent/portal/trips/{$trip->id}/enroll", [
+                'student_id' => $student->id,
+            ])
+            ->assertCreated();
+
+        $this->assertDatabaseHas('school_trip_enrollments', [
+            'school_trip_id' => $trip->id,
+            'student_id' => $student->id,
+            'status' => 'enrolled',
+        ]);
+        $this->assertGreaterThan(0, (float) $student->fresh()->balance);
     }
 }

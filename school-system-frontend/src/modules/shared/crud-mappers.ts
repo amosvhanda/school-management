@@ -541,6 +541,7 @@ export const backendCrudSupport: Record<string, { create: boolean; update: boole
   'academics-attendance': { create: true, update: false, delete: false },
   'academics-timetable': { create: true, update: true, delete: true },
   'academics-holiday-programs': { create: true, update: true, delete: false },
+  'ops-school-trips': { create: true, update: true, delete: false },
   'academics-exams': { create: true, update: true, delete: true },
   'finance-payments': { create: true, update: false, delete: false },
   'finance-invoices': { create: true, update: true, delete: false },

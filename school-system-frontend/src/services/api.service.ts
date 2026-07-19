@@ -192,6 +192,12 @@ export const academicsApi = {
     recordAttendance: (id: number | string, payload: Record<string, unknown>) =>
       postRecord(e.holidayPrograms.attendance(id), payload),
   },
+  schoolTrips: {
+    ...crud(e.schoolTrips.list, e.schoolTrips.detail),
+    enrollments: (id: number | string) => fetchList(e.schoolTrips.enrollments(id)),
+    enroll: (id: number | string, payload: Record<string, unknown>) =>
+      postRecord(e.schoolTrips.enroll(id), payload),
+  },
 }
 
 export const financeApi = {
@@ -510,6 +516,11 @@ export const parentPortalApi = {
   consentForms: () => fetchList(e.parentPortal.consentForms),
   respondConsent: (id: number | string, payload: Record<string, unknown>) =>
     postRecord(e.parentPortal.respondConsent(id), payload),
+  storeItems: (params?: ListQueryParams) => fetchList(e.parentPortal.storeItems, params),
+  storeBuy: (payload: Record<string, unknown>) => createRecord(e.parentPortal.storeBuy, payload),
+  trips: () => fetchList(e.parentPortal.trips),
+  enrollTrip: (id: number | string, payload: Record<string, unknown>) =>
+    postRecord(e.parentPortal.enrollTrip(id), payload),
 }
 
 export const enterpriseApi = {

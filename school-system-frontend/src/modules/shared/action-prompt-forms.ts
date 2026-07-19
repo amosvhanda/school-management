@@ -2,6 +2,7 @@ import { z } from 'zod'
 import type { FormFieldSchema } from '@/components/forms/useFormBuilder'
 import { PAYROLL_PAYMENT_METHOD_OPTIONS } from '@/lib/finance-constants'
 import type { FormSheetSize } from '@/lib/form-standards'
+import { endpoints } from '@/services/endpoints'
 
 export interface ActionPromptForm {
   title: string
@@ -222,6 +223,26 @@ export const receiveGoodsPromptForm: ActionPromptForm = {
   defaults: () => ({
     received_date: new Date().toISOString().slice(0, 10),
     notes: '',
+  }),
+}
+
+export const schoolTripEnrollPromptForm: ActionPromptForm = {
+  title: 'Enroll student',
+  description: 'Register a student for this trip. If there is a fee, it is invoiced to their account.',
+  saveLabel: 'Enroll',
+  size: 'md',
+  fields: [
+    {
+      name: 'student_id',
+      label: 'Student',
+      type: 'relation',
+      required: true,
+      colSpan: 2,
+      relation: { endpoint: endpoints.students.list },
+    },
+  ],
+  schema: z.object({
+    student_id: z.coerce.number().min(1, 'Select a student'),
   }),
 }
 

@@ -5,6 +5,7 @@ import {
   payrollGeneratePromptForm,
   payrollProcessPromptForm,
   receiveGoodsPromptForm,
+  schoolTripEnrollPromptForm,
   spendDisbursePromptForm,
 } from '@/modules/shared/action-prompt-forms'
 
@@ -171,6 +172,20 @@ export const moduleActionsRegistry: Record<string, RowActionConfig[]> = {
       path: (id) => endpoints.visitors.checkOut(id),
       when: (row) => String(row.status ?? '').toLowerCase() === 'checked_in',
       successMessage: 'Visitor checked out',
+    },
+  ],
+  'ops-school-trips': [
+    {
+      label: 'Enroll student',
+      method: 'post',
+      path: (id) => endpoints.schoolTrips.enroll(id),
+      when: (row) =>
+        row.is_active !== false
+        && row.is_active !== 0
+        && row.open_for_registration !== false
+        && row.open_for_registration !== 0,
+      promptForm: schoolTripEnrollPromptForm,
+      successMessage: 'Student enrolled for the trip',
     },
   ],
   'ops-assets': [

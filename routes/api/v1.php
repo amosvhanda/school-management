@@ -38,6 +38,7 @@ use App\Http\Controllers\GradingScaleController;
 use App\Http\Controllers\GuardianController;
 use App\Http\Controllers\HealthController;
 use App\Http\Controllers\HolidayProgramController;
+use App\Http\Controllers\SchoolTripController;
 use App\Http\Controllers\HostelController;
 use App\Http\Controllers\InventoryController;
 use App\Http\Controllers\InvoiceController;
@@ -228,6 +229,12 @@ Route::middleware(['auth:sanctum', 'school.isolated', 'school.licensed'])->group
     Route::get('/holiday-programs/{id}/attendance', [HolidayProgramController::class, 'attendance']);
     Route::post('/holiday-programs/{id}/attendance', [HolidayProgramController::class, 'recordAttendance']);
 
+    Route::get('/school-trips', [SchoolTripController::class, 'index']);
+    Route::post('/school-trips', [SchoolTripController::class, 'store']);
+    Route::put('/school-trips/{id}', [SchoolTripController::class, 'update']);
+    Route::get('/school-trips/{id}/enrollments', [SchoolTripController::class, 'enrollments']);
+    Route::post('/school-trips/{id}/enroll', [SchoolTripController::class, 'enroll']);
+
     // Teachers (V1)
     Route::get('/teachers', [App\Http\Controllers\Api\V1\TeacherController::class, 'index']);
     Route::post('/teachers', [App\Http\Controllers\Api\V1\TeacherController::class, 'store']);
@@ -371,6 +378,10 @@ Route::middleware(['auth:sanctum', 'school.isolated', 'school.licensed'])->group
         Route::post('/communications/threads', [ParentPortalController::class, 'createThread']);
         Route::get('/communications/threads/{threadId}/messages', [ParentPortalController::class, 'threadMessages']);
         Route::post('/communications/threads/{threadId}/messages', [ParentPortalController::class, 'sendMessage']);
+        Route::get('/store/items', [ParentPortalController::class, 'storeItems']);
+        Route::post('/store/buy', [ParentPortalController::class, 'buyStoreItems']);
+        Route::get('/trips', [ParentPortalController::class, 'trips']);
+        Route::post('/trips/{id}/enroll', [ParentPortalController::class, 'enrollTrip']);
     });
 
     Route::get('/disciplinary-records', [DisciplinaryRecordController::class, 'index']);

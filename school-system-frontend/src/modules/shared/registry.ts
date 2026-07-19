@@ -28,6 +28,7 @@ import {
   payrollColumns,
   portalChildColumns,
   procurementColumns,
+  schoolTripColumns,
   procurementVendorColumns,
   statusColumn,
   studentColumns,
@@ -245,6 +246,12 @@ export const listPageRegistry: Record<string, ListPageConfig> = {
   },
   'ops-health': { title: 'Clinic Visits', endpoint: moduleEndpoints.healthVisits, columns: healthColumns },
   'ops-events': { title: 'Events', endpoint: moduleEndpoints.events, columns: eventColumns },
+  'ops-school-trips': {
+    title: 'School trips',
+    description: 'Create trips with fees and capacity. Parents register from the portal; the fee is invoiced to the student account.',
+    endpoint: moduleEndpoints.schoolTrips,
+    columns: schoolTripColumns,
+  },
 
   'comms-announcements': { title: 'Announcements', endpoint: moduleEndpoints.announcements, columns: announcementColumns },
   'comms-threads': { title: 'Message Threads', endpoint: moduleEndpoints.threads, columns: threadColumns },

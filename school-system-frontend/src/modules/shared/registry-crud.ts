@@ -587,6 +587,52 @@ export const moduleCrudRegistry: Record<string, ModuleCrudConfig> = {
     }),
     { canDelete: false },
   ),
+  'ops-school-trips': crud(
+    formSection('Trip details', [
+      { name: 'name', label: 'Trip name', type: 'text', required: true, colSpan: 2 },
+      { name: 'destination', label: 'Destination', type: 'text', placeholder: 'Great Zimbabwe' },
+      { name: 'trip_date', label: 'Trip date', type: 'date', required: true },
+      { name: 'return_date', label: 'Return date', type: 'date' },
+      { name: 'fee_amount', label: 'Fee per student', type: 'number', placeholder: '0.00' },
+      {
+        name: 'currency',
+        label: 'Currency',
+        type: 'select',
+        options: [
+          { label: 'USD', value: 'USD' },
+          { label: 'ZWG', value: 'ZWG' },
+        ],
+      },
+      {
+        name: 'capacity',
+        label: 'Capacity',
+        type: 'number',
+        placeholder: 'Leave blank for unlimited',
+        description: 'Maximum number of students who can register.',
+      },
+      { name: 'description', label: 'Description', type: 'textarea', colSpan: 2 },
+      { name: 'is_active', label: 'Active', type: 'checkbox' },
+      {
+        name: 'open_for_registration',
+        label: 'Open for parent registration',
+        type: 'checkbox',
+        colSpan: 2,
+      },
+    ]),
+    z.object({
+      name: z.string().min(1),
+      destination: z.string().optional(),
+      trip_date: z.string().min(1),
+      return_date: z.string().optional(),
+      fee_amount: z.coerce.number().optional(),
+      currency: z.string().optional(),
+      capacity: z.coerce.number().optional(),
+      description: z.string().optional(),
+      is_active: z.boolean().optional(),
+      open_for_registration: z.boolean().optional(),
+    }),
+    { canDelete: false },
+  ),
   'finance-payments': crud(
     [
       {

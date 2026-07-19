@@ -36,6 +36,7 @@ const modulePermissionRegistry: Record<string, ModulePermissionConfig> = {
   'ops-hostels': { create: ADMIN, edit: ADMIN, delete: ADMIN },
   'ops-health': { create: ADMIN, edit: ADMIN, delete: ADMIN },
   'ops-events': { create: ADMIN, edit: ADMIN, delete: ADMIN },
+  'ops-school-trips': { create: ADMIN, edit: ADMIN, delete: ADMIN },
   compliance: { create: ADMIN, edit: ADMIN, delete: ADMIN },
   'compliance-incidents': { create: STAFF, edit: STAFF, delete: ADMIN },
 }

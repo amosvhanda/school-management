@@ -188,6 +188,12 @@ export const endpoints = {
     enroll: (id: number | string) => `/holiday-programs/${id}/enroll`,
     attendance: (id: number | string) => `/holiday-programs/${id}/attendance`,
   },
+  schoolTrips: {
+    list: '/school-trips',
+    detail: (id: number | string) => `/school-trips/${id}`,
+    enrollments: (id: number | string) => `/school-trips/${id}/enrollments`,
+    enroll: (id: number | string) => `/school-trips/${id}/enroll`,
+  },
   finance: {
     summary: '/finance/summary',
     outstandingBalances: '/finance/outstanding-balances',
@@ -340,6 +346,10 @@ export const endpoints = {
     threadMessages: (threadId: number | string) => `/parent/portal/communications/threads/${threadId}/messages`,
     consentForms: '/parent/portal/consent-forms',
     respondConsent: (id: number | string) => `/parent/portal/consent-forms/${id}/respond`,
+    storeItems: '/parent/portal/store/items',
+    storeBuy: '/parent/portal/store/buy',
+    trips: '/parent/portal/trips',
+    enrollTrip: (id: number | string) => `/parent/portal/trips/${id}/enroll`,
   },
   enterprise: {
     commandCenter: '/enterprise/command-center',

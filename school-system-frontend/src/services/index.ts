@@ -34,6 +34,7 @@ export const moduleEndpoints = {
   exams: e.exams.list,
   attendance: e.attendance.list,
   holidayPrograms: e.holidayPrograms.list,
+  schoolTrips: e.schoolTrips.list,
   payments: e.payments.list,
   invoices: e.invoices.list,
   transactions: e.transactions.list,

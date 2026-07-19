@@ -179,4 +179,39 @@ class StudentLifecycleTest extends TestCase
 
         $attendance->assertOk();
     }
+
+    public function test_staff_can_create_school_trip_and_enroll_student(): void
+    {
+        $auth = $this->createAuthenticatedUser();
+        $student = Student::factory()->create(['school_id' => $auth['school']->id, 'balance' => 0]);
+
+        $create = $this->withHeaders([
+            'Authorization' => 'Bearer '.$auth['token'],
+        ])->postJson('/api/v1/school-trips', [
+            'name' => 'Museum Visit',
+            'destination' => 'Harare',
+            'trip_date' => now()->addMonth()->toDateString(),
+            'fee_amount' => 35,
+            'capacity' => 20,
+            'is_active' => true,
+            'open_for_registration' => true,
+        ]);
+
+        $create->assertCreated();
+        $tripId = $create->json('data.id');
+
+        $enroll = $this->withHeaders([
+            'Authorization' => 'Bearer '.$auth['token'],
+        ])->postJson("/api/v1/school-trips/{$tripId}/enroll", [
+            'student_id' => $student->id,
+        ]);
+
+        $enroll->assertCreated();
+        $this->assertEquals(35, (float) $student->fresh()->balance);
+        $this->assertDatabaseHas('school_trip_enrollments', [
+            'school_trip_id' => $tripId,
+            'student_id' => $student->id,
+            'status' => 'enrolled',
+        ]);
+    }
 }

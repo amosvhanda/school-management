@@ -12,13 +12,18 @@ use App\Models\ConsentResponse;
 use App\Models\DisciplinaryRecord;
 use App\Models\ExamResult;
 use App\Models\Grade;
+use App\Models\InventoryItem;
 use App\Models\Invoice;
 use App\Models\ParentNotification;
 use App\Models\Payment;
+use App\Models\SchoolTrip;
+use App\Models\SchoolTripEnrollment;
 use App\Models\Student;
 use App\Models\Transaction;
 use App\Models\User;
+use App\Services\InventoryService;
 use App\Services\ParentAccessService;
+use App\Services\SchoolTripService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
@@ -26,7 +31,11 @@ use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 
 class ParentPortalController extends Controller
 {
-    public function __construct(private ParentAccessService $parentAccess) {}
+    public function __construct(
+        private ParentAccessService $parentAccess,
+        private InventoryService $inventoryService,
+        private SchoolTripService $tripService,
+    ) {}
 
     public function dashboard(Request $request)
     {
@@ -522,6 +531,140 @@ class ParentPortalController extends Controller
         $thread->update(['last_message_at' => now(), 'status' => 'open']);
 
         return response()->json(['data' => $message->load('sender')], 201);
+    }
+
+    /**
+     * Active store catalogue (uniforms and other stock parents can order).
+     */
+    public function storeItems(Request $request)
+    {
+        $parent = $this->requireParent($request);
+
+        $items = InventoryItem::query()
+            ->where('school_id', $parent->school_id)
+            ->where('is_active', true)
+            ->where('stock_quantity', '>', 0)
+            ->when(
+                $request->filled('type'),
+                fn ($q) => $q->where('type', $request->string('type')),
+                fn ($q) => $q->whereIn('type', ['uniform', 'stationery', 'book', 'equipment', 'other']),
+            )
+            ->orderBy('type')
+            ->orderBy('name')
+            ->get(['id', 'name', 'sku', 'type', 'size', 'unit_price', 'currency', 'stock_quantity', 'description']);
+
+        return response()->json(['data' => $items]);
+    }
+
+    /**
+     * Parent orders stock for a linked child — charged to the student account.
+     */
+    public function buyStoreItems(Request $request)
+    {
+        $parent = $this->requireParent($request);
+
+        $validator = Validator::make($request->all(), [
+            'student_id' => 'required|integer|exists:students,id',
+            'items' => 'required|array|min:1',
+            'items.*.item_id' => 'required|integer|exists:inventory_items,id',
+            'items.*.quantity' => 'required|integer|min:1',
+            'notes' => 'nullable|string|max:500',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['message' => 'Validation failed', 'errors' => $validator->errors()], 422);
+        }
+
+        $studentId = (int) $request->student_id;
+        $this->parentAccess->assertCanAccessStudent($parent, $studentId);
+
+        $sale = $this->inventoryService->createSale(
+            schoolId: (int) $parent->school_id,
+            items: $request->input('items'),
+            paymentMethod: 'student_account',
+            studentId: $studentId,
+            soldBy: $parent->id,
+            notes: $request->input('notes') ?? 'Parent portal uniform/store order',
+        );
+
+        return response()->json([
+            'data' => $sale->load(['items.item', 'student:id,full_name,student_number']),
+            'message' => 'Order placed. The amount has been added to the student fee account.',
+        ], 201);
+    }
+
+    /**
+     * Trips open for parent registration.
+     */
+    public function trips(Request $request)
+    {
+        $parent = $this->requireParent($request);
+        $studentIds = $this->parentAccess->accessibleStudentIds($parent);
+
+        $trips = SchoolTrip::query()
+            ->where('school_id', $parent->school_id)
+            ->where('is_active', true)
+            ->where('open_for_registration', true)
+            ->whereDate('trip_date', '>=', now()->toDateString())
+            ->withCount(['enrollments as enrolled_count' => fn ($q) => $q->where('status', 'enrolled')])
+            ->orderBy('trip_date')
+            ->get()
+            ->map(function (SchoolTrip $trip) use ($studentIds) {
+                $myEnrollments = SchoolTripEnrollment::query()
+                    ->where('school_trip_id', $trip->id)
+                    ->whereIn('student_id', $studentIds)
+                    ->where('status', 'enrolled')
+                    ->pluck('student_id')
+                    ->all();
+
+                return [
+                    'id' => $trip->id,
+                    'name' => $trip->name,
+                    'destination' => $trip->destination,
+                    'trip_date' => $trip->trip_date?->toDateString(),
+                    'return_date' => $trip->return_date?->toDateString(),
+                    'fee_amount' => $trip->fee_amount,
+                    'currency' => $trip->currency,
+                    'capacity' => $trip->capacity,
+                    'enrolled_count' => (int) $trip->enrolled_count,
+                    'spots_remaining' => $trip->capacity === null
+                        ? null
+                        : max(0, (int) $trip->capacity - (int) $trip->enrolled_count),
+                    'description' => $trip->description,
+                    'enrolled_student_ids' => $myEnrollments,
+                ];
+            });
+
+        return response()->json(['data' => $trips]);
+    }
+
+    /**
+     * Register a linked child for a school trip (creates invoice when fee > 0).
+     */
+    public function enrollTrip(Request $request, int $id)
+    {
+        $parent = $this->requireParent($request);
+
+        $validator = Validator::make($request->all(), [
+            'student_id' => 'required|integer|exists:students,id',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['message' => 'Validation failed', 'errors' => $validator->errors()], 422);
+        }
+
+        $studentId = (int) $request->student_id;
+        $this->parentAccess->assertCanAccessStudent($parent, $studentId);
+
+        $trip = SchoolTrip::where('school_id', $parent->school_id)->findOrFail($id);
+        $enrollment = $this->tripService->enrollStudent($trip, $studentId, $parent->id);
+
+        return response()->json([
+            'data' => $enrollment->load(['student:id,full_name,student_number', 'invoice:id,invoice_number,amount,balance,status']),
+            'message' => (float) $trip->fee_amount > 0
+                ? 'Child registered. Trip fee has been added to their account.'
+                : 'Child registered for the trip.',
+        ], 201);
     }
 
     protected function requireParent(Request $request): User
