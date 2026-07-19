@@ -70,6 +70,8 @@ export const staffNavigation: NavGroup[] = [
       { title: 'Inventory', href: '/operations/inventory', icon: 'Package', capability: 'canManageInventory' },
       { title: 'Library', href: '/operations/library', icon: 'Library', capability: 'canManageLibrary' },
       { title: 'Transport', href: '/operations/transport', icon: 'Bus', capability: 'canManageTransport' },
+      { title: 'Drivers', href: '/operations/transport/drivers', icon: 'IdCard', capability: 'canManageTransport' },
+      { title: 'Routes', href: '/operations/transport/routes', icon: 'Map', capability: 'canManageTransport' },
       { title: 'Visitors', href: '/operations/visitors', icon: 'UserCheck', capability: 'canManageReception' },
       { title: 'Events', href: '/operations/events', icon: 'CalendarHeart', capability: 'canManageTeachers' },
     ],

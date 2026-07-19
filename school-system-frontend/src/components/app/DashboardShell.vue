@@ -26,7 +26,7 @@ const { sidebarOpen } = storeToRefs(uiStore)
     <SidebarInset id="main-content" tabindex="-1" class="min-w-0 outline-none">
       <LicenseBanner v-if="showLicenseBanner" />
       <AppHeader />
-      <div class="flex-1 overflow-x-hidden overflow-y-auto bg-muted/20 p-4 md:p-6 lg:p-8">
+      <div class="page-canvas flex-1 overflow-x-hidden overflow-y-auto p-4 md:p-6 lg:p-8">
         <RouterView />
       </div>
     </SidebarInset>

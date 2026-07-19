@@ -20,7 +20,9 @@ class VisitorController extends Controller
     {
         $this->authorizeReception($request);
 
-        $query = Visitor::where('school_id', $request->user()->school_id)->orderByDesc('check_in_at');
+        $query = Visitor::where('school_id', $request->user()->school_id)
+            ->with(['host:id,name,email,role', 'student:id,first_name,last_name,student_number'])
+            ->orderByDesc('check_in_at');
 
         if ($request->filled('status')) {
             $query->where('status', $request->status);
@@ -35,8 +37,8 @@ class VisitorController extends Controller
 
         $data = $request->validate([
             'name' => 'required|string|max:255',
-            'phone' => 'nullable|string',
-            'id_number' => 'nullable|string',
+            'phone' => 'nullable|string|max:30',
+            'id_number' => 'nullable|string|max:50',
             'purpose' => 'required|string|max:255',
             'host_user_id' => 'nullable|exists:users,id',
             'student_id' => 'nullable|exists:students,id',
@@ -49,7 +51,10 @@ class VisitorController extends Controller
             'status' => 'checked_in',
         ]);
 
-        return response()->json(['data' => $visitor], 201);
+        return response()->json([
+            'data' => $visitor->load(['host:id,name,email,role', 'student:id,first_name,last_name,student_number']),
+            'message' => 'Visitor checked in',
+        ], 201);
     }
 
     public function checkOut(Request $request, int $id)

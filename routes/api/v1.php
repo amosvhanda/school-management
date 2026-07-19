@@ -427,10 +427,13 @@ Route::middleware(['auth:sanctum', 'school.isolated', 'school.licensed'])->group
     Route::post('/assets/{id}/dispose', [AssetController::class, 'dispose']);
     Route::get('/transport/vehicles', [TransportController::class, 'vehicles']);
     Route::post('/transport/vehicles', [TransportController::class, 'storeVehicle']);
+    Route::put('/transport/vehicles/{id}', [TransportController::class, 'updateVehicle']);
     Route::get('/transport/drivers', [TransportController::class, 'drivers']);
     Route::post('/transport/drivers', [TransportController::class, 'storeDriver']);
+    Route::put('/transport/drivers/{id}', [TransportController::class, 'updateDriver']);
     Route::get('/transport/routes', [TransportController::class, 'routes']);
     Route::post('/transport/routes', [TransportController::class, 'storeRoute']);
+    Route::put('/transport/routes/{id}', [TransportController::class, 'updateRoute']);
     Route::post('/transport/allocations', [TransportController::class, 'allocateStudent']);
     Route::get('/hostels', [HostelController::class, 'index']);
     Route::post('/hostels', [HostelController::class, 'store']);

@@ -70,6 +70,16 @@ export const moduleActionsRegistry: Record<string, RowActionConfig[]> = {
       successMessage: 'Results approved',
     },
   ],
+  'academics-terms': [
+    {
+      label: 'Set as current',
+      method: 'put',
+      path: (id) => endpoints.terms.detail(id),
+      when: (row) => row.is_current !== true && row.is_current !== 1,
+      body: { is_current: true },
+      successMessage: 'Current term updated',
+    },
+  ],
   'finance-payments': [
     {
       label: 'Receipt',

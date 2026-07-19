@@ -268,7 +268,25 @@ watch(globalFilter, () => {
 
 async function openCreate() {
   editingRow.value = null
-  formResetValues.value = props.listKey === 'students' ? { guardianMode: 'new' } : {}
+  if (props.listKey === 'students') {
+    formResetValues.value = { guardianMode: 'new' }
+  } else if (props.listKey === 'academics-terms') {
+    formResetValues.value = { is_active: true, is_current: false, order: 1 }
+  } else if (props.listKey === 'ops-inventory') {
+    formResetValues.value = {
+      type: 'uniform',
+      stock_quantity: 0,
+      reorder_level: 5,
+      unit_price: 0,
+      currency: 'USD',
+      billing_mode: 'direct_sale',
+      is_active: true,
+    }
+  } else if (props.listKey === 'ops-transport' || props.listKey === 'ops-transport-drivers' || props.listKey === 'ops-transport-routes') {
+    formResetValues.value = { status: 'active' }
+  } else {
+    formResetValues.value = {}
+  }
   sheetOpen.value = true
   await nextTick()
   void prepareCreate()
@@ -442,7 +460,7 @@ defineExpose({ load, openEdit })
       </Button>
       <Button v-if="canCreate && hasForm" @click="openCreate">
         <Plus class="mr-2 h-4 w-4" aria-hidden="true" />
-        Add new
+        {{ listKey === 'ops-visitors' ? 'Check in' : 'Add new' }}
       </Button>
     </template>
 

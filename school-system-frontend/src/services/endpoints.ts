@@ -247,8 +247,11 @@ export const endpoints = {
   },
   transport: {
     vehicles: '/transport/vehicles',
+    vehicle: (id: number | string) => `/transport/vehicles/${id}`,
     drivers: '/transport/drivers',
+    driver: (id: number | string) => `/transport/drivers/${id}`,
     routes: '/transport/routes',
+    route: (id: number | string) => `/transport/routes/${id}`,
     allocations: '/transport/allocations',
   },
   hostels: {

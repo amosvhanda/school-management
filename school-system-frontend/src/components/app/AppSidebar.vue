@@ -79,20 +79,20 @@ watch(
 
 <template>
   <Sidebar collapsible="icon" class="border-r border-sidebar-border bg-sidebar" aria-label="Application navigation">
-    <SidebarHeader class="border-b border-sidebar-border px-2 py-3 md:px-3 md:py-4">
+    <SidebarHeader class="border-b border-sidebar-border/80 px-2 py-3 md:px-3 md:py-4">
       <RouterLink
         :to="homeHref"
-        class="flex items-center gap-3 rounded-lg px-2 py-1.5 transition-colors hover:bg-sidebar-accent group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0"
+        class="flex items-center gap-3 rounded-xl px-2 py-1.5 transition-colors hover:bg-sidebar-accent group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0"
         :aria-label="`${school?.name ?? title} home`"
       >
         <div
-          class="flex size-9 shrink-0 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground shadow-sm"
+          class="flex size-9 shrink-0 items-center justify-center rounded-xl bg-sidebar-primary text-sidebar-primary-foreground shadow-[var(--shadow-soft)]"
         >
           <GraduationCap class="size-4" aria-hidden="true" />
         </div>
         <div class="min-w-0 flex-1 group-data-[collapsible=icon]:hidden">
-          <p class="truncate text-sm font-semibold leading-none text-sidebar-foreground">{{ school?.name ?? title }}</p>
-          <p class="mt-1 truncate text-xs text-sidebar-foreground/60">
+          <p class="truncate text-sm font-semibold leading-none tracking-tight text-sidebar-foreground">{{ school?.name ?? title }}</p>
+          <p class="mt-1.5 truncate text-[11px] text-sidebar-foreground/55">
             {{ school?.code ? `${school.code} · ` : '' }}School Management
           </p>
         </div>
@@ -101,7 +101,7 @@ watch(
 
     <SidebarContent class="gap-0 px-1 py-3 md:px-2" aria-label="Main menu">
       <SidebarGroup v-for="group in groups" :key="group.label" class="pb-1 md:pb-2">
-        <SidebarGroupLabel class="px-2 text-[10px] font-bold tracking-wider text-sidebar-foreground/40 uppercase">
+        <SidebarGroupLabel class="px-2 text-[10px] font-semibold tracking-[0.14em] text-sidebar-foreground/45 uppercase">
           {{ group.label }}
         </SidebarGroupLabel>
         <SidebarGroupContent>
@@ -111,7 +111,7 @@ watch(
                 as-child
                 :tooltip="item.title"
                 :is-active="isNavItemActive(item.href, group.items)"
-                class="h-9 rounded-lg px-2.5 group-data-[collapsible=icon]:mx-auto group-data-[collapsible=icon]:size-9 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0 data-[active=true]:bg-sidebar-primary/10 data-[active=true]:font-medium data-[active=true]:text-sidebar-primary"
+                class="h-9 rounded-lg px-2.5 group-data-[collapsible=icon]:mx-auto group-data-[collapsible=icon]:size-9 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0 data-[active=true]:bg-sidebar-accent data-[active=true]:font-medium data-[active=true]:text-sidebar-primary data-[active=true]:shadow-none"
               >
                 <RouterLink
                   :to="item.href ?? '#'"
@@ -135,10 +135,10 @@ watch(
       </SidebarGroup>
     </SidebarContent>
 
-    <SidebarFooter class="border-t border-sidebar-border p-2 md:p-3">
-      <div class="rounded-lg bg-sidebar-accent/50 px-3 py-2.5 group-data-[collapsible=icon]:hidden">
+    <SidebarFooter class="border-t border-sidebar-border/80 p-2 md:p-3">
+      <div class="rounded-xl border border-sidebar-border/60 bg-sidebar-accent/40 px-3 py-2.5 group-data-[collapsible=icon]:hidden">
         <p class="truncate text-xs font-semibold text-sidebar-foreground">{{ user?.name ?? 'Staff user' }}</p>
-        <p class="truncate text-[11px] text-sidebar-foreground/60 mt-0.5">{{ user?.email }}</p>
+        <p class="mt-0.5 truncate text-[11px] text-sidebar-foreground/55">{{ user?.email }}</p>
       </div>
       <p
         class="hidden truncate text-center text-[10px] font-bold tracking-tight text-sidebar-foreground/70 group-data-[collapsible=icon]:block py-2"

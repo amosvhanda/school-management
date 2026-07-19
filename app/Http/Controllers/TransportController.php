@@ -24,7 +24,12 @@ class TransportController extends Controller
     {
         $this->authorizeTransport($request);
 
-        return response()->json(['data' => Vehicle::where('school_id', $request->user()->school_id)->get()]);
+        $vehicles = Vehicle::where('school_id', $request->user()->school_id)
+            ->when($request->filled('status'), fn ($q) => $q->where('status', $request->string('status')))
+            ->orderBy('registration_number')
+            ->get();
+
+        return response()->json(['data' => $vehicles]);
     }
 
     public function storeVehicle(Request $request)
@@ -33,21 +38,47 @@ class TransportController extends Controller
 
         $data = $request->validate([
             'registration_number' => 'required|string|max:50',
-            'make' => 'nullable|string',
-            'model' => 'nullable|string',
+            'make' => 'nullable|string|max:100',
+            'model' => 'nullable|string|max:100',
             'capacity' => 'nullable|integer|min:1',
+            'status' => 'nullable|in:active,inactive,maintenance',
         ]);
 
-        $vehicle = Vehicle::create([...$data, 'school_id' => $request->user()->school_id]);
+        $vehicle = Vehicle::create([
+            ...$data,
+            'school_id' => $request->user()->school_id,
+            'status' => $data['status'] ?? 'active',
+        ]);
 
-        return response()->json(['data' => $vehicle], 201);
+        return response()->json(['data' => $vehicle, 'message' => 'Vehicle created'], 201);
+    }
+
+    public function updateVehicle(Request $request, int $id)
+    {
+        $this->authorizeTransport($request);
+
+        $vehicle = Vehicle::where('school_id', $request->user()->school_id)->findOrFail($id);
+        $vehicle->update($request->validate([
+            'registration_number' => 'sometimes|string|max:50',
+            'make' => 'nullable|string|max:100',
+            'model' => 'nullable|string|max:100',
+            'capacity' => 'nullable|integer|min:1',
+            'status' => 'sometimes|in:active,inactive,maintenance',
+        ]));
+
+        return response()->json(['data' => $vehicle->fresh(), 'message' => 'Vehicle updated']);
     }
 
     public function drivers(Request $request)
     {
         $this->authorizeTransport($request);
 
-        return response()->json(['data' => Driver::where('school_id', $request->user()->school_id)->get()]);
+        $drivers = Driver::where('school_id', $request->user()->school_id)
+            ->when($request->filled('status'), fn ($q) => $q->where('status', $request->string('status')))
+            ->orderBy('name')
+            ->get();
+
+        return response()->json(['data' => $drivers]);
     }
 
     public function storeDriver(Request $request)
@@ -56,25 +87,48 @@ class TransportController extends Controller
 
         $data = $request->validate([
             'name' => 'required|string|max:255',
-            'license_number' => 'nullable|string',
-            'phone' => 'nullable|string',
+            'license_number' => 'nullable|string|max:100',
+            'phone' => 'nullable|string|max:30',
             'user_id' => 'nullable|exists:users,id',
+            'status' => 'nullable|in:active,inactive',
         ]);
 
-        $driver = Driver::create([...$data, 'school_id' => $request->user()->school_id]);
+        $driver = Driver::create([
+            ...$data,
+            'school_id' => $request->user()->school_id,
+            'status' => $data['status'] ?? 'active',
+        ]);
 
-        return response()->json(['data' => $driver], 201);
+        return response()->json(['data' => $driver, 'message' => 'Driver created'], 201);
+    }
+
+    public function updateDriver(Request $request, int $id)
+    {
+        $this->authorizeTransport($request);
+
+        $driver = Driver::where('school_id', $request->user()->school_id)->findOrFail($id);
+        $driver->update($request->validate([
+            'name' => 'sometimes|string|max:255',
+            'license_number' => 'nullable|string|max:100',
+            'phone' => 'nullable|string|max:30',
+            'user_id' => 'nullable|exists:users,id',
+            'status' => 'sometimes|in:active,inactive',
+        ]));
+
+        return response()->json(['data' => $driver->fresh(), 'message' => 'Driver updated']);
     }
 
     public function routes(Request $request)
     {
         $this->authorizeTransport($request);
 
-        return response()->json([
-            'data' => TransportRoute::where('school_id', $request->user()->school_id)
-                ->with(['vehicle', 'driver'])
-                ->get(),
-        ]);
+        $routes = TransportRoute::where('school_id', $request->user()->school_id)
+            ->with(['vehicle', 'driver'])
+            ->when($request->filled('status'), fn ($q) => $q->where('status', $request->string('status')))
+            ->orderBy('name')
+            ->get();
+
+        return response()->json(['data' => $routes]);
     }
 
     public function storeRoute(Request $request)
@@ -86,11 +140,38 @@ class TransportController extends Controller
             'vehicle_id' => 'nullable|exists:vehicles,id',
             'driver_id' => 'nullable|exists:drivers,id',
             'route_description' => 'nullable|string',
+            'status' => 'nullable|in:active,inactive',
         ]);
 
-        $route = TransportRoute::create([...$data, 'school_id' => $request->user()->school_id]);
+        $route = TransportRoute::create([
+            ...$data,
+            'school_id' => $request->user()->school_id,
+            'status' => $data['status'] ?? 'active',
+        ]);
 
-        return response()->json(['data' => $route], 201);
+        return response()->json([
+            'data' => $route->load(['vehicle', 'driver']),
+            'message' => 'Route created',
+        ], 201);
+    }
+
+    public function updateRoute(Request $request, int $id)
+    {
+        $this->authorizeTransport($request);
+
+        $route = TransportRoute::where('school_id', $request->user()->school_id)->findOrFail($id);
+        $route->update($request->validate([
+            'name' => 'sometimes|string|max:255',
+            'vehicle_id' => 'nullable|exists:vehicles,id',
+            'driver_id' => 'nullable|exists:drivers,id',
+            'route_description' => 'nullable|string',
+            'status' => 'sometimes|in:active,inactive',
+        ]));
+
+        return response()->json([
+            'data' => $route->fresh()->load(['vehicle', 'driver']),
+            'message' => 'Route updated',
+        ]);
     }
 
     public function allocateStudent(Request $request)

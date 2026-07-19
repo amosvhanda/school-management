@@ -20,10 +20,10 @@ const maxWidthClass = {
 <template>
   <div :class="cn('mx-auto w-full space-y-8 pb-8', maxWidthClass[maxWidth])">
     <header
-      class="flex flex-col gap-4 border-b border-border/60 pb-6 sm:flex-row sm:items-end sm:justify-between"
+      class="flex flex-col gap-4 border-b border-border/50 pb-6 sm:flex-row sm:items-end sm:justify-between"
     >
-      <div class="space-y-1">
-        <h1 class="text-2xl font-semibold tracking-tight text-foreground">
+      <div class="space-y-1.5">
+        <h1 class="font-heading text-2xl font-semibold tracking-tight text-foreground md:text-[1.75rem]">
           {{ title }}
         </h1>
         <p v-if="description" class="max-w-2xl text-sm leading-relaxed text-muted-foreground">

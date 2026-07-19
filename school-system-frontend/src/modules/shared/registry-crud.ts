@@ -7,6 +7,7 @@ import {
   invoiceRelation,
   payrollTeacherRelation,
   studentRelation,
+  staffUserRelation,
   transportDriverRelation,
   transportVehicleRelation,
   classRelation,
@@ -223,18 +224,65 @@ export const moduleCrudRegistry: Record<string, ModuleCrudConfig> = {
     z.object({ name: z.string().min(1), capacity: z.coerce.number().optional(), building: z.string().optional() }),
   ),
   'academics-terms': crud(
-    formSection('Term details', [
-      { name: 'name', label: 'Term name', type: 'text', required: true },
-      { name: 'start_date', label: 'Start date', type: 'date', required: true },
-      { name: 'end_date', label: 'End date', type: 'date', required: true },
-      { name: 'academic_year', label: 'Academic year', type: 'text', required: true, placeholder: '2026' },
-    ]),
-    z.object({
-      name: z.string().min(1),
-      start_date: z.string().min(1),
-      end_date: z.string().min(1),
-      academic_year: z.string().min(1),
-    }),
+    [
+      ...formSection('Term details', [
+        { name: 'name', label: 'Term name', type: 'text', required: true, placeholder: 'Term 1' },
+        {
+          name: 'academic_year',
+          label: 'Academic year',
+          type: 'text',
+          required: true,
+          placeholder: '2026-2027',
+          description: 'Use the school year range, e.g. 2026-2027.',
+        },
+        { name: 'start_date', label: 'Start date', type: 'date', required: true },
+        { name: 'end_date', label: 'End date', type: 'date', required: true },
+        {
+          name: 'order',
+          label: 'Order',
+          type: 'number',
+          placeholder: '1',
+          description: 'Display order within the academic year (1, 2, 3…).',
+        },
+        {
+          name: 'description',
+          label: 'Description',
+          type: 'textarea',
+          colSpan: 2,
+          placeholder: 'Optional notes for this term',
+        },
+      ]),
+      {
+        name: 'is_current',
+        label: 'Current term',
+        type: 'checkbox',
+        section: 'Status',
+        description: 'Only one term should be current per school. Used by gradebook and exams.',
+      },
+      {
+        name: 'is_active',
+        label: 'Active',
+        type: 'checkbox',
+        section: 'Status',
+        description: 'Inactive terms stay in history but are hidden from new work.',
+      },
+    ],
+    z
+      .object({
+        name: z.string().min(1, 'Term name is required'),
+        academic_year: z.string().min(4, 'Academic year is required'),
+        start_date: z.string().min(1, 'Start date is required'),
+        end_date: z.string().min(1, 'End date is required'),
+        order: z.coerce.number().int().min(1).optional(),
+        description: z.string().optional(),
+        is_current: z.boolean().optional(),
+        is_active: z.boolean().optional(),
+      })
+      .refine((v) => !v.start_date || !v.end_date || v.end_date > v.start_date, {
+        message: 'End date must be after start date',
+        path: ['end_date'],
+      }),
+    { staged: false },
   ),
   'academics-assignments': crud(
     formSection('Assignment', [
@@ -563,18 +611,79 @@ export const moduleCrudRegistry: Record<string, ModuleCrudConfig> = {
   ),
   'ops-inventory': crud(
     [
-      { name: 'name', label: 'Item name', type: 'text', required: true },
-      { name: 'sku', label: 'SKU', type: 'text' },
-      { name: 'stock_quantity', label: 'Stock quantity', type: 'number', required: true },
-      { name: 'unit_price', label: 'Unit price', type: 'number', required: true },
+      ...formSection('Item details', [
+        { name: 'name', label: 'Item name', type: 'text', required: true, placeholder: 'School blazer' },
+        { name: 'sku', label: 'SKU', type: 'text', placeholder: 'BLZ-M' },
+        {
+          name: 'type',
+          label: 'Type',
+          type: 'select',
+          required: true,
+          options: [
+            { label: 'Uniform', value: 'uniform' },
+            { label: 'Stationery', value: 'stationery' },
+            { label: 'Book', value: 'book' },
+            { label: 'Equipment', value: 'equipment' },
+            { label: 'Other', value: 'other' },
+          ],
+        },
+        { name: 'size', label: 'Size / variant', type: 'text', placeholder: 'M, A4, …' },
+        {
+          name: 'description',
+          label: 'Description',
+          type: 'textarea',
+          colSpan: 2,
+          placeholder: 'Optional notes for this item',
+        },
+      ]),
+      ...formSection('Stock & pricing', [
+        { name: 'stock_quantity', label: 'Stock on hand', type: 'number', required: true, placeholder: '0' },
+        { name: 'reorder_level', label: 'Reorder level', type: 'number', placeholder: '5' },
+        { name: 'unit_price', label: 'Unit price', type: 'number', required: true, placeholder: '0.00' },
+        {
+          name: 'currency',
+          label: 'Currency',
+          type: 'select',
+          required: true,
+          options: [
+            { label: 'USD', value: 'USD' },
+            { label: 'ZWG', value: 'ZWG' },
+          ],
+        },
+        {
+          name: 'billing_mode',
+          label: 'Billing mode',
+          type: 'select',
+          required: true,
+          options: [
+            { label: 'Direct sale', value: 'direct_sale' },
+            { label: 'Mandatory fee', value: 'mandatory_fee' },
+            { label: 'Both', value: 'both' },
+          ],
+        },
+      ]),
+      {
+        name: 'is_active',
+        label: 'Active',
+        type: 'checkbox',
+        section: 'Status',
+        description: 'Inactive items stay in history but are hidden from new sales.',
+      },
     ],
     z.object({
-      name: z.string().min(1),
+      name: z.string().min(1, 'Item name is required'),
       sku: z.string().optional(),
+      type: z.enum(['uniform', 'stationery', 'book', 'equipment', 'other']),
+      size: z.string().optional(),
+      description: z.string().optional(),
       stock_quantity: z.coerce.number().min(0),
+      reorder_level: z.coerce.number().min(0).optional(),
       unit_price: z.coerce.number().min(0),
+      currency: z.enum(['USD', 'ZWG']),
+      billing_mode: z.enum(['direct_sale', 'mandatory_fee', 'both']),
+      is_active: z.boolean().optional(),
     }),
-    { canDelete: false },
+    { canDelete: false, staged: false },
   ),
   'ops-inventory-sales': crud(
     formSection('Sale details', [
@@ -666,30 +775,65 @@ export const moduleCrudRegistry: Record<string, ModuleCrudConfig> = {
     { canEdit: false, canDelete: false },
   ),
   'ops-transport': crud(
-    [
-      { name: 'registration_number', label: 'Registration', type: 'text', required: true },
-      { name: 'make', label: 'Make', type: 'text' },
-      { name: 'capacity', label: 'Capacity', type: 'number' },
-    ],
+    formSection('Vehicle details', [
+      {
+        name: 'registration_number',
+        label: 'Registration number',
+        type: 'text',
+        required: true,
+        placeholder: 'AEB 1234',
+      },
+      { name: 'make', label: 'Make', type: 'text', placeholder: 'Toyota' },
+      { name: 'model', label: 'Model', type: 'text', placeholder: 'Hiace' },
+      { name: 'capacity', label: 'Seat capacity', type: 'number', placeholder: '16' },
+      {
+        name: 'status',
+        label: 'Status',
+        type: 'select',
+        required: true,
+        options: [
+          { label: 'Active', value: 'active' },
+          { label: 'Inactive', value: 'inactive' },
+          { label: 'Maintenance', value: 'maintenance' },
+        ],
+      },
+    ]),
     z.object({
-      registration_number: z.string().min(1),
+      registration_number: z.string().min(1, 'Registration is required'),
       make: z.string().optional(),
-      capacity: z.coerce.number().optional(),
+      model: z.string().optional(),
+      capacity: z.coerce.number().int().min(1).optional(),
+      status: z.enum(['active', 'inactive', 'maintenance']),
     }),
-    { canEdit: false, canDelete: false },
+    { canEdit: true, canDelete: false, staged: false },
   ),
   'ops-transport-drivers': crud(
-    [
+    formSection('Driver details', [
       { name: 'name', label: 'Full name', type: 'text', required: true },
       { name: 'license_number', label: 'License number', type: 'text' },
-      { name: 'phone', label: 'Phone', type: 'text' },
-    ],
-    z.object({ name: z.string().min(1), license_number: z.string().optional(), phone: z.string().optional() }),
-    { canEdit: false, canDelete: false },
+      { name: 'phone', label: 'Phone', type: 'phone' },
+      {
+        name: 'status',
+        label: 'Status',
+        type: 'select',
+        required: true,
+        options: [
+          { label: 'Active', value: 'active' },
+          { label: 'Inactive', value: 'inactive' },
+        ],
+      },
+    ]),
+    z.object({
+      name: z.string().min(1, 'Name is required'),
+      license_number: z.string().optional(),
+      phone: z.string().optional(),
+      status: z.enum(['active', 'inactive']),
+    }),
+    { canEdit: true, canDelete: false, staged: false },
   ),
   'ops-transport-routes': crud(
     formSection('Route details', [
-      { name: 'name', label: 'Route name', type: 'text', required: true },
+      { name: 'name', label: 'Route name', type: 'text', required: true, placeholder: 'Mufakose Central' },
       {
         name: 'vehicle_id',
         label: 'Vehicle',
@@ -704,13 +848,32 @@ export const moduleCrudRegistry: Record<string, ModuleCrudConfig> = {
         placeholder: 'Select driver',
         relation: transportDriverRelation(),
       },
+      {
+        name: 'route_description',
+        label: 'Description',
+        type: 'textarea',
+        colSpan: 2,
+        placeholder: 'Pickup points and notes',
+      },
+      {
+        name: 'status',
+        label: 'Status',
+        type: 'select',
+        required: true,
+        options: [
+          { label: 'Active', value: 'active' },
+          { label: 'Inactive', value: 'inactive' },
+        ],
+      },
     ]),
     z.object({
-      name: z.string().min(1),
+      name: z.string().min(1, 'Route name is required'),
       vehicle_id: z.string().optional().or(z.literal('')),
       driver_id: z.string().optional().or(z.literal('')),
+      route_description: z.string().optional(),
+      status: z.enum(['active', 'inactive']),
     }),
-    { canEdit: false, canDelete: false },
+    { canEdit: true, canDelete: false, staged: false },
   ),
   'ops-assets': crud(
     [
@@ -735,13 +898,35 @@ export const moduleCrudRegistry: Record<string, ModuleCrudConfig> = {
     { canEdit: false, canDelete: false },
   ),
   'ops-visitors': crud(
-    [
-      { name: 'name', label: 'Full name', type: 'text', required: true },
-      { name: 'purpose', label: 'Purpose', type: 'text', required: true },
-      { name: 'phone', label: 'Phone', type: 'text' },
-    ],
-    z.object({ name: z.string().min(1), purpose: z.string().min(1), phone: z.string().optional() }),
-    { canEdit: false, canDelete: false },
+    formSection('Visitor check-in', [
+      { name: 'name', label: 'Full name', type: 'text', required: true, placeholder: 'Visitor name' },
+      { name: 'phone', label: 'Phone', type: 'phone' },
+      { name: 'id_number', label: 'ID / passport number', type: 'text', placeholder: 'Optional' },
+      { name: 'purpose', label: 'Purpose of visit', type: 'text', required: true, placeholder: 'Meeting, pickup, delivery…', colSpan: 2 },
+      {
+        name: 'host_user_id',
+        label: 'Host staff',
+        type: 'relation',
+        placeholder: 'Optional — who they are visiting',
+        relation: staffUserRelation(),
+      },
+      {
+        name: 'student_id',
+        label: 'Related student',
+        type: 'relation',
+        placeholder: 'Optional — if visiting a student',
+        relation: studentRelation(),
+      },
+    ]),
+    z.object({
+      name: z.string().min(1, 'Name is required'),
+      phone: z.string().optional(),
+      id_number: z.string().optional(),
+      purpose: z.string().min(1, 'Purpose is required'),
+      host_user_id: z.string().optional().or(z.literal('')),
+      student_id: z.string().optional().or(z.literal('')),
+    }),
+    { canEdit: false, canDelete: false, staged: false },
   ),
   'ops-health': crud(
     formSection('Clinic visit', [

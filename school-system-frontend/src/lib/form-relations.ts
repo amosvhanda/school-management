@@ -101,3 +101,11 @@ export function invoiceRelation(overrides?: Partial<RelationFieldConfig>): Relat
     ...overrides,
   }
 }
+
+export function staffUserRelation(overrides?: Partial<RelationFieldConfig>): RelationFieldConfig {
+  return {
+    endpoint: moduleEndpoints.users,
+    moduleLabel: 'staff host',
+    ...overrides,
+  }
+}

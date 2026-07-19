@@ -27,6 +27,10 @@ class TermController extends Controller
             $query->where('is_active', $request->boolean('is_active'));
         }
 
+        if ($request->has('is_current')) {
+            $query->where('is_current', $request->boolean('is_current'));
+        }
+
         $terms = $query->orderBy('academic_year', 'desc')
             ->orderBy('order')
             ->get();

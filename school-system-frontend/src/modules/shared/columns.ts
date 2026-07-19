@@ -116,9 +116,12 @@ const statusVariants: Record<string, 'default' | 'secondary' | 'destructive' | '
   active: 'default',
   completed: 'default',
   paid: 'default',
+  checked_in: 'default',
+  checked_out: 'secondary',
   pending: 'secondary',
   partial: 'outline',
   inactive: 'secondary',
+  maintenance: 'outline',
   absent: 'destructive',
   overdue: 'destructive',
   cancelled: 'destructive',
@@ -435,6 +438,30 @@ export const announcementColumns: ColumnDef<Record<string, unknown>>[] = [
   },
   dateTimeColumn('Created', 'created_at'),
 ]
+
+export const termColumns: ColumnDef<Record<string, unknown>>[] = [
+  textColumn('Name', 'name'),
+  textColumn('Academic year', 'academic_year'),
+  dateColumn('Start', 'start_date'),
+  dateColumn('End', 'end_date'),
+  textColumn('Order', 'order'),
+  {
+    id: 'is_current',
+    header: 'Current',
+    cell: ({ row }) => {
+      const current = row.original.is_current === true || row.original.is_current === 1
+      return h(Badge, { variant: current ? 'default' : 'outline' }, () => (current ? 'Current' : '—'))
+    },
+  },
+  {
+    id: 'is_active',
+    header: 'Status',
+    cell: ({ row }) => {
+      const active = row.original.is_active !== false && row.original.is_active !== 0
+      return h(Badge, { variant: active ? 'default' : 'secondary' }, () => (active ? 'Active' : 'Inactive'))
+    },
+  },
+]
 export const threadColumns = defaultColumns(['subject', 'status', 'created_at'])
 export const leaveColumns: ColumnDef<Record<string, unknown>>[] = [
   textColumn('Staff', 'teacher_name'),
@@ -459,7 +486,48 @@ export const auditColumns: ColumnDef<Record<string, unknown>>[] = [
   personNameColumn('User', 'user'),
   dateTimeColumn('When', 'created_at'),
 ]
-export const inventoryColumns = defaultColumns(['name', 'sku', 'stock_quantity', 'unit_price'])
+export const inventoryColumns: ColumnDef<Record<string, unknown>>[] = [
+  textColumn('Name', 'name'),
+  textColumn('SKU', 'sku'),
+  textColumn('Type', 'type'),
+  textColumn('Size', 'size'),
+  {
+    id: 'stock_quantity',
+    header: 'Stock',
+    cell: ({ row }) => {
+      const stock = Number(row.original.stock_quantity ?? 0)
+      const reorder = Number(row.original.reorder_level ?? 0)
+      const low = reorder > 0 && stock <= reorder
+      return h(
+        'span',
+        { class: low ? 'font-medium text-destructive' : undefined },
+        low ? `${stock} (low)` : String(stock),
+      )
+    },
+  },
+  currencyColumn('Unit price', 'unit_price'),
+  {
+    id: 'billing_mode',
+    header: 'Billing',
+    cell: ({ row }) => {
+      const mode = String(row.original.billing_mode ?? '—')
+      const labels: Record<string, string> = {
+        direct_sale: 'Direct sale',
+        mandatory_fee: 'Mandatory fee',
+        both: 'Both',
+      }
+      return labels[mode] ?? mode
+    },
+  },
+  {
+    id: 'is_active',
+    header: 'Status',
+    cell: ({ row }) => {
+      const active = row.original.is_active !== false && row.original.is_active !== 0
+      return h(Badge, { variant: active ? 'default' : 'secondary' }, () => (active ? 'Active' : 'Inactive'))
+    },
+  },
+]
 export const procurementColumns: ColumnDef<Record<string, unknown>>[] = [
   textColumn('Title', 'title'),
   nestedColumn('Department', 'department', 'name'),
@@ -467,10 +535,82 @@ export const procurementColumns: ColumnDef<Record<string, unknown>>[] = [
   statusColumn(),
 ]
 export const libraryColumns = defaultColumns(['title', 'author', 'isbn', 'status'])
-export const transportColumns = defaultColumns(['registration_number', 'make', 'capacity', 'status'])
+export const transportColumns: ColumnDef<Record<string, unknown>>[] = [
+  textColumn('Registration', 'registration_number'),
+  textColumn('Make', 'make'),
+  textColumn('Model', 'model'),
+  textColumn('Capacity', 'capacity'),
+  statusColumn(),
+]
+
+export const transportDriverColumns: ColumnDef<Record<string, unknown>>[] = [
+  textColumn('Name', 'name'),
+  textColumn('License', 'license_number'),
+  textColumn('Phone', 'phone'),
+  statusColumn(),
+]
+
+export const transportRouteColumns: ColumnDef<Record<string, unknown>>[] = [
+  textColumn('Name', 'name'),
+  {
+    id: 'vehicle',
+    header: 'Vehicle',
+    cell: ({ row }) => {
+      const vehicle = row.original.vehicle as Record<string, unknown> | undefined
+      if (vehicle && typeof vehicle === 'object') {
+        return String(vehicle.registration_number ?? vehicle.make ?? '—')
+      }
+      return '—'
+    },
+  },
+  {
+    id: 'driver',
+    header: 'Driver',
+    cell: ({ row }) => {
+      const driver = row.original.driver as Record<string, unknown> | undefined
+      if (driver && typeof driver === 'object') {
+        return String(driver.name ?? '—')
+      }
+      return '—'
+    },
+  },
+  textColumn('Description', 'route_description'),
+  statusColumn(),
+]
+
 export const assetColumns = defaultColumns(['name', 'category', 'purchase_date', 'status'])
 export const hostelColumns = defaultColumns(['name', 'capacity', 'gender', 'status'])
-export const visitorColumns = defaultColumns(['name', 'purpose', 'check_in_at', 'status'])
+export const visitorColumns: ColumnDef<Record<string, unknown>>[] = [
+  textColumn('Name', 'name'),
+  textColumn('Phone', 'phone'),
+  textColumn('ID number', 'id_number'),
+  textColumn('Purpose', 'purpose'),
+  {
+    id: 'host',
+    header: 'Host',
+    cell: ({ row }) => {
+      const host = (row.original.host ?? row.original.host_user) as Record<string, unknown> | undefined
+      if (host && typeof host === 'object') {
+        return String(host.name ?? host.email ?? '—')
+      }
+      return '—'
+    },
+  },
+  studentRelationColumn(),
+  dateTimeColumn('Checked in', 'check_in_at'),
+  dateTimeColumn('Checked out', 'check_out_at'),
+  {
+    id: 'status',
+    header: 'Status',
+    cell: ({ row }) => {
+      const status = String(row.original.status ?? '—').replaceAll('_', ' ')
+      const raw = String(row.original.status ?? '').toLowerCase()
+      const variant = statusVariants[raw] ?? 'outline'
+      return h(Badge, { variant }, () => status)
+    },
+  },
+]
+
 export const healthColumns: ColumnDef<Record<string, unknown>>[] = [
   studentRelationColumn(),
   dateColumn('Visit date', 'visit_date'),

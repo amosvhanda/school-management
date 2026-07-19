@@ -26,7 +26,8 @@ class InventoryController extends Controller
 
         $schoolId = $request->user()->school_id;
         $items = InventoryItem::where('school_id', $schoolId)
-            ->when($request->type, fn ($q, $t) => $q->where('type', $t))
+            ->when($request->filled('type'), fn ($q) => $q->where('type', $request->string('type')))
+            ->when($request->has('is_active'), fn ($q) => $q->where('is_active', $request->boolean('is_active')))
             ->orderBy('name')
             ->get();
 
@@ -49,6 +50,7 @@ class InventoryController extends Controller
             'reorder_level' => 'nullable|integer|min:0',
             'billing_mode' => 'nullable|in:direct_sale,mandatory_fee,both',
             'description' => 'nullable|string',
+            'is_active' => 'nullable|boolean',
         ]);
 
         $item = InventoryItem::create([
@@ -56,7 +58,10 @@ class InventoryController extends Controller
             ...$data,
             'currency' => $data['currency'] ?? 'USD',
             'stock_quantity' => $data['stock_quantity'] ?? 0,
-            'is_active' => true,
+            'reorder_level' => $data['reorder_level'] ?? 5,
+            'billing_mode' => $data['billing_mode'] ?? 'direct_sale',
+            'type' => $data['type'] ?? 'uniform',
+            'is_active' => array_key_exists('is_active', $data) ? (bool) $data['is_active'] : true,
         ]);
 
         return response()->json(['data' => $item, 'message' => 'Inventory item created'], 201);
@@ -69,14 +74,19 @@ class InventoryController extends Controller
         $item = InventoryItem::where('school_id', $request->user()->school_id)->findOrFail($id);
         $item->update($request->validate([
             'name' => 'sometimes|string|max:255',
+            'sku' => 'nullable|string|max:50',
+            'type' => 'nullable|string|max:50',
+            'size' => 'nullable|string|max:50',
             'unit_price' => 'sometimes|numeric|min:0',
+            'currency' => 'nullable|string|size:3',
             'stock_quantity' => 'sometimes|integer|min:0',
             'reorder_level' => 'sometimes|integer|min:0',
             'billing_mode' => 'sometimes|in:direct_sale,mandatory_fee,both',
+            'description' => 'nullable|string',
             'is_active' => 'sometimes|boolean',
         ]));
 
-        return response()->json(['data' => $item]);
+        return response()->json(['data' => $item->fresh()]);
     }
 
     public function restock(Request $request, int $id)

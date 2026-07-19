@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, type HTMLAttributes } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Loader2, Lock, Mail } from '@lucide/vue'
+import { GraduationCap, Loader2, Lock, Mail } from '@lucide/vue'
 import {
   FormControl,
   FormField,
@@ -109,16 +109,15 @@ async function quickSignIn(account: DemoAccount) {
 
 <template>
   <main id="main-content" tabindex="-1" class="flex min-h-svh items-center justify-center p-6 md:p-10">
-    <div :class="cn('flex w-full max-w-sm flex-col gap-6 md:max-w-4xl', props.class)">
+    <div :class="cn('flex w-full max-w-sm flex-col gap-5 md:max-w-4xl', props.class)">
 
-      <!-- Top Section: Test Profiles (Only in Dev Mode) -->
-      <Card v-if="isDev" :class="formSurfaceClass">
+      <Card v-if="isDev" class="border-border/70 bg-card/80 shadow-[var(--shadow-soft)] backdrop-blur-sm">
         <CardHeader class="space-y-1 pb-3">
-          <CardTitle class="text-base">Test profiles</CardTitle>
-          <CardDescription>
-            One-click sign-in for each role. Run
+          <CardTitle class="text-sm font-medium">Test profiles</CardTitle>
+          <CardDescription class="text-xs">
+            One-click sign-in for each role. Seed with
             <code class="rounded bg-muted px-1 py-0.5 font-mono text-[11px]">php artisan db:seed --class=UserSeeder</code>
-            if an account is missing.
+            if needed.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -129,7 +128,7 @@ async function quickSignIn(account: DemoAccount) {
               type="button"
               variant="outline"
               size="sm"
-              class="h-auto flex-col items-start gap-0.5 px-2 py-2 text-left whitespace-normal"
+              class="h-auto flex-col items-start gap-0.5 border-border/70 bg-background/60 px-2 py-2 text-left whitespace-normal"
               :disabled="isSubmitting || !!quickLoginRole"
               :aria-busy="quickLoginRole === account.role"
               @click="quickSignIn(account)"
@@ -141,34 +140,42 @@ async function quickSignIn(account: DemoAccount) {
         </CardContent>
       </Card>
 
-      <!-- Main Login Section split into Form and Visual Image Banner -->
-      <Card class="overflow-hidden p-0" :class="formSurfaceClass">
+      <Card
+        class="overflow-hidden border-border/70 p-0 shadow-[var(--shadow-soft)]"
+        :class="formSurfaceClass"
+      >
         <CardContent class="grid p-0 md:grid-cols-2">
-
-          <!-- Column 1: Form -->
           <form
             v-auto-animate="formFieldsAnimateOptions"
-            class="space-y-6 p-6 md:p-8"
+            class="space-y-6 bg-card p-6 md:p-8"
             :aria-busy="isSubmitting"
             novalidate
             @submit.prevent="submit"
           >
-            <div class="flex flex-col items-center gap-2 text-center">
-              <p class="text-xs font-semibold uppercase tracking-widest text-primary">School ERP</p>
-              <h1 class="text-2xl font-bold tracking-tight">Welcome back</h1>
-              <p v-if="isDev" class="text-balance text-sm text-muted-foreground">
-                Or enter credentials manually. Password for all demo users matches the role name (e.g. admin123).
-              </p>
-              <p v-else class="text-balance text-sm text-muted-foreground">
-                Staff, parents, finance, and platform administrators use one secure login.
-              </p>
-              <p class="text-balance text-xs text-muted-foreground">
-                Using this ERP means you agree to the Platform Terms of Use for your role.
-              </p>
+            <div class="flex flex-col items-center gap-3 text-center md:items-start md:text-left">
+              <div
+                class="flex size-11 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-[var(--shadow-soft)]"
+                aria-hidden="true"
+              >
+                <GraduationCap class="size-5" />
+              </div>
+              <div class="space-y-1.5">
+                <p class="text-[11px] font-semibold tracking-[0.16em] text-primary uppercase">
+                  School ERP
+                </p>
+                <h1 class="font-heading text-2xl font-semibold tracking-tight md:text-[1.75rem]">
+                  Welcome back
+                </h1>
+                <p v-if="isDev" class="text-balance text-sm text-muted-foreground">
+                  Or enter credentials manually. Demo passwords match the role name (e.g. admin123).
+                </p>
+                <p v-else class="text-balance text-sm text-muted-foreground">
+                  Staff, parents, finance, and platform administrators use one secure login.
+                </p>
+              </div>
             </div>
 
             <div class="space-y-4">
-              <!-- Email Input -->
               <FormField v-slot="{ componentField }" name="email">
                 <FormItem>
                   <FormLabel :class="formLabelClass">Email</FormLabel>
@@ -193,14 +200,13 @@ async function quickSignIn(account: DemoAccount) {
                 </FormItem>
               </FormField>
 
-              <!-- Password Input -->
               <FormField v-slot="{ componentField }" name="password">
                 <FormItem>
                   <div class="flex items-center justify-between">
                     <FormLabel :class="formLabelClass">Password</FormLabel>
                     <a
                       href="#"
-                      class="text-xs underline-offset-2 hover:underline text-muted-foreground"
+                      class="text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
                     >
                       Forgot your password?
                     </a>
@@ -226,7 +232,6 @@ async function quickSignIn(account: DemoAccount) {
               </FormField>
             </div>
 
-            <!-- Dev mode inline helper quick-fill buttons -->
             <div v-if="isDev" class="flex flex-wrap gap-1.5">
               <Button
                 v-for="account in WEB_DEMO_ACCOUNTS"
@@ -234,14 +239,13 @@ async function quickSignIn(account: DemoAccount) {
                 type="button"
                 variant="ghost"
                 size="sm"
-                class="h-7 px-2 text-xs"
+                class="h-7 px-2 text-xs text-muted-foreground"
                 @click="fillAccount(account)"
               >
                 Fill {{ account.label }}
               </Button>
             </div>
 
-            <!-- Submit Action -->
             <Button
               type="submit"
               :class="cn(formButtonClass, 'w-full')"
@@ -251,23 +255,45 @@ async function quickSignIn(account: DemoAccount) {
               <Loader2 v-if="isSubmitting" class="mr-2 size-4 animate-spin" aria-hidden="true" />
               {{ isSubmitting ? 'Signing in…' : 'Sign in' }}
             </Button>
+
+            <p class="text-center text-xs text-muted-foreground md:text-left">
+              Using this ERP means you agree to the Platform Terms of Use for your role.
+            </p>
           </form>
 
-          <!-- Column 2: Decorative Background Image (hidden on mobile) -->
-          <div class="bg-muted relative hidden md:block">
-            <img
-  src="https://images.unsplash.com/photo-1541339907198-e08756dedf3f?q=80&w=1000"
-  alt="School Campus Banner"
-  class="absolute inset-0 h-full w-full object-cover dark:brightness-[0.2] dark:grayscale"
-/>
-          </div>
+          <aside
+            class="auth-brand-panel relative hidden overflow-hidden md:flex md:flex-col md:justify-between md:p-8"
+            aria-hidden="true"
+          >
+            <div
+              class="pointer-events-none absolute inset-0 opacity-30"
+              style="
+                background-image:
+                  linear-gradient(rgba(255,255,255,0.08) 1px, transparent 1px),
+                  linear-gradient(90deg, rgba(255,255,255,0.08) 1px, transparent 1px);
+                background-size: 28px 28px;
+              "
+            />
+            <div class="relative space-y-3 text-white">
+              <p class="text-xs font-semibold tracking-[0.18em] text-white/70 uppercase">
+                For Zimbabwe schools
+              </p>
+              <h2 class="font-heading max-w-[14ch] text-3xl font-semibold leading-tight tracking-tight">
+                Run academics, fees, and families in one place
+              </h2>
+            </div>
+            <p class="relative max-w-sm text-sm leading-relaxed text-white/75">
+              Attendance, invoices, gradebook, and parent access — designed for day-to-day school operations.
+            </p>
+          </aside>
         </CardContent>
       </Card>
 
-      <!-- Shared Footer Notice -->
-      <footer class="text-center text-xs text-muted-foreground px-6">
-        By clicking continue, you agree to our <a href="#" class="underline underline-offset-4 hover:text-primary">Terms of Service</a>
-        and <a href="#" class="underline underline-offset-4 hover:text-primary">Privacy Policy</a>.
+      <footer class="px-2 text-center text-xs text-muted-foreground">
+        By continuing, you agree to our
+        <a href="#" class="underline underline-offset-4 hover:text-primary">Terms of Service</a>
+        and
+        <a href="#" class="underline underline-offset-4 hover:text-primary">Privacy Policy</a>.
       </footer>
     </div>
   </main>

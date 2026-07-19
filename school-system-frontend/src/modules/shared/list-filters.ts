@@ -230,6 +230,133 @@ export const moduleListMetaRegistry: Record<string, ListPageMeta> = {
       },
     ],
   },
+  'academics-terms': {
+    filterMode: 'server',
+    filters: [
+      {
+        key: 'academic_year',
+        label: 'Academic year',
+        type: 'select',
+        placeholder: 'Any year',
+        options: (() => {
+          const year = new Date().getFullYear()
+          return [year - 1, year, year + 1].flatMap((y) => [
+            { label: `${y}-${y + 1}`, value: `${y}-${y + 1}` },
+            { label: String(y), value: String(y) },
+          ])
+        })(),
+      },
+      {
+        key: 'is_current',
+        label: 'Current',
+        type: 'select',
+        placeholder: 'Any',
+        options: [
+          { label: 'Current term', value: '1' },
+          { label: 'Not current', value: '0' },
+        ],
+      },
+      {
+        key: 'is_active',
+        label: 'Status',
+        type: 'select',
+        placeholder: 'Any status',
+        options: [
+          { label: 'Active', value: '1' },
+          { label: 'Inactive', value: '0' },
+        ],
+      },
+    ],
+  },
+  'ops-inventory': {
+    filterMode: 'server',
+    filters: [
+      {
+        key: 'type',
+        label: 'Type',
+        type: 'select',
+        placeholder: 'Any type',
+        options: [
+          { label: 'Uniform', value: 'uniform' },
+          { label: 'Stationery', value: 'stationery' },
+          { label: 'Book', value: 'book' },
+          { label: 'Equipment', value: 'equipment' },
+          { label: 'Other', value: 'other' },
+        ],
+      },
+      {
+        key: 'is_active',
+        label: 'Status',
+        type: 'select',
+        placeholder: 'Any status',
+        options: [
+          { label: 'Active', value: '1' },
+          { label: 'Inactive', value: '0' },
+        ],
+      },
+    ],
+  },
+  'ops-transport': {
+    filterMode: 'server',
+    filters: [
+      {
+        key: 'status',
+        label: 'Status',
+        type: 'select',
+        placeholder: 'Any status',
+        options: [
+          { label: 'Active', value: 'active' },
+          { label: 'Inactive', value: 'inactive' },
+          { label: 'Maintenance', value: 'maintenance' },
+        ],
+      },
+    ],
+  },
+  'ops-transport-drivers': {
+    filterMode: 'server',
+    filters: [
+      {
+        key: 'status',
+        label: 'Status',
+        type: 'select',
+        placeholder: 'Any status',
+        options: [
+          { label: 'Active', value: 'active' },
+          { label: 'Inactive', value: 'inactive' },
+        ],
+      },
+    ],
+  },
+  'ops-transport-routes': {
+    filterMode: 'server',
+    filters: [
+      {
+        key: 'status',
+        label: 'Status',
+        type: 'select',
+        placeholder: 'Any status',
+        options: [
+          { label: 'Active', value: 'active' },
+          { label: 'Inactive', value: 'inactive' },
+        ],
+      },
+    ],
+  },
+  'ops-visitors': {
+    filterMode: 'server',
+    filters: [
+      {
+        key: 'status',
+        label: 'Status',
+        type: 'select',
+        placeholder: 'Any status',
+        options: [
+          { label: 'Checked in', value: 'checked_in' },
+          { label: 'Checked out', value: 'checked_out' },
+        ],
+      },
+    ],
+  },
   'finance-invoices': {
     serverSearch: true,
     filterMode: 'server',

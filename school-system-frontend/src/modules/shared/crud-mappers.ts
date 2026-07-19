@@ -353,6 +353,77 @@ export function mapFormToPayload(
     }
   }
 
+  if (listKey === 'academics-terms') {
+    return {
+      name: String(values.name ?? '').trim(),
+      academic_year: String(values.academic_year ?? '').trim(),
+      start_date: values.start_date,
+      end_date: values.end_date,
+      description: values.description ? String(values.description).trim() : null,
+      is_current: values.is_current === true,
+      is_active: values.is_active !== false,
+      ...(values.order != null && values.order !== '' ? { order: Number(values.order) } : {}),
+    }
+  }
+
+  if (listKey === 'ops-inventory') {
+    return {
+      name: String(values.name ?? '').trim(),
+      sku: values.sku ? String(values.sku).trim() : null,
+      type: values.type ?? 'uniform',
+      size: values.size ? String(values.size).trim() : null,
+      description: values.description ? String(values.description).trim() : null,
+      stock_quantity: Number(values.stock_quantity ?? 0),
+      reorder_level: values.reorder_level != null && values.reorder_level !== ''
+        ? Number(values.reorder_level)
+        : 5,
+      unit_price: Number(values.unit_price ?? 0),
+      currency: values.currency ?? 'USD',
+      billing_mode: values.billing_mode ?? 'direct_sale',
+      is_active: values.is_active !== false,
+    }
+  }
+
+  if (listKey === 'ops-transport') {
+    return {
+      registration_number: String(values.registration_number ?? '').trim(),
+      make: values.make ? String(values.make).trim() : null,
+      model: values.model ? String(values.model).trim() : null,
+      ...(values.capacity != null && values.capacity !== '' ? { capacity: Number(values.capacity) } : {}),
+      status: values.status ?? 'active',
+    }
+  }
+
+  if (listKey === 'ops-transport-drivers') {
+    return {
+      name: String(values.name ?? '').trim(),
+      license_number: values.license_number ? String(values.license_number).trim() : null,
+      phone: values.phone ? String(values.phone).trim() : null,
+      status: values.status ?? 'active',
+    }
+  }
+
+  if (listKey === 'ops-transport-routes') {
+    return {
+      name: String(values.name ?? '').trim(),
+      vehicle_id: values.vehicle_id ? Number(values.vehicle_id) : null,
+      driver_id: values.driver_id ? Number(values.driver_id) : null,
+      route_description: values.route_description ? String(values.route_description).trim() : null,
+      status: values.status ?? 'active',
+    }
+  }
+
+  if (listKey === 'ops-visitors') {
+    return {
+      name: String(values.name ?? '').trim(),
+      purpose: String(values.purpose ?? '').trim(),
+      phone: values.phone ? String(values.phone).trim() : null,
+      id_number: values.id_number ? String(values.id_number).trim() : null,
+      host_user_id: values.host_user_id ? Number(values.host_user_id) : null,
+      student_id: values.student_id ? Number(values.student_id) : null,
+    }
+  }
+
   if (listKey === 'ops-procurement') {
     return {
       title: values.title,
@@ -435,6 +506,10 @@ export const backendCrudSupport: Record<string, { create: boolean; update: boole
   'finance-fee-categories': { create: true, update: true, delete: true },
   'finance-payroll': { create: false, update: true, delete: false },
   'ops-inventory': { create: true, update: true, delete: false },
+  'ops-transport': { create: true, update: true, delete: false },
+  'ops-transport-drivers': { create: true, update: true, delete: false },
+  'ops-transport-routes': { create: true, update: true, delete: false },
+  'ops-visitors': { create: true, update: false, delete: false },
   'comms-announcements': { create: true, update: true, delete: true },
   'hr-leave': { create: true, update: false, delete: false },
   'settings-custom-fields': { create: true, update: false, delete: true },

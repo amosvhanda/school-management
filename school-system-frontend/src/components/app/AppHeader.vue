@@ -53,7 +53,7 @@ const initials = computed(() =>
 <template>
   <header
     role="banner"
-    class="sticky top-0 z-30 flex h-14 shrink-0 items-center gap-2 border-b bg-background/80 px-3 backdrop-blur-md supports-[backdrop-filter]:bg-background/70 sm:gap-3 sm:px-4"
+    class="sticky top-0 z-30 flex h-14 shrink-0 items-center gap-2 border-b border-border/60 bg-background/85 px-3 backdrop-blur-xl supports-[backdrop-filter]:bg-background/75 sm:gap-3 sm:px-4"
   >
     <div class="flex min-w-0 flex-1 items-center gap-2">
       <SidebarTrigger class="size-9 shrink-0" aria-label="Toggle navigation sidebar" />
@@ -83,7 +83,7 @@ const initials = computed(() =>
       <Input
         type="search"
         placeholder="Search modules…"
-        class="h-9 w-full bg-muted/50 pl-9 text-sm"
+        class="h-9 w-full border-border/70 bg-muted/40 pl-9 text-sm shadow-none"
         aria-label="Search modules"
         disabled
       />

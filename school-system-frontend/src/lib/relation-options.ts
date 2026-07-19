@@ -87,6 +87,11 @@ function formatRelationLabel(row: Record<string, unknown>, endpoint: string): st
   if (endpoint.includes('/fee-categories')) {
     return String(row.name ?? 'Fee category')
   }
+  if (endpoint.includes('/users')) {
+    const name = displayPerson(row, 'Staff')
+    const role = row.role ? ` · ${row.role}` : ''
+    return `${name}${role}`
+  }
   return String(row.name ?? row.title ?? row.full_name ?? row.label ?? row.code ?? '—')
 }
 
