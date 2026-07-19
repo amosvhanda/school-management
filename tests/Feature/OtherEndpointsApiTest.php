@@ -257,7 +257,68 @@ class OtherEndpointsApiTest extends TestCase
             'Authorization' => 'Bearer ' . $auth['token'],
         ])->getJson('/api/v1/finance/summary');
 
-        $response->assertStatus(200);
+        $response->assertStatus(200)
+            ->assertJsonStructure([
+                'data' => [
+                    'totalOutstanding',
+                    'collectedToday',
+                    'totalRevenue',
+                    'payrollPaidToday',
+                    'payrollPaidThisMonth',
+                    'payrollPending',
+                    'netCashToday',
+                    'currency',
+                ],
+            ]);
+    }
+
+    public function test_finance_summary_includes_payroll_outflows(): void
+    {
+        $auth = $this->createAuthenticatedUser();
+        $currency = $auth['school']->currency_default ?? 'USD';
+        $teacher = \App\Models\Teacher::factory()->create([
+            'school_id' => $auth['school']->id,
+        ]);
+
+        $payroll = \App\Models\Payroll::create([
+            'school_id' => $auth['school']->id,
+            'teacher_id' => $teacher->id,
+            'month' => (int) now()->format('n'),
+            'year' => (int) now()->format('Y'),
+            'base_salary' => 500,
+            'allowances_total' => 0,
+            'gross_salary' => 500,
+            'deductions_total' => 0,
+            'net_salary' => 500,
+            'amount_paid' => 200,
+            'currency' => $currency,
+            'status' => 'partial',
+        ]);
+
+        \App\Models\Transaction::create([
+            'school_id' => $auth['school']->id,
+            'payroll_id' => $payroll->id,
+            'type' => 'expense',
+            'category' => 'payroll',
+            'description' => 'Payroll payment test',
+            'reference' => 'PAYROLL-TEST',
+            'debit' => 200,
+            'credit' => 0,
+            'balance' => -200,
+            'currency' => $currency,
+            'status' => 'completed',
+            'payment_method' => 'cash',
+            'created_by' => $auth['user']->id,
+        ]);
+
+        $response = $this->withHeaders([
+            'Authorization' => 'Bearer '.$auth['token'],
+        ])->getJson('/api/v1/finance/summary?currency='.$currency);
+
+        $response->assertOk()
+            ->assertJsonPath('data.payrollPaidToday', 200)
+            ->assertJsonPath('data.payrollPaidThisMonth', 200)
+            ->assertJsonPath('data.payrollPending', 300);
     }
 
     public function test_get_financial_report_is_scoped_to_school(): void

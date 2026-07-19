@@ -24,7 +24,7 @@ class PayrollController extends Controller
     public function index(Request $request)
     {
         $schoolId = $request->user()?->school_id;
-        $query = Payroll::with('teacher')
+        $query = Payroll::with(['teacher', 'transactions'])
             ->when($schoolId, fn ($q) => $q->where('school_id', $schoolId));
 
         if ($request->filled('month')) {
@@ -182,7 +182,14 @@ class PayrollController extends Controller
                     ->first();
 
                 if ($existing) {
-                    // Update existing payroll
+                    if (in_array($existing->status, ['paid', 'partial'], true)
+                        || (float) $existing->amount_paid > 0) {
+                        $errors[] = "Skipped {$teacher->name} — payroll already {$existing->status} for {$month}/{$year}";
+
+                        continue;
+                    }
+
+                    // Update existing pending payroll
                     $existing->update([
                         'base_salary' => $baseSalary,
                         'allowances' => $allowances,
@@ -192,7 +199,7 @@ class PayrollController extends Controller
                         'deductions_total' => $deductionsTotal,
                         'net_salary' => $netSalary,
                         'currency' => $currency,
-                        'status' => $existing->amount_paid >= $netSalary ? 'paid' : ($existing->amount_paid > 0 ? 'partial' : 'pending'),
+                        'status' => 'pending',
                     ]);
                     $created++;
                 } else {
@@ -265,6 +272,12 @@ class PayrollController extends Controller
         $payroll = Payroll::when($schoolId, fn ($q) => $q->where('school_id', $schoolId))
             ->findOrFail($id);
 
+        if ($payroll->status !== 'pending') {
+            return response()->json([
+                'message' => 'Only pending payslips can be edited. Process payment for partial balances, or adjust before the first payment.',
+            ], 422);
+        }
+
         DB::beginTransaction();
         try {
             if ($request->has('base_salary')) {
@@ -285,13 +298,7 @@ class PayrollController extends Controller
             // Recalculate
             $payroll->gross_salary = $payroll->base_salary + $payroll->allowances_total;
             $payroll->net_salary = $payroll->gross_salary - $payroll->deductions_total;
-            if ($payroll->amount_paid >= $payroll->net_salary) {
-                $payroll->status = 'paid';
-            } elseif ($payroll->amount_paid > 0) {
-                $payroll->status = 'partial';
-            } else {
-                $payroll->status = 'pending';
-            }
+            $payroll->status = 'pending';
             $payroll->save();
 
             DB::commit();
@@ -340,50 +347,56 @@ class PayrollController extends Controller
             ], 400);
         }
 
+        $remaining = round((float) $payroll->net_salary - (float) $payroll->amount_paid, 2);
+        if ($remaining <= 0) {
+            return response()->json([
+                'message' => 'Payroll has no remaining balance to pay',
+            ], 422);
+        }
+
+        $paymentAmount = round((float) ($request->input('amount_paid', $remaining)), 2);
+        if ($paymentAmount <= 0) {
+            return response()->json([
+                'message' => 'Payment amount must be greater than zero',
+            ], 422);
+        }
+        if ($paymentAmount > $remaining) {
+            return response()->json([
+                'message' => 'Payment amount exceeds remaining balance',
+            ], 422);
+        }
+
         $schoolId = $payroll->school_id;
         $user = $request->user();
+        $teacherName = $payroll->teacher?->name ?? 'staff member';
+        $employeeId = $payroll->teacher?->employee_id ?? (string) $payroll->teacher_id;
 
         DB::beginTransaction();
         try {
-            $remaining = (float) $payroll->net_salary - (float) $payroll->amount_paid;
-            $paymentAmount = (float) ($request->input('amount_paid', $remaining));
-            if ($paymentAmount <= 0) {
-                return response()->json([
-                    'message' => 'Payment amount must be greater than zero',
-                ], 422);
-            }
-            if ($paymentAmount > $remaining) {
-                return response()->json([
-                    'message' => 'Payment amount exceeds remaining balance',
-                ], 422);
-            }
-
-            // Update payroll status
-            $payroll->amount_paid = (float) $payroll->amount_paid + $paymentAmount;
-            $payroll->status = $payroll->amount_paid >= $payroll->net_salary ? 'paid' : 'partial';
+            $payroll->amount_paid = round((float) $payroll->amount_paid + $paymentAmount, 2);
+            $payroll->status = $payroll->amount_paid >= (float) $payroll->net_salary ? 'paid' : 'partial';
             $payroll->paid_at = $payroll->status === 'paid' ? ($request->paid_at ?? now()) : $payroll->paid_at;
             $payroll->payment_method = $request->payment_method;
             $payroll->payment_reference = $request->payment_reference;
             $payroll->processed_by = $user->id;
             $payroll->save();
 
-            // Create expense transaction (deducts from school income)
             $transaction = Transaction::create([
                 'school_id' => $schoolId,
                 'payroll_id' => $payroll->id,
-                'student_id' => null, // Payroll expenses don't have student_id
+                'student_id' => null,
                 'type' => 'expense',
                 'category' => 'payroll',
-                'description' => "Payroll payment for {$payroll->teacher->name} - {$payroll->month}/{$payroll->year}",
+                'description' => "Payroll payment for {$teacherName} - {$payroll->month}/{$payroll->year}",
                 'reference' => $request->payment_reference ?? "PAYROLL-{$payroll->id}",
-                'debit' => $paymentAmount, // Expense (money going out)
+                'debit' => $paymentAmount,
                 'credit' => 0,
-                'balance' => -$paymentAmount, // Negative balance for expenses
+                'balance' => -$paymentAmount,
                 'currency' => $payroll->currency,
                 'status' => 'completed',
                 'payment_method' => $request->payment_method,
                 'created_by' => $user->id,
-                'notes' => "Payroll payment for employee {$payroll->teacher->employee_id}",
+                'notes' => "Payroll payment for employee {$employeeId}",
             ]);
 
             DB::commit();

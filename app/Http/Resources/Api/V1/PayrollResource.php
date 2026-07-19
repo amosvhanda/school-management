@@ -30,6 +30,10 @@ class PayrollResource extends JsonResource
             'deductions_total' => $this->deductions_total,
             'net_salary' => $this->net_salary,
             'amount_paid' => $this->amount_paid,
+            'remaining_balance' => max(
+                0,
+                round((float) $this->net_salary - (float) $this->amount_paid, 2)
+            ),
             'currency' => $this->currency,
             'status' => $this->status,
             'paid_at' => $this->paid_at?->toDateString(),

@@ -4,8 +4,10 @@ namespace App\Http\Controllers;
 
 use App\Models\Invoice;
 use App\Models\Payment;
+use App\Models\Payroll;
 use App\Models\School;
 use App\Models\Student;
+use App\Models\Transaction;
 use App\Services\AuditService;
 use App\Services\FinancialLedgerService;
 use Carbon\Carbon;
@@ -54,11 +56,37 @@ class FinanceController extends Controller
         $overdueInvoices = (clone $invoiceQuery)->where('status', 'overdue')->count();
         $partialInvoices = (clone $invoiceQuery)->where('status', 'partial')->count();
 
+        $payrollExpenseQuery = Transaction::query()
+            ->when($schoolId, fn ($q) => $q->where('school_id', $schoolId))
+            ->where('status', 'completed')
+            ->where('type', 'expense')
+            ->where('category', 'payroll')
+            ->where('currency', $currency);
+
+        $payrollPaidToday = (clone $payrollExpenseQuery)
+            ->whereDate('created_at', today())
+            ->sum('debit');
+
+        $payrollPaidThisMonth = (clone $payrollExpenseQuery)
+            ->whereBetween('created_at', [now()->startOfMonth(), now()->endOfMonth()])
+            ->sum('debit');
+
+        $payrollPending = Payroll::query()
+            ->when($schoolId, fn ($q) => $q->where('school_id', $schoolId))
+            ->whereIn('status', ['pending', 'partial'])
+            ->where('currency', $currency)
+            ->get()
+            ->sum(fn (Payroll $row) => max(0, (float) $row->net_salary - (float) $row->amount_paid));
+
         return response()->json([
             'data' => [
                 'totalOutstanding' => round((float) $outstandingFees, 2),
                 'collectedToday' => round((float) $collectedToday, 2),
                 'totalRevenue' => round((float) $totalRevenue, 2),
+                'payrollPaidToday' => round((float) $payrollPaidToday, 2),
+                'payrollPaidThisMonth' => round((float) $payrollPaidThisMonth, 2),
+                'payrollPending' => round((float) $payrollPending, 2),
+                'netCashToday' => round((float) $collectedToday - (float) $payrollPaidToday, 2),
                 'totalInvoices' => $totalInvoices,
                 'pendingInvoices' => $pendingInvoices,
                 'partialInvoices' => $partialInvoices,
@@ -251,6 +279,14 @@ class FinanceController extends Controller
 
         $collected = (clone $paymentsQuery)->sum('amount');
 
+        $payrollPaid = Transaction::query()
+            ->when($schoolId, fn ($q) => $q->where('school_id', $schoolId))
+            ->where('status', 'completed')
+            ->where('type', 'expense')
+            ->where('category', 'payroll')
+            ->whereBetween('created_at', [$from, $to->copy()->endOfDay()])
+            ->sum('debit');
+
         $this->auditService->log(
             module: 'finance',
             action: 'reconciliation_view',
@@ -267,6 +303,8 @@ class FinanceController extends Controller
                 'collected' => round((float) $collected, 2),
                 'reversed' => round((float) $reversed, 2),
                 'net_collected' => round((float) $collected - (float) $reversed, 2),
+                'payroll_paid' => round((float) $payrollPaid, 2),
+                'net_cash' => round((float) $collected - (float) $reversed - (float) $payrollPaid, 2),
                 'variance' => round((float) $collected - (float) $reversed, 2),
                 'by_payment_method' => $byMethod,
                 'cash_total' => round((float) $byMethod->where('method', 'cash')->sum('total'), 2),

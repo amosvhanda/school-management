@@ -1,5 +1,5 @@
 import { genderOptions } from '@/lib/form-standards'
-import { INVOICE_STATUS_OPTIONS, PAYMENT_METHOD_OPTIONS, PAYMENT_STATUS_OPTIONS } from '@/lib/finance-constants'
+import { INVOICE_STATUS_OPTIONS, PAYMENT_METHOD_OPTIONS, PAYMENT_STATUS_OPTIONS, PAYROLL_STATUS_OPTIONS } from '@/lib/finance-constants'
 import { moduleEndpoints } from '@/services'
 
 export interface ListFilterOption {
@@ -193,6 +193,87 @@ export const moduleListMetaRegistry: Record<string, ListPageMeta> = {
         type: 'select',
         placeholder: 'Any method',
         options: [...PAYMENT_METHOD_OPTIONS],
+      },
+    ],
+  },
+  'finance-payroll': {
+    filterMode: 'server',
+    filters: [
+      {
+        key: 'month',
+        label: 'Month',
+        type: 'select',
+        placeholder: 'Any month',
+        options: [
+          { label: 'January', value: '1' },
+          { label: 'February', value: '2' },
+          { label: 'March', value: '3' },
+          { label: 'April', value: '4' },
+          { label: 'May', value: '5' },
+          { label: 'June', value: '6' },
+          { label: 'July', value: '7' },
+          { label: 'August', value: '8' },
+          { label: 'September', value: '9' },
+          { label: 'October', value: '10' },
+          { label: 'November', value: '11' },
+          { label: 'December', value: '12' },
+        ],
+      },
+      {
+        key: 'year',
+        label: 'Year',
+        type: 'select',
+        placeholder: 'Any year',
+        options: Array.from({ length: 6 }, (_, i) => {
+          const year = String(new Date().getFullYear() - 2 + i)
+          return { label: year, value: year }
+        }),
+      },
+      {
+        key: 'status',
+        label: 'Status',
+        type: 'select',
+        placeholder: 'Any status',
+        options: [...PAYROLL_STATUS_OPTIONS],
+      },
+    ],
+  },
+  'finance-transactions': {
+    filterMode: 'server',
+    filters: [
+      {
+        key: 'type',
+        label: 'Type',
+        type: 'select',
+        placeholder: 'Any type',
+        options: [
+          { label: 'Expense', value: 'expense' },
+          { label: 'Payment', value: 'payment' },
+          { label: 'Invoice', value: 'invoice' },
+          { label: 'Refund', value: 'refund' },
+        ],
+      },
+      {
+        key: 'category',
+        label: 'Category',
+        type: 'select',
+        placeholder: 'Any category',
+        options: [
+          { label: 'Payroll', value: 'payroll' },
+          { label: 'Student fees', value: 'student' },
+          { label: 'Other', value: 'other' },
+        ],
+      },
+      {
+        key: 'status',
+        label: 'Status',
+        type: 'select',
+        placeholder: 'Any status',
+        options: [
+          { label: 'Completed', value: 'completed' },
+          { label: 'Pending', value: 'pending' },
+          { label: 'Reversed', value: 'reversed' },
+        ],
       },
     ],
   },

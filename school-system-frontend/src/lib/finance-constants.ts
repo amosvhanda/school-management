@@ -1,4 +1,4 @@
-/** Zimbabwe school payment methods */
+/** Zimbabwe school payment methods (fee collections) */
 export const PAYMENT_METHOD_OPTIONS = [
   { label: 'Cash', value: 'cash' },
   { label: 'EcoCash', value: 'ecocash' },
@@ -8,6 +8,22 @@ export const PAYMENT_METHOD_OPTIONS = [
   { label: 'Card', value: 'card' },
   { label: 'Cheque', value: 'cheque' },
   { label: 'Other', value: 'other' },
+] as const
+
+/** Staff payroll disbursement methods (matches PayrollController) */
+export const PAYROLL_PAYMENT_METHOD_OPTIONS = [
+  { label: 'Bank transfer', value: 'bank_transfer' },
+  { label: 'Cash', value: 'cash' },
+  { label: 'EcoCash', value: 'ecocash' },
+  { label: 'OneMoney', value: 'onemoney' },
+  { label: 'ZIPIT', value: 'zipit' },
+  { label: 'Swipe', value: 'swipe' },
+] as const
+
+export const PAYROLL_STATUS_OPTIONS = [
+  { label: 'Pending', value: 'pending' },
+  { label: 'Partial', value: 'partial' },
+  { label: 'Paid', value: 'paid' },
 ] as const
 
 export const INVOICE_STATUS_OPTIONS = [
@@ -31,5 +47,9 @@ export function formatMoney(amount: unknown, currency = 'USD'): string {
 
 export function formatPaymentMethod(method: unknown): string {
   const key = String(method ?? '').toLowerCase()
-  return PAYMENT_METHOD_OPTIONS.find((o) => o.value === key)?.label ?? String(method ?? '—')
+  return (
+    PAYMENT_METHOD_OPTIONS.find((o) => o.value === key)?.label
+    ?? PAYROLL_PAYMENT_METHOD_OPTIONS.find((o) => o.value === key)?.label
+    ?? String(method ?? '—')
+  )
 }

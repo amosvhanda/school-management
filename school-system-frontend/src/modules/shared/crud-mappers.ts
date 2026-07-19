@@ -273,6 +273,16 @@ export function mapFormToPayload(
     return payload
   }
 
+  if (listKey === 'finance-payroll') {
+    const payload: Record<string, unknown> = {
+      base_salary: Number(values.base_salary ?? 0),
+    }
+    if (values.notes != null && String(values.notes).trim() !== '') {
+      payload.notes = String(values.notes).trim()
+    }
+    return payload
+  }
+
   if (listKey === 'finance-invoices') {
     return {
       student_id: values.student_id ? Number(values.student_id) : undefined,

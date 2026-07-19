@@ -86,6 +86,26 @@ const idKey = computed(() => props.idKey ?? 'id')
 const subtitle = computed(() => props.description ?? `Manage records from ${props.endpoint}`)
 const hasForm = computed(() => Boolean(props.formFields?.length && props.formSchema))
 
+const actionPrompt = ref<{
+  action: RowActionConfig
+  row: Record<string, unknown>
+  isToolbar: boolean
+} | null>(null)
+const actionPromptOpen = computed({
+  get: () => actionPrompt.value != null,
+  set: (open: boolean) => {
+    if (!open) actionPrompt.value = null
+  },
+})
+const actionPromptResetValues = ref<Record<string, unknown> | undefined>()
+const actionPromptSaving = ref(false)
+const actionPromptForm = computed(() => actionPrompt.value?.action.promptForm ?? null)
+const actionPromptKey = computed(() => {
+  if (!actionPrompt.value) return 'closed'
+  const id = actionPrompt.value.row[idKey.value]
+  return `${actionPrompt.value.action.label}-${String(id ?? 'toolbar')}`
+})
+
 const displayColumns = computed<ColumnDef<Record<string, unknown>, unknown>[]>(() => {
   const cols = [...props.columns]
   const hasRowActions =
@@ -104,14 +124,18 @@ const displayColumns = computed<ColumnDef<Record<string, unknown>, unknown>[]>((
       const buttons: ReturnType<typeof h>[] = []
 
       if (props.canEdit && hasForm.value) {
-        buttons.push(
-          h(Button, {
-            size: 'sm',
-            variant: 'ghost',
-            'aria-label': 'Edit record',
-            onClick: () => openEdit(record),
-          }, () => h(Pencil, { class: 'h-4 w-4', 'aria-hidden': 'true' })),
-        )
+        const canEditRow = props.listKey !== 'finance-payroll'
+          || String(record.status ?? '').toLowerCase() === 'pending'
+        if (canEditRow) {
+          buttons.push(
+            h(Button, {
+              size: 'sm',
+              variant: 'ghost',
+              'aria-label': 'Edit record',
+              onClick: () => openEdit(record),
+            }, () => h(Pencil, { class: 'h-4 w-4', 'aria-hidden': 'true' })),
+          )
+        }
       }
 
       for (const action of props.rowActions ?? []) {
@@ -230,6 +254,12 @@ async function load(page = serverPage.value) {
       params.include = 'student,invoice'
       params.sort = params.sort ?? '-date'
     }
+    if (props.listKey === 'finance-transactions') {
+      const payrollId = route.query.payroll_id
+      if (typeof payrollId === 'string' && payrollId !== '') {
+        params.payroll_id = payrollId
+      }
+    }
     if (props.listKey === 'finance-invoices') {
       params.include = 'student'
       params.sort = params.sort ?? '-created_at'
@@ -314,11 +344,24 @@ async function openCreate() {
 }
 
 async function openEdit(row: Record<string, unknown>) {
+  if (props.listKey === 'finance-payroll' && String(row.status ?? '').toLowerCase() !== 'pending') {
+    toast.error('Cannot edit', 'Only pending payslips can be adjusted before payment.')
+    return
+  }
   editingRow.value = row
   sheetOpen.value = true
   await nextTick()
   const record = await prepareEdit(row)
   editingRow.value = record
+}
+
+function openActionPrompt(action: RowActionConfig, row: Record<string, unknown>, isToolbar = false) {
+  const form = action.promptForm
+  if (!form) return
+  const defaults =
+    typeof form.defaults === 'function' ? form.defaults(row) : (form.defaults ?? {})
+  actionPromptResetValues.value = { ...defaults }
+  actionPrompt.value = { action, row, isToolbar }
 }
 
 async function runAction(action: RowActionConfig, row: Record<string, unknown>) {
@@ -346,34 +389,63 @@ async function runAction(action: RowActionConfig, row: Record<string, unknown>) 
     return
   }
 
+  if (action.promptForm) {
+    openActionPrompt(action, row, false)
+    return
+  }
+
   await executeAction(action, row)
 }
 
-async function executeAction(action: RowActionConfig, row: Record<string, unknown>, extraBody?: Record<string, unknown>) {
+function sanitizeActionBody(values: Record<string, unknown>): Record<string, unknown> {
+  const body: Record<string, unknown> = {}
+  for (const [key, value] of Object.entries(values)) {
+    if (value === '' || value === undefined || value === null) continue
+    body[key] = value
+  }
+  return body
+}
+
+async function executeAction(action: RowActionConfig, row: Record<string, unknown>, extraBody?: Record<string, unknown>): Promise<boolean> {
   const id = row[idKey.value]
-  if (id == null) return
+  const pathId = (id as string | number | undefined) ?? 0
 
   const resolvedBody = typeof action.body === 'function' ? action.body(row) : action.body ?? {}
-  if (resolvedBody == null) return
+  if (resolvedBody == null) return false
 
-  const key = `${action.label}-${id}`
+  const key = `${action.label}-${String(id ?? 'toolbar')}`
   actionLoading.value = key
   try {
-    const body = {
+    const body = sanitizeActionBody({
       ...resolvedBody,
       ...extraBody,
-    }
-    const path = action.path(id as string | number)
+    })
+    const path = action.path(pathId)
 
-    if (action.method === 'post') await postRecord(path, body)
-    else if (action.method === 'put') await updateRecord(path, body)
-    else if (action.method === 'patch') await patchRecord(path, body)
+    let result: unknown
+    if (action.method === 'post') result = await postRecord(path, body)
+    else if (action.method === 'put') result = await updateRecord(path, body)
+    else if (action.method === 'patch') result = await patchRecord(path, body)
     else await deleteRecord(path)
 
-    toast.success(action.successMessage ?? `${action.label} completed`)
+    const successTitle = action.successMessage ?? `${action.label} completed`
+    const generateMeta =
+      result && typeof result === 'object'
+        ? (result as { created?: number; errors?: string[] })
+        : null
+    if (generateMeta && Array.isArray(generateMeta.errors) && generateMeta.errors.length > 0) {
+      toast.info(
+        successTitle,
+        `${generateMeta.created ?? 0} updated. ${generateMeta.errors.slice(0, 3).join(' ')}`,
+      )
+    } else {
+      toast.success(successTitle)
+    }
     await load()
+    return true
   } catch (err) {
     toast.error(`${action.label} failed`, getErrorMessage(err))
+    return false
   } finally {
     actionLoading.value = null
   }
@@ -389,6 +461,11 @@ async function confirmReverse() {
 }
 
 async function runToolbarAction(action: RowActionConfig) {
+  if (action.promptForm) {
+    openActionPrompt(action, {}, true)
+    return
+  }
+
   actionLoading.value = action.label
   try {
     const body = typeof action.body === 'function' ? action.body({}) : action.body
@@ -407,6 +484,18 @@ async function runToolbarAction(action: RowActionConfig) {
     toast.error(`${action.label} failed`, getErrorMessage(err))
   } finally {
     actionLoading.value = null
+  }
+}
+
+async function onActionPromptSubmit(values: Record<string, unknown>) {
+  if (!actionPrompt.value) return
+  const { action, row } = actionPrompt.value
+  actionPromptSaving.value = true
+  try {
+    const ok = await executeAction(action, row, sanitizeActionBody(values))
+    if (ok) actionPrompt.value = null
+  } finally {
+    actionPromptSaving.value = false
   }
 }
 
@@ -527,6 +616,21 @@ defineExpose({ load, openEdit })
       :save-label="editingRow ? 'Save changes' : 'Save'"
       :staged="staged"
       @submit="onSubmit"
+    />
+
+    <FormSheet
+      v-if="actionPromptForm"
+      v-model:open="actionPromptOpen"
+      :title="actionPromptForm.title"
+      :description="actionPromptForm.description"
+      :fields="actionPromptForm.fields"
+      :schema="actionPromptForm.schema"
+      :reset-values="actionPromptResetValues"
+      :form-key="actionPromptKey"
+      :saving="actionPromptSaving"
+      :save-label="actionPromptForm.saveLabel ?? 'Confirm'"
+      :size="actionPromptForm.size"
+      @submit="onActionPromptSubmit"
     />
 
     <Dialog :open="!!deleteTarget" @update:open="(v) => !v && (deleteTarget = null)">

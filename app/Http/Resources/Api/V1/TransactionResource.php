@@ -41,13 +41,28 @@ class TransactionResource extends JsonResource
                 'balance' => $this->invoice->balance,
                 'due_date' => $this->invoice->due_date?->toDateString(),
             ]),
-            'payroll' => $this->whenLoaded('payroll', fn () => [
-                'id' => $this->payroll->id,
-                'teacher_id' => $this->payroll->teacher_id,
-                'month' => $this->payroll->month,
-                'year' => $this->payroll->year,
-                'net_salary' => $this->payroll->net_salary,
-            ]),
+            'payroll' => $this->whenLoaded('payroll', function () {
+                $monthLabel = $this->payroll->month
+                    ? \Illuminate\Support\Carbon::create()->month((int) $this->payroll->month)->format('M')
+                    : null;
+
+                return [
+                    'id' => $this->payroll->id,
+                    'teacher_id' => $this->payroll->teacher_id,
+                    'month' => $this->payroll->month,
+                    'year' => $this->payroll->year,
+                    'period' => $monthLabel && $this->payroll->year
+                        ? "{$monthLabel} {$this->payroll->year}"
+                        : null,
+                    'net_salary' => $this->payroll->net_salary,
+                    'employee_name' => $this->payroll->relationLoaded('teacher')
+                        ? $this->payroll->teacher?->name
+                        : null,
+                    'employee_number' => $this->payroll->relationLoaded('teacher')
+                        ? $this->payroll->teacher?->employee_id
+                        : null,
+                ];
+            }),
             'created_by' => $this->created_by,
             'created_by_user' => $this->whenLoaded('createdBy', fn () => [
                 'id' => $this->createdBy->id,

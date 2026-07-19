@@ -1,4 +1,10 @@
 import { endpoints } from '@/services/endpoints'
+import type { ActionPromptForm } from '@/modules/shared/action-prompt-forms'
+import {
+  inventoryRestockPromptForm,
+  payrollGeneratePromptForm,
+  payrollProcessPromptForm,
+} from '@/modules/shared/action-prompt-forms'
 
 export type RowActionMethod = 'post' | 'put' | 'patch' | 'delete'
 
@@ -16,6 +22,8 @@ export interface RowActionConfig {
   openReceipt?: boolean
   /** Prompt for reason before destructive API action */
   confirmReason?: boolean
+  /** Opens a validated FormSheet before calling the API */
+  promptForm?: ActionPromptForm
 }
 
 export const moduleActionsRegistry: Record<string, RowActionConfig[]> = {
@@ -104,25 +112,11 @@ export const moduleActionsRegistry: Record<string, RowActionConfig[]> = {
       label: 'Process',
       method: 'post',
       path: (id) => endpoints.payroll.process(id),
-      when: (row) => String(row.status ?? '').toLowerCase() === 'pending' || String(row.status ?? '').toLowerCase() === 'partial',
-      body: () => {
-        const method = window.prompt(
-          'Payment method (bank_transfer, cash, ecocash, onemoney, zipit, swipe)',
-          'bank_transfer',
-        )
-        if (method == null) return null
-        const normalized = method.trim().toLowerCase()
-        const allowed = ['bank_transfer', 'cash', 'ecocash', 'onemoney', 'zipit', 'swipe']
-        if (!allowed.includes(normalized)) {
-          window.alert(`Choose one of: ${allowed.join(', ')}`)
-          return null
-        }
-        const reference = window.prompt('Payment reference (optional)', '') ?? ''
-        return {
-          payment_method: normalized,
-          payment_reference: reference.trim() || undefined,
-        }
+      when: (row) => {
+        const status = String(row.status ?? '').toLowerCase()
+        return status === 'pending' || status === 'partial'
       },
+      promptForm: payrollProcessPromptForm,
       successMessage: 'Payroll payment recorded',
     },
   ],
@@ -132,12 +126,7 @@ export const moduleActionsRegistry: Record<string, RowActionConfig[]> = {
       method: 'post',
       path: (id) => endpoints.inventory.restock(id),
       variant: 'outline',
-      body: () => {
-        const raw = window.prompt('Restock quantity', '10')
-        if (raw == null) return null
-        const quantity = Math.max(1, Number(raw) || 1)
-        return { quantity }
-      },
+      promptForm: inventoryRestockPromptForm,
       successMessage: 'Stock updated',
     },
   ],
@@ -191,10 +180,7 @@ export const moduleToolbarActionsRegistry: Record<string, RowActionConfig[]> = {
       label: 'Generate payroll',
       method: 'post',
       path: () => endpoints.payroll.generate,
-      body: {
-        month: new Date().getMonth() + 1,
-        year: new Date().getFullYear(),
-      },
+      promptForm: payrollGeneratePromptForm,
       successMessage: 'Payroll generated for active staff',
     },
   ],

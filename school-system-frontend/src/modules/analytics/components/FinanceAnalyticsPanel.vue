@@ -267,6 +267,14 @@ function statusVariant(status: string): 'default' | 'secondary' | 'destructive' 
                 <dd class="font-semibold">{{ formatMoney(reconciliation?.net_collected, currency) }}</dd>
               </div>
               <div>
+                <dt class="text-sm text-muted-foreground">Payroll paid</dt>
+                <dd class="font-semibold">{{ formatMoney(reconciliation?.payroll_paid ?? 0, currency) }}</dd>
+              </div>
+              <div>
+                <dt class="text-sm text-muted-foreground">Net cash</dt>
+                <dd class="font-semibold">{{ formatMoney(reconciliation?.net_cash ?? reconciliation?.net_collected, currency) }}</dd>
+              </div>
+              <div>
                 <dt class="text-sm text-muted-foreground">Payroll pending</dt>
                 <dd class="font-semibold">{{ formatMoney(payrollPending ?? 0, currency) }}</dd>
               </div>

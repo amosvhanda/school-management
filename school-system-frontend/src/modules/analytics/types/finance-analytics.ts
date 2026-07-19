@@ -61,6 +61,8 @@ export interface ReconciliationReport {
   collected?: number
   reversed?: number
   net_collected?: number
+  payroll_paid?: number
+  net_cash?: number
   by_payment_method?: Array<{ method?: string; count?: number; total?: number }>
   cash_total?: number
   bank_total?: number

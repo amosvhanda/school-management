@@ -185,11 +185,17 @@ export const listPageRegistry: Record<string, ListPageConfig> = {
     columns: feeCategoryColumns,
     description: 'Shared categories used by fee structures (tuition, levies, exams…).',
   },
-  'finance-transactions': { title: 'Transactions', endpoint: moduleEndpoints.transactions, columns: transactionColumns },
+  'finance-transactions': {
+    title: 'Transactions',
+    description:
+      'School ledger of money in and out — fee collections, payroll expenses, and related movements.',
+    endpoint: moduleEndpoints.transactions,
+    columns: transactionColumns,
+  },
   'finance-payroll': {
     title: 'Payroll',
     description:
-      'Generate monthly payslips for staff, then Process each pending row to record payment. Employee numbers come from teacher records (SCHOOL-EMP####).',
+      'Generate monthly payslips, adjust pending amounts if needed, then Process each row to record payment. Each Process posts an expense to Transactions.',
     endpoint: moduleEndpoints.payroll,
     columns: payrollColumns,
   },

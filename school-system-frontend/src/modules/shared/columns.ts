@@ -461,6 +461,37 @@ export const payrollColumns: ColumnDef<Record<string, unknown>>[] = [
   textColumn('Period', 'period'),
   currencyColumn('Gross', 'gross_salary'),
   currencyColumn('Net', 'net_salary'),
+  currencyColumn('Paid', 'amount_paid'),
+  {
+    id: 'remaining',
+    header: 'Remaining',
+    cell: ({ row }) => {
+      const remaining = Number(
+        row.original.remaining_balance
+          ?? (Number(row.original.net_salary ?? 0) - Number(row.original.amount_paid ?? 0)),
+      )
+      const currency = String(row.original.currency ?? 'USD')
+      return `${currency} ${remaining.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+    },
+  },
+  {
+    id: 'ledger',
+    header: 'Ledger',
+    cell: ({ row }) => {
+      const id = row.original.id
+      const payments = row.original.payments
+      const count = Array.isArray(payments) ? payments.length : 0
+      if (id == null || count === 0) return '—'
+      return h(
+        RouterLink,
+        {
+          to: { path: '/finance/transactions', query: { payroll_id: String(id), category: 'payroll' } },
+          class: 'text-primary underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+        },
+        () => `${count} payment${count === 1 ? '' : 's'}`,
+      )
+    },
+  },
   statusColumn(),
 ]
 
@@ -797,6 +828,41 @@ export const paymentColumns: ColumnDef<Record<string, unknown>>[] = [
 export const transactionColumns: ColumnDef<Record<string, unknown>>[] = [
   dateTimeColumn('Date', 'created_at'),
   textColumn('Type', 'type'),
+  textColumn('Category', 'category'),
+  {
+    id: 'party',
+    header: 'Party',
+    cell: ({ row }) => {
+      const payroll = row.original.payroll
+      if (payroll && typeof payroll === 'object') {
+        const p = payroll as Record<string, unknown>
+        const name = String(p.employee_name ?? 'Staff')
+        const period = p.period ? ` · ${String(p.period)}` : ''
+        const id = p.id
+        if (id != null) {
+          return h(
+            RouterLink,
+            {
+              to: { path: '/finance/payroll', query: { highlight: String(id) } },
+              class: 'text-primary underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+            },
+            () => `${name}${period}`,
+          )
+        }
+        return `${name}${period}`
+      }
+      const student = row.original.student
+      if (student && typeof student === 'object') {
+        return String((student as Record<string, unknown>).full_name ?? '—')
+      }
+      return '—'
+    },
+  },
+  {
+    id: 'description',
+    header: 'Description',
+    cell: ({ row }) => String(row.original.description ?? '—'),
+  },
   currencyColumn('Debit', 'debit'),
   currencyColumn('Credit', 'credit'),
   textColumn('Reference', 'reference'),
