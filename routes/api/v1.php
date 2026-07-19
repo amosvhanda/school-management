@@ -116,6 +116,7 @@ Route::middleware(['auth:sanctum', 'school.isolated', 'school.licensed'])->group
     // Vendor license management (super admin only)
     Route::middleware('super_admin')->group(function () {
         Route::get('/admin/schools', [AdminSchoolController::class, 'index']);
+        Route::post('/admin/schools', [AdminSchoolController::class, 'store']);
         Route::prefix('admin/licenses')->group(function () {
             Route::get('/', [AdminLicenseController::class, 'index']);
             Route::post('/', [AdminLicenseController::class, 'store']);

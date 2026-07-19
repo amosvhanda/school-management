@@ -15,12 +15,17 @@ class CommunicationHubService
 
     public function send(User $sender, array $data): HubMessage
     {
-        $channels = array_values(array_intersect($data['channels'] ?? ['email'], self::CHANNELS));
-        $recipientIds = $this->resolveRecipients($sender->school_id, $data);
+        $schoolId = (int) ($data['school_id'] ?? $sender->school_id);
+        if (! $schoolId) {
+            abort(422, 'school_id is required to send platform communications.');
+        }
 
-        return DB::transaction(function () use ($sender, $data, $channels, $recipientIds) {
+        $channels = array_values(array_intersect($data['channels'] ?? ['email'], self::CHANNELS));
+        $recipientIds = $this->resolveRecipients($schoolId, $data);
+
+        return DB::transaction(function () use ($sender, $data, $channels, $recipientIds, $schoolId) {
             $message = HubMessage::create([
-                'school_id' => $sender->school_id,
+                'school_id' => $schoolId,
                 'sender_id' => $sender->id,
                 'subject' => $data['subject'] ?? null,
                 'body' => $data['body'],
@@ -48,7 +53,7 @@ class CommunicationHubService
                         'delivered_at' => now(),
                     ]);
 
-                    $this->queueLegacyNotification($sender->school_id, $recipient, $channel, $data);
+                    $this->queueLegacyNotification($schoolId, $recipient, $channel, $data);
                     $stats['total']++;
                     $stats['delivered']++;
                 }
@@ -80,11 +85,14 @@ class CommunicationHubService
         return $delivery->fresh();
     }
 
-    public function trackingForSchool(int $schoolId, ?int $messageId = null)
+    public function trackingForSchool(?int $schoolId = null, ?int $messageId = null)
     {
         $query = HubMessageDelivery::query()
-            ->whereHas('message', fn ($q) => $q->where('school_id', $schoolId))
-            ->with(['message:id,subject,body,sent_at', 'recipient:id,name,email']);
+            ->when(
+                $schoolId,
+                fn ($q) => $q->whereHas('message', fn ($inner) => $inner->where('school_id', $schoolId)),
+            )
+            ->with(['message:id,subject,body,sent_at,school_id', 'recipient:id,name,email']);
 
         if ($messageId) {
             $query->where('hub_message_id', $messageId);

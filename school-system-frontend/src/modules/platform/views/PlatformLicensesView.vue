@@ -63,6 +63,15 @@ const generateOpen = ref(false)
 const generatedKey = ref<string | null>(null)
 const generating = ref(false)
 const revokingId = ref<number | null>(null)
+const registerOpen = ref(false)
+const registering = ref(false)
+const provisionResult = ref<{
+  schoolName: string
+  adminEmail: string
+  adminPassword: string
+  licenseKey?: string | null
+  licenseStatus?: string | null
+} | null>(null)
 
 const generateForm = ref({
   plan_type: 'annual',
@@ -70,6 +79,23 @@ const generateForm = ref({
   customer_name: '',
   customer_email: '',
   notes: '',
+})
+
+const registerForm = ref({
+  school_name: '',
+  school_code: '',
+  address: '',
+  phone: '',
+  email: '',
+  currency: 'USD',
+  contact_person: '',
+  admin_name: '',
+  admin_email: '',
+  admin_password: '',
+  admin_password_confirmation: '',
+  generate_and_activate_license: true,
+  plan_type: 'annual',
+  duration_months: '',
 })
 
 const schoolFilters: ListFilterSchema[] = [
@@ -382,6 +408,101 @@ async function copyGeneratedKey() {
   toast.success('License key copied')
 }
 
+function resetRegisterForm() {
+  registerForm.value = {
+    school_name: '',
+    school_code: '',
+    address: '',
+    phone: '',
+    email: '',
+    currency: 'USD',
+    contact_person: '',
+    admin_name: '',
+    admin_email: '',
+    admin_password: '',
+    admin_password_confirmation: '',
+    generate_and_activate_license: true,
+    plan_type: 'annual',
+    duration_months: '',
+  }
+  provisionResult.value = null
+}
+
+function slugCodeFromName(name: string) {
+  return name
+    .trim()
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, '-')
+    .replace(/^-|-$/g, '')
+    .slice(0, 20)
+}
+
+watch(
+  () => registerForm.value.school_name,
+  (name) => {
+    if (!registerForm.value.school_code.trim() && name.trim()) {
+      registerForm.value.school_code = slugCodeFromName(name)
+    }
+  },
+)
+
+async function submitRegister() {
+  if (registerForm.value.admin_password !== registerForm.value.admin_password_confirmation) {
+    toast.error('Passwords do not match')
+    return
+  }
+
+  registering.value = true
+  try {
+    const payload: Record<string, unknown> = {
+      school_name: registerForm.value.school_name,
+      school_code: registerForm.value.school_code,
+      address: registerForm.value.address || undefined,
+      phone: registerForm.value.phone || undefined,
+      email: registerForm.value.email || undefined,
+      currency: registerForm.value.currency || 'USD',
+      contact_person: registerForm.value.contact_person || registerForm.value.admin_name,
+      contact_phone: registerForm.value.phone || undefined,
+      contact_email: registerForm.value.email || registerForm.value.admin_email,
+      admin_name: registerForm.value.admin_name,
+      admin_email: registerForm.value.admin_email,
+      admin_password: registerForm.value.admin_password,
+      admin_password_confirmation: registerForm.value.admin_password_confirmation,
+      generate_and_activate_license: registerForm.value.generate_and_activate_license,
+    }
+
+    if (registerForm.value.generate_and_activate_license) {
+      payload.plan_type = registerForm.value.plan_type
+      payload.customer_name = registerForm.value.school_name
+      payload.customer_email = registerForm.value.admin_email
+      if (registerForm.value.plan_type === 'custom' && registerForm.value.duration_months) {
+        payload.duration_months = Number(registerForm.value.duration_months)
+      }
+    }
+
+    const result = await platformApi.provisionSchool(payload)
+    provisionResult.value = {
+      schoolName: String(result.school?.name ?? registerForm.value.school_name),
+      adminEmail: result.admin.email,
+      adminPassword: registerForm.value.admin_password,
+      licenseKey: result.license_key,
+      licenseStatus: result.license_status,
+    }
+    toast.success('School registered')
+    await loadAll()
+    activeTab.value = 'schools'
+  } catch (err) {
+    toast.error('Could not register school', getErrorMessage(err))
+  } finally {
+    registering.value = false
+  }
+}
+
+async function copyText(value: string, label: string) {
+  await navigator.clipboard.writeText(value)
+  toast.success(`${label} copied`)
+}
+
 onMounted(loadAll)
 </script>
 
@@ -395,9 +516,13 @@ onMounted(loadAll)
         <RefreshCw class="size-4" aria-hidden="true" />
         Refresh
       </Button>
-      <Button @click="generateOpen = true; resetGenerateForm()">
-        <Plus class="size-4" aria-hidden="true" />
+      <Button variant="outline" @click="generateOpen = true; resetGenerateForm()">
+        <Key class="size-4" aria-hidden="true" />
         Generate key
+      </Button>
+      <Button @click="registerOpen = true; resetRegisterForm()">
+        <Plus class="size-4" aria-hidden="true" />
+        Register school
       </Button>
     </template>
 
@@ -486,6 +611,197 @@ onMounted(loadAll)
         </TabsContent>
       </Tabs>
     </div>
+
+    <Dialog v-model:open="registerOpen">
+      <DialogContent class="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>Register school</DialogTitle>
+          <DialogDescription>
+            Create the school profile, seed defaults, and set up the school admin account so they can sign in and manage the school.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div v-if="provisionResult" class="space-y-4">
+          <div class="rounded-lg border bg-muted/40 p-4 space-y-3">
+            <p class="text-sm font-medium">{{ provisionResult.schoolName }} is ready.</p>
+            <p class="text-sm text-muted-foreground">
+              Share these login details with the school admin. License status:
+              <span class="font-medium capitalize">{{ provisionResult.licenseStatus || 'none' }}</span>
+            </p>
+            <div class="space-y-2 text-sm">
+              <div class="flex flex-wrap items-center justify-between gap-2 rounded bg-background p-3">
+                <div>
+                  <p class="text-xs text-muted-foreground">Admin email</p>
+                  <p class="font-medium">{{ provisionResult.adminEmail }}</p>
+                </div>
+                <Button variant="outline" size="sm" @click="copyText(provisionResult.adminEmail, 'Email')">
+                  <Copy class="size-4" aria-hidden="true" />
+                  Copy
+                </Button>
+              </div>
+              <div class="flex flex-wrap items-center justify-between gap-2 rounded bg-background p-3">
+                <div>
+                  <p class="text-xs text-muted-foreground">Temporary password</p>
+                  <p class="font-medium font-mono">{{ provisionResult.adminPassword }}</p>
+                </div>
+                <Button variant="outline" size="sm" @click="copyText(provisionResult.adminPassword, 'Password')">
+                  <Copy class="size-4" aria-hidden="true" />
+                  Copy
+                </Button>
+              </div>
+              <div
+                v-if="provisionResult.licenseKey"
+                class="flex flex-wrap items-center justify-between gap-2 rounded bg-background p-3"
+              >
+                <div class="min-w-0">
+                  <p class="text-xs text-muted-foreground">Activated license key</p>
+                  <p class="font-mono text-xs break-all">{{ provisionResult.licenseKey }}</p>
+                </div>
+                <Button variant="outline" size="sm" @click="copyText(provisionResult.licenseKey!, 'License key')">
+                  <Copy class="size-4" aria-hidden="true" />
+                  Copy
+                </Button>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button @click="registerOpen = false">Done</Button>
+          </DialogFooter>
+        </div>
+
+        <form v-else class="space-y-6" @submit.prevent="submitRegister">
+          <section class="space-y-4" aria-labelledby="school-profile-heading">
+            <h3 id="school-profile-heading" class="text-sm font-semibold">School profile</h3>
+            <div class="grid gap-4 sm:grid-cols-2">
+              <div class="space-y-2 sm:col-span-2">
+                <Label for="school_name">School name</Label>
+                <Input id="school_name" v-model="registerForm.school_name" required autocomplete="organization" />
+              </div>
+              <div class="space-y-2">
+                <Label for="school_code">School code</Label>
+                <Input id="school_code" v-model="registerForm.school_code" required />
+              </div>
+              <div class="space-y-2">
+                <Label for="currency">Currency</Label>
+                <Select v-model="registerForm.currency">
+                  <SelectTrigger id="currency">
+                    <SelectValue placeholder="Currency" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="USD">USD</SelectItem>
+                    <SelectItem value="ZWG">ZWG</SelectItem>
+                    <SelectItem value="ZAR">ZAR</SelectItem>
+                    <SelectItem value="GBP">GBP</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div class="space-y-2 sm:col-span-2">
+                <Label for="address">Address</Label>
+                <Input id="address" v-model="registerForm.address" autocomplete="street-address" />
+              </div>
+              <div class="space-y-2">
+                <Label for="school_phone">Phone</Label>
+                <Input id="school_phone" v-model="registerForm.phone" type="tel" autocomplete="tel" />
+              </div>
+              <div class="space-y-2">
+                <Label for="school_email">School email</Label>
+                <Input id="school_email" v-model="registerForm.email" type="email" autocomplete="email" />
+              </div>
+              <div class="space-y-2 sm:col-span-2">
+                <Label for="contact_person">Contact person</Label>
+                <Input id="contact_person" v-model="registerForm.contact_person" />
+              </div>
+            </div>
+          </section>
+
+          <section class="space-y-4" aria-labelledby="school-admin-heading">
+            <h3 id="school-admin-heading" class="text-sm font-semibold">School admin account</h3>
+            <div class="grid gap-4 sm:grid-cols-2">
+              <div class="space-y-2 sm:col-span-2">
+                <Label for="admin_name">Admin full name</Label>
+                <Input id="admin_name" v-model="registerForm.admin_name" required autocomplete="name" />
+              </div>
+              <div class="space-y-2 sm:col-span-2">
+                <Label for="admin_email">Admin email (login)</Label>
+                <Input id="admin_email" v-model="registerForm.admin_email" type="email" required autocomplete="email" />
+              </div>
+              <div class="space-y-2">
+                <Label for="admin_password">Password</Label>
+                <Input
+                  id="admin_password"
+                  v-model="registerForm.admin_password"
+                  type="password"
+                  required
+                  autocomplete="new-password"
+                />
+              </div>
+              <div class="space-y-2">
+                <Label for="admin_password_confirmation">Confirm password</Label>
+                <Input
+                  id="admin_password_confirmation"
+                  v-model="registerForm.admin_password_confirmation"
+                  type="password"
+                  required
+                  autocomplete="new-password"
+                />
+              </div>
+            </div>
+          </section>
+
+          <section class="space-y-4" aria-labelledby="school-license-heading">
+            <h3 id="school-license-heading" class="text-sm font-semibold">License</h3>
+            <label class="flex items-start gap-3 rounded-lg border p-3 text-sm">
+              <input
+                v-model="registerForm.generate_and_activate_license"
+                type="checkbox"
+                class="mt-1 size-4 rounded border"
+              >
+              <span>
+                <span class="font-medium">Generate and activate a license now</span>
+                <span class="mt-1 block text-muted-foreground">
+                  Recommended so the school admin can sign in and start managing immediately.
+                </span>
+              </span>
+            </label>
+            <div v-if="registerForm.generate_and_activate_license" class="grid gap-4 sm:grid-cols-2">
+              <div class="space-y-2">
+                <Label for="register_plan_type">Plan type</Label>
+                <Select v-model="registerForm.plan_type">
+                  <SelectTrigger id="register_plan_type">
+                    <SelectValue placeholder="Select plan" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="lifetime">Lifetime</SelectItem>
+                    <SelectItem value="monthly">Monthly</SelectItem>
+                    <SelectItem value="quarterly">Quarterly</SelectItem>
+                    <SelectItem value="annual">Annual</SelectItem>
+                    <SelectItem value="custom">Custom</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div v-if="registerForm.plan_type === 'custom'" class="space-y-2">
+                <Label for="register_duration_months">Duration (months)</Label>
+                <Input
+                  id="register_duration_months"
+                  v-model="registerForm.duration_months"
+                  type="number"
+                  min="1"
+                  max="120"
+                  required
+                />
+              </div>
+            </div>
+          </section>
+
+          <DialogFooter>
+            <Button type="button" variant="outline" @click="registerOpen = false">Cancel</Button>
+            <Button type="submit" :disabled="registering">
+              {{ registering ? 'Registering…' : 'Register school' }}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
 
     <Dialog v-model:open="generateOpen">
       <DialogContent class="sm:max-w-md">

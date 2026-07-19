@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Platform;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Platform\Concerns\ResolvesPlatformSchoolScope;
 use App\Models\BehaviorPoint;
 use App\Models\StaffFeedComment;
 use App\Models\StaffFeedPost;
@@ -14,10 +15,12 @@ use Illuminate\Support\Facades\Validator;
 
 class PlatformStaffController extends Controller
 {
+    use ResolvesPlatformSchoolScope;
+
     public function behaviorPoints(Request $request, ?int $studentId = null)
     {
-        $query = BehaviorPoint::where('school_id', $request->user()->school_id)
-            ->with('student:id,full_name');
+        $query = $this->scopeToPlatformSchool(BehaviorPoint::query(), $request)
+            ->with(['student:id,full_name', 'school:id,name,code']);
 
         if ($studentId) {
             $query->where('student_id', $studentId);
@@ -28,7 +31,9 @@ class PlatformStaffController extends Controller
 
     public function storeBehaviorPoint(Request $request)
     {
+        $schoolId = $this->requirePlatformSchoolId($request);
         $data = Validator::make($request->all(), [
+            'school_id' => 'nullable|integer|exists:schools,id',
             'student_id' => 'required|exists:students,id',
             'points' => 'required|integer',
             'category' => 'required|string',
@@ -36,10 +41,10 @@ class PlatformStaffController extends Controller
             'recorded_on' => 'nullable|date',
         ])->validate();
 
-        Student::where('school_id', $request->user()->school_id)->findOrFail($data['student_id']);
+        Student::where('school_id', $schoolId)->findOrFail($data['student_id']);
 
         $point = BehaviorPoint::create([
-            'school_id' => $request->user()->school_id,
+            'school_id' => $schoolId,
             'student_id' => $data['student_id'],
             'points' => $data['points'],
             'category' => $data['category'],
@@ -53,7 +58,9 @@ class PlatformStaffController extends Controller
 
     public function behaviorSummary(Request $request, int $studentId)
     {
-        Student::where('school_id', $request->user()->school_id)->findOrFail($studentId);
+        $schoolId = $this->platformSchoolId($request);
+        $studentQuery = Student::query()->when($schoolId, fn ($q) => $q->where('school_id', $schoolId));
+        $studentQuery->findOrFail($studentId);
         $total = BehaviorPoint::where('student_id', $studentId)->sum('points');
 
         return response()->json(['data' => ['student_id' => $studentId, 'total_points' => (int) $total]]);
@@ -61,8 +68,8 @@ class PlatformStaffController extends Controller
 
     public function interventions(Request $request, ?int $studentId = null)
     {
-        $query = StudentIntervention::where('school_id', $request->user()->school_id)
-            ->with('student:id,full_name');
+        $query = $this->scopeToPlatformSchool(StudentIntervention::query(), $request)
+            ->with(['student:id,full_name', 'school:id,name,code']);
 
         if ($studentId) {
             $query->where('student_id', $studentId);
@@ -73,7 +80,9 @@ class PlatformStaffController extends Controller
 
     public function storeIntervention(Request $request)
     {
+        $schoolId = $this->requirePlatformSchoolId($request);
         $data = Validator::make($request->all(), [
+            'school_id' => 'nullable|integer|exists:schools,id',
             'student_id' => 'required|exists:students,id',
             'intervention_type' => 'required|string',
             'summary' => 'required|string',
@@ -83,10 +92,10 @@ class PlatformStaffController extends Controller
             'follow_up_date' => 'nullable|date',
         ])->validate();
 
-        Student::where('school_id', $request->user()->school_id)->findOrFail($data['student_id']);
+        Student::where('school_id', $schoolId)->findOrFail($data['student_id']);
 
         $intervention = StudentIntervention::create([
-            'school_id' => $request->user()->school_id,
+            'school_id' => $schoolId,
             'student_id' => $data['student_id'],
             'intervention_type' => $data['intervention_type'],
             'summary' => $data['summary'],
@@ -102,18 +111,21 @@ class PlatformStaffController extends Controller
 
     public function tasks(Request $request)
     {
-        $query = StaffTask::where('school_id', $request->user()->school_id);
+        $query = $this->scopeToPlatformSchool(StaffTask::query(), $request)
+            ->with('school:id,name,code');
 
         if ($request->boolean('mine')) {
             $query->where('assigned_to', $request->user()->id);
         }
 
-        return response()->json(['data' => $query->orderBy('due_date')->limit(100)->get()]);
+        return response()->json(['data' => $query->orderBy('due_date')->limit(200)->get()]);
     }
 
     public function storeTask(Request $request)
     {
+        $schoolId = $this->requirePlatformSchoolId($request);
         $data = Validator::make($request->all(), [
+            'school_id' => 'nullable|integer|exists:schools,id',
             'title' => 'required|string',
             'description' => 'nullable|string',
             'assigned_to' => 'required|exists:users,id',
@@ -122,7 +134,7 @@ class PlatformStaffController extends Controller
         ])->validate();
 
         $task = StaffTask::create([
-            'school_id' => $request->user()->school_id,
+            'school_id' => $schoolId,
             'title' => $data['title'],
             'description' => $data['description'] ?? null,
             'assigned_to' => $data['assigned_to'],
@@ -136,7 +148,7 @@ class PlatformStaffController extends Controller
 
     public function updateTask(Request $request, int $id)
     {
-        $task = StaffTask::where('school_id', $request->user()->school_id)->findOrFail($id);
+        $task = $this->scopeToPlatformSchool(StaffTask::query(), $request)->findOrFail($id);
         $data = Validator::make($request->all(), [
             'status' => 'nullable|in:pending,in_progress,completed,cancelled',
             'progress_percent' => 'nullable|integer|min:0|max:100',
@@ -154,8 +166,8 @@ class PlatformStaffController extends Controller
 
     public function feed(Request $request)
     {
-        $posts = StaffFeedPost::where('school_id', $request->user()->school_id)
-            ->with(['author:id,name', 'comments.author:id,name'])
+        $posts = $this->scopeToPlatformSchool(StaffFeedPost::query(), $request)
+            ->with(['author:id,name', 'comments.author:id,name', 'school:id,name,code'])
             ->orderByDesc('created_at')
             ->limit(50)
             ->get();
@@ -165,14 +177,16 @@ class PlatformStaffController extends Controller
 
     public function postFeed(Request $request)
     {
+        $schoolId = $this->requirePlatformSchoolId($request);
         $data = Validator::make($request->all(), [
+            'school_id' => 'nullable|integer|exists:schools,id',
             'body' => 'required|string',
             'attachments' => 'array',
             'visibility' => 'in:staff,department',
         ])->validate();
 
         $post = StaffFeedPost::create([
-            'school_id' => $request->user()->school_id,
+            'school_id' => $schoolId,
             'author_id' => $request->user()->id,
             'body' => $data['body'],
             'attachments' => $data['attachments'] ?? null,
@@ -184,7 +198,7 @@ class PlatformStaffController extends Controller
 
     public function commentFeed(Request $request, int $id)
     {
-        $post = StaffFeedPost::where('school_id', $request->user()->school_id)->findOrFail($id);
+        $post = $this->scopeToPlatformSchool(StaffFeedPost::query(), $request)->findOrFail($id);
         $data = Validator::make($request->all(), ['body' => 'required|string'])->validate();
 
         $comment = StaffFeedComment::create([

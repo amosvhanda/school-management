@@ -30,6 +30,7 @@ export const endpoints = {
     admin: {
       list: '/admin/licenses',
       schools: '/admin/schools',
+      createSchool: '/admin/schools',
       revoke: (id: number | string) => `/admin/licenses/${id}/revoke`,
     },
   },

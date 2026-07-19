@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Platform;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Platform\Concerns\ResolvesPlatformSchoolScope;
 use App\Http\Requests\Platform\CreateSignableDocumentRequest;
 use App\Http\Requests\Platform\IssueCertificateRequest;
 use App\Http\Requests\Platform\StoreExamVaultRequest;
@@ -20,6 +21,8 @@ use Illuminate\Validation\ValidationException;
 
 class PlatformDocumentController extends Controller
 {
+    use ResolvesPlatformSchoolScope;
+
     public function __construct(
         private DocumentSigningService $signing,
         private CertificateGeneratorService $certificates,
@@ -28,12 +31,12 @@ class PlatformDocumentController extends Controller
 
     public function documents(Request $request): JsonResponse
     {
-        return response()->json(['data' => $this->signing->listForSchool($request->user()->school_id)]);
+        return response()->json(['data' => $this->signing->listForSchool($this->platformSchoolId($request))]);
     }
 
     public function createDocument(CreateSignableDocumentRequest $request): JsonResponse
     {
-        $schoolId = $request->user()->school_id;
+        $schoolId = $this->requirePlatformSchoolId($request);
         $data = $request->validated();
 
         // Explicitly inject school tenant mapping into parameters
@@ -44,7 +47,7 @@ class PlatformDocumentController extends Controller
 
     public function signDocument(Request $request, int $id): JsonResponse
     {
-        $doc = SignableDocument::where('school_id', $request->user()->school_id)->findOrFail($id);
+        $doc = $this->scopeToPlatformSchool(SignableDocument::query(), $request)->findOrFail($id);
         $signature = $this->signing->sign($doc, $request->user(), $request->input('signer_role'));
 
         return response()->json(['data' => $signature, 'message' => 'Document signed']);
@@ -52,7 +55,7 @@ class PlatformDocumentController extends Controller
 
     public function issueCertificate(IssueCertificateRequest $request): JsonResponse
     {
-        $schoolId = $request->user()->school_id;
+        $schoolId = $this->requirePlatformSchoolId($request);
         $data = $request->validated();
 
         // Tighten multi-tenant lookup bounds
@@ -82,10 +85,10 @@ class PlatformDocumentController extends Controller
 
     public function certificates(Request $request): JsonResponse
     {
-        $certs = Certificate::where('school_id', $request->user()->school_id)
-            ->with('student:id,full_name')
+        $certs = $this->scopeToPlatformSchool(Certificate::query(), $request)
+            ->with(['student:id,full_name', 'school:id,name,code'])
             ->orderByDesc('issued_at')
-            ->limit(100)
+            ->limit(200)
             ->get();
 
         return response()->json(['data' => $certs]);
@@ -93,7 +96,7 @@ class PlatformDocumentController extends Controller
 
     public function vaultStore(StoreExamVaultRequest $request): JsonResponse
     {
-        $schoolId = $request->user()->school_id;
+        $schoolId = $this->requirePlatformSchoolId($request);
         $data = $request->validated();
 
         // Defend against cross-tenant metadata manipulation loop
@@ -108,17 +111,18 @@ class PlatformDocumentController extends Controller
 
     public function vaultRetrieve(Request $request, int $id): JsonResponse
     {
-        $doc = SecureDocument::where('school_id', $request->user()->school_id)->findOrFail($id);
+        $doc = $this->scopeToPlatformSchool(SecureDocument::query(), $request)->findOrFail($id);
 
         return response()->json(['data' => $this->vault->retrieve($doc, $request->user())]);
     }
 
     public function vaultIndex(Request $request): JsonResponse
     {
-        $docs = SecureDocument::where('school_id', $request->user()->school_id)
-            ->select(['id', 'title', 'vault_type', 'exam_id', 'uploaded_by', 'created_at'])
+        $docs = $this->scopeToPlatformSchool(SecureDocument::query(), $request)
+            ->select(['id', 'title', 'vault_type', 'exam_id', 'uploaded_by', 'school_id', 'created_at'])
+            ->with('school:id,name,code')
             ->orderByDesc('created_at')
-            ->limit(100)
+            ->limit(200)
             ->get();
 
         return response()->json(['data' => $docs]);

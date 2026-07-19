@@ -3,8 +3,10 @@
 namespace App\Models\Concerns;
 
 use App\Enums\UserRole;
+use App\Models\School;
 use App\Models\Scopes\SchoolScope;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Event;
 
@@ -27,6 +29,11 @@ trait BelongsToSchool
                 $model->school_id = $user->school_id;
             }
         });
+    }
+
+    public function school(): BelongsTo
+    {
+        return $this->belongsTo(School::class);
     }
 
     public function resolveRouteBinding($value, $field = null)

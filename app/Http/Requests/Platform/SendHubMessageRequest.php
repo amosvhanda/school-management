@@ -19,6 +19,7 @@ class SendHubMessageRequest extends FormRequest
         $allowedTypes = array_merge(['individual', 'all_staff'], $roleValues);
 
         return [
+            'school_id' => 'nullable|integer|exists:schools,id',
             'subject' => 'nullable|string|max:255',
             'body' => 'required|string',
             'channels' => 'required|array|min:1',

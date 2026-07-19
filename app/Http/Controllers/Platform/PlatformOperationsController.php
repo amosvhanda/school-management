@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers\Platform;
 
-use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Platform\Concerns\ResolvesPlatformSchoolScope;
 use App\Models\ApiClient;
 use App\Models\OperationsAlert;
 use App\Services\Platform\AuditIntegrityService;
@@ -16,6 +16,8 @@ use Illuminate\Support\Facades\Validator;
 
 class PlatformOperationsController extends Controller
 {
+    use ResolvesPlatformSchoolScope;
+
     public function __construct(
         private OperationsDashboardService $operations,
         private PredictiveAnalyticsService $predictive,
@@ -26,22 +28,15 @@ class PlatformOperationsController extends Controller
 
     public function liveDashboard(Request $request)
     {
-        $user = $request->user();
-        $schoolId = $user->role === UserRole::SuperAdmin ? null : $user->school_id;
-
-        return response()->json(['data' => $this->operations->liveFeed($schoolId)]);
+        return response()->json(['data' => $this->operations->liveFeed($this->platformSchoolId($request))]);
     }
 
     public function resolveAlert(Request $request, int $id)
     {
-        $user = $request->user();
-        $query = OperationsAlert::query()->whereNull('resolved_at');
-
-        if ($user->role !== UserRole::SuperAdmin) {
-            $query->where('school_id', $user->school_id);
-        }
-
-        $alert = $query->findOrFail($id);
+        $alert = $this->scopeToPlatformSchool(
+            OperationsAlert::query()->whereNull('resolved_at'),
+            $request,
+        )->findOrFail($id);
         $alert->update(['resolved_at' => now()]);
 
         return response()->json(['data' => $alert, 'message' => 'Alert resolved']);
@@ -49,9 +44,11 @@ class PlatformOperationsController extends Controller
 
     public function predictiveAnalytics(Request $request)
     {
+        $schoolId = $this->requirePlatformSchoolId($request);
+
         return response()->json([
             'data' => $this->predictive->studentRiskScores(
-                $request->user()->school_id,
+                $schoolId,
                 $request->integer('limit') ?: 50,
             ),
         ]);
@@ -59,37 +56,39 @@ class PlatformOperationsController extends Controller
 
     public function systemHealth(Request $request)
     {
-        $user = $request->user();
-        $schoolId = $user->role === UserRole::SuperAdmin ? null : $user->school_id;
-
-        return response()->json(['data' => $this->health->snapshot($schoolId)]);
+        return response()->json(['data' => $this->health->snapshot($this->platformSchoolId($request))]);
     }
 
     public function verifyAuditIntegrity(Request $request)
     {
+        $schoolId = $this->requirePlatformSchoolId($request);
+
         return response()->json([
-            'data' => $this->auditIntegrity->verifyChain($request->user()->school_id),
+            'data' => $this->auditIntegrity->verifyChain($schoolId),
         ]);
     }
 
     public function apiClients(Request $request)
     {
-        return response()->json([
-            'data' => ApiClient::where('school_id', $request->user()->school_id)
-                ->select(['id', 'name', 'client_id', 'scopes', 'is_active', 'last_used_at', 'created_at'])
-                ->get(),
-        ]);
+        $rows = $this->scopeToPlatformSchool(ApiClient::query(), $request)
+            ->with('school:id,name,code')
+            ->select(['id', 'name', 'client_id', 'scopes', 'is_active', 'last_used_at', 'school_id', 'created_at'])
+            ->get();
+
+        return response()->json(['data' => $rows]);
     }
 
     public function createApiClient(Request $request)
     {
+        $schoolId = $this->requirePlatformSchoolId($request);
         $data = Validator::make($request->all(), [
+            'school_id' => 'nullable|integer|exists:schools,id',
             'name' => 'required|string',
             'scopes' => 'required|array',
         ])->validate();
 
         $result = $this->externalApi->createClient(
-            $request->user()->school_id,
+            $schoolId,
             $data['name'],
             $data['scopes'],
         );

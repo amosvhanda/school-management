@@ -18,7 +18,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { getErrorMessage } from '@/lib/api-response'
-import { formatDateTime } from '@/lib/format'
+import { formatDateTime, formatRelativeTime } from '@/lib/format'
 import { useToast } from '@/composables/useToast'
 import { platformApi } from '@/services/api.service'
 
@@ -28,6 +28,7 @@ interface OpsMetrics {
   escalated_workflows?: number
   open_staff_tasks?: number
   open_alerts?: number
+  schools_total?: number
 }
 
 interface OpsAlert {
@@ -37,7 +38,20 @@ interface OpsAlert {
   title?: string
   message?: string
   school_id?: number | null
+  school_name?: string | null
+  school_code?: string | null
   created_at?: string
+}
+
+interface SchoolOpsRow {
+  id: number
+  name: string
+  code?: string
+  status?: string
+  license_status?: string
+  pending_workflows?: number
+  overdue_staff_tasks?: number
+  open_alerts?: number
 }
 
 interface OpsLive {
@@ -45,6 +59,7 @@ interface OpsLive {
   scope?: string
   alerts?: OpsAlert[]
   metrics?: OpsMetrics
+  schools?: SchoolOpsRow[]
 }
 
 interface HealthSnapshot {
@@ -78,6 +93,7 @@ const description = computed(() =>
 
 const metrics = computed(() => ops.value?.metrics ?? {})
 const alerts = computed(() => ops.value?.alerts ?? [])
+const schools = computed(() => ops.value?.schools ?? [])
 
 function severityVariant(severity?: string): 'default' | 'secondary' | 'destructive' | 'outline' {
   const value = String(severity ?? '').toLowerCase()
@@ -145,14 +161,24 @@ onMounted(load)
         <Badge variant="secondary" class="font-normal capitalize">
           {{ ops.scope || 'platform' }} scope
         </Badge>
-        <span v-if="ops.timestamp">Updated {{ formatDateTime(ops.timestamp) }}</span>
+        <span v-if="ops.timestamp" :title="formatDateTime(ops.timestamp)">
+          Updated {{ formatRelativeTime(ops.timestamp) }}
+          <span class="text-muted-foreground/80"> · {{ formatDateTime(ops.timestamp) }}</span>
+        </span>
       </div>
 
-      <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+        <KpiCard
+          title="Schools"
+          :value="String(metrics.schools_total ?? schools.length)"
+          subtitle="All tenants on the platform"
+          :icon="Server"
+          href="/platform/licenses"
+        />
         <KpiCard
           title="Pending workflows"
           :value="String(metrics.pending_workflows ?? 0)"
-          subtitle="Awaiting action"
+          subtitle="Across all schools"
           :icon="GitBranch"
           href="/platform/staff-tasks"
           :accent="(metrics.pending_workflows ?? 0) > 0 ? 'warning' : undefined"
@@ -161,7 +187,7 @@ onMounted(load)
           title="Escalated workflows"
           :value="String(metrics.escalated_workflows ?? 0)"
           subtitle="Needs priority review"
-          :icon="Server"
+          :icon="AlertTriangle"
           :accent="(metrics.escalated_workflows ?? 0) > 0 ? 'danger' : undefined"
         />
         <KpiCard
@@ -175,17 +201,60 @@ onMounted(load)
         <KpiCard
           title="Open alerts"
           :value="String(metrics.open_alerts ?? alerts.length)"
-          subtitle="Unresolved operations alerts"
+          subtitle="Unresolved across schools"
           :icon="AlertTriangle"
           :accent="alerts.length > 0 ? 'warning' : undefined"
         />
       </div>
 
+      <Card v-if="schools.length" class="mt-6">
+        <CardHeader class="flex flex-row items-center justify-between gap-4">
+          <div>
+            <CardTitle class="text-base">All schools</CardTitle>
+            <CardDescription>Per-school workflows, tasks, and alerts</CardDescription>
+          </div>
+          <Button variant="outline" size="sm" as-child>
+            <RouterLink to="/platform/licenses">Manage licenses</RouterLink>
+          </Button>
+        </CardHeader>
+        <CardContent>
+          <div class="divide-y rounded-lg border">
+            <div
+              v-for="school in schools"
+              :key="school.id"
+              class="grid gap-2 px-4 py-3 sm:grid-cols-[1fr_auto] sm:items-center"
+            >
+              <div>
+                <p class="text-sm font-medium">{{ school.name }}</p>
+                <p class="text-xs text-muted-foreground">
+                  {{ school.code || `School #${school.id}` }}
+                  · license {{ school.license_status || 'none' }}
+                </p>
+              </div>
+              <div class="flex flex-wrap gap-2 text-xs">
+                <Badge variant="outline" class="font-normal">
+                  {{ school.pending_workflows ?? 0 }} workflows
+                </Badge>
+                <Badge variant="outline" class="font-normal">
+                  {{ school.overdue_staff_tasks ?? 0 }} overdue tasks
+                </Badge>
+                <Badge
+                  :variant="(school.open_alerts ?? 0) > 0 ? 'secondary' : 'outline'"
+                  class="font-normal"
+                >
+                  {{ school.open_alerts ?? 0 }} alerts
+                </Badge>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       <Card class="mt-6">
         <CardHeader class="flex flex-row items-center justify-between gap-4">
           <div>
             <CardTitle class="text-base">Operations alerts</CardTitle>
-            <CardDescription>Resolve issues as they are handled</CardDescription>
+            <CardDescription>Alerts from every school on the platform</CardDescription>
           </div>
           <Button variant="outline" size="sm" as-child>
             <RouterLink to="/platform/staff-tasks">Staff tasks</RouterLink>
@@ -212,8 +281,15 @@ onMounted(load)
                   {{ alert.message || 'No details provided.' }}
                 </p>
                 <p class="text-xs text-muted-foreground">
-                  {{ alert.created_at ? formatDateTime(alert.created_at) : '—' }}
-                  <span v-if="alert.school_id"> · School #{{ alert.school_id }}</span>
+                  <span v-if="alert.created_at" :title="formatDateTime(alert.created_at)">
+                    {{ formatRelativeTime(alert.created_at) }}
+                    · {{ formatDateTime(alert.created_at) }}
+                  </span>
+                  <span v-else>—</span>
+                  <span v-if="alert.school_name || alert.school_id">
+                    · {{ alert.school_name || `School #${alert.school_id}` }}
+                    <span v-if="alert.school_code"> ({{ alert.school_code }})</span>
+                  </span>
                 </p>
               </div>
               <Button
@@ -242,7 +318,10 @@ onMounted(load)
         >
           {{ health.status || 'unknown' }}
         </Badge>
-        <span v-if="health.timestamp">Checked {{ formatDateTime(health.timestamp) }}</span>
+        <span v-if="health.timestamp" :title="formatDateTime(health.timestamp)">
+          Checked {{ formatRelativeTime(health.timestamp) }}
+          <span class="text-muted-foreground/80"> · {{ formatDateTime(health.timestamp) }}</span>
+        </span>
       </div>
 
       <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">

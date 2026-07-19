@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import { RefreshCw } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { formatDate, formatTime } from '@/lib/format'
 
 const props = defineProps<{
   name?: string
@@ -21,13 +22,18 @@ const greeting = computed(() => {
   return 'Good evening'
 })
 
-const todayLabel = computed(() =>
-  new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' }),
-)
+const todayLabel = computed(() => {
+  const now = new Date()
+  const weekday = now.toLocaleDateString('en-GB', {
+    weekday: 'long',
+    timeZone: 'Africa/Harare',
+  })
+  return `${weekday}, ${formatDate(now)}`
+})
 
 const updatedLabel = computed(() => {
   if (!props.lastUpdated) return ''
-  return props.lastUpdated.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })
+  return formatTime(props.lastUpdated)
 })
 
 const roleLabel = computed(() =>

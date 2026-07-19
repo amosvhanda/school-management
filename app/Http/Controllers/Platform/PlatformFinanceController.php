@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Platform;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Platform\Concerns\ResolvesPlatformSchoolScope;
 use App\Http\Resources\Api\V1\RefundResource;
 use App\Models\FeePenaltyRule;
 use App\Models\Payment;
@@ -19,6 +20,8 @@ use Illuminate\Validation\Rule;
 
 class PlatformFinanceController extends Controller
 {
+    use ResolvesPlatformSchoolScope;
+
     public function __construct(
         private PaymentGatewayService $gateway,
         private RefundService $refunds,
@@ -26,12 +29,20 @@ class PlatformFinanceController extends Controller
 
     public function scholarships(Request $request)
     {
-        return response()->json(['data' => Scholarship::where('school_id', $request->user()->school_id)->withCount('applications')->get()]);
+        $rows = $this->scopeToPlatformSchool(Scholarship::query(), $request)
+            ->with('school:id,name,code')
+            ->withCount('applications')
+            ->orderBy('name')
+            ->get();
+
+        return response()->json(['data' => $rows]);
     }
 
     public function storeScholarship(Request $request)
     {
+        $schoolId = $this->requirePlatformSchoolId($request);
         $data = Validator::make($request->all(), [
+            'school_id' => 'nullable|integer|exists:schools,id',
             'name' => 'required|string',
             'type' => 'required|string',
             'amount' => 'nullable|numeric',
@@ -42,14 +53,14 @@ class PlatformFinanceController extends Controller
             'status' => 'nullable|string',
         ])->validate();
 
-        $scholarship = Scholarship::create(array_merge($data, ['school_id' => $request->user()->school_id]));
+        $scholarship = Scholarship::create(array_merge($data, ['school_id' => $schoolId]));
 
         return response()->json(['data' => $scholarship, 'message' => 'Scholarship created'], 201);
     }
 
     public function applyScholarship(Request $request, int $id)
     {
-        $schoolId = $request->user()->school_id;
+        $schoolId = $this->requirePlatformSchoolId($request);
         $scholarship = Scholarship::where('school_id', $schoolId)->findOrFail($id);
         $data = Validator::make($request->all(), [
             'student_id' => [
@@ -63,7 +74,7 @@ class PlatformFinanceController extends Controller
         $application = ScholarshipApplication::create([
             'scholarship_id' => $scholarship->id,
             'student_id' => $data['student_id'],
-            'school_id' => $request->user()->school_id,
+            'school_id' => $schoolId,
             'motivation' => $data['motivation'] ?? null,
             'supporting_data' => $data['supporting_data'] ?? null,
         ]);
@@ -73,7 +84,7 @@ class PlatformFinanceController extends Controller
 
     public function reviewScholarshipApplication(Request $request, int $id)
     {
-        $application = ScholarshipApplication::where('school_id', $request->user()->school_id)->findOrFail($id);
+        $application = $this->scopeToPlatformSchool(ScholarshipApplication::query(), $request)->findOrFail($id);
         $data = Validator::make($request->all(), ['status' => 'required|in:approved,rejected,pending'])->validate();
 
         $application->update([
@@ -87,12 +98,18 @@ class PlatformFinanceController extends Controller
 
     public function gatewayConfigs(Request $request)
     {
-        return response()->json(['data' => PaymentGatewayConfig::where('school_id', $request->user()->school_id)->get()]);
+        $rows = $this->scopeToPlatformSchool(PaymentGatewayConfig::query(), $request)
+            ->with('school:id,name,code')
+            ->get();
+
+        return response()->json(['data' => $rows]);
     }
 
     public function storeGatewayConfig(Request $request)
     {
+        $schoolId = $this->requirePlatformSchoolId($request);
         $data = Validator::make($request->all(), [
+            'school_id' => 'nullable|integer|exists:schools,id',
             'provider' => 'required|string',
             'credentials' => 'required|array',
             'is_active' => 'boolean',
@@ -102,7 +119,7 @@ class PlatformFinanceController extends Controller
         ])->validate();
 
         $config = PaymentGatewayConfig::updateOrCreate(
-            ['school_id' => $request->user()->school_id, 'provider' => $data['provider']],
+            ['school_id' => $schoolId, 'provider' => $data['provider']],
             $data,
         );
 
@@ -114,11 +131,12 @@ class PlatformFinanceController extends Controller
 
     public function initiatePayment(Request $request)
     {
-        $schoolId = $request->user()->school_id;
+        $schoolId = $this->requirePlatformSchoolId($request);
         $invoiceRule = Rule::exists('invoices', 'id')->where('school_id', $schoolId);
         $studentRule = Rule::exists('students', 'id')->where('school_id', $schoolId);
 
         $data = Validator::make($request->all(), [
+            'school_id' => 'nullable|integer|exists:schools,id',
             'invoice_id' => ['required', $invoiceRule],
             'student_id' => ['nullable', $studentRule],
             'amount' => 'required|numeric|min:0.01',
@@ -127,7 +145,7 @@ class PlatformFinanceController extends Controller
         ])->validate();
 
         $txn = $this->gateway->initiate(
-            $request->user()->school_id,
+            $schoolId,
             $data['invoice_id'],
             $data['student_id'] ?? null,
             $data['amount'],
@@ -140,12 +158,18 @@ class PlatformFinanceController extends Controller
 
     public function penaltyRules(Request $request)
     {
-        return response()->json(['data' => FeePenaltyRule::where('school_id', $request->user()->school_id)->get()]);
+        $rows = $this->scopeToPlatformSchool(FeePenaltyRule::query(), $request)
+            ->with('school:id,name,code')
+            ->get();
+
+        return response()->json(['data' => $rows]);
     }
 
     public function storePenaltyRule(Request $request)
     {
+        $schoolId = $this->requirePlatformSchoolId($request);
         $data = Validator::make($request->all(), [
+            'school_id' => 'nullable|integer|exists:schools,id',
             'name' => 'required|string',
             'grace_days' => 'integer|min:0',
             'penalty_type' => 'required|in:fixed,percentage',
@@ -154,7 +178,7 @@ class PlatformFinanceController extends Controller
             'is_active' => 'boolean',
         ])->validate();
 
-        $rule = FeePenaltyRule::create(array_merge($data, ['school_id' => $request->user()->school_id]));
+        $rule = FeePenaltyRule::create(array_merge($data, ['school_id' => $schoolId]));
 
         return response()->json(['data' => $rule, 'message' => 'Penalty rule created'], 201);
     }
@@ -162,24 +186,26 @@ class PlatformFinanceController extends Controller
     public function refunds(Request $request)
     {
         return RefundResource::collection(
-            Refund::where('school_id', $request->user()->school_id)
-                ->with('payment')
+            $this->scopeToPlatformSchool(Refund::query(), $request)
+                ->with(['payment', 'school:id,name,code'])
                 ->orderByDesc('id')
-                ->limit(100)
+                ->limit(200)
                 ->get()
         )->additional(['message' => 'Success']);
     }
 
     public function requestRefund(Request $request)
     {
-        $paymentRule = Rule::exists('payments', 'id')->where('school_id', $request->user()->school_id);
+        $schoolId = $this->requirePlatformSchoolId($request);
+        $paymentRule = Rule::exists('payments', 'id')->where('school_id', $schoolId);
         $data = Validator::make($request->all(), [
+            'school_id' => 'nullable|integer|exists:schools,id',
             'payment_id' => ['required', $paymentRule],
             'amount' => 'required|numeric|min:0.01',
             'reason' => 'required|string',
         ])->validate();
 
-        $payment = Payment::where('school_id', $request->user()->school_id)->findOrFail($data['payment_id']);
+        $payment = Payment::where('school_id', $schoolId)->findOrFail($data['payment_id']);
         $refund = $this->refunds->request($request->user(), $payment, $data['amount'], $data['reason']);
 
         return (new RefundResource($refund->load('payment')))

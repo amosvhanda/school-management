@@ -51,12 +51,13 @@ class DocumentSigningService
         });
     }
 
-    public function listForSchool(int $schoolId)
+    public function listForSchool(?int $schoolId = null)
     {
-        return SignableDocument::where('school_id', $schoolId)
-            ->with(['signatures.signer:id,name,email'])
+        return SignableDocument::query()
+            ->when($schoolId, fn ($q) => $q->where('school_id', $schoolId))
+            ->with(['signatures.signer:id,name,email', 'school:id,name,code'])
             ->orderByDesc('created_at')
-            ->limit(100)
+            ->limit(200)
             ->get();
     }
 }

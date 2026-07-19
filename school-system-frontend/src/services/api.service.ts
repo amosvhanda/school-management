@@ -608,6 +608,14 @@ export const platformApi = {
       summary?: PlatformLicenseSummary
     }>(data)
   },
+  provisionSchool: (payload: Record<string, unknown>) =>
+    createRecord<{
+      school: Record<string, unknown>
+      admin: { id: number; name: string; email: string; role: string }
+      license_key?: string | null
+      license_status?: string | null
+      login_hint?: string
+    }>(e.license.admin.createSchool, payload),
   licenses: async (params?: ListQueryParams) => {
     const payload = await platformApi.licenseOverview(params)
     return Array.isArray(payload?.keys) ? payload.keys : []
