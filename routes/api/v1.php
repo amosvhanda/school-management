@@ -105,6 +105,7 @@ Route::post('/schools/register', [SchoolController::class, 'register'])
 
 Route::get('/platform/certificates/verify/{code}', [PlatformDocumentController::class, 'verifyCertificate']);
 Route::get('/auth/platform-terms', [AuthController::class, 'platformTerms']);
+Route::get('/auth/privacy-policy', [AuthController::class, 'privacyPolicy']);
 Route::post('/integrations/token', [ExternalIntegrationController::class, 'token'])
     ->middleware('throttle:login');
 

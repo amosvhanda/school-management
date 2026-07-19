@@ -18,6 +18,15 @@ class PlatformTermsAcceptanceTest extends TestCase
             ->assertJsonStructure(['data' => ['version', 'title', 'summary', 'content']]);
     }
 
+    public function test_privacy_policy_is_publicly_readable(): void
+    {
+        $this->getJson('/api/v1/auth/privacy-policy')
+            ->assertOk()
+            ->assertJsonPath('data.version', config('platform_privacy.version'))
+            ->assertJsonPath('data.title', config('platform_privacy.title'))
+            ->assertJsonStructure(['data' => ['version', 'title', 'summary', 'content']]);
+    }
+
     public function test_user_must_accept_current_platform_terms(): void
     {
         $user = User::factory()->withoutPlatformTerms()->create([

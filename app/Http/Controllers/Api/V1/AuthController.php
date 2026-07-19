@@ -71,6 +71,16 @@ class AuthController extends Controller
         ]);
     }
 
+    public function privacyPolicy()
+    {
+        return $this->success([
+            'version' => (string) config('platform_privacy.version'),
+            'title' => (string) config('platform_privacy.title'),
+            'summary' => (string) config('platform_privacy.summary'),
+            'content' => (string) config('platform_privacy.content'),
+        ]);
+    }
+
     public function acceptPlatformTerms(Request $request)
     {
         $data = $request->validate([

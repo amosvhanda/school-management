@@ -34,6 +34,11 @@ export async function fetchPlatformTerms() {
   return unwrapOne<PlatformTermsPayload>(data)
 }
 
+export async function fetchPrivacyPolicy() {
+  const { data } = await api.get<ApiResponse<PlatformTermsPayload>>(endpoints.auth.privacyPolicy)
+  return unwrapOne<PlatformTermsPayload>(data)
+}
+
 export async function acceptPlatformTerms(version: string) {
   const { data } = await api.post<ApiResponse<{ user: AuthUser }>>(endpoints.auth.acceptPlatformTerms, {
     accepted: true,

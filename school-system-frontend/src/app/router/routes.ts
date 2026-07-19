@@ -38,6 +38,18 @@ export const publicRoutes: RouteRecordRaw[] = [
     meta: { guest: true },
   },
   {
+    path: 'legal/terms',
+    name: 'legal-terms',
+    component: () => import('@/modules/auth/views/LegalDocumentView.vue'),
+    meta: { document: 'terms' },
+  },
+  {
+    path: 'legal/privacy',
+    name: 'legal-privacy',
+    component: () => import('@/modules/auth/views/LegalDocumentView.vue'),
+    meta: { document: 'privacy' },
+  },
+  {
     path: 'terms/accept',
     name: 'platform-terms-accept',
     component: () => import('@/modules/auth/views/PlatformTermsAcceptView.vue'),

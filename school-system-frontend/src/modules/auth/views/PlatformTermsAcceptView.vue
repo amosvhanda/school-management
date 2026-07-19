@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { RouterLink, useRouter } from 'vue-router'
 import { FileCheck2, Loader2, LogOut } from '@lucide/vue'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
@@ -153,7 +153,10 @@ onMounted(load)
                 I agree to all School ERP Platform Terms of Use
               </span>
               <span class="block text-xs text-muted-foreground">
-                Tick this box, then press Agree and continue.
+                Tick this box, then press Agree and continue. You can also read our
+                <RouterLink to="/legal/terms" class="underline underline-offset-4 hover:text-foreground">Terms of Service</RouterLink>
+                and
+                <RouterLink to="/legal/privacy" class="underline underline-offset-4 hover:text-foreground">Privacy Policy</RouterLink>.
               </span>
             </span>
           </label>

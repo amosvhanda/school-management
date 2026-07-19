@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, type HTMLAttributes } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { GraduationCap, Loader2, Lock, Mail } from '@lucide/vue'
 import {
   FormControl,
@@ -291,9 +291,19 @@ async function quickSignIn(account: DemoAccount) {
 
       <footer class="px-2 text-center text-xs text-muted-foreground">
         By continuing, you agree to our
-        <a href="#" class="underline underline-offset-4 hover:text-primary">Terms of Service</a>
+        <RouterLink
+          to="/legal/terms"
+          class="underline underline-offset-4 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          Terms of Service
+        </RouterLink>
         and
-        <a href="#" class="underline underline-offset-4 hover:text-primary">Privacy Policy</a>.
+        <RouterLink
+          to="/legal/privacy"
+          class="underline underline-offset-4 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          Privacy Policy
+        </RouterLink>.
       </footer>
     </div>
   </main>

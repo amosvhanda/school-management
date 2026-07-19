@@ -5,6 +5,7 @@ export const endpoints = {
     logout: '/auth/logout',
     me: '/auth/me',
     platformTerms: '/auth/platform-terms',
+    privacyPolicy: '/auth/privacy-policy',
     acceptPlatformTerms: '/auth/accept-platform-terms',
     forgotPassword: '/auth/forgot-password',
     resetPassword: '/auth/reset-password',
