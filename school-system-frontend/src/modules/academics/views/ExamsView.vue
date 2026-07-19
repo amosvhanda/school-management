@@ -43,7 +43,7 @@ import { useAuth } from '@/composables/useAuth'
 import { useFormSheetLoader } from '@/composables/useFormSheetLoader'
 import { useListFilters } from '@/composables/useListFilters'
 import { getErrorMessage } from '@/lib/api-response'
-import { formatDate } from '@/lib/format'
+import { formatDate, formatDateTime, formatTime } from '@/lib/format'
 import {
   examCreateDefaults,
   examFormFields,
@@ -59,6 +59,8 @@ interface ExamRow {
   id: number
   name?: string
   exam_date?: string
+  start_time?: string | null
+  end_time?: string | null
   academic_year?: string
   total_marks?: number
   is_published?: boolean
@@ -67,6 +69,16 @@ interface ExamRow {
   term?: { name?: string }
   grade_level?: { name?: string }
   subject?: { name?: string }
+}
+
+function examScheduleLabel(exam: ExamRow): string {
+  const date = formatDate(exam.exam_date)
+  const start = exam.start_time ? formatTime(exam.start_time) : ''
+  const end = exam.end_time ? formatTime(exam.end_time) : ''
+
+  if (start && end && start !== '—' && end !== '—') return `${date} · ${start}–${end}`
+  if (start && start !== '—') return `${date} · ${start}`
+  return date
 }
 
 const { toast } = useToast()
@@ -147,7 +159,7 @@ function examStatus(exam: ExamRow): { label: string; variant: 'default' | 'secon
 // Columns metadata definition mapped down to declarative slot handlers below
 const columns: ColumnDef<ExamRow>[] = [
   { accessorKey: 'name', header: 'Exam' },
-  { accessorKey: 'exam_date', header: 'Date' },
+  { id: 'schedule', header: 'Schedule' },
   { id: 'term', header: 'Term' },
   { id: 'grade_level', header: 'Grade' },
   { id: 'subject', header: 'Subject' },
@@ -342,10 +354,17 @@ onMounted(load)
           <span class="font-medium text-sm text-foreground">{{ row.original.name || '—' }}</span>
         </template>
 
-        <template #cell-exam_date="{ row }">
-          <span class="text-sm text-muted-foreground">
-            {{ formatDate(row.original.exam_date) }}
-          </span>
+        <template #cell-schedule="{ row }">
+          <div class="space-y-0.5">
+            <p class="text-sm text-foreground">{{ examScheduleLabel(row.original) }}</p>
+            <p
+              v-if="row.original.results_approved_at"
+              class="text-xs text-muted-foreground"
+              :title="formatDateTime(row.original.results_approved_at)"
+            >
+              Approved {{ formatDateTime(row.original.results_approved_at) }}
+            </p>
+          </div>
         </template>
 
         <template #cell-term="{ row }">

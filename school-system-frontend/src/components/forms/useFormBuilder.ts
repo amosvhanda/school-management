@@ -36,6 +36,7 @@ export type FormFieldType =
   | 'select'
   | 'checkbox'
   | 'date'
+  | 'time'
   | 'phone'
   | 'relation'
   | 'guardian-section'

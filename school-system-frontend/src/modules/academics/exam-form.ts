@@ -1,8 +1,20 @@
 import { z } from 'zod'
 import type { FormFieldSchema } from '@/components/forms/useFormBuilder'
 import { formSection } from '@/lib/form-standards'
+import { formatTime } from '@/lib/format'
 import { isValidIsoDate } from '@/lib/validation'
 import { moduleEndpoints } from '@/services'
+
+function extractClockTime(value: unknown): string {
+  if (value == null || value === '') return ''
+  const raw = String(value).trim()
+  if (/^\d{1,2}:\d{2}(:\d{2})?$/.test(raw)) {
+    const [hh, mm] = raw.split(':')
+    return `${hh.padStart(2, '0')}:${mm}`
+  }
+  const formatted = formatTime(raw, '')
+  return formatted || ''
+}
 
 export const examFormSchema = z.object({
   name: z.string().trim().min(1, 'Exam name is required'),
@@ -50,8 +62,8 @@ export const examFormFields: FormFieldSchema[] = [
     },
     { name: 'exam_date', label: 'Exam date', type: 'date', required: true },
     { name: 'academic_year', label: 'Academic year', type: 'text', required: true, placeholder: '2026' },
-    { name: 'start_time', label: 'Start time', type: 'text', placeholder: '08:00' },
-    { name: 'end_time', label: 'End time', type: 'text', placeholder: '10:00' },
+    { name: 'start_time', label: 'Start time', type: 'time', placeholder: '08:00' },
+    { name: 'end_time', label: 'End time', type: 'time', placeholder: '10:00' },
   ]),
   ...formSection('Marking', [
     { name: 'total_marks', label: 'Total marks', type: 'number', required: true },
@@ -76,8 +88,8 @@ export function mapExamRowToFormValues(row: Record<string, unknown>): Record<str
     academic_year: String(row.academic_year ?? new Date().getFullYear()),
     total_marks: Number(row.total_marks ?? 100),
     passing_marks: row.passing_marks != null ? Number(row.passing_marks) : '',
-    start_time: row.start_time ? String(row.start_time).slice(11, 16) || String(row.start_time) : '',
-    end_time: row.end_time ? String(row.end_time).slice(11, 16) || String(row.end_time) : '',
+    start_time: extractClockTime(row.start_time),
+    end_time: extractClockTime(row.end_time),
     description: String(row.description ?? ''),
   }
 }

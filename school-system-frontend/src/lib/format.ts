@@ -142,6 +142,13 @@ export function formatDateTime(value: unknown, fallback = FALLBACK): string {
 
 /** Clock time — e.g. 14:30 */
 export function formatTime(value: unknown, fallback = FALLBACK): string {
+  const raw = String(value ?? '').trim()
+  // Already a wall-clock time from the API (H:i or H:i:s) — do not timezone-shift
+  const clock = raw.match(/^(\d{1,2}):(\d{2})(?::\d{2})?$/)
+  if (clock) {
+    return `${clock[1].padStart(2, '0')}:${clock[2]}`
+  }
+
   const date = parseDateValue(value)
   if (!date) return fallback
   return date.toLocaleTimeString(SCHOOL_LOCALE, {

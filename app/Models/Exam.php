@@ -34,14 +34,14 @@ class Exam extends Model
     protected function casts(): array
     {
         return [
-        'exam_date' => 'date',
-        'start_time' => 'datetime',
-        'end_time' => 'datetime',
-        'total_marks' => 'decimal:2',
-        'passing_marks' => 'decimal:2',
-        'is_published' => 'boolean',
-        'results_approved_at' => 'datetime',
-    ];
+            'exam_date' => 'date:Y-m-d',
+            'start_time' => 'datetime:H:i',
+            'end_time' => 'datetime:H:i',
+            'total_marks' => 'decimal:2',
+            'passing_marks' => 'decimal:2',
+            'is_published' => 'boolean',
+            'results_approved_at' => 'datetime',
+        ];
     }
 
     public function school(): BelongsTo

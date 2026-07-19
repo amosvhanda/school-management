@@ -255,7 +255,19 @@ export const enrollmentColumns: ColumnDef<Record<string, unknown>>[] = [
 
 export const examColumns: ColumnDef<Record<string, unknown>>[] = [
   textColumn('Exam', 'name'),
-  dateColumn('Date', 'exam_date'),
+  {
+    id: 'schedule',
+    header: 'Schedule',
+    accessorFn: (row) => row.exam_date,
+    cell: ({ row }) => {
+      const date = formatDate(row.original.exam_date)
+      const start = row.original.start_time ? formatTime(row.original.start_time) : ''
+      const end = row.original.end_time ? formatTime(row.original.end_time) : ''
+      if (start && end && start !== '—' && end !== '—') return `${date} · ${start}–${end}`
+      if (start && start !== '—') return `${date} · ${start}`
+      return date
+    },
+  },
   nestedColumn('Term', 'term', 'name'),
   nestedColumn('Grade', 'grade_level', 'name'),
   nestedColumn('Subject', 'subject', 'name'),
