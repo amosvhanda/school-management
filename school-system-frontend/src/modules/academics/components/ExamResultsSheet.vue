@@ -13,6 +13,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
 import {
   Table,
@@ -176,20 +177,22 @@ watch(
 
 <template>
   <Dialog v-model:open="open">
-    <DialogContent class="flex max-h-[85vh] w-full max-w-2xl flex-col gap-0 overflow-hidden p-0 rounded-xl shadow-lg border">
-      <DialogHeader class="shrink-0 space-y-1 border-b border-muted/60 px-6 pb-4 pt-6">
-        <DialogTitle class="text-base font-semibold tracking-tight">
+    <DialogContent
+      class="flex h-[min(92vh,56rem)] w-full max-w-[calc(100%-2rem)] flex-col gap-0 overflow-hidden rounded-xl border p-0 shadow-lg sm:max-w-5xl lg:max-w-6xl"
+    >
+      <DialogHeader class="shrink-0 space-y-1 border-b border-muted/60 px-6 pb-4 pt-6 sm:px-8">
+        <DialogTitle class="text-base font-semibold tracking-tight sm:text-lg">
           {{ exam?.name ?? 'Enter exam results' }}
         </DialogTitle>
-        <DialogDescription class="text-xs leading-relaxed">
+        <DialogDescription class="text-xs leading-relaxed sm:text-sm">
           {{ subtitle || 'Record and modify grades matching student rosters.' }}
         </DialogDescription>
       </DialogHeader>
 
-      <div class="flex-1 overflow-y-auto px-6 py-4">
+      <div class="min-h-0 flex-1 overflow-y-auto px-6 py-5 sm:px-8">
         <div
           v-if="isLocked"
-          class="mb-4 rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 text-xs text-amber-600 dark:text-amber-500 leading-normal"
+          class="mb-4 rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 text-xs leading-normal text-amber-600 dark:text-amber-500"
         >
           Results are approved or published — marks cannot be modified.
         </div>
@@ -200,19 +203,19 @@ watch(
           <Table v-if="rows.length">
             <TableHeader>
               <TableRow>
-                <TableHead class="text-xs font-medium">Student</TableHead>
-                <TableHead class="w-28 text-xs font-medium">Score</TableHead>
-                <TableHead class="text-xs font-medium">Remarks</TableHead>
-                <TableHead class="w-16 text-xs font-medium">Grade</TableHead>
+                <TableHead class="w-[22%] min-w-[12rem] text-xs font-medium">Student</TableHead>
+                <TableHead class="w-32 text-xs font-medium">Score</TableHead>
+                <TableHead class="w-[48%] min-w-[18rem] text-xs font-medium">Remarks</TableHead>
+                <TableHead class="w-20 text-xs font-medium">Grade</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               <TableRow v-for="row in rows" :key="row.student_id" class="transition-colors">
-                <TableCell class="py-2.5">
-                  <p class="font-medium text-sm text-foreground leading-none">{{ row.full_name }}</p>
-                  <p class="text-xs text-muted-foreground mt-1 font-mono tracking-tight">{{ row.student_number }}</p>
+                <TableCell class="align-top py-3">
+                  <p class="text-sm font-medium leading-none text-foreground">{{ row.full_name }}</p>
+                  <p class="mt-1 font-mono text-xs tracking-tight text-muted-foreground">{{ row.student_number }}</p>
                 </TableCell>
-                <TableCell class="py-2.5">
+                <TableCell class="align-top py-3">
                   <Label :for="`marks-${row.student_id}`" class="sr-only">Score for {{ row.full_name }}</Label>
                   <Input
                     :id="`marks-${row.student_id}`"
@@ -222,24 +225,26 @@ watch(
                     :max="exam.total_marks"
                     step="0.01"
                     :disabled="isLocked"
-                    class="h-9 text-sm"
+                    class="h-10 text-sm"
                     :placeholder="` / ${exam.total_marks}`"
                   />
                 </TableCell>
-                <TableCell class="py-2.5">
-                  <Input
+                <TableCell class="align-top py-3">
+                  <Label :for="`remarks-${row.student_id}`" class="sr-only">Remarks for {{ row.full_name }}</Label>
+                  <Textarea
+                    :id="`remarks-${row.student_id}`"
                     v-model="row.remarks"
-                    type="text"
+                    rows="3"
                     :disabled="isLocked"
-                    class="h-9 text-sm"
-                    placeholder="Optional notes"
+                    class="min-h-[5.5rem] w-full resize-y text-sm leading-normal"
+                    placeholder="Optional notes for this student"
                   />
                 </TableCell>
-                <TableCell class="py-2.5">
-                  <Badge v-if="row.existing_grade" variant="outline" class="font-semibold text-xs px-2 py-0.5">
+                <TableCell class="align-top py-3">
+                  <Badge v-if="row.existing_grade" variant="outline" class="px-2 py-0.5 text-xs font-semibold">
                     {{ row.existing_grade }}
                   </Badge>
-                  <span v-else class="text-muted-foreground/60 text-xs pl-2">—</span>
+                  <span v-else class="pl-2 text-xs text-muted-foreground/60">—</span>
                 </TableCell>
               </TableRow>
             </TableBody>
@@ -253,7 +258,7 @@ watch(
 
       <DialogFooter
         v-if="!isLocked && exam && rows.length"
-        class="shrink-0 border-t border-muted/60 px-6 py-4 sm:flex-row sm:justify-end gap-2"
+        class="shrink-0 gap-2 border-t border-muted/60 px-6 py-4 sm:flex-row sm:justify-end sm:px-8"
       >
         <Button type="button" variant="outline" :disabled="saving" @click="open = false">
           Cancel
