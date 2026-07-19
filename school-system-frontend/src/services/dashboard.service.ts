@@ -49,6 +49,8 @@ export function defaultKpis(): DashboardKpis {
     activityChange: 0,
     revenueChange: 0,
     errorsChange: 0,
+    pendingEnrollments: 0,
+    pendingLeaveRequests: 0,
   }
 }
 
@@ -93,6 +95,8 @@ export function normalizeKpis(raw: Record<string, unknown>): DashboardKpis {
     activityChange: num(raw.activityChange),
     revenueChange: num(raw.revenueChange),
     errorsChange: num(raw.errorsChange),
+    pendingEnrollments: num(raw.pendingEnrollments),
+    pendingLeaveRequests: num(raw.pendingLeaveRequests),
   }
 }
 

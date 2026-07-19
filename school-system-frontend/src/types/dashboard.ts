@@ -18,6 +18,8 @@ export interface DashboardKpis {
   activityChange: number
   revenueChange: number
   errorsChange: number
+  pendingEnrollments?: number
+  pendingLeaveRequests?: number
 }
 
 export interface AttendanceSummary {

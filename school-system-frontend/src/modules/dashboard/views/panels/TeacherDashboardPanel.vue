@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted } from 'vue'
-import { BookOpen, ClipboardCheck, GraduationCap, GitBranch } from '@lucide/vue'
+import { ClipboardCheck, FileText, GraduationCap, MessageSquare } from '@lucide/vue'
 import DashboardHero from '@/components/dashboard/DashboardHero.vue'
 import RoleQuickActions from '@/components/dashboard/RoleQuickActions.vue'
 import DashboardModulesGrid from '@/components/dashboard/DashboardModulesGrid.vue'
@@ -23,7 +23,7 @@ const meta = getRoleDashboardMeta(user.value?.role)
 
 const {
   loading, error, lastUpdated, kpis,
-  recent, pendingWorkflows, load,
+  recent, load,
 } = useStaffDashboard()
 
 const overviewCards = computed<MetricCard[]>(() => [
@@ -35,25 +35,25 @@ const overviewCards = computed<MetricCard[]>(() => [
     href: '/academics/attendance',
   },
   {
-    title: 'Classes',
-    value: kpis.value?.totalClasses ?? 0,
-    subtitle: `${kpis.value?.activeStudents ?? 0} active students`,
-    icon: BookOpen,
-    href: '/academics/setup',
-  },
-  {
-    title: 'Students',
+    title: 'Active students',
     value: kpis.value?.activeStudents ?? 0,
-    subtitle: `${kpis.value?.totalStudents ?? 0} enrolled`,
+    subtitle: `${kpis.value?.totalClasses ?? 0} classes in school`,
     icon: GraduationCap,
     href: '/students',
   },
   {
-    title: 'Pending workflows',
-    value: String(pendingWorkflows.value),
-    subtitle: 'Items awaiting action',
-    icon: GitBranch,
-    href: '/workflows',
+    title: 'Exam results',
+    value: 'Enter',
+    subtitle: 'Marks for your assigned subjects',
+    icon: FileText,
+    href: '/academics/exams',
+  },
+  {
+    title: 'Messages',
+    value: 'Open',
+    subtitle: 'Parent and staff threads',
+    icon: MessageSquare,
+    href: '/communications/threads',
   },
 ])
 
@@ -85,7 +85,11 @@ onMounted(() => load({ activityFeed: true }))
     <template v-else-if="kpis">
       <Alert v-if="error" variant="destructive"><AlertDescription>{{ error }}</AlertDescription></Alert>
 
-      <MetricBand title="Teaching KPIs" description="Track attendance, classes, and approvals" :cards="overviewCards" />
+      <MetricBand
+        title="Teaching KPIs"
+        description="Attendance, learners, exams, and communication"
+        :cards="overviewCards"
+      />
 
       <RoleQuickActions variant="teacher" />
 
@@ -97,7 +101,7 @@ onMounted(() => load({ activityFeed: true }))
       <DashboardModulesGrid
         :groups="TEACHER_DASHBOARD_MODULE_GROUPS"
         title="Your modules"
-        description="Teacher tools and workflows available to your role"
+        description="Teacher tools available for your role"
       />
     </template>
 

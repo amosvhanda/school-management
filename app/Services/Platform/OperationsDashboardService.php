@@ -8,35 +8,50 @@ use App\Models\WorkflowInstance;
 
 class OperationsDashboardService
 {
-    public function liveFeed(int $schoolId): array
+    /**
+     * @param  int|null  $schoolId  Null = platform-wide (super admin)
+     */
+    public function liveFeed(?int $schoolId = null): array
     {
-        $alerts = OperationsAlert::where('school_id', $schoolId)
+        $alerts = OperationsAlert::query()
+            ->when($schoolId, fn ($q) => $q->where('school_id', $schoolId))
             ->whereNull('resolved_at')
             ->orderByDesc('created_at')
             ->limit(20)
             ->get();
 
-        $pendingWorkflows = WorkflowInstance::where('school_id', $schoolId)
+        $pendingWorkflows = WorkflowInstance::query()
+            ->when($schoolId, fn ($q) => $q->where('school_id', $schoolId))
             ->where('status', 'pending')
             ->count();
 
-        $overdueTasks = StaffTask::where('school_id', $schoolId)
+        $overdueTasks = StaffTask::query()
+            ->when($schoolId, fn ($q) => $q->where('school_id', $schoolId))
             ->where('status', '!=', 'completed')
             ->where('due_date', '<', now()->toDateString())
             ->count();
 
-        $escalated = WorkflowInstance::where('school_id', $schoolId)
+        $escalated = WorkflowInstance::query()
+            ->when($schoolId, fn ($q) => $q->where('school_id', $schoolId))
             ->where('status', 'pending')
             ->whereNotNull('escalated_at')
             ->count();
 
+        $openTasks = StaffTask::query()
+            ->when($schoolId, fn ($q) => $q->where('school_id', $schoolId))
+            ->where('status', '!=', 'completed')
+            ->count();
+
         return [
             'timestamp' => now()->toIso8601String(),
+            'scope' => $schoolId ? 'school' : 'platform',
             'alerts' => $alerts,
             'metrics' => [
                 'pending_workflows' => $pendingWorkflows,
                 'overdue_staff_tasks' => $overdueTasks,
                 'escalated_workflows' => $escalated,
+                'open_staff_tasks' => $openTasks,
+                'open_alerts' => $alerts->count(),
             ],
         ];
     }

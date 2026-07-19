@@ -2,8 +2,10 @@
 import { computed, onMounted } from 'vue'
 import {
   Activity,
+  ClipboardList,
   DollarSign,
   GraduationCap,
+  Palmtree,
   Users,
 } from '@lucide/vue'
 import DashboardHero from '@/components/dashboard/DashboardHero.vue'
@@ -72,6 +74,22 @@ const overviewCards = computed<MetricCard[]>(() => [
     accent: 'success' as const,
     trend: kpis.value?.revenueChange ?? 0,
     href: '/finance/payments',
+  },
+  {
+    title: 'Pending enrollments',
+    value: kpis.value?.pendingEnrollments ?? 0,
+    subtitle: 'Applications awaiting approval',
+    icon: ClipboardList,
+    accent: (kpis.value?.pendingEnrollments ?? 0) > 0 ? 'warning' as const : undefined,
+    href: '/enrollment',
+  },
+  {
+    title: 'Pending leave',
+    value: kpis.value?.pendingLeaveRequests ?? 0,
+    subtitle: 'Staff leave to review',
+    icon: Palmtree,
+    accent: (kpis.value?.pendingLeaveRequests ?? 0) > 0 ? 'warning' as const : undefined,
+    href: '/hr/leave',
   },
 ])
 

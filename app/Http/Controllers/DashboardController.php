@@ -8,6 +8,8 @@ use App\Models\Payment;
 use App\Models\Invoice;
 use App\Models\Attendance;
 use App\Models\ClassModel;
+use App\Models\EnrollmentApplication;
+use App\Models\LeaveRequest;
 use App\Models\Payroll;
 use App\Models\User;
 use App\Models\Transaction;
@@ -84,6 +86,16 @@ class DashboardController extends Controller
         $totalErrors = (clone $transactionQuery)->whereIn('status', ['pending', 'cancelled'])->count();
         $errorsChange = 0;
 
+        $pendingEnrollments = EnrollmentApplication::query()
+            ->when($schoolId, fn ($q) => $q->where('school_id', $schoolId))
+            ->where('status', 'pending')
+            ->count();
+
+        $pendingLeaveRequests = LeaveRequest::query()
+            ->when($schoolId, fn ($q) => $q->where('school_id', $schoolId))
+            ->where('status', 'pending')
+            ->count();
+
         return response()->json([
             'data' => [
                 'totalStudents' => $totalStudents,
@@ -110,6 +122,8 @@ class DashboardController extends Controller
                 'activityChange' => round($activityChange, 1),
                 'revenueChange' => round($paymentsGrowth, 1),
                 'errorsChange' => round($errorsChange, 1),
+                'pendingEnrollments' => $pendingEnrollments,
+                'pendingLeaveRequests' => $pendingLeaveRequests,
             ],
         ]);
     }

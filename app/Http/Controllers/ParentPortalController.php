@@ -7,6 +7,8 @@ use App\Models\Announcement;
 use App\Models\Attendance;
 use App\Models\CommunicationMessage;
 use App\Models\CommunicationThread;
+use App\Models\ConsentForm;
+use App\Models\ConsentResponse;
 use App\Models\DisciplinaryRecord;
 use App\Models\ExamResult;
 use App\Models\Grade;
@@ -51,6 +53,43 @@ class ParentPortalController extends Controller
             ->where('status', 'open')
             ->count();
 
+        $activeConsentForms = ConsentForm::query()
+            ->where('school_id', $parent->school_id)
+            ->where('status', 'active')
+            ->whereIn('target_audience', ['parents', 'all'])
+            ->pluck('id');
+
+        $respondedConsentIds = ConsentResponse::query()
+            ->where('parent_user_id', $parent->id)
+            ->whereIn('form_id', $activeConsentForms)
+            ->pluck('form_id')
+            ->unique();
+
+        $pendingConsentForms = $activeConsentForms->diff($respondedConsentIds)->count();
+
+        $recentAnnouncements = Announcement::query()
+            ->where('school_id', $parent->school_id)
+            ->where('is_active', true)
+            ->whereIn('target_audience', ['all', 'parents'])
+            ->where('date', '>=', now()->subDays(30)->toDateString())
+            ->count();
+
+        $recentResults = ExamResult::query()
+            ->whereIn('student_id', $studentIds)
+            ->whereHas('exam', function ($q) {
+                $q->where(function ($inner) {
+                    $inner->where('is_published', true)
+                        ->orWhereNotNull('results_approved_at');
+                });
+            })
+            ->where('created_at', '>=', now()->subDays(30))
+            ->count();
+
+        $openDiscipline = DisciplinaryRecord::query()
+            ->whereIn('student_id', $studentIds)
+            ->where('incident_date', '>=', now()->subDays(90)->toDateString())
+            ->count();
+
         return response()->json([
             'data' => [
                 'children_count' => $studentIds->count(),
@@ -58,6 +97,10 @@ class ParentPortalController extends Controller
                 'outstanding_balance' => (float) $outstandingBalance,
                 'recent_absences' => $recentAbsences,
                 'open_communications' => $openThreads,
+                'pending_consent_forms' => $pendingConsentForms,
+                'recent_announcements' => $recentAnnouncements,
+                'recent_results' => $recentResults,
+                'open_discipline' => $openDiscipline,
             ],
         ]);
     }

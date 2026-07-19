@@ -150,6 +150,17 @@ class AdminApiTest extends TestCase
     public function test_enrollment_approve_and_reject(): void
     {
         $auth = $this->createAuthenticatedUser();
+        $grade = \App\Models\GradeLevel::factory()->create([
+            'school_id' => $auth['school']->id,
+            'name' => 'Form 1',
+            'order' => 1,
+        ]);
+        $class = \App\Models\ClassModel::factory()->create([
+            'school_id' => $auth['school']->id,
+            'grade_level_id' => $grade->id,
+            'name' => 'Form 1A',
+            'capacity' => 40,
+        ]);
 
         $create = $this->withHeaders([
             'Authorization' => 'Bearer '.$auth['token'],
@@ -179,7 +190,9 @@ class AdminApiTest extends TestCase
             ->assertOk();
 
         $this->withHeaders(['Authorization' => 'Bearer '.$auth['token']])
-            ->putJson("/api/v1/enrollment-applications/{$id}/approve")
+            ->putJson("/api/v1/enrollment-applications/{$id}/approve", [
+                'class_id' => $class->id,
+            ])
             ->assertOk();
 
         $rejectId = DB::table('enrollment_applications')->insertGetId([

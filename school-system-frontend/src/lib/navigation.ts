@@ -205,6 +205,47 @@ export const accountsNavigation: NavGroup[] = [
   },
 ]
 
+export const examinationOfficerNavigation: NavGroup[] = [
+  {
+    label: 'Overview',
+    items: [
+      { title: 'Dashboard', href: '/', icon: 'LayoutDashboard', roles: ['examination_officer'] },
+      {
+        title: 'Academics analytics',
+        href: '/academics/analytics',
+        icon: 'BarChart3',
+        capability: ['canManageTeachers', 'canManageStudents', 'canManageExaminations'],
+        roles: ['examination_officer'],
+      },
+      {
+        title: 'Reports',
+        href: '/reports',
+        icon: 'FileBarChart',
+        capability: 'canManageTeachers',
+        roles: ['examination_officer'],
+      },
+    ],
+  },
+  {
+    label: 'Examinations',
+    items: [
+      { title: 'Exams', href: '/academics/exams', icon: 'FileText', capability: 'canManageExaminations', roles: ['examination_officer'] },
+      { title: 'Gradebook', href: '/academics/grades', icon: 'BookOpen', capability: 'canManageExaminations', roles: ['examination_officer'] },
+      { title: 'Class tests', href: '/academics/tests', icon: 'NotebookPen', capability: 'canManageExaminations', roles: ['examination_officer'] },
+      { title: 'Attendance', href: '/academics/attendance', icon: 'ClipboardCheck', capability: 'canManageStudents', roles: ['examination_officer'] },
+      { title: 'Students', href: '/students', icon: 'GraduationCap', capability: 'canManageStudents', roles: ['examination_officer'] },
+    ],
+  },
+  {
+    label: 'Communications',
+    items: [
+      { title: 'Messages', href: '/communications/threads', icon: 'MessageSquare', capability: 'isStaff', roles: ['examination_officer'] },
+      { title: 'Announcements', href: '/communications/announcements', icon: 'Megaphone', capability: 'isStaff', roles: ['examination_officer'] },
+      { title: 'Assistant', href: '/assistant', icon: 'Bot', capability: 'isStaff', roles: ['examination_officer'] },
+    ],
+  },
+]
+
 export const parentNavigation: NavGroup[] = [
   {
     label: 'Portal',

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Platform;
 
+use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
 use App\Models\ApiClient;
 use App\Models\OperationsAlert;
@@ -25,7 +26,10 @@ class PlatformOperationsController extends Controller
 
     public function liveDashboard(Request $request)
     {
-        return response()->json(['data' => $this->operations->liveFeed($request->user()->school_id)]);
+        $user = $request->user();
+        $schoolId = $user->role === UserRole::SuperAdmin ? null : $user->school_id;
+
+        return response()->json(['data' => $this->operations->liveFeed($schoolId)]);
     }
 
     public function resolveAlert(Request $request, int $id)
@@ -48,7 +52,10 @@ class PlatformOperationsController extends Controller
 
     public function systemHealth(Request $request)
     {
-        return response()->json(['data' => $this->health->snapshot($request->user()->school_id)]);
+        $user = $request->user();
+        $schoolId = $user->role === UserRole::SuperAdmin ? null : $user->school_id;
+
+        return response()->json(['data' => $this->health->snapshot($schoolId)]);
     }
 
     public function verifyAuditIntegrity(Request $request)

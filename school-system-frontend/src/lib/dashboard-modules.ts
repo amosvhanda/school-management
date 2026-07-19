@@ -879,6 +879,133 @@ export const STAFF_DASHBOARD_MODULE_GROUPS: DashboardModuleGroup[] = [
   },
 ]
 
+export const EXAM_OFFICER_DASHBOARD_MODULE_GROUPS: DashboardModuleGroup[] = [
+  {
+    label: 'Examinations',
+    modules: [
+      {
+        title: 'Exams',
+        description: 'Schedule, approve, and publish examinations',
+        href: '/academics/exams',
+        icon: 'FileText',
+        capability: 'canManageExaminations',
+      },
+      {
+        title: 'Gradebook',
+        description: 'Continuous assessment and mark entry',
+        href: '/academics/grades',
+        icon: 'BookOpen',
+        capability: 'canManageExaminations',
+      },
+      {
+        title: 'Class tests',
+        description: 'Manage tests and short assessments',
+        href: '/academics/tests',
+        icon: 'NotebookPen',
+        capability: 'canManageExaminations',
+      },
+      {
+        title: 'Enterprise exams',
+        description: 'Advanced examination workflows',
+        href: '/enterprise/exams',
+        icon: 'LayoutDashboard',
+        capability: 'canManageExaminations',
+      },
+    ],
+  },
+  {
+    label: 'Learners & context',
+    modules: [
+      {
+        title: 'Students',
+        description: 'Learner records under assessment',
+        href: '/students',
+        icon: 'GraduationCap',
+        capability: 'canManageStudents',
+      },
+      {
+        title: 'Attendance',
+        description: 'Attendance linked to assessment periods',
+        href: '/academics/attendance',
+        icon: 'ClipboardCheck',
+        capability: 'canManageStudents',
+      },
+      {
+        title: 'Academics analytics',
+        description: 'Performance and attendance trends',
+        href: '/academics/analytics',
+        icon: 'BarChart3',
+        capability: ['canManageTeachers', 'canManageStudents', 'canManageExaminations'],
+      },
+      {
+        title: 'Reports',
+        description: 'Export academic reports',
+        href: '/reports',
+        icon: 'FileBarChart',
+        capability: 'canManageTeachers',
+      },
+    ],
+  },
+  {
+    label: 'Communication',
+    modules: [
+      {
+        title: 'Messages',
+        description: 'Coordinate with staff and parents',
+        href: '/communications/threads',
+        icon: 'MessageSquare',
+        capability: 'isStaff',
+      },
+      {
+        title: 'Announcements',
+        description: 'Publish exam notices',
+        href: '/communications/announcements',
+        icon: 'Megaphone',
+        capability: 'isStaff',
+      },
+      {
+        title: 'Assistant',
+        description: 'AI support for exam administration',
+        href: '/assistant',
+        icon: 'Bot',
+        capability: 'isStaff',
+      },
+    ],
+  },
+]
+
+export const STUDENT_DASHBOARD_MODULE_GROUPS: DashboardModuleGroup[] = [
+  {
+    label: 'My school',
+    modules: [
+      {
+        title: 'Performance',
+        description: 'Continuous assessment by subject',
+        href: '/student/performance',
+        icon: 'BarChart3',
+      },
+      {
+        title: 'Attendance',
+        description: 'Your presence summary',
+        href: '/student/attendance',
+        icon: 'ClipboardCheck',
+      },
+      {
+        title: 'Exams',
+        description: 'Timetable and published results',
+        href: '/student/exams',
+        icon: 'FileText',
+      },
+      {
+        title: 'Fees',
+        description: 'Invoices and balances',
+        href: '/student/fees',
+        icon: 'Wallet',
+      },
+    ],
+  },
+]
+
 export const PLATFORM_DASHBOARD_MODULE_GROUPS: DashboardModuleGroup[] = [
   {
     label: 'Platform',

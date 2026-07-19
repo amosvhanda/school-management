@@ -8,6 +8,8 @@ import { academicsApi, studentsApi } from '@/services/api.service'
 import { getErrorMessage } from '@/lib/api-response'
 import { formatDate } from '@/lib/format'
 import { formatMoney } from '@/lib/finance-constants'
+import { STUDENT_DASHBOARD_MODULE_GROUPS } from '@/lib/dashboard-modules'
+import DashboardModulesGrid from '@/components/dashboard/DashboardModulesGrid.vue'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
@@ -330,6 +332,12 @@ onMounted(loadStudentPortal)
           <CardContent class="text-lg font-semibold">{{ profileView.email }}</CardContent>
         </Card>
       </div>
+
+      <DashboardModulesGrid
+        :groups="STUDENT_DASHBOARD_MODULE_GROUPS"
+        title="My modules"
+        description="Jump to performance, attendance, exams, and fees"
+      />
     </template>
 
     <Card v-if="section === 'dashboard' || section === 'performance'">

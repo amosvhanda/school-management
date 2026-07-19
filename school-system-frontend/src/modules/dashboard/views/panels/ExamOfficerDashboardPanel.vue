@@ -16,7 +16,7 @@ import { useAuth } from '@/composables/useAuth'
 import { useStaffDashboard } from '@/composables/useStaffDashboard'
 import { lazy } from '@/lib/lazy'
 import { getRoleDashboardMeta } from '@/lib/role-dashboard'
-import { STAFF_DASHBOARD_MODULE_GROUPS } from '@/lib/dashboard-modules'
+import { EXAM_OFFICER_DASHBOARD_MODULE_GROUPS } from '@/lib/dashboard-modules'
 import { academicsApi } from '@/services/api.service'
 
 const ActivityFeed = lazy(() => import('@/components/dashboard/ActivityFeed.vue'))
@@ -122,9 +122,9 @@ onMounted(refreshAll)
       </div>
 
       <DashboardModulesGrid
-        :groups="STAFF_DASHBOARD_MODULE_GROUPS"
+        :groups="EXAM_OFFICER_DASHBOARD_MODULE_GROUPS"
         title="Your modules"
-        description="Examinations, academics, and related areas"
+        description="Examination centre tools for your role"
       />
     </template>
 

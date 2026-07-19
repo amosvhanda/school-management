@@ -3,8 +3,12 @@ import { computed, onMounted, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import {
   Bell,
+  FileCheck,
+  FileText,
   GraduationCap,
+  Megaphone,
   MessageSquare,
+  ShieldAlert,
   TrendingDown,
   UserX,
 } from '@lucide/vue'
@@ -25,6 +29,10 @@ interface PortalDashboard {
   outstanding_balance?: number
   recent_absences?: number
   open_communications?: number
+  pending_consent_forms?: number
+  recent_announcements?: number
+  recent_results?: number
+  open_discipline?: number
 }
 
 interface Child {
@@ -85,6 +93,7 @@ onMounted(load)
           :value="String(dashboard.children_count ?? 0)"
           subtitle="Enrolled students"
           :icon="GraduationCap"
+          href="/portal/children"
         />
         <KpiCard
           title="Outstanding fees"
@@ -92,29 +101,66 @@ onMounted(load)
           subtitle="Total balance due"
           :icon="TrendingDown"
           accent="warning"
+          href="/portal/children"
         />
         <KpiCard
           title="Notifications"
           :value="String(dashboard.unread_notifications ?? 0)"
           subtitle="Unread alerts"
           :icon="Bell"
-          accent="danger"
+          :accent="(dashboard.unread_notifications ?? 0) > 0 ? 'danger' : undefined"
+          href="/portal/notifications"
         />
         <KpiCard
           title="Open messages"
           :value="String(dashboard.open_communications ?? 0)"
           subtitle="Active conversations"
           :icon="MessageSquare"
+          href="/portal/messages"
         />
       </div>
 
-      <div class="grid gap-4 sm:grid-cols-2">
+      <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <KpiCard
           title="Recent absences"
           :value="String(dashboard.recent_absences ?? 0)"
           subtitle="Last 30 days"
           :icon="UserX"
+          :accent="(dashboard.recent_absences ?? 0) > 0 ? 'danger' : undefined"
+          href="/portal/children"
+        />
+        <KpiCard
+          title="Recent results"
+          :value="String(dashboard.recent_results ?? 0)"
+          subtitle="Published in last 30 days"
+          :icon="FileText"
+          href="/portal/children"
+        />
+        <KpiCard
+          title="Consent forms"
+          :value="String(dashboard.pending_consent_forms ?? 0)"
+          subtitle="Awaiting your response"
+          :icon="FileCheck"
+          :accent="(dashboard.pending_consent_forms ?? 0) > 0 ? 'warning' : undefined"
+          href="/portal/consent"
+        />
+        <KpiCard
+          title="Announcements"
+          :value="String(dashboard.recent_announcements ?? 0)"
+          subtitle="Last 30 days"
+          :icon="Megaphone"
+          href="/portal/announcements"
+        />
+      </div>
+
+      <div v-if="(dashboard.open_discipline ?? 0) > 0" class="grid gap-4 sm:grid-cols-2">
+        <KpiCard
+          title="Discipline notes"
+          :value="String(dashboard.open_discipline ?? 0)"
+          subtitle="Recent incidents (90 days)"
+          :icon="ShieldAlert"
           accent="danger"
+          href="/portal/children"
         />
       </div>
 
@@ -122,7 +168,7 @@ onMounted(load)
         <CardHeader class="flex flex-row items-center justify-between">
           <div>
             <CardTitle>My children</CardTitle>
-            <CardDescription>Quick view of enrolled students</CardDescription>
+            <CardDescription>Quick view — open a child for results, attendance, fees, and discipline</CardDescription>
           </div>
           <Button variant="outline" size="sm" as-child>
             <RouterLink to="/portal/children">View all</RouterLink>
@@ -130,25 +176,27 @@ onMounted(load)
         </CardHeader>
         <CardContent>
           <div v-if="children.length" class="grid gap-4 sm:grid-cols-2">
-            <RouterLink
+            <Card
               v-for="child in children"
               :key="child.id"
-              :to="{ name: 'parent-child-detail', params: { id: child.id } }"
-              class="block rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              class="h-full"
             >
-              <Card class="h-full transition-colors hover:bg-muted/40">
-                <CardHeader class="pb-2">
-                  <CardTitle class="text-base">{{ child.fullName ?? child.full_name ?? `Student #${child.id}` }}</CardTitle>
-                  <CardDescription>{{ child.class ?? 'Class not assigned' }}</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <p v-if="child.balance" class="text-sm font-medium">
-                    Balance: {{ child.currency ?? 'USD' }} {{ Number(child.balance).toLocaleString() }}
-                  </p>
-                  <p v-else class="text-sm text-muted-foreground">No outstanding balance</p>
-                </CardContent>
-              </Card>
-            </RouterLink>
+              <CardHeader class="pb-2">
+                <CardTitle class="text-base">{{ child.fullName ?? child.full_name ?? `Student #${child.id}` }}</CardTitle>
+                <CardDescription>{{ child.class ?? 'Class not assigned' }}</CardDescription>
+              </CardHeader>
+              <CardContent class="space-y-3">
+                <p v-if="child.balance" class="text-sm font-medium">
+                  Balance: {{ child.currency ?? 'USD' }} {{ Number(child.balance).toLocaleString() }}
+                </p>
+                <p v-else class="text-sm text-muted-foreground">No outstanding balance</p>
+                <Button variant="outline" size="sm" as-child>
+                  <RouterLink :to="{ name: 'parent-child-detail', params: { id: child.id } }">
+                    View results, attendance & fees
+                  </RouterLink>
+                </Button>
+              </CardContent>
+            </Card>
           </div>
           <p v-else class="text-sm text-muted-foreground">No children linked to your account.</p>
         </CardContent>
