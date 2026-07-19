@@ -4,7 +4,6 @@ import { useRouter } from 'vue-router'
 import { FileCheck2, Loader2, LogOut } from '@lucide/vue'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
-import { Checkbox } from '@/components/ui/checkbox'
 import { useToast } from '@/composables/useToast'
 import { getErrorMessage } from '@/lib/api-response'
 import { resolvePostLoginRedirect } from '@/app/router/guards'
@@ -35,14 +34,6 @@ async function load() {
   } finally {
     loading.value = false
   }
-}
-
-function setAgreed(value: boolean | 'indeterminate') {
-  agreed.value = value === true
-}
-
-function toggleAgreed() {
-  agreed.value = !agreed.value
 }
 
 function safeRedirectTarget(): string | null {
@@ -146,31 +137,26 @@ onMounted(load)
             <pre class="whitespace-pre-wrap font-sans text-sm leading-relaxed text-foreground">{{ terms.content }}</pre>
           </div>
 
-          <div
-            class="flex w-full cursor-pointer items-start gap-3 rounded-lg border p-4 text-left transition-colors hover:bg-muted/40"
+          <label
+            for="agree-platform-terms"
+            class="flex w-full cursor-pointer items-start gap-3 rounded-lg border p-4 text-left transition-colors hover:bg-muted/40 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring"
             :class="agreed ? 'border-primary bg-primary/5' : ''"
-            role="group"
-            @click="toggleAgreed"
           >
-            <Checkbox
+            <input
               id="agree-platform-terms"
-              class="mt-0.5"
-              :checked="agreed"
-              :aria-checked="agreed"
-              @click.stop
-              @keydown.enter.prevent.stop="toggleAgreed"
-              @keydown.space.prevent.stop="toggleAgreed"
-              @update:checked="setAgreed"
-            />
-            <div class="min-w-0 space-y-1">
-              <p class="text-sm font-medium leading-snug">
+              v-model="agreed"
+              type="checkbox"
+              class="mt-1 size-4 shrink-0 rounded border border-input accent-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+            <span class="min-w-0 space-y-1">
+              <span class="block text-sm font-medium leading-snug">
                 I agree to all School ERP Platform Terms of Use
-              </p>
-              <p class="text-xs text-muted-foreground">
-                By continuing you accept the full terms for using this ERP platform in your role.
-              </p>
-            </div>
-          </div>
+              </span>
+              <span class="block text-xs text-muted-foreground">
+                Tick this box, then press Agree and continue.
+              </span>
+            </span>
+          </label>
         </template>
       </CardContent>
 
@@ -186,7 +172,7 @@ onMounted(load)
         </Button>
         <Button
           class="w-full sm:w-auto"
-          :disabled="loading || !!error || !terms || submitting"
+          :disabled="loading || !!error || !terms || !agreed || submitting"
           @click="accept"
         >
           <Loader2 v-if="submitting" class="size-4 animate-spin" aria-hidden="true" />
