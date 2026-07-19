@@ -71,6 +71,10 @@ class ParentAccessService
             return $student;
         }
 
+        if ($this->isParent($user)) {
+            throw new AccessDeniedHttpException('Parent not linked to the student.');
+        }
+
         throw new AccessDeniedHttpException('You do not have access to this student.');
     }
 

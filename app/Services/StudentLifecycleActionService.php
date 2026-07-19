@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Exceptions\DomainException;
 use App\Models\AlumniRecord;
 use App\Models\Certificate;
 use App\Models\CrossSchoolTransfer;
@@ -11,6 +12,7 @@ use App\Models\Student;
 use App\Models\StudentStatusEvent;
 use App\Models\StudentTransportAllocation;
 use App\Models\User;
+use App\Services\Domain\SchoolDomainRules;
 use App\Services\Platform\CertificateGeneratorService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -21,6 +23,7 @@ class StudentLifecycleActionService
 
     public function __construct(
         private CertificateGeneratorService $certificates,
+        private SchoolDomainRules $domainRules,
     ) {}
 
     /**
@@ -47,6 +50,15 @@ class StudentLifecycleActionService
         };
 
         $this->assertTransitionAllowed($student->status ?? 'active', $targetStatus, $action);
+
+        if ($action === 'transfer_out') {
+            $this->domainRules->assertNoOutstandingFees($student->fresh(), 'transfer');
+        }
+
+        if ($action === 'graduate') {
+            $year = (int) date('Y', strtotime((string) $effectiveDate));
+            $this->domainRules->assertGraduationRequirements($student, $year);
+        }
 
         return DB::transaction(function () use ($student, $action, $targetStatus, $reason, $effectiveDate, $deactivate, $payload, $actor) {
             $from = $student->status;
@@ -181,9 +193,11 @@ class StudentLifecycleActionService
         }
 
         if ($from === $to && $action !== 'transfer_out') {
-            throw ValidationException::withMessages([
-                'action' => ["Student is already {$to}."],
-            ]);
+            throw DomainException::make(
+                'student_inactive',
+                "Student account is already {$to}.",
+                ['action' => ["Student is already {$to}."]],
+            );
         }
     }
 

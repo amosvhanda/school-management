@@ -2,18 +2,23 @@
 
 namespace App\Services;
 
+use App\Exceptions\DomainException;
 use App\Models\ClassModel;
 use App\Models\Enrollment;
 use App\Models\GradeLevelSubject;
 use App\Models\House;
 use App\Models\Stream;
 use App\Models\Student;
+use App\Services\Domain\SchoolDomainRules;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class StudentPlacementService
 {
-    public function __construct(private FinancialLedgerService $ledgerService) {}
+    public function __construct(
+        private FinancialLedgerService $ledgerService,
+        private SchoolDomainRules $domainRules,
+    ) {}
 
     /**
      * Place or re-place a student into class/stream/house for an academic year.
@@ -22,6 +27,8 @@ class StudentPlacementService
      */
     public function place(Student $student, array $payload, ?int $actorId = null): Student
     {
+        $this->domainRules->assertStudentActive($student);
+
         $class = ClassModel::query()
             ->where('school_id', $student->school_id)
             ->with('teacher:id,first_name,last_name,full_name')
@@ -64,6 +71,13 @@ class StudentPlacementService
             return $student->fresh(['classModel.teacher', 'stream', 'house', 'gradeLevel']);
         }
 
+        // Explicit enroll without transfer flag cannot join a second active class.
+        $allowTransfer = (bool) ($payload['force_transfer'] ?? true);
+        if (! $allowTransfer) {
+            $this->domainRules->assertNoOtherActiveClass($student, (int) $class->id);
+        }
+
+        $this->domainRules->assertSingleActiveEnrollment($student);
         $this->assertCapacity($class, $student);
 
         return DB::transaction(function () use ($student, $class, $streamId, $houseId, $academicYear, $reason, $applyFees, $effectiveDate, $actorId) {
@@ -165,9 +179,11 @@ class StudentPlacementService
             ->count();
 
         if ($count >= (int) $class->capacity) {
-            throw ValidationException::withMessages([
-                'class_id' => ["{$class->name} is at full capacity ({$class->capacity})."],
-            ]);
+            throw DomainException::make(
+                'classroom_capacity_exceeded',
+                'Classroom capacity exceeded.',
+                ['class_id' => ["{$class->name} is at full capacity ({$class->capacity})."]],
+            );
         }
     }
 

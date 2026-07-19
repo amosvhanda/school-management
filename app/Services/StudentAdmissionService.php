@@ -7,17 +7,16 @@ use App\Models\GradeLevel;
 use App\Models\School;
 use App\Models\Student;
 use App\Models\User;
+use App\Services\Domain\SchoolDomainRules;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 
 class StudentAdmissionService
 {
-    protected GuardianService $guardianService;
-
-    public function __construct(GuardianService $guardianService)
-    {
-        $this->guardianService = $guardianService;
-    }
+    public function __construct(
+        protected GuardianService $guardianService,
+        protected SchoolDomainRules $domainRules,
+    ) {}
 
     /**
      * Admit a new student with enrollment
@@ -45,9 +44,12 @@ class StudentAdmissionService
                     ->firstOrFail();
             }
 
+            $studentNumber = $studentData['student_number'] ?? $this->generateStudentNumber($schoolId);
+            $this->domainRules->assertAdmissionNumberAvailable($schoolId, (string) $studentNumber);
+
             // Create student
             $student = Student::create([
-                'student_number' => $studentData['student_number'] ?? $this->generateStudentNumber($schoolId),
+                'student_number' => $studentNumber,
                 'first_name' => $studentData['first_name'],
                 'last_name' => $studentData['last_name'],
                 'full_name' => "{$studentData['first_name']} {$studentData['last_name']}",

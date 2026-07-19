@@ -1,5 +1,6 @@
 <?php
 
+use App\Exceptions\DomainException;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
@@ -51,6 +52,10 @@ return Application::configure(basePath: dirname(__DIR__))
         $exceptions->render(function (\Throwable $e, Request $request) {
             if (! $request->is('api/*') && ! $request->expectsJson()) {
                 return null;
+            }
+
+            if ($e instanceof DomainException) {
+                return response()->json($e->toArray(), $e->status);
             }
 
             if ($e instanceof ValidationException

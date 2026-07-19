@@ -71,6 +71,7 @@ class AttendanceController extends Controller
         $validator = Validator::make($request->all(), [
             'class_id' => 'required', // Can be string (class name) or integer (class ID)
             'date' => 'required|date',
+            'overwrite' => 'nullable|boolean',
             'records' => 'required|array',
             'records.*.student_id' => 'required|exists:students,id',
             'records.*.status' => 'required|string|in:present,absent,late,excused',
@@ -134,10 +135,13 @@ class AttendanceController extends Controller
         $attendanceRecords = [];
         $normalizedDate = $request->date('date')->toDateString();
         $normalizedClassId = is_numeric($classId) ? (int) $classId : null;
+        $allowOverwrite = $request->boolean('overwrite', true);
+        $domainRules = app(\App\Services\Domain\SchoolDomainRules::class);
 
         foreach ($request->records as $record) {
             $student = Student::where('school_id', $schoolId)
                 ->findOrFail($record['student_id']);
+            $domainRules->assertStudentActive($student);
             if ($class) {
                 if ($student->class_id && (int) $student->class_id !== (int) $class->id) {
                     return response()->json([
@@ -150,6 +154,22 @@ class AttendanceController extends Controller
                         'message' => 'Student does not belong to selected class',
                         'errors' => ['student_id' => ['Student class mismatch']],
                     ], 422);
+                }
+            }
+
+            if (! $allowOverwrite) {
+                $existing = $this->findAttendanceForUpsert(
+                    (int) $schoolId,
+                    (int) $record['student_id'],
+                    $normalizedDate,
+                    $normalizedClassId,
+                );
+                if ($existing) {
+                    throw \App\Exceptions\DomainException::make(
+                        'attendance_already_recorded',
+                        'Attendance already recorded for the day.',
+                        ['date' => ['Attendance for this student is already recorded for '.$normalizedDate.'.']],
+                    );
                 }
             }
 

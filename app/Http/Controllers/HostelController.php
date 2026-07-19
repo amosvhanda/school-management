@@ -7,6 +7,7 @@ use App\Models\HostelAllocation;
 use App\Models\HostelBed;
 use App\Models\HostelRoom;
 use App\Models\Student;
+use App\Services\Domain\SchoolDomainRules;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -89,11 +90,14 @@ class HostelController extends Controller
         $student = Student::where('school_id', $schoolId)->findOrFail($data['student_id']);
         $bed = HostelBed::whereHas('room.hostel', function ($query) use ($schoolId) {
             $query->where('school_id', $schoolId);
-        })->findOrFail($data['bed_id']);
+        })->with('room')->findOrFail($data['bed_id']);
+
+        app(SchoolDomainRules::class)->assertStudentActive($student);
+        app(SchoolDomainRules::class)->assertHostelRoomHasCapacity($bed);
 
         // Prevent business logic failures (Double bookings)
         if ($bed->status !== 'available') {
-            throw ValidationException::withMessages(['bed_id' => 'This bed is already occupied.']);
+            throw ValidationException::withMessages(['bed_id' => ['This bed is already occupied.']]);
         }
 
         $alreadyAllocated = HostelAllocation::where('student_id', $student->id)
@@ -101,7 +105,7 @@ class HostelController extends Controller
             ->exists();
 
         if ($alreadyAllocated) {
-            throw ValidationException::withMessages(['student_id' => 'This student already has an active hostel allocation.']);
+            throw ValidationException::withMessages(['student_id' => ['This student already has an active hostel allocation.']]);
         }
 
         // Database transaction protects against partial failures

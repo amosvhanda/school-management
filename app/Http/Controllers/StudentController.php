@@ -12,6 +12,7 @@ use App\Models\School;
 use App\Models\Setting;
 use App\Models\Student;
 use App\Models\StudentDocument;
+use App\Services\Domain\SchoolDomainRules;
 use App\Services\ParentAccessService;
 use App\Services\StudentPromotionService;
 use Illuminate\Http\Request;
@@ -26,6 +27,7 @@ class StudentController extends Controller
     public function __construct(
         private StudentPromotionService $promotionService,
         private ParentAccessService $parentAccess,
+        private SchoolDomainRules $domainRules,
     ) {}
 
     public function index(Request $request)
@@ -416,6 +418,8 @@ class StudentController extends Controller
             ->with(['exam:id,name,exam_date,total_marks,academic_year,term_id', 'exam.term:id,name', 'subject:id,name'])
             ->orderByDesc('created_at')
             ->get();
+
+        $this->domainRules->assertReportCardHasGrades($student, $grades, $examResults);
 
         $school = School::query()->find($student->school_id);
         $schoolName = $school?->name ?? 'School';

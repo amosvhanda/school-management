@@ -89,8 +89,12 @@ class FinancialLedgerService
             }
 
             if ($amount > (float) $invoice->balance + 0.001) {
-                throw new InvalidArgumentException(
-                    'Payment amount exceeds the invoice balance of '.number_format((float) $invoice->balance, 2)
+                throw \App\Exceptions\DomainException::make(
+                    'payment_exceeds_balance',
+                    'Fee payment exceeds outstanding balance.',
+                    ['amount' => [
+                        'Payment amount exceeds the invoice balance of '.number_format((float) $invoice->balance, 2),
+                    ]],
                 );
             }
 

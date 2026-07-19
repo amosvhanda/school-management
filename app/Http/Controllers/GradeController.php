@@ -97,7 +97,7 @@ class GradeController extends Controller
             'class_id' => ['required', 'exists:classes,id'],
             'subject_id' => ['required', 'exists:subjects,id'],
             'score' => ['required', 'numeric', 'min:0'],
-            'total' => ['required', 'numeric', 'min:0'],
+            'total' => ['required', 'numeric', 'min:0.01'],
             'term' => ['nullable', 'string'],
             'year' => ['nullable', 'integer'],
             'assessment_type' => ['required', 'string', 'in:test,assignment,exam,project,quiz,other'],
@@ -181,6 +181,11 @@ class GradeController extends Controller
             }
             $teacherId = $assignment->teacher_id;
         }
+
+        app(\App\Services\Domain\SchoolDomainRules::class)->assertMarksWithinMaximum(
+            (float) $request->score,
+            (float) $request->total,
+        );
 
         // Calculate percentage and get grade from school's grading scale
         $percentage = ($request->score / $request->total) * 100;

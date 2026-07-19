@@ -2,17 +2,22 @@
 
 namespace App\Services;
 
+use App\Exceptions\DomainException;
 use App\Models\ClassModel;
 use App\Models\Enrollment;
 use App\Models\Grade;
 use App\Models\GradeLevel;
 use App\Models\School;
 use App\Models\Student;
+use App\Services\Domain\SchoolDomainRules;
 use Illuminate\Support\Facades\DB;
 
 class StudentPromotionService
 {
-    public function __construct(private FinancialLedgerService $ledgerService) {}
+    public function __construct(
+        private FinancialLedgerService $ledgerService,
+        private SchoolDomainRules $domainRules,
+    ) {}
 
     /**
      * Run year-end promotion for a school using grade_level order (practical progression).
@@ -73,32 +78,43 @@ class StudentPromotionService
         float $passMark,
         ?int $processedBy,
     ): string {
+        $year = (int) $academicYear;
+        $this->domainRules->assertCoreResultsComplete($student, $year);
+
         $grades = Grade::query()
             ->where('student_id', $student->id)
-            ->where('year', (int) $academicYear)
+            ->where('year', $year)
             ->get();
 
         if ($grades->isEmpty()) {
-            throw new \RuntimeException("No grades recorded for {$academicYear}");
+            throw DomainException::make(
+                'incomplete_results',
+                'Student cannot be promoted due to incomplete results.',
+                ['results' => ["No grades recorded for {$academicYear}."]],
+            );
         }
 
         $average = $grades->avg(fn ($g) => $g->total > 0 ? ($g->score / $g->total) * 100 : 0);
 
-        return DB::transaction(function () use ($student, $average, $passMark, $nextAcademicYear, $processedBy) {
+        return DB::transaction(function () use ($student, $average, $passMark, $nextAcademicYear, $processedBy, $year) {
             $this->closeActiveEnrollments($student, $nextAcademicYear);
 
             if ($average >= $passMark) {
-                return $this->promoteStudent($student, $nextAcademicYear, $processedBy);
+                return $this->promoteStudent($student, $nextAcademicYear, $processedBy, $year);
             }
 
             return $this->repeatStudent($student, $nextAcademicYear, $processedBy);
         });
     }
 
-    private function promoteStudent(Student $student, string $nextAcademicYear, ?int $processedBy): string
+    private function promoteStudent(Student $student, string $nextAcademicYear, ?int $processedBy, int $completedYear): string
     {
         if (! $student->grade_level_id) {
-            throw new \RuntimeException('Student has no grade level assigned');
+            throw DomainException::make(
+                'incomplete_results',
+                'Student cannot be promoted due to incomplete results.',
+                ['grade_level_id' => ['Student has no grade level assigned.']],
+            );
         }
 
         $currentLevel = GradeLevel::find($student->grade_level_id);
@@ -109,6 +125,8 @@ class StudentPromotionService
             ->first();
 
         if (! $nextLevel) {
+            $this->domainRules->assertGraduationRequirements($student, $completedYear);
+
             $student->update(['status' => 'graduated']);
             Enrollment::create([
                 'school_id' => $student->school_id,

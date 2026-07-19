@@ -106,7 +106,11 @@ class TransportController extends Controller
         $schoolId = $request->user()->school_id;
 
         $student = Student::where('school_id', $schoolId)->findOrFail($data['student_id']);
-        TransportRoute::where('school_id', $schoolId)->findOrFail($data['route_id']);
+        $route = TransportRoute::where('school_id', $schoolId)->with('vehicle')->findOrFail($data['route_id']);
+
+        $domain = app(\App\Services\Domain\SchoolDomainRules::class);
+        $domain->assertStudentActive($student);
+        $domain->assertTransportRouteHasCapacity($route, ignoreStudentId: (int) $student->id);
 
         $allocation = StudentTransportAllocation::updateOrCreate(
             ['student_id' => $student->id, 'route_id' => $data['route_id']],

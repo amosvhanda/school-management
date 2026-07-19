@@ -135,6 +135,12 @@ class ExamController extends Controller
         $subject = Subject::where('school_id', $schoolId)
             ->findOrFail($request->subject_id);
 
+        app(\App\Services\Domain\SchoolDomainRules::class)->assertSubjectAvailableForGrade(
+            (int) $schoolId,
+            (int) $request->grade_level_id,
+            (int) $request->subject_id,
+        );
+
         $exam = Exam::create([
             'school_id' => $schoolId,
             'term_id' => $request->term_id,
