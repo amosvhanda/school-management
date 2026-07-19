@@ -8,6 +8,75 @@ use Tests\TestCase;
 
 class TeacherApiTest extends TestCase
 {
+    public function test_create_teacher_with_first_name_and_payroll_fields(): void
+    {
+        $auth = $this->createAuthenticatedUser();
+        $email = 'tendai.moyo'.fake()->unique()->numberBetween(1000, 9999).'@example.com';
+
+        $response = $this->withHeaders([
+            'Authorization' => 'Bearer '.$auth['token'],
+        ])->postJson('/api/v1/teachers', [
+            'firstName' => 'Tendai',
+            'surname' => 'Moyo',
+            'email' => $email,
+            'phone' => '+263771234567',
+            'subject' => 'Mathematics',
+            'department' => 'Science',
+            'qualification' => 'BEd',
+            'joiningDate' => '2026-01-15',
+            'status' => 'active',
+            'employment_type' => 'full_time',
+            'base_salary' => 850,
+            'salary_currency' => 'USD',
+            'allowances' => ['housing' => 50],
+            'deductions' => ['nssa' => 20],
+            'bank_name' => 'CBZ',
+            'bank_account_number' => '1234567890',
+            'payment_method' => 'bank_transfer',
+        ]);
+
+        $response->assertCreated()
+            ->assertJsonPath('data.first_name', 'Tendai')
+            ->assertJsonPath('data.last_name', 'Moyo')
+            ->assertJsonPath('data.name', 'Tendai Moyo')
+            ->assertJsonPath('data.email', $email)
+            ->assertJsonPath('data.base_salary', 850)
+            ->assertJsonPath('data.salary_currency', 'USD')
+            ->assertJsonPath('data.employment_type', 'full_time')
+            ->assertJsonPath('data.bank_name', 'CBZ')
+            ->assertJsonPath('data.payment_method', 'bank_transfer');
+
+        $this->assertDatabaseHas('teachers', [
+            'id' => $response->json('data.id'),
+            'first_name' => 'Tendai',
+            'last_name' => 'Moyo',
+            'email' => $email,
+            'base_salary' => 850,
+            'school_id' => $auth['school']->id,
+        ]);
+    }
+
+    public function test_create_teacher_rejects_duplicate_email_in_same_school(): void
+    {
+        $auth = $this->createAuthenticatedUser();
+        $email = 'dup.teacher'.fake()->unique()->numberBetween(1000, 9999).'@example.com';
+        Teacher::factory()->create([
+            'school_id' => $auth['school']->id,
+            'email' => $email,
+        ]);
+
+        $response = $this->withHeaders([
+            'Authorization' => 'Bearer '.$auth['token'],
+        ])->postJson('/api/v1/teachers', [
+            'firstName' => 'Another',
+            'surname' => 'Teacher',
+            'email' => $email,
+        ]);
+
+        $response->assertStatus(422)
+            ->assertJsonValidationErrors(['email']);
+    }
+
     public function test_get_teachers_list(): void
     {
         $auth = $this->createAuthenticatedUser();

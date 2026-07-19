@@ -19,6 +19,14 @@ const rowAliases: Record<string, Record<string, string>> = {
     firstName: 'first_name',
     surname: 'last_name',
     joiningDate: 'joining_date',
+    base_salary: 'base_salary',
+    period_rate: 'period_rate',
+    salary_currency: 'salary_currency',
+    bank_name: 'bank_name',
+    bank_account_number: 'bank_account_number',
+    payment_method: 'payment_method',
+    employment_type: 'employment_type',
+    status: 'status',
   },
 }
 
@@ -190,7 +198,28 @@ export function mapRowToFormValues(
     values[field.name] = coerceFieldValue(field, raw)
   }
 
+  if (listKey === 'teachers') {
+    values.allowances_total = sumMoneyMap(row.allowances)
+    values.deductions_total = sumMoneyMap(row.deductions)
+    if (values.status == null || values.status === '') values.status = 'active'
+    if (values.employment_type == null || values.employment_type === '') {
+      values.employment_type = 'full_time'
+    }
+    if (values.salary_currency == null || values.salary_currency === '') {
+      values.salary_currency = 'USD'
+    }
+  }
+
   return values
+}
+
+function sumMoneyMap(value: unknown): number | '' {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return ''
+  const total = Object.values(value as Record<string, unknown>).reduce<number>((sum, item) => {
+    const n = Number(item)
+    return Number.isFinite(n) ? sum + n : sum
+  }, 0)
+  return total > 0 ? total : ''
 }
 
 function mapStudentPayload(
@@ -512,8 +541,37 @@ function mapTeacherPayload(values: Record<string, unknown>): Record<string, unkn
   }
   delete payload.department_id
 
-  for (const key of ['phone', 'address', 'subject', 'department', 'qualification', 'joiningDate']) {
-    if (payload[key] === '') delete payload[key]
+  const allowancesTotal = Number(payload.allowances_total ?? NaN)
+  const deductionsTotal = Number(payload.deductions_total ?? NaN)
+  const hadAllowances = Object.prototype.hasOwnProperty.call(payload, 'allowances_total')
+  const hadDeductions = Object.prototype.hasOwnProperty.call(payload, 'deductions_total')
+  delete payload.allowances_total
+  delete payload.deductions_total
+
+  if (hadAllowances) {
+    payload.allowances =
+      Number.isFinite(allowancesTotal) && allowancesTotal > 0 ? { other: allowancesTotal } : {}
+  }
+
+  if (hadDeductions) {
+    payload.deductions =
+      Number.isFinite(deductionsTotal) && deductionsTotal > 0 ? { other: deductionsTotal } : {}
+  }
+
+  for (const key of [
+    'phone',
+    'address',
+    'subject',
+    'department',
+    'qualification',
+    'joiningDate',
+    'bank_name',
+    'bank_account_number',
+    'payment_method',
+    'base_salary',
+    'period_rate',
+  ]) {
+    if (payload[key] === '' || payload[key] == null) delete payload[key]
   }
 
   delete payload.name

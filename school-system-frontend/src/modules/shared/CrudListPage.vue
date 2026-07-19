@@ -22,6 +22,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { useToast } from '@/composables/useToast'
+import { useSchoolProfile } from '@/composables/useSchoolProfile'
 import { getErrorMessage } from '@/lib/api-response'
 import type { RowActionConfig } from '@/modules/shared/registry-actions'
 import { mapFormToPayload } from '@/modules/shared/crud-mappers'
@@ -43,6 +44,7 @@ import {
 import PaymentReceiptSheet from '@/modules/finance/components/PaymentReceiptSheet.vue'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { teacherCreateDefaults } from '@/modules/teachers/teacher-form'
 
 const props = defineProps<{
   title: string
@@ -65,6 +67,7 @@ const props = defineProps<{
 const toast = useToast()
 const route = useRoute()
 const router = useRouter()
+const { currency: schoolCurrency, loadSchool } = useSchoolProfile()
 const rows = ref<Record<string, unknown>[]>([])
 const loading = ref(true)
 const error = ref<string | null>(null)
@@ -217,7 +220,11 @@ const { formLoading, prepareCreate, prepareEdit } = useFormSheetLoader(() => ({
   formFields: props.formFields,
   listKey: props.listKey,
   setFormValues: (values) => { formResetValues.value = values },
-  createDefaults: props.listKey === 'students' ? { guardianMode: 'new' } : undefined,
+  createDefaults: () => {
+    if (props.listKey === 'students') return { guardianMode: 'new' }
+    if (props.listKey === 'teachers') return teacherCreateDefaults(schoolCurrency.value)
+    return undefined
+  },
   idKey: idKey.value,
 }))
 
@@ -551,6 +558,10 @@ onMounted(async () => {
     if (typeof raw === 'string' && raw !== '') {
       filterValues.value = { ...filterValues.value, [filter.key]: raw }
     }
+  }
+
+  if (props.listKey === 'teachers') {
+    void loadSchool()
   }
 
   await load()

@@ -62,6 +62,9 @@ class TeacherController extends Controller
             ? implode(' ', array_slice(explode(' ', $request->name), 1))
             : '');
 
+        $school = $request->user()->school;
+        $defaultCurrency = $school?->getDefaultCurrency() ?? 'USD';
+
         $teacher = Teacher::create([
             'name' => trim($firstName.' '.$surname) ?: $request->name,
             'first_name' => $firstName,
@@ -74,7 +77,16 @@ class TeacherController extends Controller
             'qualification' => $request->qualification,
             'joining_date' => $request->joiningDate,
             'employee_id' => $this->staffNumbers->generateEmployeeNumber((int) $request->user()->school_id),
-            'status' => 'active',
+            'status' => $request->input('status', 'active'),
+            'employment_type' => $request->input('employment_type', 'full_time'),
+            'base_salary' => $request->input('base_salary'),
+            'period_rate' => $request->input('period_rate'),
+            'salary_currency' => $request->input('salary_currency', $defaultCurrency),
+            'allowances' => $request->input('allowances'),
+            'deductions' => $request->input('deductions'),
+            'bank_name' => $request->input('bank_name'),
+            'bank_account_number' => $request->input('bank_account_number'),
+            'payment_method' => $request->input('payment_method', 'bank_transfer'),
             'school_id' => $request->user()->school_id,
         ]);
 
@@ -97,7 +109,24 @@ class TeacherController extends Controller
             $teacher->name = trim($teacher->first_name.' '.$teacher->last_name);
         }
 
-        $teacher->fill($request->only(['email', 'phone', 'address', 'subject', 'department', 'qualification', 'status']));
+        $teacher->fill($request->only([
+            'email',
+            'phone',
+            'address',
+            'subject',
+            'department',
+            'qualification',
+            'status',
+            'employment_type',
+            'base_salary',
+            'period_rate',
+            'salary_currency',
+            'allowances',
+            'deductions',
+            'bank_name',
+            'bank_account_number',
+            'payment_method',
+        ]));
         if ($request->has('joiningDate')) {
             $teacher->joining_date = $request->joiningDate;
         }
