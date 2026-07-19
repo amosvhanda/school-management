@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Concerns\HandlesResourceQueries;
 use App\Http\Resources\Api\V1\InvoiceResource;
 use App\Models\Invoice;
 use App\Models\NotificationQueue;
@@ -10,9 +11,12 @@ use App\Services\FinancialLedgerService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
+use Spatie\QueryBuilder\AllowedFilter;
 
 class InvoiceController extends Controller
 {
+    use HandlesResourceQueries;
+
     public function __construct(private FinancialLedgerService $ledgerService) {}
 
     public function index(Request $request)
@@ -29,55 +33,33 @@ class InvoiceController extends Controller
             $this->ledgerService->syncOverdueInvoices($schoolId);
         }
 
-        $query = Invoice::with(['student:id,full_name,student_number'])
+        $base = Invoice::query()
             ->when($schoolId, fn ($q) => $q->where('school_id', $schoolId));
 
-        if ($request->filled('student_id')) {
-            $query->where('student_id', $request->student_id);
-        }
-        if ($request->filled('status')) {
-            $statuses = is_array($request->status)
-                ? $request->status
-                : explode(',', (string) $request->status);
-            $query->whereIn('status', $statuses);
-        }
-        if ($request->filled('currency')) {
-            $query->where('currency', $request->currency);
-        }
-        if ($request->filled('from')) {
-            $query->whereDate('due_date', '>=', $request->from);
-        }
-        if ($request->filled('to')) {
-            $query->whereDate('due_date', '<=', $request->to);
-        }
-        if ($request->filled('search')) {
-            $search = $request->search;
-            $query->where(function ($q) use ($search) {
-                $q->where('invoice_number', 'like', "%{$search}%")
-                    ->orWhere('description', 'like', "%{$search}%")
-                    ->orWhereHas('student', function ($sq) use ($search) {
-                        $sq->where('full_name', 'like', "%{$search}%")
-                            ->orWhere('student_number', 'like', "%{$search}%");
-                    });
-            });
-        }
-
-        $query->orderByDesc('created_at');
-
-        if ($request->boolean('all')) {
-            return InvoiceResource::collection($query->limit(500)->get())
-                ->additional(['message' => 'Success']);
-        }
-
-        if ($request->filled('limit') && ! $request->filled('page')) {
-            return InvoiceResource::collection($query->limit((int) $request->limit)->get())
-                ->additional(['message' => 'Success']);
-        }
-
-        $perPage = min($request->integer('per_page', 25), 100);
-
-        return InvoiceResource::collection($query->paginate($perPage))
-            ->additional(['message' => 'Success']);
+        return $this->paginateResource($request, Invoice::class, InvoiceResource::class, [
+            'base' => $base,
+            'filters' => [
+                'student_id',
+                AllowedFilter::callback('status', function ($query, $value) {
+                    $statuses = is_array($value) ? $value : explode(',', (string) $value);
+                    $query->whereIn('status', array_filter(array_map('trim', $statuses)));
+                }),
+                'currency',
+                AllowedFilter::callback('from', fn ($query, $value) => $query->whereDate('due_date', '>=', $value)),
+                AllowedFilter::callback('to', fn ($query, $value) => $query->whereDate('due_date', '<=', $value)),
+                'search',
+            ],
+            'search_columns' => [
+                'invoice_number',
+                'description',
+                'student.full_name',
+                'student.student_number',
+            ],
+            'sorts' => ['created_at', 'due_date', 'amount', 'balance', 'status'],
+            'includes' => ['student', 'payments', 'feeStructure'],
+            'default_sort' => '-created_at',
+            'with' => ['student:id,full_name,student_number'],
+        ]);
     }
 
     public function show(Request $request, Invoice $invoice)

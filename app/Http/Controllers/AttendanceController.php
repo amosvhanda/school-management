@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Concerns\HandlesResourceQueries;
+use App\Http\Resources\Api\V1\AttendanceResource;
 use App\Models\Attendance;
 use App\Models\ClassModel;
 use App\Models\Student;
@@ -10,9 +12,12 @@ use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
+use Spatie\QueryBuilder\AllowedFilter;
 
 class AttendanceController extends Controller
 {
+    use HandlesResourceQueries;
+
     protected AttendanceNotificationService $notificationService;
 
     public function __construct(AttendanceNotificationService $notificationService)
@@ -28,35 +33,38 @@ class AttendanceController extends Controller
             permissionSlugs: ['attendance.manage'],
         );
 
-        $user = $request->user();
-        $schoolId = $user?->school_id;
-        $query = Attendance::with(['student', 'classModel'])
-            ->when($schoolId, function ($q) use ($schoolId) {
-                $q->where('school_id', $schoolId);
-            });
+        $schoolId = $request->user()?->school_id;
 
-        if ($request->has('class_id')) {
-            $classId = $request->class_id;
-            // Handle both class name and class ID
-            if (!is_numeric($classId)) {
-                $class = \App\Models\ClassModel::where('name', $classId)->first();
-                if ($class) {
-                    $classId = $class->id;
-                }
-            }
-            $query->where('class_id', $classId);
-        }
-        if ($request->has('date')) {
-            $query->where('date', $request->date);
-        }
-        if ($request->has('student_id')) {
-            $query->where('student_id', $request->student_id);
-        }
+        $base = Attendance::query()
+            ->when($schoolId, fn ($q) => $q->where('school_id', $schoolId));
 
-        $attendance = $query->orderBy('date', 'desc')->orderBy('created_at', 'desc')->get();
+        return $this->paginateResource($request, Attendance::class, AttendanceResource::class, [
+            'base' => $base,
+            'filters' => [
+                AllowedFilter::callback('class_id', function ($query, $value) use ($schoolId) {
+                    if (! is_numeric($value)) {
+                        $class = ClassModel::query()
+                            ->when($schoolId, fn ($q) => $q->where('school_id', $schoolId))
+                            ->where('name', $value)
+                            ->first();
+                        if ($class) {
+                            $query->where('class_id', $class->id);
 
-        return response()->json([
-            'data' => $attendance,
+                            return;
+                        }
+                    }
+                    $query->where('class_id', $value);
+                }),
+                'date',
+                'student_id',
+                'status',
+                'search',
+            ],
+            'search_columns' => ['student.full_name', 'student.student_number'],
+            'sorts' => ['date', 'created_at', 'status'],
+            'includes' => ['student', 'classModel'],
+            'default_sort' => '-date',
+            'with' => ['student', 'classModel'],
         ]);
     }
 

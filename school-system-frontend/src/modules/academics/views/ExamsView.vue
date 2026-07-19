@@ -216,7 +216,9 @@ async function load() {
   loading.value = true
   error.value = null
   try {
-    rows.value = await academicsApi.exams.list(buildParams()) as ExamRow[]
+    rows.value = await academicsApi.exams.list({
+      ...buildParams({ all: true, include: 'term,gradeLevel,subject', sort: '-exam_date' }),
+    }) as ExamRow[]
   } catch (err) {
     error.value = getErrorMessage(err, 'Failed to load exams')
   } finally {

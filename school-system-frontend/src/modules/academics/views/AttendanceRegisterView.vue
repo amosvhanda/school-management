@@ -43,6 +43,7 @@ import { cn } from '@/lib/utils'
 import { academicsApi } from '@/services/api.service'
 import { fetchList } from '@/services/dashboard.service'
 import { moduleEndpoints } from '@/services'
+import type { ListQueryParams } from '@/types/api'
 
 type AttendanceStatus = 'present' | 'absent' | 'late' | 'excused'
 
@@ -179,12 +180,17 @@ async function loadRegister() {
   try {
     const [students, existing] = await Promise.all([
       fetchList<StudentOption>(moduleEndpoints.students, {
-        class_id: selectedClassId.value,
+        filter: { class_id: selectedClassId.value },
         limit: 500,
+        include: 'classModel',
       }),
       academicsApi.attendance.list({
-        class_id: selectedClassId.value,
-        date: registerDate.value,
+        filter: {
+          class_id: selectedClassId.value,
+          date: registerDate.value,
+        },
+        all: true,
+        include: 'student,classModel',
       }) as Promise<AttendanceRecord[]>,
     ])
 
@@ -219,8 +225,15 @@ async function loadRegister() {
 async function loadHistory() {
   historyLoading.value = true
   try {
-    const params: Record<string, string> = { limit: '200' }
-    if (selectedClassId.value) params.class_id = selectedClassId.value
+    const params: ListQueryParams = {
+      all: true,
+      include: 'student,classModel',
+      sort: '-date',
+      filter: {},
+    }
+    if (selectedClassId.value) {
+      params.filter = { ...params.filter, class_id: selectedClassId.value }
+    }
     historyRows.value = await academicsApi.attendance.list(params) as AttendanceRecord[]
   } catch {
     historyRows.value = []

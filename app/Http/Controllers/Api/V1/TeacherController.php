@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Http\Concerns\HandlesResourceQueries;
 use App\Http\Requests\Api\V1\Teacher\StoreTeacherRequest;
 use App\Http\Requests\Api\V1\Teacher\UpdateTeacherRequest;
 use App\Http\Resources\Api\V1\TeacherResource;
@@ -12,38 +13,35 @@ use Illuminate\Http\Request;
 
 class TeacherController extends Controller
 {
+    use HandlesResourceQueries;
+
     public function __construct(private CustomFieldService $customFieldService) {}
 
     public function index(Request $request)
     {
         $this->authorize('viewAny', Teacher::class);
 
-        $query = Teacher::query();
-
-        if ($request->user()?->school_id) {
-            $query->where('school_id', $request->user()->school_id);
-        }
-
-        if ($request->filled('search')) {
-            $search = $request->search;
-            $query->where(function ($q) use ($search) {
-                $q->where('name', 'like', "%{$search}%")
-                    ->orWhere('email', 'like', "%{$search}%")
-                    ->orWhere('employee_id', 'like', "%{$search}%");
-            });
-        }
-        if ($request->filled('department')) {
-            $query->where('department', $request->department);
-        }
-        if ($request->filled('status')) {
-            $query->where('status', $request->status);
-        }
-
-        $teachers = $request->boolean('all')
-            ? $query->orderBy('name')->get()
-            : $query->orderBy('name')->limit($request->integer('limit', 50))->get();
-
-        return $this->success(TeacherResource::collection($teachers));
+        return $this->paginateResource($request, Teacher::class, TeacherResource::class, [
+            'filters' => ['status', 'department', 'subject', 'search'],
+            'search_columns' => ['name', 'email', 'employee_id', 'first_name', 'last_name'],
+            'sorts' => ['name', 'created_at', 'employee_id', 'status', 'department'],
+            'includes' => [],
+            'fields' => [
+                'teachers.id',
+                'teachers.name',
+                'teachers.first_name',
+                'teachers.last_name',
+                'teachers.email',
+                'teachers.phone',
+                'teachers.employee_id',
+                'teachers.department',
+                'teachers.subject',
+                'teachers.status',
+                'teachers.school_id',
+                'teachers.created_at',
+            ],
+            'default_sort' => 'name',
+        ]);
     }
 
     public function show(Teacher $teacher)

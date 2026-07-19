@@ -53,6 +53,8 @@ export const moduleListMetaRegistry: Record<string, ListPageMeta> = {
   students: {
     serverSearch: true,
     filterMode: 'server',
+    serverPagination: true,
+    perPage: 25,
     filters: [
       {
         key: 'class_id',
@@ -94,6 +96,8 @@ export const moduleListMetaRegistry: Record<string, ListPageMeta> = {
   teachers: {
     serverSearch: true,
     filterMode: 'server',
+    serverPagination: true,
+    perPage: 25,
     filters: [
       {
         key: 'status',

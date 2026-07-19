@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Concerns\HandlesResourceQueries;
 use App\Http\Resources\Api\V1\PaymentResource;
 use App\Models\Payment;
 use App\Models\School;
@@ -11,9 +12,12 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 use InvalidArgumentException;
+use Spatie\QueryBuilder\AllowedFilter;
 
 class PaymentController extends Controller
 {
+    use HandlesResourceQueries;
+
     private const PAYMENT_METHODS = [
         'cash', 'ecocash', 'onemoney', 'innbucks', 'bank_transfer', 'card', 'cheque', 'other',
     ];
@@ -33,67 +37,35 @@ class PaymentController extends Controller
 
         $schoolId = $request->user()->school_id;
 
-        // Optimized Eager Loading
-        $query = Payment::with([
-            'student:id,full_name,student_number',
-            'invoice:id,invoice_number,balance',
-        ])->when($schoolId, fn ($q) => $q->where('school_id', $schoolId));
+        $base = Payment::query()
+            ->when($schoolId, fn ($q) => $q->where('school_id', $schoolId));
 
-        // Mass assignment filter safety
-        foreach (['student_id', 'invoice_id', 'method', 'status', 'currency'] as $filter) {
-            if ($request->filled($filter)) {
-                $query->where($filter, $request->input($filter));
-            }
-        }
-
-        if ($request->filled('from')) {
-            $query->whereDate('date', '>=', $request->from);
-        }
-        if ($request->filled('to')) {
-            $query->whereDate('date', '<=', $request->to);
-        }
-
-        if ($request->filled('search')) {
-            $search = $request->search;
-            $query->where(function ($q) use ($search) {
-                // Note: optimized indexes should be present for these fields
-                $q->whereHas('student', function ($sq) use ($search) {
-                    $sq->where('full_name', 'like', "%{$search}%")
-                        ->orWhere('student_number', 'like', "%{$search}%");
-                })
-                    ->orWhere('reference', 'like', "%{$search}%")
-                    ->orWhereHas('invoice', function ($iq) use ($search) {
-                        $iq->where('invoice_number', 'like', "%{$search}%");
-                    });
-            });
-        }
-
-        $sort = $request->get('sort', 'date');
-        $allowedSorts = ['date', 'amount', 'created_at', 'status', 'method'];
-        if (! in_array($sort, $allowedSorts, true)) {
-            $sort = 'date';
-        }
-
-        $order = strtolower($request->get('order', 'desc')) === 'asc' ? 'asc' : 'desc';
-        $query->orderBy($sort, $order);
-
-        // Guard against massive unpaginated queries
-        if ($request->boolean('all')) {
-            return PaymentResource::collection($query->limit(500)->get())
-                ->additional(['message' => 'Success']);
-        }
-
-        if ($request->filled('limit') && ! $request->filled('page')) {
-            $limit = min((int) $request->limit, 100); // Caps unpaginated custom limits
-
-            return PaymentResource::collection($query->limit($limit)->get())
-                ->additional(['message' => 'Success']);
-        }
-
-        $perPage = min($request->integer('per_page', 25), 100);
-
-        return PaymentResource::collection($query->paginate($perPage))
-            ->additional(['message' => 'Success']);
+        return $this->paginateResource($request, Payment::class, PaymentResource::class, [
+            'base' => $base,
+            'filters' => [
+                'student_id',
+                'invoice_id',
+                'method',
+                'status',
+                'currency',
+                AllowedFilter::callback('from', fn ($query, $value) => $query->whereDate('date', '>=', $value)),
+                AllowedFilter::callback('to', fn ($query, $value) => $query->whereDate('date', '<=', $value)),
+                'search',
+            ],
+            'search_columns' => [
+                'reference',
+                'student.full_name',
+                'student.student_number',
+                'invoice.invoice_number',
+            ],
+            'sorts' => ['date', 'amount', 'created_at', 'status', 'method'],
+            'includes' => ['student', 'invoice', 'createdBy'],
+            'default_sort' => '-date',
+            'with' => [
+                'student:id,full_name,student_number',
+                'invoice:id,invoice_number,balance',
+            ],
+        ]);
     }
 
     public function store(Request $request)

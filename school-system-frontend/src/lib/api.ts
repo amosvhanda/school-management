@@ -8,11 +8,49 @@ import type { ApiErrorResponse } from '@/types/api'
 const apiOrigin = env.VITE_API_URL?.replace(/\/$/, '') ?? ''
 export const baseURL = apiOrigin ? `${apiOrigin}/api/v1` : '/api/v1'
 
+/**
+ * Encode nested query objects the way Spatie Query Builder expects:
+ *   { filter: { status: 'active' }, fields: { students: 'id,name' } }
+ *   -> filter[status]=active&fields[students]=id,name
+ */
+export function serializeParams(params: Record<string, unknown>): string {
+  const parts: string[] = []
+
+  const append = (key: string, value: unknown) => {
+    if (value === undefined || value === null || value === '') return
+    if (typeof value === 'boolean') {
+      parts.push(`${encodeURIComponent(key)}=${value ? '1' : '0'}`)
+      return
+    }
+    if (Array.isArray(value)) {
+      parts.push(`${encodeURIComponent(key)}=${encodeURIComponent(value.join(','))}`)
+      return
+    }
+    parts.push(`${encodeURIComponent(key)}=${encodeURIComponent(String(value))}`)
+  }
+
+  for (const [key, value] of Object.entries(params)) {
+    if (value !== null && typeof value === 'object' && !Array.isArray(value)) {
+      for (const [nestedKey, nestedValue] of Object.entries(value as Record<string, unknown>)) {
+        if (nestedValue === undefined || nestedValue === null || nestedValue === '') continue
+        append(`${key}[${nestedKey}]`, nestedValue)
+      }
+      continue
+    }
+    append(key, value)
+  }
+
+  return parts.join('&')
+}
+
 export const api = axios.create({
   baseURL,
   headers: {
     Accept: 'application/json',
     'Content-Type': 'application/json',
+  },
+  paramsSerializer: {
+    serialize: serializeParams,
   },
 })
 

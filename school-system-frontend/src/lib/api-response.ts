@@ -37,18 +37,40 @@ export function isPaginator<T>(body: unknown): body is Paginator<T> {
 
 export function unwrapPaginator<T>(body: unknown): Paginator<T> {
   if (isPaginator<T>(body)) return body
-  if (body && typeof body === 'object' && 'data' in body) {
-    const inner = (body as { data: unknown }).data
-    if (isPaginator<T>(inner)) return inner
+
+  if (body && typeof body === 'object') {
+    // Laravel Resource collection: { data: [...], meta: { current_page, ... }, links?: ... }
+    if ('data' in body && 'meta' in body) {
+      const meta = (body as { meta: Record<string, unknown> }).meta
+      const data = unwrapList<T>(body)
+      if (typeof meta.current_page === 'number' || typeof meta.total === 'number') {
+        return {
+          current_page: Number(meta.current_page ?? 1),
+          data,
+          last_page: Number(meta.last_page ?? 1),
+          per_page: Number(meta.per_page ?? data.length),
+          total: Number(meta.total ?? data.length),
+          from: (meta.from as number | null | undefined) ?? (data.length ? 1 : null),
+          to: (meta.to as number | null | undefined) ?? (data.length || null),
+        }
+      }
+    }
+
+    if ('data' in body) {
+      const inner = (body as { data: unknown }).data
+      if (isPaginator<T>(inner)) return inner
+    }
   }
+
+  const list = unwrapList<T>(body)
   return {
     current_page: 1,
-    data: unwrapList<T>(body),
+    data: list,
     last_page: 1,
-    per_page: unwrapList<T>(body).length,
-    total: unwrapList<T>(body).length,
-    from: unwrapList<T>(body).length ? 1 : null,
-    to: unwrapList<T>(body).length,
+    per_page: list.length,
+    total: list.length,
+    from: list.length ? 1 : null,
+    to: list.length || null,
   }
 }
 

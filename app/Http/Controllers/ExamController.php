@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Concerns\HandlesResourceQueries;
+use App\Http\Resources\Api\V1\ExamResource;
 use App\Models\Exam;
 use App\Models\ExamResult;
 use App\Models\Term;
@@ -19,6 +21,8 @@ use Illuminate\Support\Facades\DB;
 
 class ExamController extends Controller
 {
+    use HandlesResourceQueries;
+
     public function __construct(
         private ParentNotificationService $parentNotifications,
         private AuditService $auditService,
@@ -34,33 +38,26 @@ class ExamController extends Controller
         $user = $request->user();
         $schoolId = $user->school_id;
 
-        $query = Exam::where('school_id', $schoolId)
-            ->with(['term', 'gradeLevel', 'subject']);
+        $base = Exam::query()->where('school_id', $schoolId);
+        $base = $this->examAccess->scopeVisibleExams($base, $user);
 
-        $query = $this->examAccess->scopeVisibleExams($query, $user);
-
-        if ($request->has('term_id')) {
-            $query->where('term_id', $request->term_id);
-        }
-
-        if ($request->has('grade_level_id')) {
-            $query->where('grade_level_id', $request->grade_level_id);
-        }
-
-        if ($request->has('subject_id')) {
-            $query->where('subject_id', $request->subject_id);
-        }
-
-        if ($request->has('academic_year')) {
-            $query->where('academic_year', $request->academic_year);
-        }
-
-        $exams = $query->withCount('examResults')
-            ->orderBy('exam_date', 'desc')
-            ->get();
-
-        return response()->json([
-            'data' => $exams,
+        return $this->paginateResource($request, Exam::class, ExamResource::class, [
+            'base' => $base,
+            'filters' => [
+                'term_id',
+                'grade_level_id',
+                'subject_id',
+                'academic_year',
+                'search',
+            ],
+            'search_columns' => ['name', 'description'],
+            'sorts' => ['exam_date', 'created_at', 'name', 'academic_year'],
+            'includes' => ['term', 'gradeLevel', 'subject'],
+            'default_sort' => '-exam_date',
+            'with' => ['term', 'gradeLevel', 'subject'],
+            'with_count' => ['examResults'],
+            'default_per_page' => 50,
+            'max_all' => 500,
         ]);
     }
 

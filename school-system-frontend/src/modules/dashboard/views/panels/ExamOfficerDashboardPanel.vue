@@ -46,7 +46,7 @@ const overviewCards = computed<MetricCard[]>(() => [
 
 async function loadExamStats() {
   try {
-    const exams = await academicsApi.exams.list() as ExamRow[]
+    const exams = await academicsApi.exams.list({ all: true }) as ExamRow[]
     const today = new Date().toISOString().slice(0, 10)
     examStats.value = {
       total: exams.length,

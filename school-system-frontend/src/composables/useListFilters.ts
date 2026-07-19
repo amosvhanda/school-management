@@ -15,13 +15,27 @@ export function useListFilters(
   const hasActiveFilters = computed(() => activeCount.value > 0)
 
   function buildParams(base: ListQueryParams = {}): ListQueryParams {
-    const params = { ...base }
-    for (const filter of filters.value ?? []) {
-      const value = values.value[filter.key]
+    const params: ListQueryParams = { ...base }
+    const filter: Record<string, string | number | boolean | undefined | null> = {
+      ...(base.filter ?? {}),
+    }
+
+    for (const listFilter of filters.value ?? []) {
+      const value = values.value[listFilter.key]
       if (value != null && value !== '') {
-        params[filter.key] = value
+        filter[listFilter.key] = value
       }
     }
+
+    // Prefer Spatie filter[] contract; keep top-level search for legacy callers.
+    if (typeof params.search === 'string' && params.search !== '' && filter.search == null) {
+      filter.search = params.search
+    }
+
+    if (Object.keys(filter).length > 0) {
+      params.filter = filter
+    }
+
     return params
   }
 

@@ -214,6 +214,25 @@ async function load(page = serverPage.value) {
     )
     if (serverSearch.value && globalFilter.value.trim()) {
       params.search = globalFilter.value.trim()
+      params.filter = {
+        ...(params.filter ?? {}),
+        search: globalFilter.value.trim(),
+      }
+    }
+    if (props.listKey === 'students') {
+      params.include = 'guardians,classModel,gradeLevel'
+      params.sort = params.sort ?? '-created_at'
+    }
+    if (props.listKey === 'teachers') {
+      params.sort = params.sort ?? 'name'
+    }
+    if (props.listKey === 'finance-payments') {
+      params.include = 'student,invoice'
+      params.sort = params.sort ?? '-date'
+    }
+    if (props.listKey === 'finance-invoices') {
+      params.include = 'student'
+      params.sort = params.sort ?? '-created_at'
     }
 
     if (serverPagination.value) {

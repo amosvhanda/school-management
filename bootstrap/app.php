@@ -11,6 +11,9 @@ use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
+use Spatie\QueryBuilder\Exceptions\InvalidFilterQuery;
+use Spatie\QueryBuilder\Exceptions\InvalidIncludeQuery;
+use Spatie\QueryBuilder\Exceptions\InvalidSortQuery;
 use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 
 return Application::configure(basePath: dirname(__DIR__))
@@ -56,6 +59,16 @@ return Application::configure(basePath: dirname(__DIR__))
 
             if ($e instanceof DomainException) {
                 return response()->json($e->toArray(), $e->status);
+            }
+
+            if ($e instanceof InvalidFilterQuery
+                || $e instanceof InvalidSortQuery
+                || $e instanceof InvalidIncludeQuery
+                || $e instanceof \Spatie\QueryBuilder\Exceptions\InvalidFieldQuery) {
+                return response()->json([
+                    'message' => $e->getMessage(),
+                    'errors' => ['query' => [$e->getMessage()]],
+                ], 422);
             }
 
             if ($e instanceof ValidationException

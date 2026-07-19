@@ -37,5 +37,18 @@ export interface ListQueryParams {
   search?: string
   page?: number
   per_page?: number
-  [key: string]: string | number | boolean | undefined
+  /** Spatie-style exact/partial filters: encoded as filter[status]=active */
+  filter?: Record<string, string | number | boolean | undefined | null>
+  /** Comma-separated relation includes */
+  include?: string
+  /** Sparse fieldsets: fields[students]=id,full_name */
+  fields?: Record<string, string>
+  [key: string]:
+    | string
+    | number
+    | boolean
+    | undefined
+    | null
+    | Record<string, string | number | boolean | undefined | null>
+    | Record<string, string>
 }

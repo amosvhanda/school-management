@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Http\Concerns\HandlesResourceQueries;
 use App\Http\Requests\Api\V1\Student\StoreStudentRequest;
 use App\Http\Requests\Api\V1\Student\UpdateStudentRequest;
 use App\Http\Resources\Api\V1\StudentResource;
@@ -13,9 +14,12 @@ use App\Services\GuardianService;
 use App\Services\StudentAdmissionService;
 use App\Services\StudentPlacementService;
 use Illuminate\Http\Request;
+use Spatie\QueryBuilder\AllowedFilter;
 
 class StudentController extends Controller
 {
+    use HandlesResourceQueries;
+
     public function __construct(
         private CustomFieldService $customFieldService,
         private GuardianService $guardianService,
@@ -27,45 +31,38 @@ class StudentController extends Controller
     {
         $this->authorize('viewAny', Student::class);
 
-        $query = Student::query()->with(['guardians', 'classModel', 'gradeLevel']);
-
-        if ($request->filled('class')) {
-            $query->where('class', $request->class);
-        }
-        if ($request->filled('class_id')) {
-            $query->where('class_id', $request->class_id);
-        }
-        if ($request->filled('grade_level_id')) {
-            $query->where('grade_level_id', $request->grade_level_id);
-        }
-        if ($request->filled('gender')) {
-            $query->where('gender', $request->gender);
-        }
-        if ($request->filled('guardian_id')) {
-            $guardianId = (int) $request->guardian_id;
-            $query->whereHas('guardians', fn ($q) => $q->where('guardians.id', $guardianId));
-        }
-        if ($request->filled('status')) {
-            $query->where('status', $request->status);
-        }
-        if ($request->filled('search')) {
-            $search = $request->search;
-            $query->where(function ($q) use ($search) {
-                $q->where('full_name', 'like', "%{$search}%")
-                    ->orWhere('first_name', 'like', "%{$search}%")
-                    ->orWhere('last_name', 'like', "%{$search}%")
-                    ->orWhere('student_number', 'like', "%{$search}%")
-                    ->orWhere('email', 'like', "%{$search}%");
-            });
-        }
-
-        $students = $request->boolean('all')
-            ? $query->orderBy('full_name')->get()
-            : $query->orderBy($request->get('sort', 'created_at'), $request->get('order', 'desc'))
-                ->limit($request->integer('limit', 50))
-                ->get();
-
-        return $this->success(StudentResource::collection($students));
+        return $this->paginateResource($request, Student::class, StudentResource::class, [
+            'filters' => [
+                'status',
+                'class_id',
+                'grade_level_id',
+                'gender',
+                'class',
+                AllowedFilter::callback('guardian_id', function ($query, $value) {
+                    $query->whereHas('guardians', fn ($q) => $q->where('guardians.id', (int) $value));
+                }),
+                'search',
+            ],
+            'search_columns' => ['full_name', 'first_name', 'last_name', 'student_number', 'email'],
+            'sorts' => ['full_name', 'created_at', 'student_number', 'status'],
+            'includes' => ['guardians', 'classModel', 'gradeLevel'],
+            'fields' => [
+                'students.id',
+                'students.full_name',
+                'students.first_name',
+                'students.last_name',
+                'students.student_number',
+                'students.status',
+                'students.class_id',
+                'students.grade_level_id',
+                'students.email',
+                'students.phone',
+                'students.school_id',
+                'students.created_at',
+            ],
+            'default_sort' => '-created_at',
+            'with' => ['guardians', 'classModel', 'gradeLevel'],
+        ]);
     }
 
     public function show(Student $student)
