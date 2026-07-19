@@ -355,8 +355,18 @@ export const platformRoutes: RouteRecordRaw[] = [
     meta: { roles: ['super_admin'] },
   },
   platformListRoute('platform/api-clients', 'platform-api-clients', 'platform-api-clients'),
-  platformListRoute('platform/documents', 'platform-documents', 'platform-documents'),
+  {
+    path: 'platform/documents',
+    name: 'platform-documents',
+    component: () => import('@/modules/platform/views/PlatformDocumentsView.vue'),
+    meta: { roles: ['super_admin'] },
+  },
   platformListRoute('platform/scholarships', 'platform-scholarships', 'platform-scholarships'),
   platformListRoute('platform/refunds', 'platform-refunds', 'platform-refunds'),
-  platformListRoute('platform/staff-tasks', 'platform-staff-tasks', 'platform-staff-tasks'),
+  {
+    path: 'platform/staff-tasks',
+    name: 'platform-staff-tasks',
+    component: () => import('@/modules/platform/views/PlatformStaffTasksView.vue'),
+    meta: { roles: ['super_admin'] },
+  },
 ]

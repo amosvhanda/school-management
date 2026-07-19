@@ -210,13 +210,34 @@ class AdvancedPlatformTest extends TestCase
     {
         $auth = $this->createAuthenticatedUser();
         $teacher = User::factory()->create(['school_id' => $auth['school']->id, 'role' => 'teacher']);
+        $otherSchoolTeacher = User::factory()->create(['role' => 'teacher']);
 
-        $this->withHeaders(['Authorization' => 'Bearer '.$auth['token']])
+        $created = $this->withHeaders(['Authorization' => 'Bearer '.$auth['token']])
             ->postJson('/api/v1/platform/staff-tasks', [
                 'title' => 'Prepare reports',
                 'assigned_to' => $teacher->id,
                 'due_date' => now()->addDays(3)->toDateString(),
-            ])->assertCreated();
+            ])->assertCreated()
+            ->assertJsonPath('data.assignee.id', $teacher->id);
+
+        $this->withHeaders(['Authorization' => 'Bearer '.$auth['token']])
+            ->postJson('/api/v1/platform/staff-tasks', [
+                'title' => 'Cross-school deny',
+                'assigned_to' => $otherSchoolTeacher->id,
+            ])->assertStatus(422);
+
+        $this->withHeaders(['Authorization' => 'Bearer '.$auth['token']])
+            ->putJson('/api/v1/platform/staff-tasks/'.$created->json('data.id'), [
+                'status' => 'in_progress',
+                'progress_percent' => 40,
+            ])->assertOk()
+            ->assertJsonPath('data.status', 'in_progress')
+            ->assertJsonPath('data.progress_percent', 40);
+
+        $this->withHeaders(['Authorization' => 'Bearer '.$auth['token']])
+            ->getJson('/api/v1/platform/staff-tasks')
+            ->assertOk()
+            ->assertJsonStructure(['data' => [['id', 'title', 'school', 'assignee']]]);
 
         $post = $this->withHeaders(['Authorization' => 'Bearer '.$auth['token']])
             ->postJson('/api/v1/platform/staff-feed', ['body' => 'Welcome back team!'])

@@ -276,14 +276,14 @@ onMounted(load)
         </Card>
         <Card>
           <CardHeader>
-            <CardTitle class="text-base">Documents</CardTitle>
-            <CardDescription>Platform document store and vault</CardDescription>
+            <CardTitle class="text-base">Signable documents</CardTitle>
+            <CardDescription>E-sign consent forms, policies, and agreements</CardDescription>
           </CardHeader>
           <CardContent>
             <Button variant="outline" as-child>
               <RouterLink to="/platform/documents">
                 <FileText class="mr-2 size-4" aria-hidden="true" />
-                Browse documents
+                Manage documents
               </RouterLink>
             </Button>
           </CardContent>

@@ -2,17 +2,26 @@
 
 namespace App\Services\Platform;
 
+use App\Enums\UserRole;
 use App\Models\DocumentSignature;
 use App\Models\SignableDocument;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 class DocumentSigningService
 {
     public function create(User $creator, array $data): SignableDocument
     {
+        $schoolId = $data['school_id'] ?? $creator->school_id;
+        if (! $schoolId) {
+            throw ValidationException::withMessages([
+                'school_id' => ['Select a school for this document.'],
+            ]);
+        }
+
         return SignableDocument::create([
-            'school_id' => $creator->school_id,
+            'school_id' => $schoolId,
             'title' => $data['title'],
             'document_type' => $data['document_type'],
             'content' => $data['content'],
@@ -27,7 +36,8 @@ class DocumentSigningService
             abort(422, 'Document is already fully signed.');
         }
 
-        if ($document->school_id !== $signer->school_id) {
+        $isSuperAdmin = $signer->role === UserRole::SuperAdmin;
+        if (! $isSuperAdmin && $document->school_id !== $signer->school_id) {
             abort(403, 'Cross-school signing denied.');
         }
 

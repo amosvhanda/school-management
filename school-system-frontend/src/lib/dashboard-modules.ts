@@ -1046,8 +1046,8 @@ export const PLATFORM_DASHBOARD_MODULE_GROUPS: DashboardModuleGroup[] = [
         capability: 'isSuperAdmin',
       },
       {
-        title: 'Documents',
-        description: 'Platform document store',
+        title: 'Signable documents',
+        description: 'E-sign consent forms, policies, and agreements',
         href: '/platform/documents',
         icon: 'FileText',
         capability: 'isSuperAdmin',
@@ -1068,7 +1068,7 @@ export const PLATFORM_DASHBOARD_MODULE_GROUPS: DashboardModuleGroup[] = [
       },
       {
         title: 'Staff tasks',
-        description: 'Cross-school task queue',
+        description: 'Assign and track operational work across schools',
         href: '/platform/staff-tasks',
         icon: 'ListTodo',
         capability: 'isSuperAdmin',

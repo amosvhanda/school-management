@@ -138,10 +138,10 @@ export const listPageRegistry: Record<string, ListPageConfig> = {
   'platform-health': { title: 'System Health', endpoint: moduleEndpoints.platformSystemHealth, columns: genericColumns },
   'platform-operations': { title: 'Live Operations', endpoint: moduleEndpoints.platformOperationsLive, columns: genericColumns },
   'platform-api-clients': { title: 'API Clients', endpoint: moduleEndpoints.platformApiClients, columns: defaultColumns(['name', 'client_id', 'status', 'created_at']) },
-  'platform-documents': { title: 'Documents', endpoint: moduleEndpoints.platformDocuments, columns: defaultColumns(['title', 'type', 'status', 'created_at']) },
+  'platform-documents': { title: 'Signable documents', endpoint: moduleEndpoints.platformDocuments, columns: defaultColumns(['title', 'type', 'status', 'created_at']) },
   'platform-scholarships': { title: 'Scholarships', endpoint: moduleEndpoints.platformScholarships, columns: defaultColumns(['name', 'amount', 'status', 'created_at']) },
   'platform-refunds': { title: 'Refunds', endpoint: moduleEndpoints.platformRefunds, columns: defaultColumns(['student_id', 'amount', 'status', 'created_at']) },
-  'platform-staff-tasks': { title: 'Staff Tasks', endpoint: moduleEndpoints.platformStaffTasks, columns: defaultColumns(['title', 'assignee_id', 'due_date', 'status']) },
+  'platform-staff-tasks': { title: 'Staff tasks', endpoint: moduleEndpoints.platformStaffTasks, columns: defaultColumns(['title', 'assignee_id', 'due_date', 'status']) },
 
   'portal-children': { title: 'My Children', endpoint: moduleEndpoints.parentPortalChildren, columns: portalChildColumns },
   'portal-announcements': { title: 'Announcements', endpoint: moduleEndpoints.parentPortalAnnouncements, columns: announcementColumns },

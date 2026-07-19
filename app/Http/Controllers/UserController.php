@@ -24,6 +24,10 @@ class UserController extends Controller
             $query->where('school_id', $currentUser->school_id);
         }
 
+        if ($currentUser?->isSuperAdmin() && $request->filled('school_id')) {
+            $query->where('school_id', $request->integer('school_id'));
+        }
+
         if ($request->has('role')) {
             $roleParam = $request->input('role');
             $roles = is_array($roleParam)

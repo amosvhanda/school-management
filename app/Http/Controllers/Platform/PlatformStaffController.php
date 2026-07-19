@@ -10,8 +10,10 @@ use App\Models\StaffFeedPost;
 use App\Models\StaffTask;
 use App\Models\Student;
 use App\Models\StudentIntervention;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\ValidationException;
 
 class PlatformStaffController extends Controller
 {
@@ -112,13 +114,32 @@ class PlatformStaffController extends Controller
     public function tasks(Request $request)
     {
         $query = $this->scopeToPlatformSchool(StaffTask::query(), $request)
-            ->with('school:id,name,code');
+            ->with([
+                'school:id,name,code',
+                'assignee:id,name,email,role,school_id',
+                'assigner:id,name,email',
+            ]);
 
         if ($request->boolean('mine')) {
             $query->where('assigned_to', $request->user()->id);
         }
 
-        return response()->json(['data' => $query->orderBy('due_date')->limit(200)->get()]);
+        if ($request->filled('status')) {
+            $query->where('status', $request->string('status'));
+        }
+
+        if ($request->filled('priority')) {
+            $query->where('priority', $request->string('priority'));
+        }
+
+        return response()->json([
+            'data' => $query
+                ->orderByRaw("CASE WHEN status IN ('completed','cancelled') THEN 1 ELSE 0 END")
+                ->orderByRaw("CASE priority WHEN 'urgent' THEN 0 WHEN 'high' THEN 1 WHEN 'normal' THEN 2 ELSE 3 END")
+                ->orderBy('due_date')
+                ->limit(200)
+                ->get(),
+        ]);
     }
 
     public function storeTask(Request $request)
@@ -126,22 +147,37 @@ class PlatformStaffController extends Controller
         $schoolId = $this->requirePlatformSchoolId($request);
         $data = Validator::make($request->all(), [
             'school_id' => 'nullable|integer|exists:schools,id',
-            'title' => 'required|string',
+            'title' => 'required|string|max:255',
             'description' => 'nullable|string',
             'assigned_to' => 'required|exists:users,id',
-            'priority' => 'in:low,normal,high,urgent',
+            'priority' => 'nullable|in:low,normal,high,urgent',
             'due_date' => 'nullable|date',
         ])->validate();
+
+        $assignee = User::query()
+            ->whereKey($data['assigned_to'])
+            ->where('school_id', $schoolId)
+            ->whereNotIn('role', ['student', 'parent'])
+            ->first();
+
+        if (! $assignee) {
+            throw ValidationException::withMessages([
+                'assigned_to' => ['Select a staff member from the chosen school.'],
+            ]);
+        }
 
         $task = StaffTask::create([
             'school_id' => $schoolId,
             'title' => $data['title'],
             'description' => $data['description'] ?? null,
-            'assigned_to' => $data['assigned_to'],
+            'assigned_to' => $assignee->id,
             'assigned_by' => $request->user()->id,
             'priority' => $data['priority'] ?? 'normal',
+            'status' => 'pending',
             'due_date' => $data['due_date'] ?? null,
         ]);
+
+        $task->load(['school:id,name,code', 'assignee:id,name,email,role', 'assigner:id,name,email']);
 
         return response()->json(['data' => $task, 'message' => 'Task assigned'], 201);
     }
@@ -152,16 +188,25 @@ class PlatformStaffController extends Controller
         $data = Validator::make($request->all(), [
             'status' => 'nullable|in:pending,in_progress,completed,cancelled',
             'progress_percent' => 'nullable|integer|min:0|max:100',
+            'priority' => 'nullable|in:low,normal,high,urgent',
+            'due_date' => 'nullable|date',
+            'title' => 'nullable|string|max:255',
+            'description' => 'nullable|string',
         ])->validate();
 
-        $updates = array_filter($data);
+        $updates = collect($data)->filter(fn ($value) => $value !== null)->all();
+
         if (($updates['status'] ?? null) === 'completed') {
             $updates['completed_at'] = now();
             $updates['progress_percent'] = 100;
+        } elseif (array_key_exists('status', $updates) && $updates['status'] !== 'completed') {
+            $updates['completed_at'] = null;
         }
-        $task->update($updates);
 
-        return response()->json(['data' => $task->fresh(), 'message' => 'Task updated']);
+        $task->update($updates);
+        $task->load(['school:id,name,code', 'assignee:id,name,email,role', 'assigner:id,name,email']);
+
+        return response()->json(['data' => $task, 'message' => 'Task updated']);
     }
 
     public function feed(Request $request)

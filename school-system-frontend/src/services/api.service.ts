@@ -632,7 +632,10 @@ export const platformApi = {
   branchTree: () => fetchOne(e.platform.branchTree),
   retentionPolicies: () => fetchList(e.platform.retentionPolicies),
   maskingRules: () => fetchList(e.platform.maskingRules),
-  documents: () => fetchList(e.platform.documents),
+  documents: (params?: ListQueryParams) => fetchList(e.platform.documents, params),
+  createDocument: (payload: Record<string, unknown>) => createRecord(e.platform.documents, payload),
+  signDocument: (id: number | string, payload?: Record<string, unknown>) =>
+    postRecord(e.platform.signDocument(id), payload),
   certificates: () => fetchList(e.platform.certificates),
   vault: () => fetchList(e.platform.vault),
   scholarships: () => fetchList(e.platform.scholarships),
@@ -644,7 +647,10 @@ export const platformApi = {
   interventions: () => fetchList(e.platform.interventions),
   storeIntervention: (payload: Record<string, unknown>) =>
     createRecord(e.platform.interventions, payload),
-  staffTasks: () => fetchList(e.platform.staffTasks),
+  staffTasks: (params?: ListQueryParams) => fetchList(e.platform.staffTasks, params),
+  createStaffTask: (payload: Record<string, unknown>) => createRecord(e.platform.staffTasks, payload),
+  updateStaffTask: (id: number | string, payload: Record<string, unknown>) =>
+    updateRecord(e.platform.staffTask(id), payload),
   staffFeed: () => fetchList(e.platform.staffFeed),
   predictiveAnalytics: () => fetchOne(e.platform.predictiveAnalytics),
   auditIntegrity: () => fetchOne(e.platform.auditIntegrity),

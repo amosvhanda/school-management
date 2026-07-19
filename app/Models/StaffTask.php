@@ -27,4 +27,9 @@ class StaffTask extends Model
     {
         return $this->belongsTo(User::class, 'assigned_to');
     }
+
+    public function assigner(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'assigned_by');
+    }
 }

@@ -22,6 +22,7 @@ class CreateSignableDocumentRequest extends FormRequest
     public function rules(): array
     {
         return [
+            'school_id' => 'nullable|integer|exists:schools,id',
             'title' => 'required|string|max:255',
             'document_type' => 'required|string|max:50',
             'content' => 'required|string',
