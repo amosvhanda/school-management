@@ -42,6 +42,11 @@ class SchoolSettingsService
             }
         }
 
+        // Canonical fees currency lives on the school record.
+        if (isset($result['regional'])) {
+            $result['regional']['currency'] = $school->getDefaultCurrency();
+        }
+
         return $result;
     }
 
@@ -67,6 +72,16 @@ class SchoolSettingsService
         $definition = config("school.definitions.{$group}.{$key}", []);
         $type ??= $definition['type'] ?? $this->inferType($value);
         $isPublic = $definition['public'] ?? $isPublic;
+
+        if ($group === 'regional' && $key === 'currency') {
+            app(SchoolConfigurationService::class)->setSchoolCurrency($school, (string) $value);
+
+            return SchoolSetting::withoutGlobalScopes()
+                ->where('school_id', $school->id)
+                ->where('group', 'regional')
+                ->where('key', 'currency')
+                ->firstOrFail();
+        }
 
         return DB::transaction(function () use ($school, $group, $key, $value, $type, $isPublic) {
             $setting = SchoolSetting::withoutGlobalScopes()->updateOrCreate(
@@ -112,6 +127,9 @@ class SchoolSettingsService
                 }
                 if ($key === 'school_name' && $default === null) {
                     $default = $school->name;
+                }
+                if ($group === 'regional' && $key === 'currency') {
+                    $default = $school->getDefaultCurrency();
                 }
 
                 $this->set(

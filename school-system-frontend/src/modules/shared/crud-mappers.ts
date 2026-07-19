@@ -353,7 +353,6 @@ export function mapFormToPayload(
       class_id: values.class_id ? Number(values.class_id) : undefined,
       fee_category_id: values.fee_category_id ? Number(values.fee_category_id) : undefined,
       amount: values.amount,
-      currency: values.currency,
     }
   }
 
@@ -391,7 +390,6 @@ export function mapFormToPayload(
         ? Number(values.reorder_level)
         : 5,
       unit_price: Number(values.unit_price ?? 0),
-      currency: values.currency ?? 'USD',
       billing_mode: values.billing_mode ?? 'direct_sale',
       is_active: values.is_active !== false,
     }

@@ -53,6 +53,7 @@ export interface FormFieldSchema {
   options?: Array<{ label: string; value: string }>
   min?: string
   max?: string
+  disabled?: boolean
   rowKey?: string
   payloadPath?: string
   relation?: RelationFieldConfig

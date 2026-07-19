@@ -6,6 +6,7 @@ use App\Http\Requests\Api\V1\School\RegisterSchoolRequest;
 use App\Http\Requests\Api\V1\School\UpdateSchoolRequest;
 use App\Http\Resources\Api\V1\SchoolResource;
 use App\Models\School;
+use App\Services\SchoolConfigurationService;
 use App\Services\SchoolProvisioningService;
 use Illuminate\Http\Request;
 
@@ -13,6 +14,7 @@ class SchoolController extends Controller
 {
     public function __construct(
         private SchoolProvisioningService $provisioning,
+        private SchoolConfigurationService $configuration,
     ) {}
 
     public function register(RegisterSchoolRequest $request)
@@ -44,7 +46,17 @@ class SchoolController extends Controller
         $school = School::findOrFail($request->user()->school_id);
         $this->authorize('update', $school);
 
-        $school->update($request->validated());
+        $data = $request->validated();
+        $currency = $data['currency'] ?? null;
+        unset($data['currency']);
+
+        if ($data !== []) {
+            $school->update($data);
+        }
+
+        if ($currency !== null && $currency !== '') {
+            $this->configuration->setSchoolCurrency($school->fresh(), (string) $currency);
+        }
 
         return $this->success(new SchoolResource($school->fresh()), 'School updated successfully');
     }

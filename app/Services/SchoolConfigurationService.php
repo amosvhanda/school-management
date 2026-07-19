@@ -2,10 +2,14 @@
 
 namespace App\Services;
 
+use App\Models\Payment;
 use App\Models\School;
+use App\Models\SchoolSetting;
 use App\Models\GradeLevel;
 use App\Models\GradingScale;
+use App\Models\Student;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 class SchoolConfigurationService
 {
@@ -76,32 +80,59 @@ class SchoolConfigurationService
     }
 
     /**
-     * Validate and set school currency
+     * Set the school-wide fees currency used across invoices, fees, store, and trips.
      */
     public function setSchoolCurrency(School $school, string $currency): bool
     {
-        $allowedCurrencies = ['USD', 'ZWG'];
-        
-        if (!in_array($currency, $allowedCurrencies)) {
-            throw new \InvalidArgumentException("Currency must be one of: " . implode(', ', $allowedCurrencies));
+        $currency = strtoupper(trim($currency));
+
+        if (! $school->validateCurrency($currency)) {
+            throw ValidationException::withMessages([
+                'currency' => ['Fees currency must be USD or ZWG.'],
+            ]);
         }
 
-        // Check if currency can be changed
-        if ($school->currency_locked) {
-            // Check if there are any payments
-            $hasPayments = DB::table('payments')
+        $current = $school->getDefaultCurrency();
+        $hasPayments = Payment::query()
+            ->where('school_id', $school->id)
+            ->where('status', '!=', 'reversed')
+            ->exists();
+
+        if ($current !== $currency && ($school->currency_locked || $hasPayments)) {
+            throw ValidationException::withMessages([
+                'currency' => [
+                    'Fees currency cannot be changed after payments have been recorded. Contact a system administrator if you need help.',
+                ],
+            ]);
+        }
+
+        DB::transaction(function () use ($school, $currency, $hasPayments) {
+            $school->update([
+                'currency' => $currency,
+                'currency_default' => $currency,
+                'currency_locked' => $hasPayments || (bool) $school->currency_locked,
+            ]);
+
+            Student::query()
                 ->where('school_id', $school->id)
-                ->exists();
+                ->update(['currency' => $currency]);
 
-            if ($hasPayments) {
-                throw new \Exception("Currency cannot be changed after payments have been recorded. Please contact system administrator.");
-            }
-        }
-
-        $school->update([
-            'currency' => $currency,
-            'currency_default' => $currency,
-        ]);
+            // Keep typed settings bag in sync without going through SchoolSettingsService::set
+            // (avoids recursion when settings updates trigger this method).
+            $setting = SchoolSetting::withoutGlobalScopes()->updateOrCreate(
+                [
+                    'school_id' => $school->id,
+                    'group' => 'regional',
+                    'key' => 'currency',
+                ],
+                [
+                    'type' => 'string',
+                    'is_public' => true,
+                ]
+            );
+            $setting->setTypedValue($currency);
+            $setting->save();
+        });
 
         return true;
     }

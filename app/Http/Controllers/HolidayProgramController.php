@@ -40,7 +40,7 @@ class HolidayProgramController extends Controller
         $program = HolidayProgram::create([
             'school_id' => $request->user()->school_id,
             ...$data,
-            'currency' => $data['currency'] ?? 'USD',
+            'currency' => $data['currency'] ?? ($request->user()->school?->getDefaultCurrency() ?? 'USD'),
             'fee_amount' => $data['fee_amount'] ?? 0,
             'is_active' => $data['is_active'] ?? false,
         ]);

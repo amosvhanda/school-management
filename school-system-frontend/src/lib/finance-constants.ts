@@ -39,6 +39,14 @@ export const PAYMENT_STATUS_OPTIONS = [
   { label: 'Reversed', value: 'reversed' },
 ] as const
 
+/** Canonical school fees currencies (matches backend School::validateCurrency). */
+export const SCHOOL_CURRENCY_OPTIONS = [
+  { label: 'USD — US Dollar', value: 'USD' },
+  { label: 'ZWG — Zimbabwe Gold', value: 'ZWG' },
+] as const
+
+export type SchoolCurrency = (typeof SCHOOL_CURRENCY_OPTIONS)[number]['value']
+
 export function formatMoney(amount: unknown, currency = 'USD'): string {
   const value = Number(amount ?? 0)
   if (!Number.isFinite(value)) return `${currency} 0.00`

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import { SlidersHorizontal } from '@lucide/vue'
 import PageShell from '@/components/layout/PageShell.vue'
@@ -9,6 +9,7 @@ import ErrorState from '@/components/feedback/ErrorState.vue'
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { useToast } from '@/composables/useToast'
 import { useFormApiSubmit } from '@/composables/useFormApiSubmit'
+import { useSchoolProfile } from '@/composables/useSchoolProfile'
 import { schoolApi } from '@/services/api.service'
 import { getErrorMessage } from '@/lib/api-response'
 import {
@@ -21,13 +22,21 @@ interface SchoolProfile {
   email?: string
   phone?: string
   address?: string
+  currency?: string
+  currency_locked?: boolean
 }
 
 const toast = useToast()
+const { loadSchool } = useSchoolProfile()
 const loading = ref(true)
 const error = ref<string | null>(null)
+const currencyLocked = ref(false)
 const formResetValues = ref<Record<string, unknown> | undefined>()
 const formCardRef = ref<{ applyServerErrors: (error: unknown) => void } | null>(null)
+
+const formFields = computed(() =>
+  schoolSettingsFormFields({ currencyLocked: currencyLocked.value }),
+)
 
 const { submitValues, isSubmitting } = useFormApiSubmit({
   schema: schoolSettingsFormSchema,
@@ -35,7 +44,8 @@ const { submitValues, isSubmitting } = useFormApiSubmit({
     await schoolApi.update(values as Record<string, unknown>)
   },
   onSuccess: async () => {
-    toast.success('School profile saved')
+    toast.success('School settings saved')
+    await loadSchool({ force: true })
     await load()
   },
   onError: (message, err) => {
@@ -49,14 +59,16 @@ async function load() {
   error.value = null
   try {
     const school = await schoolApi.show() as SchoolProfile
+    currencyLocked.value = school.currency_locked === true
     formResetValues.value = {
       name: String(school.name ?? ''),
       email: String(school.email ?? ''),
       phone: String(school.phone ?? ''),
       address: String(school.address ?? ''),
+      currency: school.currency === 'ZWG' ? 'ZWG' : 'USD',
     }
   } catch (err) {
-    error.value = getErrorMessage(err, 'Failed to load school profile')
+    error.value = getErrorMessage(err, 'Failed to load school settings')
   } finally {
     loading.value = false
   }
@@ -68,7 +80,7 @@ onMounted(load)
 <template>
   <PageShell
     title="School settings"
-    description="Update your school profile — name, contact details, and address."
+    description="Update your school profile and the fees currency used across the system."
     max-width="wide"
   >
     <PageLoader v-if="loading" label="Loading school settings" />
@@ -90,9 +102,9 @@ onMounted(load)
       </RouterLink>
       <FormCard
         ref="formCardRef"
-        title="School profile"
-        description="Changes apply immediately for your school."
-        :fields="schoolSettingsFormFields"
+        title="School profile & fees currency"
+        description="Fees currency applies to invoices, fee structures, student accounts, store sales, and trip fees."
+        :fields="formFields"
         :schema="schoolSettingsFormSchema"
         :reset-values="formResetValues"
         form-key="school-settings"

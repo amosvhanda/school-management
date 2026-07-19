@@ -163,10 +163,12 @@ function colClass(field: FormFieldSchema) {
                 <Select
                   v-else-if="field.type === 'select'"
                   :model-value="componentField.modelValue !== undefined && componentField.modelValue !== null ? String(componentField.modelValue) : undefined"
+                  :disabled="field.disabled"
                   @update:model-value="componentField.onInput"
                 >
                   <SelectTrigger
                     :class="formSelectTriggerClass"
+                    :disabled="field.disabled"
                     :aria-required="field.required || undefined"
                     :aria-describedby="field.description ? `${field.name}-description` : undefined"
                   >

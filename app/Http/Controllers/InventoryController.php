@@ -53,10 +53,13 @@ class InventoryController extends Controller
             'is_active' => 'nullable|boolean',
         ]);
 
+        $school = $request->user()->school;
+        $schoolCurrency = $school?->getDefaultCurrency() ?? 'USD';
+
         $item = InventoryItem::create([
             'school_id' => $schoolId,
             ...$data,
-            'currency' => $data['currency'] ?? 'USD',
+            'currency' => $data['currency'] ?? $schoolCurrency,
             'stock_quantity' => $data['stock_quantity'] ?? 0,
             'reorder_level' => $data['reorder_level'] ?? 5,
             'billing_mode' => $data['billing_mode'] ?? 'direct_sale',

@@ -76,7 +76,7 @@ class FeeStructureController extends Controller
             ],
             'category' => 'nullable|string|max:255',
             'amount' => 'required|numeric|min:0.01',
-            'currency' => 'required|string|in:USD,ZWG,ZWL',
+            'currency' => 'nullable|string|in:USD,ZWG,ZWL',
         ]);
 
         $validator->after(function ($validator) use ($request) {
@@ -98,7 +98,10 @@ class FeeStructureController extends Controller
         [$classId, $className] = $this->resolveClass($request, $schoolId);
         [$categoryId, $categoryName] = $this->resolveCategory($request, $schoolId);
 
-        $currency = $request->currency === 'ZWL' ? 'ZWG' : $request->currency;
+        $schoolCurrency = $request->user()->school?->getDefaultCurrency() ?? 'USD';
+        $currency = $request->filled('currency')
+            ? ($request->currency === 'ZWL' ? 'ZWG' : $request->currency)
+            : $schoolCurrency;
 
         $feeStructure = FeeStructure::create([
             'class_id' => $classId,

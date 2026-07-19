@@ -59,6 +59,56 @@ class SchoolSettingsTest extends TestCase
         $response->assertOk()
             ->assertJsonPath('data.regional.currency', 'ZWG')
             ->assertJsonPath('data.regional.date_format', 'd/m/Y');
+
+        $this->assertSame('ZWG', $auth['school']->fresh()->getDefaultCurrency());
+    }
+
+    public function test_school_profile_update_sets_fees_currency(): void
+    {
+        $auth = $this->createAuthenticatedUser();
+
+        $this->withHeaders([
+            'Authorization' => 'Bearer '.$auth['token'],
+        ])->putJson('/api/v1/school', [
+            'currency' => 'ZWG',
+        ])
+            ->assertOk()
+            ->assertJsonPath('data.currency', 'ZWG');
+
+        $this->assertSame('ZWG', $auth['school']->fresh()->getDefaultCurrency());
+        $this->assertSame(
+            'ZWG',
+            app(SchoolSettingsService::class)->get($auth['school']->fresh(), 'regional', 'currency')
+        );
+    }
+
+    public function test_fees_currency_cannot_change_after_payments(): void
+    {
+        $auth = $this->createAuthenticatedUser();
+        $student = \App\Models\Student::factory()->create([
+            'school_id' => $auth['school']->id,
+            'currency' => 'USD',
+            'balance' => 0,
+        ]);
+
+        \App\Models\Payment::create([
+            'school_id' => $auth['school']->id,
+            'student_id' => $student->id,
+            'amount' => 10,
+            'currency' => 'USD',
+            'method' => 'cash',
+            'status' => 'completed',
+            'date' => now()->toDateString(),
+        ]);
+
+        $this->withHeaders([
+            'Authorization' => 'Bearer '.$auth['token'],
+        ])->putJson('/api/v1/school', [
+            'currency' => 'ZWG',
+        ])->assertStatus(422)
+            ->assertJsonValidationErrors(['currency']);
+
+        $this->assertSame('USD', $auth['school']->fresh()->getDefaultCurrency());
     }
 
     public function test_public_config_includes_terminology(): void

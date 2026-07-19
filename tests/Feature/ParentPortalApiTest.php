@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Enums\UserRole;
+use App\Models\ConsentForm;
 use App\Models\DisciplinaryRecord;
 use App\Models\Grade;
 use App\Models\InventoryItem;
@@ -338,5 +339,121 @@ class ParentPortalApiTest extends TestCase
             'status' => 'enrolled',
         ]);
         $this->assertGreaterThan(0, (float) $student->fresh()->balance);
+    }
+
+    public function test_parent_can_consent_for_multiple_children_at_once(): void
+    {
+        $school = School::factory()->create();
+        $parent = User::factory()->create([
+            'role' => UserRole::Parent,
+            'school_id' => $school->id,
+        ]);
+        $childA = Student::factory()->create(['school_id' => $school->id, 'status' => 'active', 'full_name' => 'Child A']);
+        $childB = Student::factory()->create(['school_id' => $school->id, 'status' => 'active', 'full_name' => 'Child B']);
+        foreach ([$childA, $childB] as $child) {
+            $parent->students()->attach($child->id, [
+                'school_id' => $school->id,
+                'relationship' => 'parent',
+                'is_primary' => true,
+            ]);
+        }
+
+        $form = ConsentForm::create([
+            'school_id' => $school->id,
+            'title' => 'Photo consent',
+            'content' => 'Allow school photos',
+            'target_audience' => 'parents',
+            'status' => 'active',
+        ]);
+
+        $token = $parent->createToken('test')->plainTextToken;
+        $headers = ['Authorization' => 'Bearer '.$token];
+
+        $this->withHeaders($headers)
+            ->getJson('/api/v1/parent/portal/consent-forms')
+            ->assertOk()
+            ->assertJsonPath('data.0.response_status', 'pending')
+            ->assertJsonCount(2, 'data.0.pending_student_ids');
+
+        $this->withHeaders($headers)
+            ->postJson("/api/v1/parent/portal/consent-forms/{$form->id}/respond", [
+                'status' => 'approved',
+                'student_ids' => [$childA->id, $childB->id],
+                'notes' => 'Happy to approve',
+            ])
+            ->assertCreated()
+            ->assertJsonCount(2, 'data');
+
+        $this->assertDatabaseHas('consent_responses', [
+            'form_id' => $form->id,
+            'parent_user_id' => $parent->id,
+            'student_id' => $childA->id,
+            'status' => 'approved',
+        ]);
+        $this->assertDatabaseHas('consent_responses', [
+            'form_id' => $form->id,
+            'parent_user_id' => $parent->id,
+            'student_id' => $childB->id,
+            'status' => 'approved',
+        ]);
+
+        $this->withHeaders($headers)
+            ->getJson('/api/v1/parent/portal/consent-forms')
+            ->assertOk()
+            ->assertJsonPath('data.0.response_status', 'approved')
+            ->assertJsonCount(0, 'data.0.pending_student_ids');
+    }
+
+    public function test_parent_can_approve_and_decline_different_children(): void
+    {
+        $school = School::factory()->create();
+        $parent = User::factory()->create([
+            'role' => UserRole::Parent,
+            'school_id' => $school->id,
+        ]);
+        $childA = Student::factory()->create(['school_id' => $school->id, 'status' => 'active', 'full_name' => 'Child A']);
+        $childB = Student::factory()->create(['school_id' => $school->id, 'status' => 'active', 'full_name' => 'Child B']);
+        foreach ([$childA, $childB] as $child) {
+            $parent->students()->attach($child->id, [
+                'school_id' => $school->id,
+                'relationship' => 'parent',
+                'is_primary' => true,
+            ]);
+        }
+
+        $form = ConsentForm::create([
+            'school_id' => $school->id,
+            'title' => 'Trip consent',
+            'content' => 'Allow excursion',
+            'target_audience' => 'parents',
+            'status' => 'active',
+        ]);
+
+        $token = $parent->createToken('test')->plainTextToken;
+
+        $this->withHeaders(['Authorization' => 'Bearer '.$token])
+            ->postJson("/api/v1/parent/portal/consent-forms/{$form->id}/respond", [
+                'responses' => [
+                    ['student_id' => $childA->id, 'status' => 'approved'],
+                    ['student_id' => $childB->id, 'status' => 'declined'],
+                ],
+            ])
+            ->assertCreated();
+
+        $this->assertDatabaseHas('consent_responses', [
+            'form_id' => $form->id,
+            'student_id' => $childA->id,
+            'status' => 'approved',
+        ]);
+        $this->assertDatabaseHas('consent_responses', [
+            'form_id' => $form->id,
+            'student_id' => $childB->id,
+            'status' => 'declined',
+        ]);
+
+        $this->withHeaders(['Authorization' => 'Bearer '.$token])
+            ->getJson('/api/v1/parent/portal/consent-forms')
+            ->assertOk()
+            ->assertJsonPath('data.0.response_status', 'mixed');
     }
 }

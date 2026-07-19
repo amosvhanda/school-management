@@ -308,7 +308,6 @@ async function openCreate() {
       stock_quantity: 0,
       reorder_level: 5,
       unit_price: 0,
-      currency: 'USD',
       billing_mode: 'direct_sale',
       is_active: true,
     }
@@ -336,7 +335,7 @@ async function openCreate() {
     || props.listKey === 'settings-custom-fields'
   ) {
     formResetValues.value = props.listKey === 'ops-school-trips'
-      ? { is_active: true, open_for_registration: true, currency: 'USD', fee_amount: 0 }
+      ? { is_active: true, open_for_registration: true, fee_amount: 0 }
       : { is_active: true }
   } else if (props.listKey === 'ops-procurement') {
     formResetValues.value = {

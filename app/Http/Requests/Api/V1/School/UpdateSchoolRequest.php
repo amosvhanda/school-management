@@ -20,7 +20,7 @@ class UpdateSchoolRequest extends ApiFormRequest
             'address' => ['nullable', 'string'],
             'phone' => ZimbabweMobileNumber::optional(),
             'email' => ['nullable', 'email'],
-            'currency' => ['nullable', 'string', 'max:10'],
+            'currency' => ['nullable', 'string', 'in:USD,ZWG'],
             'academic_year' => ['nullable', 'string'],
             'current_term' => ['nullable', 'string'],
         ];
