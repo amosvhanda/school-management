@@ -21,7 +21,6 @@ import { getErrorMessage } from '@/lib/api-response'
 import {
   auditActionLabel,
   auditActionTone,
-  auditModuleLabel,
   AUDIT_ACTIONS,
   AUDIT_MODULES,
   roleLabel,
@@ -154,48 +153,62 @@ function openDetail(row: AuditLogRow) {
   detailOpen.value = true
 }
 
+/** Short row headline — prefer the affected record, not a long sentence. */
+function activityHeadline(row: AuditLogRow): string {
+  const name = row.target?.name || row.target?.label
+  if (name) return name
+
+  const type = row.target?.type_label
+  if (type) return type
+
+  const summary = row.summary || row.description
+  if (!summary) return '—'
+
+  // Strip “Actor verb … in Area” wrappers when present.
+  return summary
+    .replace(/^[^“"]+\s+(created|updated|deleted|approved|rejected|recorded)\s+/i, '')
+    .replace(/\s+in\s+[^]+$/i, '')
+    .replace(/^[“"]|[”"]$/g, '')
+    .trim() || summary
+}
+
 const activityColumns: ColumnDef<AuditLogRow>[] = [
   {
     id: 'when',
     header: 'When',
     accessorKey: 'created_at',
     cell: ({ row }) =>
-      h('div', { class: 'min-w-[9rem]' }, [
-        h('p', { class: 'text-sm font-medium' }, formatRelativeTime(row.original.created_at)),
-        h('p', { class: 'text-xs text-muted-foreground' }, formatDateTime(row.original.created_at)),
-      ]),
+      h(
+        'time',
+        {
+          class: 'text-sm text-muted-foreground whitespace-nowrap',
+          datetime: row.original.created_at,
+          title: formatDateTime(row.original.created_at),
+        },
+        formatRelativeTime(row.original.created_at),
+      ),
   },
   {
     id: 'who',
     header: 'Who',
     accessorFn: (row) => row.actor.name,
+    cell: ({ row }) =>
+      h('p', { class: 'text-sm font-medium truncate max-w-[12rem]' }, row.original.actor.name || 'System'),
+  },
+  {
+    id: 'record',
+    header: 'Record',
+    accessorFn: (row) => activityHeadline(row),
     cell: ({ row }) => {
-      const actor = row.original.actor
-      return h('div', { class: 'min-w-[10rem]' }, [
-        h('p', { class: 'text-sm font-medium' }, actor.name),
-        h(
-          'p',
-          { class: 'text-xs text-muted-foreground truncate max-w-[14rem]' },
-          actor.email ?? roleLabel(actor.role),
-        ),
+      const type = row.original.target?.type_label
+      const headline = activityHeadline(row.original)
+      return h('div', { class: 'min-w-[14rem] max-w-md' }, [
+        type
+          ? h('p', { class: 'text-xs text-muted-foreground' }, type)
+          : null,
+        h('p', { class: 'text-sm font-medium leading-snug line-clamp-2' }, headline),
       ])
     },
-  },
-  {
-    id: 'what',
-    header: 'What happened',
-    accessorKey: 'summary',
-    cell: ({ row }) =>
-      h('p', { class: 'text-sm leading-snug max-w-xl' }, row.original.summary || row.original.description || '—'),
-  },
-  {
-    id: 'area',
-    header: 'Area',
-    accessorKey: 'module_label',
-    cell: ({ row }) =>
-      h(Badge, { variant: 'outline', class: 'font-normal' }, () =>
-        row.original.module_label || auditModuleLabel(row.original.module),
-      ),
   },
   {
     id: 'action',
@@ -218,11 +231,11 @@ const activityColumns: ColumnDef<AuditLogRow>[] = [
         {
           variant: 'ghost',
           size: 'sm',
-          class: 'h-8 px-2',
-          'aria-label': `View details for audit entry ${row.original.id}`,
+          class: 'h-8 w-8 p-0',
+          'aria-label': `View details for ${activityHeadline(row.original)}`,
           onClick: () => openDetail(row.original),
         },
-        () => [h(Eye, { class: 'size-4', 'aria-hidden': 'true' }), h('span', { class: 'sr-only' }, 'View details')],
+        () => [h(Eye, { class: 'size-4', 'aria-hidden': 'true' })],
       ),
   },
 ]
@@ -233,22 +246,22 @@ const loginColumns: ColumnDef<LoginHistoryRow>[] = [
     header: 'When',
     accessorKey: 'created_at',
     cell: ({ row }) =>
-      h('div', { class: 'min-w-[9rem]' }, [
-        h('p', { class: 'text-sm font-medium' }, formatRelativeTime(row.original.created_at)),
-        h('p', { class: 'text-xs text-muted-foreground' }, formatDateTime(row.original.created_at)),
-      ]),
+      h(
+        'time',
+        {
+          class: 'text-sm text-muted-foreground whitespace-nowrap',
+          datetime: row.original.created_at,
+          title: formatDateTime(row.original.created_at),
+        },
+        formatRelativeTime(row.original.created_at),
+      ),
   },
   {
     id: 'who',
     header: 'User',
     accessorFn: (row) => row.actor.name,
-    cell: ({ row }) => {
-      const actor = row.original.actor
-      return h('div', { class: 'min-w-[10rem]' }, [
-        h('p', { class: 'text-sm font-medium' }, actor.name),
-        h('p', { class: 'text-xs text-muted-foreground truncate max-w-[14rem]' }, actor.email ?? '—'),
-      ])
-    },
+    cell: ({ row }) =>
+      h('p', { class: 'text-sm font-medium truncate max-w-[12rem]' }, row.original.actor.name || '—'),
   },
   {
     id: 'event',
@@ -265,7 +278,8 @@ const loginColumns: ColumnDef<LoginHistoryRow>[] = [
     id: 'summary',
     header: 'Summary',
     accessorKey: 'summary',
-    cell: ({ row }) => h('p', { class: 'text-sm leading-snug max-w-xl' }, row.original.summary),
+    cell: ({ row }) =>
+      h('p', { class: 'text-sm leading-snug line-clamp-2 max-w-md' }, row.original.summary),
   },
   {
     id: 'device',
@@ -279,9 +293,10 @@ const loginColumns: ColumnDef<LoginHistoryRow>[] = [
   },
   {
     id: 'ip',
-    header: 'IP address',
+    header: 'IP',
     accessorKey: 'context.ip_address',
-    cell: ({ row }) => h('p', { class: 'text-sm font-mono' }, row.original.context.ip_address ?? '—'),
+    cell: ({ row }) =>
+      h('p', { class: 'text-sm font-mono text-muted-foreground' }, row.original.context.ip_address ?? '—'),
   },
 ]
 
@@ -395,8 +410,11 @@ onMounted(() => {
 const detailChanges = computed(() => {
   const log = selectedLog.value
   if (!log) return []
-  if (log.changes?.length) return log.changes
-  return []
+  const hidden = new Set(['id', 'school_id', 'created_at', 'updated_at', 'deleted_at'])
+  const source = log.changes?.length
+    ? log.changes
+    : []
+  return source.filter((change) => !hidden.has(change.field))
 })
 
 function formatChangeValue(value: unknown): string {
@@ -431,25 +449,27 @@ function formatChangeValue(value: unknown): string {
       </div>
 
       <TabsContent value="activity" class="space-y-4">
-        <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-          <div class="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-end">
-            <div class="w-full max-w-sm space-y-2">
-              <Label for="audit-search">Search activity</Label>
-              <Input
-                id="audit-search"
-                v-model="search"
-                type="search"
-                placeholder="Search by description or area…"
-                autocomplete="off"
-              />
-            </div>
-            <div class="space-y-2">
-              <Label for="audit-from">From</Label>
-              <DatePicker id="audit-from" v-model="dateFrom" placeholder="Start date" class="w-full sm:w-auto" />
-            </div>
-            <div class="space-y-2">
-              <Label for="audit-to">To</Label>
-              <DatePicker id="audit-to" v-model="dateTo" placeholder="End date" class="w-full sm:w-auto" />
+        <div class="flex flex-col gap-3 rounded-xl border bg-card p-4">
+          <div class="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+            <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 flex-1">
+              <div class="space-y-2 sm:col-span-2 lg:col-span-1 xl:col-span-2">
+                <Label for="audit-search">Search</Label>
+                <Input
+                  id="audit-search"
+                  v-model="search"
+                  type="search"
+                  placeholder="Search activity…"
+                  autocomplete="off"
+                />
+              </div>
+              <div class="space-y-2">
+                <Label for="audit-from">From</Label>
+                <DatePicker id="audit-from" v-model="dateFrom" placeholder="Start date" />
+              </div>
+              <div class="space-y-2">
+                <Label for="audit-to">To</Label>
+                <DatePicker id="audit-to" v-model="dateTo" placeholder="End date" />
+              </div>
             </div>
           </div>
           <ListFiltersBar
@@ -464,7 +484,7 @@ function formatChangeValue(value: unknown): string {
         <ErrorState v-else-if="error" :message="error" @retry="loadActivity" />
         <template v-else>
           <p class="text-sm text-muted-foreground" aria-live="polite">
-            {{ activityMeta.total }} {{ activityMeta.total === 1 ? 'entry' : 'entries' }} recorded
+            {{ activityMeta.total }} {{ activityMeta.total === 1 ? 'entry' : 'entries' }}
           </p>
           <DataTable
             :table="activityTable"

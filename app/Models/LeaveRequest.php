@@ -50,4 +50,25 @@ class LeaveRequest extends Model
     {
         return $this->belongsTo(User::class, 'reviewed_by');
     }
+
+    public function getAuditIdentifier(): string
+    {
+        $teacher = $this->relationLoaded('teacher')
+            ? $this->teacher
+            : $this->teacher()->first();
+
+        $who = $teacher
+            ? trim((string) ($teacher->name ?: ($teacher->first_name.' '.$teacher->last_name)))
+            : 'staff member';
+
+        $type = $this->type ? str_replace('_', ' ', (string) $this->type) : 'leave';
+        $from = $this->start_date?->format('j M Y');
+        $to = $this->end_date?->format('j M Y');
+
+        if ($from && $to) {
+            return ucfirst($type)." leave for {$who} ({$from} – {$to})";
+        }
+
+        return ucfirst($type)." leave for {$who}";
+    }
 }

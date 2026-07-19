@@ -3,6 +3,7 @@
 namespace App\Http\Resources;
 
 use App\Support\AuditLabels;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -16,6 +17,8 @@ class AuditLogResource extends JsonResource
         $actorName = $user?->name
             ?? ($user ? trim(($user->first_name ?? '').' '.($user->last_name ?? '')) : null)
             ?: 'System';
+
+        $targetName = $this->resolveTargetName();
 
         return [
             'id' => $this->id,
@@ -31,6 +34,7 @@ class AuditLogResource extends JsonResource
                 $this->auditable_type,
                 $this->auditable_id,
                 $actorName !== 'System' ? $actorName : null,
+                $targetName,
             ),
             'user' => $user ? [
                 'id' => $user->id,
@@ -48,6 +52,8 @@ class AuditLogResource extends JsonResource
                 'type' => $this->auditable_type ? class_basename($this->auditable_type) : null,
                 'type_label' => AuditLabels::modelName($this->auditable_type),
                 'id' => $this->auditable_id,
+                'name' => $targetName,
+                'label' => $targetName,
             ],
             'old_values' => $this->old_values,
             'new_values' => $this->new_values,
@@ -65,6 +71,30 @@ class AuditLogResource extends JsonResource
         ];
     }
 
+    protected function resolveTargetName(): ?string
+    {
+        if (! $this->auditable_type || ! $this->auditable_id) {
+            return null;
+        }
+
+        try {
+            /** @var class-string<Model>|null $type */
+            $type = $this->auditable_type;
+            if (! is_string($type) || ! class_exists($type)) {
+                return null;
+            }
+
+            $model = $type::query()->find($this->auditable_id);
+            if (! $model instanceof Model) {
+                return null;
+            }
+
+            return AuditLabels::modelIdentifier($model);
+        } catch (\Throwable) {
+            return null;
+        }
+    }
+
     /**
      * @return list<array{field: string, label: string, from: mixed, to: mixed}>
      */
@@ -73,19 +103,25 @@ class AuditLogResource extends JsonResource
         $old = is_array($this->old_values) ? $this->old_values : [];
         $new = is_array($this->new_values) ? $this->new_values : [];
         $keys = array_unique(array_merge(array_keys($old), array_keys($new)));
+        $hidden = AuditLabels::hiddenChangeFields();
         $changes = [];
 
         foreach ($keys as $key) {
+            if (in_array($key, $hidden, true)) {
+                continue;
+            }
+
             $from = $old[$key] ?? null;
             $to = $new[$key] ?? null;
             if ($from === $to) {
                 continue;
             }
+
             $changes[] = [
                 'field' => $key,
-                'label' => \Illuminate\Support\Str::headline(str_replace('_', ' ', $key)),
-                'from' => $from,
-                'to' => $to,
+                'label' => AuditLabels::fieldLabel($key),
+                'from' => AuditLabels::displayValue($key, $from),
+                'to' => AuditLabels::displayValue($key, $to),
             ];
         }
 

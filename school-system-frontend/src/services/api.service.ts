@@ -370,6 +370,8 @@ export interface AuditLogRow {
     type: string | null
     type_label: string
     id: number | null
+    name?: string | null
+    label?: string | null
   }
   changes: AuditChange[]
   old_values: Record<string, unknown> | null
