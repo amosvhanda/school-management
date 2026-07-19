@@ -390,7 +390,9 @@ class ParentPortalController extends Controller
             $query->whereNull('read_at');
         }
 
-        return response()->json(['data' => $query->limit(100)->get()]);
+        $limit = min(max((int) $request->get('limit', 100), 1), 100);
+
+        return response()->json(['data' => $query->limit($limit)->get()]);
     }
 
     public function markNotificationRead(Request $request, int $id)

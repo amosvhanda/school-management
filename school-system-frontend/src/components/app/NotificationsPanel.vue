@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { RouterLink } from 'vue-router'
-// Corrected Lucide import path
 import {
   Bell,
   CheckCircle2,
+  ClipboardList,
   CreditCard,
   FileText,
   Receipt,
@@ -28,11 +28,16 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { formatRelativeTime } from '@/lib/format'
+import { isStaffDashboardRole } from '@/lib/permissions'
+import { queryClient } from '@/lib/query-client'
+import { queryKeys } from '@/lib/query-keys'
 import { useAuth } from '@/composables/useAuth'
 import { useParentPortalScope } from '@/composables/useParentPortalScope'
 import { parentPortalApi } from '@/services/api.service'
+import { fetchPendingWorkflows } from '@/services/dashboard.service'
 import { getErrorMessage } from '@/lib/api-response'
 import { useNotificationStore } from '@/stores/notification.store'
+import type { UserRole } from '@/types/auth'
 
 const notificationStore = useNotificationStore()
 const { user } = useAuth()
@@ -58,12 +63,14 @@ interface ChildOption {
   id: number
   full_name?: string
   fullName?: string
+  student_number?: string
 }
 
 const iconMap: Record<string, typeof CreditCard> = {
   payment: CreditCard,
   invoice: Receipt,
   student: UserPlus,
+  workflow: ClipboardList,
 }
 
 const menuOpen = ref(false)
@@ -72,11 +79,17 @@ const parentError = ref<string | null>(null)
 const parentNotifications = ref<ParentNotificationRow[]>([])
 const parentChildren = ref<ChildOption[]>([])
 const selectedStudentId = ref('all')
+const staffLoading = ref(false)
+const loadedForUserId = ref<number | null>(null)
 
-const isParent = computed(() => user.value?.role === 'parent')
+const role = computed(() => user.value?.role as UserRole | undefined)
+const isParent = computed(() => role.value === 'parent')
+const isStaff = computed(() => (role.value ? isStaffDashboardRole(role.value) : false))
+const showBell = computed(() => isParent.value || isStaff.value)
+
 const scopeStore = useParentPortalScope('notifications-filter')
 
-const items = computed(() =>
+const activityItems = computed(() =>
   notificationStore.recentActivity.slice(0, 8).map((item) => ({
     ...item,
     time: formatRelativeTime(item.timestamp),
@@ -105,10 +118,6 @@ const parentItems = computed(() =>
   }),
 )
 
-const parentUnreadCount = computed(() =>
-  parentNotifications.value.filter((item) => !item.read_at).length,
-)
-
 const selectedChildLabel = computed(() => {
   if (selectedStudentId.value === 'all') return 'All linked children'
   const selectedId = Number(selectedStudentId.value)
@@ -118,26 +127,87 @@ const selectedChildLabel = computed(() => {
 })
 
 const badgeTotal = computed(() => {
-  if (isParent.value) return parentUnreadCount.value
-  const n = notificationStore.workflowCount
-  return n > 0 ? n : items.value.length > 0 ? items.value.length : 0
+  if (isParent.value) return notificationStore.parentUnreadCount
+  if (isStaff.value) return notificationStore.workflowCount
+  return 0
 })
 
-const viewAllRoute = computed(() => (isParent.value ? '/portal/notifications' : '/'))
+const viewAllRoute = computed(() => {
+  if (isParent.value) return '/portal/notifications'
+  if (isStaff.value) return '/workflows'
+  return '/'
+})
+
+const viewAllLabel = computed(() => {
+  if (isParent.value) return 'View all notifications'
+  if (isStaff.value) return 'View pending workflows'
+  return 'Go to dashboard'
+})
+
+const emptyCopy = computed(() => {
+  if (isParent.value) {
+    return {
+      title: "You're all caught up",
+      description: 'No alerts for this profile scope.',
+    }
+  }
+  if (isStaff.value) {
+    return {
+      title: 'No pending approvals',
+      description: 'Workflows waiting on you will show here.',
+    }
+  }
+  return {
+    title: 'No notifications',
+    description: 'Alerts for your role will appear here when available.',
+  }
+})
+
+function resetLocalPanelState() {
+  parentNotifications.value = []
+  parentChildren.value = []
+  parentError.value = null
+  parentLoading.value = false
+  staffLoading.value = false
+  selectedStudentId.value = 'all'
+  loadedForUserId.value = null
+}
+
+async function refreshParentUnreadBadge() {
+  if (!isParent.value || !user.value?.id) return
+
+  try {
+    const unread = await queryClient.fetchQuery({
+      queryKey: queryKeys.parent.unread(user.value.id),
+      staleTime: 60_000,
+      queryFn: async () => {
+        const rows = await parentPortalApi.notifications({
+          unread_only: true,
+          limit: 50,
+        }) as ParentNotificationRow[]
+        return rows.length
+      },
+    })
+    notificationStore.setParentUnreadCount(unread)
+  } catch {
+    // Badge is best-effort; opening the panel still loads the full list.
+  }
+}
 
 async function loadParentNotifications() {
-  if (!isParent.value) return
+  if (!isParent.value || !user.value?.id) return
 
   parentLoading.value = true
   parentError.value = null
 
   try {
-    const children = await parentPortalApi.children() as ChildOption[]
-    parentChildren.value = children
+    if (!parentChildren.value.length || loadedForUserId.value !== user.value.id) {
+      parentChildren.value = await parentPortalApi.children() as ChildOption[]
+    }
 
     if (
       selectedStudentId.value !== 'all'
-      && !children.some((child) => String(child.id) === selectedStudentId.value)
+      && !parentChildren.value.some((child) => String(child.id) === selectedStudentId.value)
     ) {
       selectedStudentId.value = 'all'
       scopeStore.write('all')
@@ -145,15 +215,43 @@ async function loadParentNotifications() {
 
     const notifications = await parentPortalApi.notifications(
       selectedStudentId.value === 'all'
-        ? undefined
-        : { student_id: Number(selectedStudentId.value) },
+        ? { limit: 20 }
+        : { student_id: Number(selectedStudentId.value), limit: 20 },
     ) as ParentNotificationRow[]
 
     parentNotifications.value = notifications
+    loadedForUserId.value = user.value.id
+
+    const unread = notifications.filter((item) => !item.read_at).length
+    // When filtered to one child, refresh global unread separately so the badge stays honest.
+    if (selectedStudentId.value === 'all') {
+      notificationStore.setParentUnreadCount(unread)
+      queryClient.setQueryData(queryKeys.parent.unread(user.value.id), unread)
+    } else {
+      await refreshParentUnreadBadge()
+    }
   } catch (error) {
     parentError.value = getErrorMessage(error, 'Failed to load notifications')
   } finally {
     parentLoading.value = false
+  }
+}
+
+async function ensureStaffWorkflowBadge() {
+  if (!isStaff.value || !user.value?.id) return
+
+  staffLoading.value = true
+  try {
+    const workflows = await queryClient.fetchQuery({
+      queryKey: queryKeys.dashboard.workflows(user.value.id),
+      staleTime: 60_000,
+      queryFn: fetchPendingWorkflows,
+    })
+    notificationStore.setWorkflowCount(workflows.length)
+  } catch {
+    // Keep the panel responsive even if workflows fail.
+  } finally {
+    staffLoading.value = false
   }
 }
 
@@ -164,13 +262,40 @@ async function onChildFilterChange(value: unknown) {
 }
 
 async function markRead(id: number) {
+  const row = parentNotifications.value.find((item) => item.id === id)
+  if (!row || row.read_at) return
+
+  row.read_at = new Date().toISOString()
+  notificationStore.decrementParentUnread(1)
+  if (user.value?.id) {
+    const current = queryClient.getQueryData<number>(queryKeys.parent.unread(user.value.id))
+    if (typeof current === 'number') {
+      queryClient.setQueryData(queryKeys.parent.unread(user.value.id), Math.max(0, current - 1))
+    }
+  }
+
   try {
     await parentPortalApi.markNotificationRead(id)
-    await loadParentNotifications()
   } catch {
-    // Keep the panel non-blocking; full error details are available on the notifications page.
+    row.read_at = null
+    notificationStore.setParentUnreadCount(notificationStore.parentUnreadCount + 1)
   }
 }
+
+watch(
+  () => user.value?.id,
+  (id, previous) => {
+    notificationStore.bindSession(id ?? null)
+    if (id !== previous) {
+      resetLocalPanelState()
+      selectedStudentId.value = scopeStore.read('all')
+      if (isParent.value) {
+        void refreshParentUnreadBadge()
+      }
+    }
+  },
+  { immediate: true },
+)
 
 watch(
   () => scopeStore.storageKey.value,
@@ -183,15 +308,26 @@ watch(
 watch(
   () => menuOpen.value,
   async (open) => {
-    if (open && isParent.value) {
+    if (!open) return
+    if (isParent.value) {
       await loadParentNotifications()
+      return
+    }
+    if (isStaff.value) {
+      await ensureStaffWorkflowBadge()
     }
   },
 )
+
+onMounted(() => {
+  if (isParent.value) {
+    void refreshParentUnreadBadge()
+  }
+})
 </script>
 
 <template>
-  <DropdownMenu v-model:open="menuOpen">
+  <DropdownMenu v-if="showBell" v-model:open="menuOpen">
     <DropdownMenuTrigger as-child>
       <Button
         variant="ghost"
@@ -215,10 +351,10 @@ watch(
     >
       <DropdownMenuLabel class="flex shrink-0 items-center justify-between px-4 py-3 text-sm font-semibold">
         <span>Notifications</span>
-        <Badge v-if="isParent && parentUnreadCount" variant="secondary" class="text-xs font-normal">
-          {{ parentUnreadCount }} unread
+        <Badge v-if="isParent && notificationStore.parentUnreadCount" variant="secondary" class="text-xs font-normal">
+          {{ notificationStore.parentUnreadCount }} unread
         </Badge>
-        <Badge v-else-if="notificationStore.workflowCount" variant="secondary" class="text-xs font-normal">
+        <Badge v-else-if="isStaff && notificationStore.workflowCount" variant="secondary" class="text-xs font-normal">
           {{ notificationStore.workflowCount }} pending
         </Badge>
       </DropdownMenuLabel>
@@ -246,13 +382,12 @@ watch(
 
       <DropdownMenuSeparator class="shrink-0" />
 
-      <!-- Only the list scrolls; footer button stays pinned and never overlaps -->
       <ScrollArea class="min-h-0 flex-1">
         <div
-          v-if="isParent && parentLoading"
+          v-if="(isParent && parentLoading) || (isStaff && staffLoading && !activityItems.length)"
           class="px-4 py-6 text-center text-sm text-muted-foreground"
         >
-          Loading notifications...
+          Loading…
         </div>
 
         <div
@@ -262,16 +397,15 @@ watch(
           {{ parentError }}
         </div>
 
-        <div v-else-if="isParent && !parentItems.length" class="flex flex-col items-center gap-2 px-4 py-8 text-center">
+        <div
+          v-else-if="isParent ? !parentItems.length : !activityItems.length && !notificationStore.workflowCount"
+          class="flex flex-col items-center gap-2 px-4 py-8 text-center"
+        >
           <CheckCircle2 class="size-8 text-muted-foreground/40" aria-hidden="true" />
-          <p class="text-sm font-medium text-foreground">You're all caught up</p>
-          <p class="max-w-[200px] text-xs leading-normal text-muted-foreground">No alerts for this profile scope.</p>
-        </div>
-
-        <div v-else-if="!isParent && !items.length" class="flex flex-col items-center gap-2 px-4 py-8 text-center">
-          <CheckCircle2 class="size-8 text-muted-foreground/40" aria-hidden="true" />
-          <p class="text-sm font-medium text-foreground">You're all caught up</p>
-          <p class="max-w-[200px] text-xs leading-normal text-muted-foreground">Recent activity will appear here.</p>
+          <p class="text-sm font-medium text-foreground">{{ emptyCopy.title }}</p>
+          <p class="max-w-[200px] text-xs leading-normal text-muted-foreground">
+            {{ emptyCopy.description }}
+          </p>
         </div>
 
         <div v-else-if="isParent" class="divide-y divide-muted/60">
@@ -304,7 +438,21 @@ watch(
 
         <div v-else class="divide-y divide-muted/60">
           <div
-            v-for="item in items"
+            v-if="notificationStore.workflowCount"
+            class="flex items-start gap-3 px-4 py-3 transition-colors hover:bg-muted/40"
+          >
+            <div class="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+              <ClipboardList class="size-3.5" aria-hidden="true" />
+            </div>
+            <div class="min-w-0 flex-1">
+              <p class="text-sm font-medium leading-snug text-foreground">
+                {{ notificationStore.workflowCount }} workflow{{ notificationStore.workflowCount === 1 ? '' : 's' }} need your approval
+              </p>
+              <p class="mt-0.5 text-xs text-muted-foreground">Personal to your role</p>
+            </div>
+          </div>
+          <div
+            v-for="item in activityItems"
             :key="String(item.id)"
             class="flex items-start gap-3 px-4 py-3 transition-colors hover:bg-muted/40"
           >
@@ -322,7 +470,7 @@ watch(
       <DropdownMenuSeparator class="shrink-0" />
       <div class="shrink-0 border-t border-border/40 bg-muted/5 p-2">
         <Button variant="ghost" size="sm" class="h-8 w-full justify-center text-xs font-medium" as-child>
-          <RouterLink :to="viewAllRoute">{{ isParent ? 'View all parent notifications' : 'View dashboard activity' }}</RouterLink>
+          <RouterLink :to="viewAllRoute">{{ viewAllLabel }}</RouterLink>
         </Button>
       </div>
     </DropdownMenuContent>

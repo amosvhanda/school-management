@@ -115,19 +115,21 @@ export const useAuthStore = defineStore('auth', () => {
     try {
       const payload = await loginApi(email, password, roleFilter)
 
-      token.value = payload.token
-      user.value = payload.user
+      // Drop previous user's cached queries/config/notifications before applying the new session.
+      queryClient.clear()
+      useConfigStore().reset()
       useNotificationStore().reset()
 
+      token.value = payload.token
+      user.value = payload.user
+      useNotificationStore().bindSession(payload.user.id)
       setStoredToken(payload.token)
 
       const configStore = useConfigStore()
-      if (!configStore.loaded) {
-        if (payload.user.school_id != null) {
-          await configStore.fetchPublicConfig()
-        } else {
-          configStore.markLoadedWithoutSchool()
-        }
+      if (payload.user.school_id != null) {
+        await configStore.fetchPublicConfig()
+      } else {
+        configStore.markLoadedWithoutSchool()
       }
 
       initialized.value = true
@@ -140,26 +142,33 @@ export const useAuthStore = defineStore('auth', () => {
   async function fetchMe() {
     const nextUser = await fetchCurrentUser()
     user.value = nextUser
+    useNotificationStore().bindSession(nextUser.id)
     return nextUser
+  }
+
+  /** Clear local auth state without calling the API (e.g. expired token / 401). */
+  function clearLocalSession() {
+    user.value = null
+    token.value = null
+    setStoredToken(null)
+    initialized.value = true
+    bootstrapPromise = null
+    queryClient.clear()
+    useConfigStore().reset()
+    useNotificationStore().reset()
   }
 
   async function logout() {
     try {
       if (token.value) await logoutApi()
     } finally {
-      user.value = null
-      token.value = null
-      setStoredToken(null)
-      initialized.value = true
-      bootstrapPromise = null
-      queryClient.clear()
-      useConfigStore().reset()
-      useNotificationStore().reset()
+      clearLocalSession()
     }
   }
 
   function setUser(next: AuthUser | null) {
     user.value = next
+    useNotificationStore().bindSession(next?.id ?? null)
   }
 
   return {
@@ -183,6 +192,7 @@ export const useAuthStore = defineStore('auth', () => {
     login,
     fetchMe,
     logout,
+    clearLocalSession,
     setUser,
   }
 })

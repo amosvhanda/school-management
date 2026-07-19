@@ -13,6 +13,7 @@ import {
   fetchPendingWorkflows,
   fetchRecentActivity,
 } from '@/services/dashboard.service'
+import { useAuthStore } from '@/stores/auth.store'
 import { useNotificationStore } from '@/stores/notification.store'
 import type { ActivityPoint, CommandCenterData, DashboardKpis, MonthlyStat, RecentActivityItem } from '@/types/dashboard'
 
@@ -32,6 +33,7 @@ async function fetchWidget<T>(label: string, task: () => Promise<T>): Promise<{ 
 }
 
 export function useStaffDashboard() {
+  const authStore = useAuthStore()
   const notificationStore = useNotificationStore()
   const loading = ref(true)
   const error = ref<string | null>(null)
@@ -45,6 +47,10 @@ export function useStaffDashboard() {
   const financeSummary = ref<Record<string, unknown> | null>(null)
   const pendingWorkflows = ref(0)
 
+  function userKey() {
+    return authStore.user?.id ?? null
+  }
+
   async function load(options: StaffDashboardLoadOptions = {}) {
     loading.value = true
     error.value = null
@@ -56,9 +62,12 @@ export function useStaffDashboard() {
       return
     }
 
+    const uid = userKey()
+    notificationStore.bindSession(uid)
+
     const kpiResult = await fetchWidget('KPIs', () =>
       queryClient.fetchQuery({
-        queryKey: queryKeys.dashboard.kpis(),
+        queryKey: queryKeys.dashboard.kpis(uid),
         queryFn: fetchKpis,
       }),
     )
@@ -75,7 +84,7 @@ export function useStaffDashboard() {
       tasks.push(
         fetchWidget('Activity chart', () =>
           queryClient.fetchQuery({
-            queryKey: queryKeys.dashboard.activity(),
+            queryKey: queryKeys.dashboard.activity(uid),
             queryFn: () => fetchActivity(),
           }),
         ).then((result) => {
@@ -84,7 +93,7 @@ export function useStaffDashboard() {
         }),
         fetchWidget('Monthly stats', () =>
           queryClient.fetchQuery({
-            queryKey: queryKeys.dashboard.monthly(),
+            queryKey: queryKeys.dashboard.monthly(uid),
             queryFn: fetchMonthlyStats,
           }),
         ).then((result) => {
@@ -98,7 +107,7 @@ export function useStaffDashboard() {
       tasks.push(
         fetchWidget('Recent activity', () =>
           queryClient.fetchQuery({
-            queryKey: queryKeys.dashboard.recent(),
+            queryKey: queryKeys.dashboard.recent(uid),
             queryFn: () => fetchRecentActivity(),
           }),
         ).then((result) => {
@@ -108,7 +117,7 @@ export function useStaffDashboard() {
         }),
         fetchWidget('Workflows', () =>
           queryClient.fetchQuery({
-            queryKey: queryKeys.dashboard.workflows(),
+            queryKey: queryKeys.dashboard.workflows(uid),
             queryFn: fetchPendingWorkflows,
           }),
         ).then((result) => {
@@ -123,7 +132,7 @@ export function useStaffDashboard() {
       tasks.push(
         fetchWidget('Command center', () =>
           queryClient.fetchQuery({
-            queryKey: queryKeys.dashboard.commandCenter(),
+            queryKey: queryKeys.dashboard.commandCenter(uid),
             queryFn: fetchCommandCenter,
           }),
         ).then((result) => {
@@ -137,7 +146,7 @@ export function useStaffDashboard() {
       tasks.push(
         fetchWidget('Finance summary', () =>
           queryClient.fetchQuery({
-            queryKey: queryKeys.dashboard.financeSummary(),
+            queryKey: queryKeys.dashboard.financeSummary(uid),
             queryFn: fetchFinanceSummary,
           }),
         ).then((result) => {
