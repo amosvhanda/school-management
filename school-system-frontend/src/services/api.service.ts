@@ -617,6 +617,7 @@ export const platformApi = {
   revokeLicense: (id: number | string) => postRecord(e.license.admin.revoke(id)),
   systemHealth: () => fetchOne(e.platform.systemHealth),
   operationsLive: () => fetchOne(e.platform.operationsLive),
+  resolveAlert: (id: number | string) => postRecord(e.platform.resolveAlert(id)),
   apiClients: () => fetchList(e.platform.apiClients),
   policyRules: () => fetchList(e.platform.policyRules),
   workflowDefinitions: () => fetchList(e.platform.workflowDefinitions),

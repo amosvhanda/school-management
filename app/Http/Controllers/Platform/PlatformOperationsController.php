@@ -34,7 +34,14 @@ class PlatformOperationsController extends Controller
 
     public function resolveAlert(Request $request, int $id)
     {
-        $alert = OperationsAlert::where('school_id', $request->user()->school_id)->findOrFail($id);
+        $user = $request->user();
+        $query = OperationsAlert::query()->whereNull('resolved_at');
+
+        if ($user->role !== UserRole::SuperAdmin) {
+            $query->where('school_id', $user->school_id);
+        }
+
+        $alert = $query->findOrFail($id);
         $alert->update(['resolved_at' => now()]);
 
         return response()->json(['data' => $alert, 'message' => 'Alert resolved']);

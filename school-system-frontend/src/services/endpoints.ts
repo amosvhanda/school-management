@@ -388,6 +388,7 @@ export const endpoints = {
     staffTasks: '/platform/staff-tasks',
     staffFeed: '/platform/staff-feed',
     operationsLive: '/platform/operations/live',
+    resolveAlert: (id: number | string) => `/platform/operations/alerts/${id}/resolve`,
     predictiveAnalytics: '/platform/analytics/predictive',
     systemHealth: '/platform/system/health',
     auditIntegrity: '/platform/audit-integrity/verify',
