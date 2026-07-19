@@ -1,7 +1,50 @@
 import type { FormFieldSchema } from '@/components/forms/useFormBuilder'
+import { shouldUseFormSteps } from '@/lib/form-steps'
 
 export const FORM_REQUIRED_DESCRIPTION =
   'Fields marked with * are required. Validation runs before saving.'
+
+/** Dialog width tokens for FormSheet — sized to the form, not one-size-fits-all. */
+export type FormSheetSize = 'md' | 'lg' | 'xl'
+
+export type FormSheetColumns = 1 | 2 | 3
+
+export const formSheetSizeClass: Record<FormSheetSize, string> = {
+  md: 'sm:max-w-md',
+  lg: 'sm:max-w-xl',
+  xl: 'sm:max-w-2xl',
+}
+
+/** Count interactive inputs (guardian block ≈ several fields). */
+export function countFormInputs(fields: FormFieldSchema[]): number {
+  let count = 0
+  for (const field of fields) {
+    count += field.type === 'guardian-section' ? 6 : 1
+  }
+  return count
+}
+
+/**
+ * Pick dialog width from form complexity.
+ * Short → md, typical CRUD → lg, wizards / dense forms → xl.
+ */
+export function resolveFormSheetSize(
+  fields: FormFieldSchema[],
+  staged?: boolean,
+): FormSheetSize {
+  if (shouldUseFormSteps(fields, staged)) return 'xl'
+  if (fields.some((field) => field.type === 'guardian-section')) return 'xl'
+
+  const count = countFormInputs(fields)
+  if (count <= 4) return 'md'
+  if (count <= 12) return 'lg'
+  return 'xl'
+}
+
+/** Narrow dialogs use a single column so fields are not cramped. */
+export function resolveFormSheetColumns(size: FormSheetSize): FormSheetColumns {
+  return size === 'md' ? 1 : 2
+}
 
 /** Premium micro-typography for form labels (Stripe / Linear style). */
 export const formLabelClass =
@@ -28,10 +71,10 @@ export const formButtonClass = 'transition-all duration-200 active:scale-[0.98]'
 export const formSurfaceClass = 'border-muted/60 shadow-sm'
 
 /** Responsive grid — never fixed widths on fields. */
-export function formGridClass(columns: 2 | 3 = 2): string {
-  return columns === 3
-    ? 'grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3'
-    : 'grid grid-cols-1 gap-4 sm:grid-cols-2'
+export function formGridClass(columns: FormSheetColumns = 2): string {
+  if (columns === 1) return 'grid grid-cols-1 gap-4'
+  if (columns === 3) return 'grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3'
+  return 'grid grid-cols-1 gap-4 sm:grid-cols-2'
 }
 
 /** Reserved space so error messages do not shift layout. */

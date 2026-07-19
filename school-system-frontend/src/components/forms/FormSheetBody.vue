@@ -9,8 +9,9 @@ import { ChevronLeft, Loader2 } from '@lucide/vue'
 import { Button } from '@/components/ui/button'
 import { SheetFooter } from '@/components/ui/sheet'
 import { Skeleton } from '@/components/ui/skeleton'
-import { formButtonClass } from '@/lib/form-standards'
+import { formButtonClass, type FormSheetColumns, type FormSheetSize } from '@/lib/form-standards'
 import { buildFormSteps, shouldUseFormSteps } from '@/lib/form-steps'
+import { cn } from '@/lib/utils'
 
 const props = withDefaults(
   defineProps<{
@@ -23,7 +24,9 @@ const props = withDefaults(
     saveLabel?: string
     savingLabel?: string
     cancelLabel?: string
-    columns?: 2 | 3
+    columns?: FormSheetColumns
+    /** Dialog size — drives body min-height so short forms are not padded tall. */
+    size?: FormSheetSize
     /** Enable multi-step wizard when the form has multiple sections. */
     staged?: boolean
   }>(),
@@ -32,6 +35,7 @@ const props = withDefaults(
     savingLabel: 'Saving…',
     cancelLabel: 'Cancel',
     columns: 2,
+    size: 'lg',
     formLoading: false,
   },
 )
@@ -114,6 +118,16 @@ const primaryLabel = computed(() => {
   if (isStaged.value && !isLastStep.value) return 'Continue'
   return props.saveLabel
 })
+
+/** Short forms hug content; larger / loading forms keep a stable scroll area. */
+const bodyMinClass = computed(() => {
+  if (props.formLoading) return 'min-h-[min(40vh,20rem)]'
+  if (isStaged.value || props.size === 'xl') return 'min-h-[min(45vh,22rem)]'
+  if (props.size === 'md') return 'min-h-0'
+  return 'min-h-0'
+})
+
+const skeletonCount = computed(() => (props.size === 'md' ? 3 : 4))
 </script>
 
 <template>
@@ -123,7 +137,9 @@ const primaryLabel = computed(() => {
     novalidate
     @submit.prevent="onPrimaryAction"
   >
-    <div class="relative min-h-[min(60vh,28rem)] flex-1 overflow-y-auto px-6 py-4">
+    <div
+      :class="cn('relative flex-1 overflow-y-auto px-6 py-4', bodyMinClass)"
+    >
       <FormStepProgress
         v-if="isStaged && steps.length"
         class="mb-6"
@@ -148,7 +164,7 @@ const primaryLabel = computed(() => {
         aria-busy="true"
         aria-label="Loading form data"
       >
-        <Skeleton v-for="i in 4" :key="i" class="h-10 w-full rounded-lg" />
+        <Skeleton v-for="i in skeletonCount" :key="i" class="h-10 w-full rounded-lg" />
       </div>
     </div>
 

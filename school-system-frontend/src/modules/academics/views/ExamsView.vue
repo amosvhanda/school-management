@@ -507,7 +507,6 @@ onMounted(load)
     :form-loading="formLoading"
     :saving="saving"
     :save-label="editing ? 'Save changes' : 'Schedule exam'"
-    size="lg"
     @submit="onSubmit"
   />
 

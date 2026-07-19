@@ -3,7 +3,6 @@ import { computed, ref, watch } from 'vue'
 import type { z } from 'zod'
 import FormSheetBody from '@/components/forms/FormSheetBody.vue'
 import type { FormFieldSchema } from '@/components/forms/useFormBuilder'
-// Swapped Sheet imports for Dialog components
 import {
   Dialog,
   DialogContent,
@@ -11,7 +10,15 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { FORM_REQUIRED_DESCRIPTION, formSurfaceClass } from '@/lib/form-standards'
+import {
+  FORM_REQUIRED_DESCRIPTION,
+  formSheetSizeClass,
+  formSurfaceClass,
+  resolveFormSheetColumns,
+  resolveFormSheetSize,
+  type FormSheetColumns,
+  type FormSheetSize,
+} from '@/lib/form-standards'
 import { cn } from '@/lib/utils'
 
 const open = defineModel<boolean>('open', { required: true })
@@ -30,18 +37,18 @@ const props = withDefaults(
     saveLabel?: string
     savingLabel?: string
     cancelLabel?: string
-    size?: 'md' | 'lg' | 'xl'
+    /** Override auto size (derived from field count / wizard mode). */
+    size?: FormSheetSize
     showRequiredHint?: boolean
-    columns?: 2 | 3
+    /** Override auto columns (md → 1, larger → 2). */
+    columns?: FormSheetColumns
     staged?: boolean
   }>(),
   {
     saveLabel: 'Save',
     savingLabel: 'Saving…',
     cancelLabel: 'Cancel',
-    size: 'xl',
     showRequiredHint: true,
-    columns: 2,
     formLoading: false,
   },
 )
@@ -51,6 +58,14 @@ const emit = defineEmits<{ submit: [values: Record<string, unknown>] }>()
 const bodyRef = ref<{ applyServerErrors: (error: unknown) => void } | null>(null)
 const isLoading = computed(() => props.formLoading || props.loading)
 
+const resolvedSize = computed<FormSheetSize>(
+  () => props.size ?? resolveFormSheetSize(props.fields, props.staged),
+)
+
+const resolvedColumns = computed<FormSheetColumns>(
+  () => props.columns ?? resolveFormSheetColumns(resolvedSize.value),
+)
+
 defineExpose({
   applyServerErrors: (error: unknown) => bodyRef.value?.applyServerErrors(error),
 })
@@ -58,23 +73,15 @@ defineExpose({
 watch(open, (isOpen) => {
   if (!isOpen) bodyRef.value = null
 })
-
-// Adjusted widths to fit floating modal constraints beautifully
-const sizeClass = {
-  md: 'sm:max-w-md',
-  lg: 'sm:max-w-lg',
-  xl: 'sm:max-w-2xl',
-} as const
 </script>
 
 <template>
   <Dialog v-model:open="open">
-    <!-- DialogContent handles the absolute viewport centering automatically -->
     <DialogContent
       :class="cn(
-        'flex max-h-[90vh] w-full flex-col gap-0 overflow-hidden p-0 border-muted/60 shadow-lg rounded-xl',
+        'flex max-h-[90vh] w-full flex-col gap-0 overflow-hidden rounded-xl border-muted/60 p-0 shadow-lg',
         formSurfaceClass,
-        sizeClass[size],
+        formSheetSizeClass[resolvedSize],
       )"
     >
       <DialogHeader class="shrink-0 space-y-1 border-b border-muted/60 px-6 pb-4 pt-6">
@@ -88,7 +95,6 @@ const sizeClass = {
         </DialogDescription>
       </DialogHeader>
 
-      <!-- Internal body container handles the scrolling fields gracefully -->
       <FormSheetBody
         v-if="open"
         ref="bodyRef"
@@ -101,7 +107,8 @@ const sizeClass = {
         :save-label="saveLabel"
         :saving-label="savingLabel"
         :cancel-label="cancelLabel"
-        :columns="columns"
+        :columns="resolvedColumns"
+        :size="resolvedSize"
         :staged="staged"
         @cancel="open = false"
         @submit="(values) => emit('submit', values)"

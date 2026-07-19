@@ -390,7 +390,6 @@ onMounted(async () => {
     :form-loading="formLoading"
     :saving="saving"
     :save-label="editing ? 'Save changes' : 'Publish announcement'"
-    size="lg"
     @submit="onSubmit"
   />
 

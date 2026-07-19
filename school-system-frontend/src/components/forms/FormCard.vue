@@ -20,7 +20,7 @@ withDefaults(
     saveLabel?: string
     savingLabel?: string
     showRequiredHint?: boolean
-    columns?: 2 | 3
+    columns?: 1 | 2 | 3
   }>(),
   {
     saveLabel: 'Save',

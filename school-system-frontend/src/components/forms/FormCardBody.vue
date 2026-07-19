@@ -20,7 +20,7 @@ const props = withDefaults(
     formLoading?: boolean
     saveLabel?: string
     savingLabel?: string
-    columns?: 2 | 3
+    columns?: 1 | 2 | 3
     showSubmit?: boolean
   }>(),
   {

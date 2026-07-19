@@ -37,8 +37,8 @@ import DatePicker from './DatePicker.vue'
 const props = withDefaults(
   defineProps<{
     fields: FormFieldSchema[]
-    /** 2-col for sheets; 3-col for wide dashboard panels */
-    columns?: 2 | 3
+    /** 1-col for compact sheets; 2-col default; 3-col for wide panels */
+    columns?: 1 | 2 | 3
     /** When set, only the section at this index is rendered (wizard mode). */
     visibleStepIndex?: number | null
     /** Hide section legends (wizard shows step title externally). */
@@ -82,6 +82,7 @@ const gridClass = computed(() => formGridClass(props.columns))
 
 // Determines column spacing rules dynamically across layout tiers
 function colClass(field: FormFieldSchema) {
+  if (props.columns === 1) return ''
   if (field.type === 'guardian-section') {
     return props.columns === 3 ? 'sm:col-span-2 lg:col-span-3' : 'sm:col-span-2'
   }
