@@ -34,9 +34,11 @@ final class ZimbabweData
 
     public static function phone(): string
     {
-        $prefixes = ['0772', '0782', '0712', '0773', '0784', '0713', '0774'];
+        // International form omits the leading 0 (071 → 71)
+        $prefixes = ['772', '782', '712', '773', '784', '713', '774', '731'];
         $prefix = $prefixes[array_rand($prefixes)];
-        return "+263 {$prefix} " . rand(100, 999) . ' ' . rand(100, 999);
+
+        return '+263 '.$prefix.' '.rand(100, 999).' '.rand(100, 999);
     }
 
     public static function firstName(): string

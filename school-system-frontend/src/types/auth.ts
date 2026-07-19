@@ -32,6 +32,8 @@ export interface AuthUser {
   school_id?: number | null
   student_id?: number | null
   teacher_id?: number | null
+  class_id?: number | null
+  class_name?: string | null
   guardian_id?: number | null
   children?: ParentChild[]
   license?: LicenseStatus

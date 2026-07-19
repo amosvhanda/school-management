@@ -4,6 +4,7 @@ namespace App\Http\Requests\Api\V1\School;
 
 use App\Actions\Fortify\PasswordValidationRules;
 use App\Http\Requests\Api\V1\ApiFormRequest;
+use App\Rules\ZimbabweMobileNumber;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
 
@@ -23,7 +24,7 @@ class RegisterSchoolRequest extends ApiFormRequest
             'admin_email' => ['required', 'email', 'unique:users,email'],
             'admin_password' => ['required', 'string', Password::default(), 'confirmed'],
             'address' => ['nullable', 'string', 'max:500'],
-            'phone' => ['nullable', 'string', 'max:30'],
+            'phone' => ZimbabweMobileNumber::optional(),
             'email' => ['nullable', 'email'],
             'currency' => ['nullable', 'string', 'max:10'],
             'grade_levels' => ['nullable', 'array'],

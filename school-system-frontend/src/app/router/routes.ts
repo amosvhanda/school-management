@@ -108,6 +108,12 @@ export const staffRoutes: RouteRecordRaw[] = [
   },
   staffListRoute('academics/timetable', 'academics-timetable', 'academics-timetable', 'canManageTeachers'),
   {
+    path: 'academics/my-timetable',
+    name: 'academics-my-timetable',
+    component: () => import('@/modules/academics/views/MyTimetableView.vue'),
+    meta: { roles: ['teacher'] },
+  },
+  {
     path: 'academics/exams',
     name: 'academics-exams',
     component: () => import('@/modules/academics/views/ExamsView.vue'),
@@ -325,6 +331,12 @@ export const studentRoutes: RouteRecordRaw[] = [
     path: 'student/fees',
     name: 'student-fees',
     component: () => import('@/modules/student-portal/views/StudentDashboardView.vue'),
+    meta: { roles: ['student'] },
+  },
+  {
+    path: 'student/timetable',
+    name: 'student-timetable',
+    component: () => import('@/modules/academics/views/MyTimetableView.vue'),
     meta: { roles: ['student'] },
   },
 ]

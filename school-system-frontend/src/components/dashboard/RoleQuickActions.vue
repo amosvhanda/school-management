@@ -75,6 +75,14 @@ const allActions: QuickAction[] = [
     variants: ['admin'],
   },
   {
+    label: 'My timetable',
+    description: 'Your teaching schedule',
+    href: '/academics/my-timetable',
+    icon: CalendarDays,
+    accent: 'bg-sky-500/10 text-sky-600 dark:text-sky-400',
+    variants: ['teacher'],
+  },
+  {
     label: 'Students',
     description: 'Learner records',
     href: '/students',

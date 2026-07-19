@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Api\V1\Teacher;
 
 use App\Http\Requests\Api\V1\ApiFormRequest;
+use App\Rules\ZimbabweMobileNumber;
 
 class StoreTeacherRequest extends ApiFormRequest
 {
@@ -18,7 +19,7 @@ class StoreTeacherRequest extends ApiFormRequest
             'firstName' => ['required_without:name', 'string', 'max:255'],
             'surname' => ['required_without:name', 'string', 'max:255'],
             'email' => ['required', 'email'],
-            'phone' => ['nullable', 'string', 'max:20'],
+            'phone' => ZimbabweMobileNumber::optional(),
             'address' => ['nullable', 'string'],
             'subject' => ['nullable', 'string', 'max:255'],
             'department' => ['nullable', 'string', 'max:255'],

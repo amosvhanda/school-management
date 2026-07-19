@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Api\V1\Teacher;
 
 use App\Http\Requests\Api\V1\ApiFormRequest;
+use App\Rules\ZimbabweMobileNumber;
 
 class UpdateTeacherRequest extends ApiFormRequest
 {
@@ -19,7 +20,7 @@ class UpdateTeacherRequest extends ApiFormRequest
             'firstName' => ['sometimes', 'string', 'max:255'],
             'surname' => ['sometimes', 'string', 'max:255'],
             'email' => ['sometimes', 'email'],
-            'phone' => ['nullable', 'string', 'max:20'],
+            'phone' => ZimbabweMobileNumber::optional(),
             'address' => ['nullable', 'string'],
             'subject' => ['nullable', 'string', 'max:255'],
             'department' => ['nullable', 'string', 'max:255'],

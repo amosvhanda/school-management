@@ -4,6 +4,7 @@ namespace App\Http\Requests\Api\V1\School;
 
 use App\Enums\UserRole;
 use App\Http\Requests\Api\V1\ApiFormRequest;
+use App\Rules\ZimbabweMobileNumber;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
 
@@ -23,11 +24,11 @@ class ProvisionSchoolRequest extends ApiFormRequest
             'admin_email' => ['required', 'email', 'unique:users,email'],
             'admin_password' => ['required', 'string', Password::default(), 'confirmed'],
             'address' => ['nullable', 'string', 'max:500'],
-            'phone' => ['nullable', 'string', 'max:30'],
+            'phone' => ZimbabweMobileNumber::optional(),
             'email' => ['nullable', 'email'],
             'currency' => ['nullable', 'string', 'max:10'],
             'contact_person' => ['nullable', 'string', 'max:255'],
-            'contact_phone' => ['nullable', 'string', 'max:30'],
+            'contact_phone' => ZimbabweMobileNumber::optional(),
             'contact_email' => ['nullable', 'email'],
             'academic_year' => ['nullable', 'string', 'max:20'],
             'current_term' => ['nullable', 'string', 'max:50'],

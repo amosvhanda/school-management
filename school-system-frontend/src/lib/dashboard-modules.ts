@@ -18,6 +18,12 @@ export const TEACHER_DASHBOARD_MODULE_GROUPS: DashboardModuleGroup[] = [
     label: 'Teaching',
     modules: [
       {
+        title: 'My timetable',
+        description: 'Lessons you teach this week',
+        href: '/academics/my-timetable',
+        icon: 'CalendarDays',
+      },
+      {
         title: 'Attendance register',
         description: 'Mark and review class attendance',
         href: '/academics/attendance',
@@ -979,6 +985,12 @@ export const STUDENT_DASHBOARD_MODULE_GROUPS: DashboardModuleGroup[] = [
     label: 'My school',
     modules: [
       {
+        title: 'Timetable',
+        description: 'Your class weekly schedule',
+        href: '/student/timetable',
+        icon: 'CalendarDays',
+      },
+      {
         title: 'Performance',
         description: 'Continuous assessment by subject',
         href: '/student/performance',
@@ -992,7 +1004,7 @@ export const STUDENT_DASHBOARD_MODULE_GROUPS: DashboardModuleGroup[] = [
       },
       {
         title: 'Exams',
-        description: 'Timetable and published results',
+        description: 'Exam schedule and published results',
         href: '/student/exams',
         icon: 'FileText',
       },

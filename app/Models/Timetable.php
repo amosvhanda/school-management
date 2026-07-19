@@ -30,9 +30,9 @@ class Timetable extends Model
     protected function casts(): array
     {
         return [
-        'start_time' => 'datetime',
-        'end_time' => 'datetime',
-    ];
+            'start_time' => 'datetime:H:i',
+            'end_time' => 'datetime:H:i',
+        ];
     }
 
     public function classModel(): BelongsTo

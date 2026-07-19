@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Api\V1\Guardian;
 
 use App\Http\Requests\Api\V1\ApiFormRequest;
+use App\Rules\ZimbabweMobileNumber;
 use Illuminate\Validation\Rule;
 
 class StoreGuardianRequest extends ApiFormRequest
@@ -20,7 +21,7 @@ class StoreGuardianRequest extends ApiFormRequest
             'first_name' => ['required', 'string', 'max:255'],
             'last_name' => ['required', 'string', 'max:255'],
             'email' => ['nullable', 'email', 'max:255'],
-            'phone' => ['required', 'string', 'max:20'],
+            'phone' => ZimbabweMobileNumber::required(),
             'relationship' => ['nullable', 'string', 'max:50'],
             'address' => ['nullable', 'string'],
             'national_id' => ['nullable', 'string', 'max:50'],

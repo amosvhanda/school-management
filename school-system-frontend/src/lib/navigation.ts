@@ -115,6 +115,7 @@ export const teacherNavigation: NavGroup[] = [
   {
     label: 'Teaching',
     items: [
+      { title: 'My timetable', href: '/academics/my-timetable', icon: 'CalendarDays', roles: ['teacher'] },
       { title: 'Attendance', href: '/academics/attendance', icon: 'ClipboardCheck', capability: 'canManageStudents', roles: ['teacher'] },
       { title: 'Exams', href: '/academics/exams', icon: 'FileText', capability: ['canManageExaminations', 'canEnterExamResults'], roles: ['teacher'] },
       { title: 'Students', href: '/students', icon: 'GraduationCap', capability: 'canManageStudents', roles: ['teacher'] },
@@ -271,6 +272,7 @@ export const studentNavigation: NavGroup[] = [
     label: 'Student portal',
     items: [
       { title: 'Dashboard', href: '/student', icon: 'Home', roles: ['student'] },
+      { title: 'Timetable', href: '/student/timetable', icon: 'CalendarDays', roles: ['student'] },
       { title: 'Performance', href: '/student/performance', icon: 'BarChart3', roles: ['student'] },
       { title: 'Attendance', href: '/student/attendance', icon: 'ClipboardCheck', roles: ['student'] },
       { title: 'Exams', href: '/student/exams', icon: 'FileText', roles: ['student'] },

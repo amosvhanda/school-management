@@ -6,15 +6,26 @@ export function normalizePhone(value: string): string {
 }
 
 /**
- * Zimbabwe mobile numbers: 07X XXX XXXX or +263 7X XXX XXXX
- * Valid operator prefixes: 71, 73, 77, 78
+ * Normalize Zimbabwe mobiles for validation / storage.
+ * Accepts local 0-prefix and international +263 forms, including a mistaken
+ * leading zero after the country code (+263 071… → +263 71…).
  */
-export function isValidZimMobile(value: string): boolean {
-  const n = normalizePhone(value)
-  return /^(\+263|263|0)?7[2378]\d{7}$/.test(n)
+export function normalizeZimMobile(value: string): string {
+  let n = normalizePhone(value)
+  n = n.replace(/^(\+?263)0/, '$1')
+  return n
 }
 
-export const formatZimPhoneHint = 'e.g. 077 123 4567 or +263 77 123 4567'
+/**
+ * Zimbabwe mobile numbers: 07X XXX XXXX or +263 7X XXX XXXX
+ * Valid operator prefixes: 71 (NetOne), 73 (Telecel), 77/78 (Econet)
+ */
+export function isValidZimMobile(value: string): boolean {
+  const n = normalizeZimMobile(value)
+  return /^(\+263|263|0)?7[1378]\d{7}$/.test(n)
+}
+
+export const formatZimPhoneHint = 'e.g. 071 123 4567 or +263 71 123 4567'
 
 export const zimPhoneSchema = z
   .string()

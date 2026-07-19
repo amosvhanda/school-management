@@ -13,10 +13,23 @@ class TimetableGeneratorService
 {
     private const DEFAULT_DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
 
+    /** Default Zimbabwe-style lesson periods (start, end). */
+    private const DEFAULT_PERIODS = [
+        ['07:30', '08:15'],
+        ['08:15', '09:00'],
+        ['09:15', '10:00'],
+        ['10:00', '10:45'],
+        ['11:00', '11:45'],
+        ['11:45', '12:30'],
+    ];
+
     public function __construct(private TimetableConflictService $conflictService) {}
 
     /**
      * Generate a weekly timetable from active teacher assignments for a class.
+     *
+     * Builds a full day×period grid, rotating through subject teachers assigned
+     * to the class (or its grade level).
      *
      * @return array{created: int, skipped: int, entries: Collection<int, Timetable>, conflicts: array<int, mixed>}
      */
@@ -24,28 +37,16 @@ class TimetableGeneratorService
         int $schoolId,
         int $classId,
         array $days = self::DEFAULT_DAYS,
-        string $dayStart = '08:00',
+        string $dayStart = '07:30',
         int $periodMinutes = 45,
         bool $replaceExisting = false,
+        ?int $periodsPerDay = null,
     ): array {
         $class = ClassModel::query()
             ->where('school_id', $schoolId)
             ->findOrFail($classId);
 
-        $assignments = TeacherAssignment::query()
-            ->with(['teacher', 'subject'])
-            ->where('school_id', $schoolId)
-            ->where('is_active', true)
-            ->where(function ($query) use ($class) {
-                $query->where('class_id', $class->id);
-
-                if ($class->grade_level_id) {
-                    $query->orWhere('grade_level_id', $class->grade_level_id);
-                }
-            })
-            ->whereNotNull('subject_id')
-            ->get()
-            ->unique(fn (TeacherAssignment $assignment) => $assignment->subject_id.'-'.$assignment->teacher_id);
+        $assignments = $this->resolveAssignmentsForClass($schoolId, $class);
 
         if ($assignments->isEmpty()) {
             throw ValidationException::withMessages([
@@ -60,48 +61,58 @@ class TimetableGeneratorService
                 ->delete();
         }
 
+        $periods = $this->buildPeriodSlots($dayStart, $periodMinutes, $periodsPerDay);
         $created = collect();
         $conflicts = [];
         $skipped = 0;
-        $slotCursor = Carbon::createFromFormat('H:i', $dayStart);
+        $slotIndex = 0;
 
-        foreach ($assignments->values() as $index => $assignment) {
-            $day = $days[$index % count($days)];
-            $startTime = $slotCursor->format('H:i');
-            $endTime = $slotCursor->copy()->addMinutes($periodMinutes)->format('H:i');
+        foreach ($days as $day) {
+            foreach ($periods as $period) {
+                $placed = false;
 
-            $entry = [
-                'school_id' => $schoolId,
-                'class_id' => $class->id,
-                'teacher_id' => $assignment->teacher_id,
-                'subject_id' => $assignment->subject_id,
-                'subject' => $assignment->subject?->name ?? 'Subject',
-                'day' => $day,
-                'start_time' => $startTime,
-                'end_time' => $endTime,
-                'room_id' => $class->room_id,
-            ];
+                for ($attempt = 0; $attempt < $assignments->count(); $attempt++) {
+                    /** @var TeacherAssignment $assignment */
+                    $assignment = $assignments[($slotIndex + $attempt) % $assignments->count()];
 
-            $validation = $this->conflictService->validateTimetableEntry($entry);
+                    $entry = [
+                        'school_id' => $schoolId,
+                        'class_id' => $class->id,
+                        'teacher_id' => $assignment->teacher_id,
+                        'subject_id' => $assignment->subject_id,
+                        'subject' => $assignment->subject?->name ?? 'Subject',
+                        'day' => $day,
+                        'start_time' => $period['start'],
+                        'end_time' => $period['end'],
+                        'room_id' => $class->room_id,
+                    ];
 
-            if (! $validation['valid']) {
-                $conflicts[] = [
-                    'assignment_id' => $assignment->id,
-                    'subject' => $entry['subject'],
-                    'day' => $day,
-                    'conflicts' => $validation['conflicts'],
-                ];
-                $skipped++;
+                    $validation = $this->conflictService->validateTimetableEntry($entry);
 
-                continue;
-            }
+                    if (! $validation['valid']) {
+                        if ($attempt === $assignments->count() - 1) {
+                            $conflicts[] = [
+                                'assignment_id' => $assignment->id,
+                                'subject' => $entry['subject'],
+                                'day' => $day,
+                                'start_time' => $period['start'],
+                                'conflicts' => $validation['conflicts'],
+                            ];
+                        }
 
-            $created->push(Timetable::create($entry));
+                        continue;
+                    }
 
-            $slotCursor->addMinutes($periodMinutes);
+                    $created->push(Timetable::create($entry));
+                    $placed = true;
+                    break;
+                }
 
-            if ($slotCursor->format('H:i') >= '13:00' && $slotCursor->format('H:i') < '14:00') {
-                $slotCursor = Carbon::createFromFormat('H:i', '14:00');
+                if (! $placed) {
+                    $skipped++;
+                }
+
+                $slotIndex++;
             }
         }
 
@@ -130,7 +141,7 @@ class TimetableGeneratorService
         ?array $classIds = null,
         ?int $gradeLevelId = null,
         array $days = self::DEFAULT_DAYS,
-        string $dayStart = '08:00',
+        string $dayStart = '07:30',
         int $periodMinutes = 45,
         bool $replaceExisting = false,
     ): array {
@@ -201,5 +212,68 @@ class TimetableGeneratorService
             'classes' => $classResults,
             'entry_ids' => $allEntryIds,
         ];
+    }
+
+    /**
+     * Active subject-teacher assignments for a class (class-level preferred over grade-level).
+     *
+     * @return Collection<int, TeacherAssignment>
+     */
+    private function resolveAssignmentsForClass(int $schoolId, ClassModel $class): Collection
+    {
+        return TeacherAssignment::query()
+            ->with(['teacher', 'subject'])
+            ->where('school_id', $schoolId)
+            ->where('is_active', true)
+            ->whereNotNull('subject_id')
+            ->whereNotNull('teacher_id')
+            ->where(function ($query) use ($class) {
+                $query->where('class_id', $class->id);
+
+                if ($class->grade_level_id) {
+                    $query->orWhere(function ($gradeQuery) use ($class) {
+                        $gradeQuery
+                            ->whereNull('class_id')
+                            ->where('grade_level_id', $class->grade_level_id);
+                    });
+                }
+            })
+            ->get()
+            ->sortByDesc(fn (TeacherAssignment $assignment) => $assignment->class_id === $class->id ? 1 : 0)
+            ->unique('subject_id')
+            ->values();
+    }
+
+    /**
+     * @return list<array{start: string, end: string}>
+     */
+    private function buildPeriodSlots(string $dayStart, int $periodMinutes, ?int $periodsPerDay): array
+    {
+        // Prefer the standard school grid when using the default start.
+        if ($dayStart === '07:30' && ($periodsPerDay === null || $periodsPerDay === count(self::DEFAULT_PERIODS))) {
+            return array_map(
+                fn (array $slot) => ['start' => $slot[0], 'end' => $slot[1]],
+                self::DEFAULT_PERIODS,
+            );
+        }
+
+        $count = $periodsPerDay ?? count(self::DEFAULT_PERIODS);
+        $cursor = Carbon::createFromFormat('H:i', $dayStart);
+        $periods = [];
+
+        for ($i = 0; $i < $count; $i++) {
+            $start = $cursor->format('H:i');
+            $end = $cursor->copy()->addMinutes($periodMinutes)->format('H:i');
+            $periods[] = ['start' => $start, 'end' => $end];
+
+            $cursor->addMinutes($periodMinutes);
+
+            // Lunch break window
+            if ($cursor->format('H:i') >= '13:00' && $cursor->format('H:i') < '14:00') {
+                $cursor = Carbon::createFromFormat('H:i', '14:00');
+            }
+        }
+
+        return $periods;
     }
 }

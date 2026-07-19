@@ -96,13 +96,14 @@ class TimetableApiTest extends TestCase
 
         $response->assertOk()
             ->assertJsonPath('data.id', $timetable->id)
-            ->assertJsonPath('data.start_time', $timetable->fresh()->start_time?->setTimezone(new \DateTimeZone('UTC'))->format('Y-m-d\TH:i:s.u\Z'));
+            ->assertJsonPath('data.start_time', '09:00')
+            ->assertJsonPath('data.end_time', '10:00');
 
         $this->assertDatabaseHas('timetable', [
             'id' => $timetable->id,
         ]);
-        $this->assertSame('09:00:00', $timetable->fresh()->start_time?->format('H:i:s'));
-        $this->assertSame('10:00:00', $timetable->fresh()->end_time?->format('H:i:s'));
+        $this->assertSame('09:00', $timetable->fresh()->start_time?->format('H:i'));
+        $this->assertSame('10:00', $timetable->fresh()->end_time?->format('H:i'));
     }
 
     public function test_delete_timetable_entry(): void
@@ -145,8 +146,9 @@ class TimetableApiTest extends TestCase
             'replace_existing' => true,
         ]);
 
+        // Full week grid: 5 days × 6 periods with one subject assignment.
         $response->assertOk()
-            ->assertJsonPath('data.created', 1)
+            ->assertJsonPath('data.created', 30)
             ->assertJsonStructure([
                 'data' => ['created', 'skipped', 'conflicts', 'entries'],
             ]);
@@ -181,9 +183,112 @@ class TimetableApiTest extends TestCase
 
         $response->assertOk()
             ->assertJsonPath('data.classes_processed', 2)
-            ->assertJsonPath('data.created', 2)
+            ->assertJsonPath('data.created', 60)
             ->assertJsonStructure([
                 'data' => ['classes_processed', 'created', 'skipped', 'conflicts', 'classes', 'entries'],
             ]);
+    }
+
+    public function test_student_sees_only_their_class_timetable(): void
+    {
+        $school = \App\Models\School::factory()->create();
+        $classA = ClassModel::factory()->create(['school_id' => $school->id, 'name' => 'Form 1A']);
+        $classB = ClassModel::factory()->create(['school_id' => $school->id, 'name' => 'Form 1B']);
+        $subject = Subject::factory()->create(['school_id' => $school->id]);
+        $teacher = Teacher::factory()->create(['school_id' => $school->id]);
+
+        $mine = Timetable::factory()->create([
+            'school_id' => $school->id,
+            'class_id' => $classA->id,
+            'subject_id' => $subject->id,
+            'subject' => $subject->name,
+            'teacher_id' => $teacher->id,
+            'day' => 'Monday',
+        ]);
+        Timetable::factory()->create([
+            'school_id' => $school->id,
+            'class_id' => $classB->id,
+            'subject_id' => $subject->id,
+            'subject' => $subject->name,
+            'teacher_id' => $teacher->id,
+            'day' => 'Tuesday',
+        ]);
+
+        $auth = $this->createAuthenticatedUser('student', $school->id);
+        \App\Models\Student::factory()->create([
+            'school_id' => $school->id,
+            'user_id' => $auth['user']->id,
+            'class_id' => $classA->id,
+        ]);
+
+        $response = $this->withHeaders([
+            'Authorization' => 'Bearer '.$auth['token'],
+        ])->getJson('/api/v1/timetable');
+
+        $response->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.id', $mine->id)
+            ->assertJsonPath('meta.scope', 'student');
+    }
+
+    public function test_teacher_sees_only_their_assigned_slots(): void
+    {
+        $school = \App\Models\School::factory()->create();
+        $class = ClassModel::factory()->create(['school_id' => $school->id]);
+        $subject = Subject::factory()->create(['school_id' => $school->id]);
+        $teacherA = Teacher::factory()->create(['school_id' => $school->id]);
+        $teacherB = Teacher::factory()->create(['school_id' => $school->id]);
+
+        $mine = Timetable::factory()->create([
+            'school_id' => $school->id,
+            'class_id' => $class->id,
+            'subject_id' => $subject->id,
+            'subject' => $subject->name,
+            'teacher_id' => $teacherA->id,
+            'day' => 'Monday',
+        ]);
+        Timetable::factory()->create([
+            'school_id' => $school->id,
+            'class_id' => $class->id,
+            'subject_id' => $subject->id,
+            'subject' => $subject->name,
+            'teacher_id' => $teacherB->id,
+            'day' => 'Tuesday',
+        ]);
+
+        $auth = $this->createAuthenticatedUser('teacher', $school->id);
+        $teacherA->update(['user_id' => $auth['user']->id]);
+
+        $response = $this->withHeaders([
+            'Authorization' => 'Bearer '.$auth['token'],
+        ])->getJson('/api/v1/timetable');
+
+        $response->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.id', $mine->id)
+            ->assertJsonPath('meta.scope', 'teacher');
+    }
+
+    public function test_teacher_cannot_modify_timetable(): void
+    {
+        $school = \App\Models\School::factory()->create();
+        $class = ClassModel::factory()->create(['school_id' => $school->id]);
+        $subject = Subject::factory()->create(['school_id' => $school->id]);
+        $teacher = Teacher::factory()->create(['school_id' => $school->id]);
+        $auth = $this->createAuthenticatedUser('teacher', $school->id);
+        $teacher->update(['user_id' => $auth['user']->id]);
+
+        $response = $this->withHeaders([
+            'Authorization' => 'Bearer '.$auth['token'],
+        ])->postJson('/api/v1/timetable', [
+            'class_id' => $class->id,
+            'subject_id' => $subject->id,
+            'day' => 'Monday',
+            'start_time' => '08:00',
+            'end_time' => '09:00',
+            'teacher_id' => $teacher->id,
+        ]);
+
+        $response->assertForbidden();
     }
 }

@@ -83,15 +83,27 @@ class SecureAuthenticationService
     public function resolveRoleContext(User $user): array
     {
         $context = [
-            'student_id' => $user->role === UserRole::Student
-                ? Student::where('user_id', $user->id)->value('id')
-                : null,
-            'teacher_id' => $user->role === UserRole::Teacher
-                ? Teacher::where('user_id', $user->id)->value('id')
-                : null,
+            'student_id' => null,
+            'teacher_id' => null,
+            'class_id' => null,
+            'class_name' => null,
             'guardian_id' => null,
             'children' => [],
         ];
+
+        if ($user->role === UserRole::Student) {
+            $student = Student::query()
+                ->with('classModel:id,name')
+                ->where('user_id', $user->id)
+                ->first();
+            $context['student_id'] = $student?->id;
+            $context['class_id'] = $student?->class_id;
+            $context['class_name'] = $student?->classModel?->name ?? $student?->class;
+        }
+
+        if ($user->role === UserRole::Teacher) {
+            $context['teacher_id'] = Teacher::query()->where('user_id', $user->id)->value('id');
+        }
 
         if ($user->role === UserRole::Parent) {
             $context['guardian_id'] = Guardian::where('user_id', $user->id)->value('id');

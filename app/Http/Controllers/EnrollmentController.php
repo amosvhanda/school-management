@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\EnrollmentApplication;
+use App\Rules\ZimbabweMobileNumber;
 use App\Services\EnrollmentApprovalService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
@@ -50,17 +51,17 @@ class EnrollmentController extends Controller
             'surname' => 'required|string|max:255',
             'date_of_birth' => 'required|date',
             'gender' => 'required|string|in:male,female',
-            'phone' => 'required|string',
+            'phone' => ZimbabweMobileNumber::required(),
             'address' => 'required|string',
             'grade_applying_for' => 'required|string',
             'academic_year' => 'required|string',
             'guardian_first_name' => 'required|string|max:255',
             'guardian_surname' => 'required|string|max:255',
-            'guardian_phone' => 'required|string',
+            'guardian_phone' => ZimbabweMobileNumber::required(),
             'guardian_relationship' => 'required|string',
             'guardian_address' => 'required|string',
             'emergency_contact' => 'required|string|max:255',
-            'emergency_phone' => 'required|string|max:20',
+            'emergency_phone' => ZimbabweMobileNumber::required(),
         ]);
 
         if ($validator->fails()) {

@@ -2,12 +2,17 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\UserRole;
 use App\Models\ClassModel;
 use App\Models\Room;
+use App\Models\Student;
 use App\Models\Subject;
+use App\Models\Teacher;
 use App\Models\Timetable;
+use App\Models\User;
 use App\Services\TimetableConflictService;
 use App\Services\TimetableGeneratorService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
@@ -21,27 +26,36 @@ class TimetableController extends Controller
 
     public function index(Request $request)
     {
-        $schoolId = $request->user()?->school_id;
+        $user = $request->user();
+        $schoolId = $user?->school_id;
         $query = Timetable::with(['classModel', 'teacher', 'subject', 'room'])
             ->when($schoolId, fn ($q) => $q->where('school_id', $schoolId));
 
-        if ($request->has('class_id') && $request->class_id !== '') {
-            $classId = $request->class_id;
-            if (is_numeric($classId)) {
-                $query->where('class_id', (int) $classId);
-            } else {
-                $class = ClassModel::where('name', $classId)->first();
-                if ($class) {
-                    $query->where('class_id', $class->id);
+        $scope = $this->applyRoleScope($query, $user);
+
+        // Admins may further filter; students/teachers stay locked to their scope.
+        if ($scope === 'school') {
+            if ($request->filled('class_id')) {
+                $classId = $request->class_id;
+                if (is_numeric($classId)) {
+                    $query->where('class_id', (int) $classId);
+                } else {
+                    $class = ClassModel::query()
+                        ->when($schoolId, fn ($q) => $q->where('school_id', $schoolId))
+                        ->where('name', $classId)
+                        ->first();
+                    if ($class) {
+                        $query->where('class_id', $class->id);
+                    }
                 }
+            }
+
+            if ($request->filled('teacher_id')) {
+                $query->where('teacher_id', $request->teacher_id);
             }
         }
 
-        if ($request->has('teacher_id')) {
-            $query->where('teacher_id', $request->teacher_id);
-        }
-
-        if ($request->has('day')) {
+        if ($request->filled('day')) {
             $query->where('day', $request->day);
         }
 
@@ -49,11 +63,18 @@ class TimetableController extends Controller
 
         return response()->json([
             'data' => $timetable,
+            'meta' => [
+                'scope' => $scope,
+            ],
         ]);
     }
 
     public function store(Request $request)
     {
+        if ($forbidden = $this->forbidUnlessCanManage($request)) {
+            return $forbidden;
+        }
+
         $schoolId = $request->user()?->school_id;
 
         $validator = Validator::make($request->all(), [
@@ -100,7 +121,6 @@ class TimetableController extends Controller
             $roomName = $room->name;
         }
 
-        // Check for conflicts
         $timetableData = array_merge($request->all(), [
             'school_id' => $schoolId,
             'subject' => $subjectName,
@@ -126,6 +146,10 @@ class TimetableController extends Controller
 
     public function update(Request $request, $id)
     {
+        if ($forbidden = $this->forbidUnlessCanManage($request)) {
+            return $forbidden;
+        }
+
         $timetable = Timetable::findOrFail($id);
 
         $schoolId = $request->user()?->school_id;
@@ -173,8 +197,12 @@ class TimetableController extends Controller
         $timetableData = [
             'class_id' => $timetable->class_id,
             'day' => $request->input('day', $timetable->day),
-            'start_time' => $request->input('start_time', $timetable->start_time),
-            'end_time' => $request->input('end_time', $timetable->end_time),
+            'start_time' => $request->input('start_time', $timetable->start_time instanceof \DateTimeInterface
+                ? $timetable->start_time->format('H:i')
+                : $timetable->start_time),
+            'end_time' => $request->input('end_time', $timetable->end_time instanceof \DateTimeInterface
+                ? $timetable->end_time->format('H:i')
+                : $timetable->end_time),
             'teacher_id' => $request->has('teacher_id') ? $request->teacher_id : $timetable->teacher_id,
             'room_id' => $request->has('room_id') ? $request->room_id : $timetable->room_id,
             'school_id' => $schoolId ?? $timetable->school_id,
@@ -201,8 +229,12 @@ class TimetableController extends Controller
         ]);
     }
 
-    public function destroy($id)
+    public function destroy(Request $request, $id)
     {
+        if ($forbidden = $this->forbidUnlessCanManage($request)) {
+            return $forbidden;
+        }
+
         $timetable = Timetable::findOrFail($id);
         $timetable->delete();
 
@@ -213,6 +245,10 @@ class TimetableController extends Controller
 
     public function generate(Request $request)
     {
+        if ($forbidden = $this->forbidUnlessCanManage($request)) {
+            return $forbidden;
+        }
+
         $validator = Validator::make($request->all(), [
             'class_id' => 'required|exists:classes,id',
             'days' => 'nullable|array|min:1',
@@ -232,7 +268,7 @@ class TimetableController extends Controller
             schoolId: $schoolId,
             classId: (int) $request->class_id,
             days: $request->input('days', ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']),
-            dayStart: $request->input('day_start', '08:00'),
+            dayStart: $request->input('day_start', '07:30'),
             periodMinutes: (int) $request->input('period_minutes', 45),
             replaceExisting: $request->boolean('replace_existing'),
         );
@@ -252,6 +288,10 @@ class TimetableController extends Controller
 
     public function generateBulk(Request $request)
     {
+        if ($forbidden = $this->forbidUnlessCanManage($request)) {
+            return $forbidden;
+        }
+
         $validator = Validator::make($request->all(), [
             'class_ids' => 'nullable|array|min:1',
             'class_ids.*' => 'integer|exists:classes,id',
@@ -285,7 +325,7 @@ class TimetableController extends Controller
             classIds: $classIds,
             gradeLevelId: $request->input('grade_level_id'),
             days: $request->input('days', ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']),
-            dayStart: $request->input('day_start', '08:00'),
+            dayStart: $request->input('day_start', '07:30'),
             periodMinutes: (int) $request->input('period_minutes', 45),
             replaceExisting: $request->boolean('replace_existing'),
         );
@@ -303,5 +343,61 @@ class TimetableController extends Controller
                     ->get(),
             ],
         ]);
+    }
+
+    /**
+     * @param  \Illuminate\Database\Eloquent\Builder<Timetable>  $query
+     */
+    private function applyRoleScope($query, ?User $user): string
+    {
+        if (! $user) {
+            return 'none';
+        }
+
+        $role = $user->role instanceof UserRole
+            ? $user->role
+            : UserRole::tryFromMixed(is_string($user->role) ? $user->role : null);
+
+        if ($role === UserRole::Student) {
+            $student = Student::query()->where('user_id', $user->id)->first();
+            if (! $student?->class_id) {
+                $query->whereRaw('1 = 0');
+
+                return 'student';
+            }
+            $query->where('class_id', $student->class_id);
+
+            return 'student';
+        }
+
+        if ($role === UserRole::Teacher) {
+            $teacherId = Teacher::query()->where('user_id', $user->id)->value('id');
+            if (! $teacherId) {
+                $query->whereRaw('1 = 0');
+
+                return 'teacher';
+            }
+            $query->where('teacher_id', $teacherId);
+
+            return 'teacher';
+        }
+
+        return 'school';
+    }
+
+    private function forbidUnlessCanManage(Request $request): ?JsonResponse
+    {
+        $user = $request->user();
+        $role = $user?->role instanceof UserRole
+            ? $user->role
+            : UserRole::tryFromMixed(is_string($user?->role) ? $user->role : null);
+
+        if (! $role?->canManageTeachers()) {
+            return response()->json([
+                'message' => 'Only school administrators can modify the timetable.',
+            ], 403);
+        }
+
+        return null;
     }
 }
