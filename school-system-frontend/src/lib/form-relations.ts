@@ -75,6 +75,16 @@ export function departmentRelation(overrides?: Partial<RelationFieldConfig>): Re
   }
 }
 
+export function feeCategoryRelation(overrides?: Partial<RelationFieldConfig>): RelationFieldConfig {
+  return {
+    endpoint: moduleEndpoints.feeCategories,
+    createRoute: '/finance/fee-categories?create=1',
+    moduleLabel: 'fee category',
+    params: { all: true },
+    ...overrides,
+  }
+}
+
 export function payrollTeacherRelation(overrides?: Partial<RelationFieldConfig>): RelationFieldConfig {
   return {
     endpoint: endpoints.payroll.teachers,

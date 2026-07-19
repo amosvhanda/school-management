@@ -24,6 +24,8 @@ export function useListFilters(
       const value = values.value[listFilter.key]
       if (value != null && value !== '') {
         filter[listFilter.key] = value
+        // Also set top-level for endpoints not yet on Spatie Query Builder.
+        params[listFilter.key] = value
       }
     }
 

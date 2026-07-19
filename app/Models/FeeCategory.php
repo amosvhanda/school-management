@@ -35,6 +35,14 @@ class FeeCategory extends Model
 
     public function feeStructures(): HasMany
     {
+        return $this->hasMany(FeeStructure::class, 'fee_category_id');
+    }
+
+    /**
+     * Legacy string-based structures that still match this category name.
+     */
+    public function feeStructuresByName(): HasMany
+    {
         return $this->hasMany(FeeStructure::class, 'category', 'name');
     }
 }

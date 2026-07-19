@@ -10,6 +10,7 @@ import {
   transportDriverRelation,
   transportVehicleRelation,
   classRelation,
+  feeCategoryRelation,
 } from '@/lib/form-relations'
 import { moduleEndpoints } from '@/services'
 import { studentFormFields, studentFormSchema } from '@/modules/students/student-form'
@@ -475,20 +476,22 @@ export const moduleCrudRegistry: Record<string, ModuleCrudConfig> = {
   'finance-fees': crud(
     [
       {
-        name: 'class',
+        name: 'class_id',
         label: 'Class',
-        type: 'text',
+        type: 'relation',
         required: true,
-        placeholder: 'Form 1A',
-        description: 'Class name this fee applies to.',
-        rowKey: 'class_name',
+        placeholder: 'Select class',
+        description: 'Class this fee structure applies to.',
+        relation: classRelation(),
       },
       {
-        name: 'category',
-        label: 'Category',
-        type: 'text',
+        name: 'fee_category_id',
+        label: 'Fee category',
+        type: 'relation',
         required: true,
-        placeholder: 'Tuition, levies, transport…',
+        placeholder: 'Select category',
+        description: 'Choose from Fee Categories. Create a category first if needed.',
+        relation: feeCategoryRelation(),
       },
       { name: 'amount', label: 'Amount', type: 'number', required: true },
       {
@@ -498,23 +501,41 @@ export const moduleCrudRegistry: Record<string, ModuleCrudConfig> = {
         required: true,
         options: [
           { label: 'USD', value: 'USD' },
-          { label: 'ZWL', value: 'ZWL' },
+          { label: 'ZWG', value: 'ZWG' },
         ],
       },
     ],
     z.object({
-      class: z.string().min(1, 'Class is required'),
-      category: z.string().min(1, 'Category is required'),
+      class_id: z.string().min(1, 'Select a class'),
+      fee_category_id: z.string().min(1, 'Select a fee category'),
       amount: z.coerce.number().positive('Amount must be greater than zero'),
-      currency: z.enum(['USD', 'ZWL']),
+      currency: z.enum(['USD', 'ZWG']),
     }),
   ),
   'finance-fee-categories': crud(
     [
       { name: 'name', label: 'Category name', type: 'text', required: true },
       { name: 'description', label: 'Description', type: 'textarea' },
+      {
+        name: 'is_active',
+        label: 'Active',
+        type: 'checkbox',
+        description: 'Inactive categories stay in history but are hidden from new fee structures.',
+      },
+      {
+        name: 'order',
+        label: 'Display order',
+        type: 'number',
+        placeholder: '0',
+        description: 'Lower numbers appear first in pickers.',
+      },
     ],
-    z.object({ name: z.string().min(1), description: z.string().optional() }),
+    z.object({
+      name: z.string().min(1, 'Name is required'),
+      description: z.string().optional(),
+      is_active: z.boolean().optional(),
+      order: z.coerce.number().min(0).optional(),
+    }),
   ),
   'finance-transactions': crud([], z.object({}), { canCreate: false, canEdit: false, canDelete: false }),
   'finance-payroll': crud(

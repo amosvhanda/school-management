@@ -196,6 +196,40 @@ export const moduleListMetaRegistry: Record<string, ListPageMeta> = {
       },
     ],
   },
+  'finance-fees': {
+    filterMode: 'server',
+    filters: [
+      {
+        key: 'fee_category_id',
+        label: 'Category',
+        type: 'relation',
+        placeholder: 'All categories',
+        relation: { endpoint: moduleEndpoints.feeCategories, moduleLabel: 'fee category' },
+      },
+      {
+        key: 'class_id',
+        label: 'Class',
+        type: 'relation',
+        placeholder: 'All classes',
+        relation: { endpoint: moduleEndpoints.classes, moduleLabel: 'class' },
+      },
+    ],
+  },
+  'finance-fee-categories': {
+    filterMode: 'server',
+    filters: [
+      {
+        key: 'is_active',
+        label: 'Status',
+        type: 'select',
+        placeholder: 'Any status',
+        options: [
+          { label: 'Active', value: '1' },
+          { label: 'Inactive', value: '0' },
+        ],
+      },
+    ],
+  },
   'finance-invoices': {
     serverSearch: true,
     filterMode: 'server',

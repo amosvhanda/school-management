@@ -10,6 +10,7 @@ import {
   enrollmentColumns,
   eventColumns,
   feeStructureColumns,
+  feeCategoryColumns,
   genericColumns,
   guardianColumns,
   healthColumns,
@@ -73,8 +74,18 @@ export const listPageRegistry: Record<string, ListPageConfig> = {
   finance: { title: 'Finance Overview', endpoint: moduleEndpoints.financeSummary, columns: genericColumns },
   'finance-payments': { title: 'Payments', endpoint: moduleEndpoints.payments, columns: paymentColumns },
   'finance-invoices': { title: 'Invoices', endpoint: moduleEndpoints.invoices, columns: invoiceColumns },
-  'finance-fees': { title: 'Fee Structures', endpoint: moduleEndpoints.feeStructures, columns: feeStructureColumns },
-  'finance-fee-categories': { title: 'Fee Categories', endpoint: moduleEndpoints.feeCategories, columns: defaultColumns(['name', 'description', 'status']) },
+  'finance-fees': {
+    title: 'Fee Structures',
+    endpoint: moduleEndpoints.feeStructures,
+    columns: feeStructureColumns,
+    description: 'Amounts charged per class, linked to fee categories.',
+  },
+  'finance-fee-categories': {
+    title: 'Fee Categories',
+    endpoint: moduleEndpoints.feeCategories,
+    columns: feeCategoryColumns,
+    description: 'Shared categories used by fee structures (tuition, levies, exams…).',
+  },
   'finance-transactions': { title: 'Transactions', endpoint: moduleEndpoints.transactions, columns: defaultColumns(['date', 'type', 'amount', 'reference', 'status']) },
   'finance-payroll': { title: 'Payroll', endpoint: moduleEndpoints.payroll, columns: payrollColumns },
 

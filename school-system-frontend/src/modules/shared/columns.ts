@@ -295,10 +295,69 @@ export const timetableColumns: ColumnDef<Record<string, unknown>>[] = [
 ]
 export const holidayProgramColumns = defaultColumns(['name', 'start_date', 'end_date', 'fee_amount', 'status'])
 export const feeStructureColumns: ColumnDef<Record<string, unknown>>[] = [
-  textColumn('Class', 'class_name'),
-  textColumn('Category', 'category'),
+  {
+    id: 'class_name',
+    header: 'Class',
+    cell: ({ row }) => {
+      const classModel = row.original.class_model ?? row.original.classModel
+      if (classModel && typeof classModel === 'object') {
+        return String((classModel as Record<string, unknown>).name ?? row.original.class_name ?? '—')
+      }
+      return String(row.original.class_name ?? '—')
+    },
+  },
+  {
+    id: 'category',
+    header: 'Category',
+    cell: ({ row }) => {
+      const category = row.original.fee_category ?? row.original.feeCategory
+      const name = category && typeof category === 'object'
+        ? String((category as Record<string, unknown>).name ?? row.original.category ?? '—')
+        : String(row.original.category ?? '—')
+      const categoryId = row.original.fee_category_id
+        ?? (category && typeof category === 'object' ? (category as Record<string, unknown>).id : null)
+      if (categoryId == null) return name
+      return h(
+        RouterLink,
+        {
+          to: { path: '/finance/fee-categories', query: { highlight: String(categoryId) } },
+          class: 'text-sm font-medium text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+        },
+        { default: () => name },
+      )
+    },
+  },
   currencyColumn('Amount', 'amount'),
   textColumn('Currency', 'currency'),
+]
+
+export const feeCategoryColumns: ColumnDef<Record<string, unknown>>[] = [
+  textColumn('Name', 'name'),
+  textColumn('Description', 'description'),
+  {
+    id: 'is_active',
+    header: 'Status',
+    cell: ({ row }) => (row.original.is_active === false ? 'Inactive' : 'Active'),
+  },
+  {
+    id: 'fee_structures_count',
+    header: 'Fee structures',
+    cell: ({ row }) => {
+      const count = Number(row.original.fee_structures_count ?? 0)
+      const id = row.original.id
+      const label = `${count} structure${count === 1 ? '' : 's'}`
+      if (id == null) return label
+      return h(
+        RouterLink,
+        {
+          to: { path: '/finance/fees', query: { fee_category_id: String(id) } },
+          class: 'text-sm font-medium text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+          'aria-label': `View ${label} for this category`,
+        },
+        { default: () => label },
+      )
+    },
+  },
 ]
 
 export const payrollColumns: ColumnDef<Record<string, unknown>>[] = [

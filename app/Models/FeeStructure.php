@@ -15,6 +15,7 @@ class FeeStructure extends Model
     protected $fillable = [
         'class_id',
         'class_name',
+        'fee_category_id',
         'category',
         'amount',
         'currency',
@@ -24,13 +25,18 @@ class FeeStructure extends Model
     protected function casts(): array
     {
         return [
-        'amount' => 'decimal:2',
-    ];
+            'amount' => 'decimal:2',
+        ];
     }
 
     public function classModel(): BelongsTo
     {
         return $this->belongsTo(ClassModel::class, 'class_id');
+    }
+
+    public function feeCategory(): BelongsTo
+    {
+        return $this->belongsTo(FeeCategory::class, 'fee_category_id');
     }
 
     public function school(): BelongsTo

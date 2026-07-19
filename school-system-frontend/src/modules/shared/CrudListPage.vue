@@ -409,6 +409,14 @@ async function onSubmit(values: Record<string, unknown>) {
 }
 
 onMounted(async () => {
+  // Seed list filters from URL (e.g. /finance/fees?fee_category_id=3)
+  for (const filter of listFilters.value) {
+    const raw = route.query[filter.key]
+    if (typeof raw === 'string' && raw !== '') {
+      filterValues.value = { ...filterValues.value, [filter.key]: raw }
+    }
+  }
+
   await load()
   if (route.query.create === '1' && props.canCreate && hasForm.value) {
     void openCreate()

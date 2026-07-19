@@ -337,10 +337,19 @@ export function mapFormToPayload(
 
   if (listKey === 'finance-fees') {
     return {
-      class: values.class,
-      category: values.category,
+      class_id: values.class_id ? Number(values.class_id) : undefined,
+      fee_category_id: values.fee_category_id ? Number(values.fee_category_id) : undefined,
       amount: values.amount,
       currency: values.currency,
+    }
+  }
+
+  if (listKey === 'finance-fee-categories') {
+    return {
+      name: values.name,
+      description: values.description || null,
+      is_active: values.is_active !== false,
+      ...(values.order != null && values.order !== '' ? { order: Number(values.order) } : {}),
     }
   }
 
