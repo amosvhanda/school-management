@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { storeToRefs } from 'pinia'
-import { RouterView } from 'vue-router'
+import { RouterView, useRoute } from 'vue-router'
 import AppHeader from '@/components/app/AppHeader.vue'
 import AppSidebar from '@/components/app/AppSidebar.vue'
 import LicenseBanner from '@/components/app/LicenseBanner.vue'
@@ -15,6 +15,7 @@ defineProps<{
   showLicenseBanner?: boolean
 }>()
 
+const route = useRoute()
 const uiStore = useUiStore()
 const { sidebarOpen } = storeToRefs(uiStore)
 </script>
@@ -27,7 +28,8 @@ const { sidebarOpen } = storeToRefs(uiStore)
       <LicenseBanner v-if="showLicenseBanner" />
       <AppHeader />
       <div class="page-canvas flex-1 overflow-x-hidden overflow-y-auto p-4 md:p-6 lg:p-8">
-        <RouterView />
+        <!-- Remount when route name changes so shared RegistryListPage does not keep prior list rows. -->
+        <RouterView :key="String(route.name ?? route.path)" />
       </div>
     </SidebarInset>
   </SidebarProvider>

@@ -29,6 +29,7 @@ const crudAccess = computed(() => {
 <template>
   <CrudListPage
     v-if="config && crud"
+    :key="listKey"
     :title="config.title"
     :description="config.description"
     :endpoint="config.endpoint"
@@ -47,6 +48,7 @@ const crudAccess = computed(() => {
   />
   <ListPage
     v-else-if="config"
+    :key="listKey"
     :title="config.title"
     :description="config.description"
     :endpoint="config.endpoint"

@@ -22,7 +22,7 @@ export function guardianRelation(overrides?: Partial<RelationFieldConfig>): Rela
 export function classRelation(overrides?: Partial<RelationFieldConfig>): RelationFieldConfig {
   return {
     endpoint: moduleEndpoints.classes,
-    createRoute: '/academics/setup?create=1',
+    createRoute: '/academics/classes?create=1',
     moduleLabel: 'class',
     ...overrides,
   }

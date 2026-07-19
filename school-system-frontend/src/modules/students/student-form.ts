@@ -111,7 +111,7 @@ export const studentFormFields: FormFieldSchema[] = mergeFormSections(
       relation: {
         endpoint: moduleEndpoints.classes,
         fallbackRowKey: 'class',
-        createRoute: '/academics/setup?create=1',
+        createRoute: '/academics/classes?create=1',
         moduleLabel: 'class',
       },
     },

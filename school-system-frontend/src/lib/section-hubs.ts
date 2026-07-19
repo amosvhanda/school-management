@@ -50,7 +50,7 @@ export const SECTION_HUBS: Record<SectionKey, SectionHubDefinition> = {
       { title: 'Attendance register', description: 'Mark daily class attendance', href: '/academics/attendance', icon: 'ClipboardCheck', capability: ['canManageStudents', 'canManageTeachers'] },
       { title: 'Exams', description: 'Enter marks and review results', href: '/academics/exams', icon: 'FileText', capability: ['canManageExaminations', 'canEnterExamResults'] },
       { title: 'Gradebook', description: 'Enter and review marks', href: '/academics/grades', icon: 'NotebookPen', capability: ['canManageTeachers', 'canEnterExamResults'] },
-      { title: 'Classes', description: 'Class and grade setup', href: '/academics/setup', icon: 'BookOpen', capability: 'canManageTeachers' },
+      { title: 'Classes', description: 'Class and grade setup', href: '/academics/classes', icon: 'BookOpen', capability: 'canManageTeachers' },
       { title: 'Streams', description: 'Sciences, Arts, and other streams', href: '/academics/streams', icon: 'GitBranch', capability: 'canManageTeachers' },
       { title: 'Houses', description: 'Pastoral house groups', href: '/academics/houses', icon: 'Home', capability: 'canManageTeachers' },
       { title: 'Subject packages', description: 'Subjects by grade and stream', href: '/academics/subject-packages', icon: 'Layers', capability: 'canManageTeachers' },

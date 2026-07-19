@@ -434,7 +434,7 @@ export const STAFF_DASHBOARD_MODULE_GROUPS: DashboardModuleGroup[] = [
       {
         title: 'Classes',
         description: 'Class groups and setup',
-        href: '/academics/setup',
+        href: '/academics/classes',
         icon: 'BookOpen',
         capability: 'canManageTeachers',
       },
