@@ -96,13 +96,7 @@ class TermController extends Controller
             ], 422);
         }
 
-        // If setting as current, unset other current terms in the same academic year.
-        // Current-term lookups require is_active, so always activate when marking current.
-        if ($request->boolean('is_current')) {
-            Term::where('school_id', $schoolId)
-                ->where('academic_year', $request->academic_year)
-                ->update(['is_current' => false]);
-        }
+        $makeCurrent = $request->boolean('is_current');
 
         $term = Term::create([
             'school_id' => $schoolId,
@@ -112,13 +106,17 @@ class TermController extends Controller
             'end_date' => $request->end_date,
             'order' => $request->order ?? 1,
             'description' => $request->description,
-            'is_current' => $request->boolean('is_current', false),
-            'is_active' => true,
+            'is_current' => false,
+            'is_active' => $makeCurrent ? true : $request->boolean('is_active', false),
         ]);
+
+        if ($makeCurrent) {
+            $this->makeExclusiveCurrent($term);
+        }
 
         return response()->json([
             'message' => 'Term created successfully',
-            'data' => $term,
+            'data' => $term->fresh(),
         ], 201);
     }
 
@@ -127,9 +125,6 @@ class TermController extends Controller
      */
     public function update(Request $request, Term $term)
     {
-        $user = $request->user();
-        $schoolId = $user->school_id;
-
         $validator = Validator::make($request->all(), [
             'name' => 'sometimes|string|max:255',
             'academic_year' => 'sometimes|string|max:9',
@@ -148,31 +143,55 @@ class TermController extends Controller
             ], 422);
         }
 
-        // If setting as current, unset other current terms in the same academic year
-        // and always activate this term (current scope requires is_active).
-        if ($request->has('is_current') && $request->boolean('is_current')) {
-            Term::where('school_id', $schoolId)
-                ->where('academic_year', $term->academic_year)
-                ->where('id', '!=', $term->id)
-                ->update(['is_current' => false]);
+        $makeCurrent = $request->has('is_current') && $request->boolean('is_current');
 
-            $request->merge(['is_active' => true]);
+        if ($makeCurrent) {
+            // Exclusive current term: clear current/active on every other school term first.
+            $this->makeExclusiveCurrent($term, updateAttributes: $request->only([
+                'name',
+                'academic_year',
+                'start_date',
+                'end_date',
+                'order',
+                'description',
+            ]));
+        } else {
+            $term->update($request->only([
+                'name',
+                'academic_year',
+                'start_date',
+                'end_date',
+                'order',
+                'description',
+                'is_current',
+                'is_active',
+            ]));
         }
-
-        $term->update($request->only([
-            'name',
-            'academic_year',
-            'start_date',
-            'end_date',
-            'order',
-            'description',
-            'is_current',
-            'is_active',
-        ]));
 
         return response()->json([
             'message' => 'Term updated successfully',
             'data' => $term->fresh(),
+        ]);
+    }
+
+    /**
+     * Mark one term as the school's sole current + active term.
+     *
+     * @param  array<string, mixed>  $updateAttributes
+     */
+    private function makeExclusiveCurrent(Term $term, array $updateAttributes = []): void
+    {
+        Term::where('school_id', $term->school_id)
+            ->where('id', '!=', $term->id)
+            ->update([
+                'is_current' => false,
+                'is_active' => false,
+            ]);
+
+        $term->update([
+            ...$updateAttributes,
+            'is_current' => true,
+            'is_active' => true,
         ]);
     }
 

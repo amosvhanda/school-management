@@ -321,14 +321,14 @@ export const moduleCrudRegistry: Record<string, ModuleCrudConfig> = {
         label: 'Current term',
         type: 'checkbox',
         section: 'Status',
-        description: 'Only one term should be current per school. Used by gradebook and exams.',
+        description: 'Makes this the live term and deactivates all other terms.',
       },
       {
         name: 'is_active',
         label: 'Active',
         type: 'checkbox',
         section: 'Status',
-        description: 'Inactive terms stay in history but are hidden from new work.',
+        description: 'Usually only the current term is active. Setting current handles this for you.',
       },
     ],
     z

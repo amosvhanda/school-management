@@ -77,7 +77,7 @@ export const moduleActionsRegistry: Record<string, RowActionConfig[]> = {
       path: (id) => endpoints.terms.detail(id),
       when: (row) => row.is_current !== true && row.is_current !== 1,
       body: { is_current: true, is_active: true },
-      successMessage: 'Current term updated',
+      successMessage: 'Term set as current — other terms are now inactive',
     },
   ],
   'finance-payments': [
