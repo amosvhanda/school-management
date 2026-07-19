@@ -5,7 +5,6 @@ namespace App\Http\Controllers;
 use App\Models\Term;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
-use Illuminate\Support\Facades\DB;
 
 class TermController extends Controller
 {
@@ -50,7 +49,7 @@ class TermController extends Controller
 
         $term = Term::current($schoolId)->first();
 
-        if (!$term) {
+        if (! $term) {
             return response()->json([
                 'message' => 'No current term found',
             ], 404);
@@ -64,15 +63,17 @@ class TermController extends Controller
     /**
      * Get a specific term
      */
-    public function show(Request $request, Term $term)
+    public function show(Request $request, int $id)
     {
+        $term = Term::where('school_id', $request->user()->school_id)->findOrFail($id);
+
         return response()->json([
             'data' => $term,
         ]);
     }
 
     /**
-     * Create a new term
+     * Create a term
      */
     public function store(Request $request)
     {
@@ -87,6 +88,7 @@ class TermController extends Controller
             'order' => 'nullable|integer|min:1',
             'description' => 'nullable|string',
             'is_current' => 'nullable|boolean',
+            'is_active' => 'nullable|boolean',
         ]);
 
         if ($validator->fails()) {
@@ -123,8 +125,10 @@ class TermController extends Controller
     /**
      * Update a term
      */
-    public function update(Request $request, Term $term)
+    public function update(Request $request, int $id)
     {
+        $term = Term::where('school_id', $request->user()->school_id)->findOrFail($id);
+
         $validator = Validator::make($request->all(), [
             'name' => 'sometimes|string|max:255',
             'academic_year' => 'sometimes|string|max:9',
@@ -146,7 +150,6 @@ class TermController extends Controller
         $makeCurrent = $request->has('is_current') && $request->boolean('is_current');
 
         if ($makeCurrent) {
-            // Exclusive current term: clear current/active on every other school term first.
             $this->makeExclusiveCurrent($term, updateAttributes: $request->only([
                 'name',
                 'academic_year',
@@ -198,9 +201,10 @@ class TermController extends Controller
     /**
      * Delete a term
      */
-    public function destroy(Request $request, Term $term)
+    public function destroy(Request $request, int $id)
     {
-        // Check if term has exams or other data
+        $term = Term::where('school_id', $request->user()->school_id)->findOrFail($id);
+
         if ($term->exams()->count() > 0) {
             return response()->json([
                 'message' => 'Cannot delete term with associated exams',
