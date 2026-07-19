@@ -3,11 +3,29 @@ const SCHOOL_LOCALE = 'en-GB'
 const SCHOOL_TIME_ZONE = 'Africa/Harare'
 const FALLBACK = '—'
 
+const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/
+const YEAR_MONTH = /^\d{4}-\d{2}$/
+const CLOCK_TIME = /^(\d{1,2}):(\d{2})(?::(\d{2}))?$/
+const ISO_LIKE = /^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}/
+
+function pad2(n: number | string): string {
+  return String(n).padStart(2, '0')
+}
+
+function normalizeIsoTimestamp(value: string): string {
+  return value
+    .trim()
+    .replace(' ', 'T')
+    // Laravel often sends microseconds; JS Date only accepts milliseconds
+    .replace(/\.(\d{3})\d+(?=[zZ]|[+-]|$)/, '.$1')
+}
+
 /**
  * Parse API / form date values.
  * - Date-only (YYYY-MM-DD): calendar date, no timezone shift
- * - ISO datetimes (with Z / offset / fractional seconds): absolute instant → format in Harare
- * - Naive local datetimes (YYYY-MM-DD HH:mm[:ss]): treated as wall-clock local
+ * - Clock time (HH:mm): today's local wall clock
+ * - ISO datetimes: absolute instant
+ * - Naive local datetimes: wall-clock local
  */
 export function parseDateValue(value: unknown): Date | null {
   if (value == null || value === '') return null
@@ -21,43 +39,31 @@ export function parseDateValue(value: unknown): Date | null {
   const str = String(value).trim()
   if (!str) return null
 
-  // Pure calendar date — keep as local calendar day (DOB, exam_date, leave dates)
-  if (/^\d{4}-\d{2}-\d{2}$/.test(str)) {
+  if (DATE_ONLY.test(str)) {
     const [y, m, d] = str.split('-').map(Number)
     const date = new Date(y, m - 1, d)
     return Number.isNaN(date.getTime()) ? null : date
   }
 
-  // Year-month
-  if (/^\d{4}-\d{2}$/.test(str)) {
+  if (YEAR_MONTH.test(str)) {
     const [y, m] = str.split('-').map(Number)
     const date = new Date(y, m - 1, 1)
     return Number.isNaN(date.getTime()) ? null : date
   }
 
-  // Clock time only
-  const timeOnly = str.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/)
+  const timeOnly = str.match(CLOCK_TIME)
   if (timeOnly) {
     const now = new Date()
     now.setHours(Number(timeOnly[1]), Number(timeOnly[2]), Number(timeOnly[3] ?? 0), 0)
-    return now
+    return Number.isNaN(now.getTime()) ? null : now
   }
 
-  // Absolute ISO timestamps from Laravel / JSON (Z, ±offset, fractional seconds)
-  // e.g. 2026-07-19T12:30:00.000000Z or 2026-07-19T14:30:00+02:00
-  if (
-    /^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}/.test(str)
-    && (/[zZ]$/.test(str) || /[+-]\d{2}:?\d{2}$/.test(str) || /\.\d+/.test(str) || str.includes('T'))
-  ) {
-    // Normalize Laravel microsecond timestamps: .000000Z → .000Z (JS Date accepts ms)
-    const normalized = str
-      .replace(' ', 'T')
-      .replace(/\.(\d{3})\d+(?=[zZ]|[+-]|$)/, '.$1')
+  if (ISO_LIKE.test(str)) {
+    const normalized = normalizeIsoTimestamp(str)
     const absolute = new Date(normalized)
     if (!Number.isNaN(absolute.getTime())) return absolute
   }
 
-  // Naive datetime without timezone: treat as local wall clock
   const naive = str.match(/^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})(?::(\d{2}))?/)
   if (naive) {
     const [, y, m, d, hh, mm, ss] = naive
@@ -91,8 +97,10 @@ export function isTimeFieldKey(key: string): boolean {
 /** Calendar date for school records — e.g. 19 Jul 2026 */
 export function formatDate(value: unknown, fallback = FALLBACK): string {
   const raw = String(value ?? '').trim()
-  // Date-only strings must not be shifted by timezone conversion
-  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+  if (!raw) return fallback
+
+  // Pure calendar date
+  if (DATE_ONLY.test(raw)) {
     const [y, m, d] = raw.split('-').map(Number)
     const calendar = new Date(y, m - 1, d)
     if (Number.isNaN(calendar.getTime())) return fallback
@@ -100,6 +108,18 @@ export function formatDate(value: unknown, fallback = FALLBACK): string {
       year: 'numeric',
       month: 'short',
       day: 'numeric',
+    })
+  }
+
+  // ISO midnight / date cast leftovers: use the calendar day in Harare
+  if (ISO_LIKE.test(raw)) {
+    const date = parseDateValue(raw)
+    if (!date) return fallback
+    return date.toLocaleDateString(SCHOOL_LOCALE, {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      timeZone: SCHOOL_TIME_ZONE,
     })
   }
 
@@ -118,12 +138,12 @@ export function formatDate(value: unknown, fallback = FALLBACK): string {
  * Calendar-only values omit the time part.
  */
 export function formatDateTime(value: unknown, fallback = FALLBACK): string {
+  const raw = String(value ?? '').trim()
+  if (!raw) return fallback
+  if (DATE_ONLY.test(raw)) return formatDate(raw, fallback)
+
   const date = parseDateValue(value)
   if (!date) return fallback
-
-  const raw = String(value ?? '').trim()
-  const dateOnly = /^\d{4}-\d{2}-\d{2}$/.test(raw)
-  if (dateOnly) return formatDate(date, fallback)
 
   const day = date.toLocaleDateString(SCHOOL_LOCALE, {
     year: 'numeric',
@@ -140,16 +160,35 @@ export function formatDateTime(value: unknown, fallback = FALLBACK): string {
   return `${day} at ${time}`
 }
 
-/** Clock time — e.g. 14:30 */
+/**
+ * Clock time — e.g. 14:30
+ * Prefers API wall-clock values (H:i) and avoids shifting them.
+ */
 export function formatTime(value: unknown, fallback = FALLBACK): string {
-  const raw = String(value ?? '').trim()
-  // Already a wall-clock time from the API (H:i or H:i:s) — do not timezone-shift
-  const clock = raw.match(/^(\d{1,2}):(\d{2})(?::\d{2})?$/)
-  if (clock) {
-    return `${clock[1].padStart(2, '0')}:${clock[2]}`
+  if (value == null || value === '') return fallback
+
+  // Date objects from callers that already parsed a clock time
+  if (value instanceof Date) {
+    if (Number.isNaN(value.getTime())) return fallback
+    return value.toLocaleTimeString(SCHOOL_LOCALE, {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+      timeZone: SCHOOL_TIME_ZONE,
+    })
   }
 
-  const date = parseDateValue(value)
+  const raw = String(value).trim()
+  if (!raw) return fallback
+
+  // Already a wall-clock time from the API — never timezone-shift
+  const clock = raw.match(CLOCK_TIME)
+  if (clock) {
+    return `${pad2(clock[1])}:${pad2(clock[2])}`
+  }
+
+  // ISO / datetime leftovers for time fields: show Harare clock
+  const date = parseDateValue(raw)
   if (!date) return fallback
   return date.toLocaleTimeString(SCHOOL_LOCALE, {
     hour: '2-digit',
@@ -157,6 +196,24 @@ export function formatTime(value: unknown, fallback = FALLBACK): string {
     hour12: false,
     timeZone: SCHOOL_TIME_ZONE,
   })
+}
+
+/** Date + optional start/end times — e.g. 12 Mar 2026 · 09:00–11:00 */
+export function formatSchedule(
+  dateValue: unknown,
+  startTime?: unknown,
+  endTime?: unknown,
+  fallback = FALLBACK,
+): string {
+  const date = formatDate(dateValue, '')
+  if (!date) return fallback
+
+  const start = startTime != null && startTime !== '' ? formatTime(startTime, '') : ''
+  const end = endTime != null && endTime !== '' ? formatTime(endTime, '') : ''
+
+  if (start && end) return `${date} · ${start}–${end}`
+  if (start) return `${date} · ${start}`
+  return date
 }
 
 export function formatRelativeTime(value: unknown, fallback = FALLBACK): string {
@@ -186,13 +243,12 @@ export function formatMonth(value: unknown, fallback = FALLBACK): string {
   const str = String(value ?? '').trim()
   if (!str) return fallback
 
-  if (/^\d{4}-\d{2}$/.test(str)) {
-    const date = parseDateValue(str)
+  if (YEAR_MONTH.test(str) || /^\d{4}-\d{2}/.test(str)) {
+    const date = parseDateValue(str.slice(0, 7))
     if (date) {
       return date.toLocaleDateString(SCHOOL_LOCALE, {
         month: 'short',
         year: 'numeric',
-        timeZone: SCHOOL_TIME_ZONE,
       })
     }
   }

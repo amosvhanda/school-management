@@ -94,7 +94,17 @@ defineSlots<{
               class="transition-colors border-b border-border/40 last:border-0 hover:bg-muted/30"
             >
               <TableCell v-for="cell in row.getVisibleCells()" :key="cell.id" class="py-3 text-sm">
-                <FlexRender :render="cell.column.columnDef.cell" :props="cell.getContext()" />
+                <slot
+                  v-if="$slots[`cell-${cell.column.id}`]"
+                  :name="`cell-${cell.column.id}`"
+                  :row="row"
+                  :cell="cell"
+                />
+                <FlexRender
+                  v-else
+                  :render="cell.column.columnDef.cell"
+                  :props="cell.getContext()"
+                />
               </TableCell>
             </TableRow>
           </template>

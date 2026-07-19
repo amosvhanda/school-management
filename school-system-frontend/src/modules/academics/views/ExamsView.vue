@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, nextTick } from 'vue'
+import { computed, h, onMounted, ref, nextTick } from 'vue'
 import type { ColumnDef } from '@tanstack/vue-table'
 import {
   Calendar,
@@ -43,7 +43,7 @@ import { useAuth } from '@/composables/useAuth'
 import { useFormSheetLoader } from '@/composables/useFormSheetLoader'
 import { useListFilters } from '@/composables/useListFilters'
 import { getErrorMessage } from '@/lib/api-response'
-import { formatDate, formatDateTime, formatTime } from '@/lib/format'
+import { formatDateTime, formatSchedule } from '@/lib/format'
 import {
   examCreateDefaults,
   examFormFields,
@@ -72,13 +72,7 @@ interface ExamRow {
 }
 
 function examScheduleLabel(exam: ExamRow): string {
-  const date = formatDate(exam.exam_date)
-  const start = exam.start_time ? formatTime(exam.start_time) : ''
-  const end = exam.end_time ? formatTime(exam.end_time) : ''
-
-  if (start && end && start !== '—' && end !== '—') return `${date} · ${start}–${end}`
-  if (start && start !== '—') return `${date} · ${start}`
-  return date
+  return formatSchedule(exam.exam_date, exam.start_time, exam.end_time)
 }
 
 const { toast } = useToast()
@@ -156,14 +150,61 @@ function examStatus(exam: ExamRow): { label: string; variant: 'default' | 'secon
   return { label: 'Scheduled', variant: 'outline' }
 }
 
-// Columns metadata definition mapped down to declarative slot handlers below
+// Cell renderers are required — DataTable slots are optional overrides.
 const columns: ColumnDef<ExamRow>[] = [
-  { accessorKey: 'name', header: 'Exam' },
-  { id: 'schedule', header: 'Schedule' },
-  { id: 'term', header: 'Term' },
-  { id: 'grade_level', header: 'Grade' },
-  { id: 'subject', header: 'Subject' },
-  { id: 'marks', header: 'Marks' },
+  {
+    accessorKey: 'name',
+    header: 'Exam',
+    cell: ({ row }) => h('span', { class: 'font-medium text-sm text-foreground' }, row.original.name || '—'),
+  },
+  {
+    id: 'schedule',
+    header: 'Schedule',
+    accessorFn: (row) => row.exam_date,
+    cell: ({ row }) => {
+      const exam = row.original
+      const children = [
+        h('p', { class: 'text-sm text-foreground' }, examScheduleLabel(exam)),
+      ]
+      if (exam.results_approved_at) {
+        children.push(
+          h(
+            'p',
+            {
+              class: 'text-xs text-muted-foreground',
+              title: formatDateTime(exam.results_approved_at),
+            },
+            `Approved ${formatDateTime(exam.results_approved_at)}`,
+          ),
+        )
+      }
+      return h('div', { class: 'space-y-0.5' }, children)
+    },
+  },
+  {
+    id: 'term',
+    header: 'Term',
+    accessorFn: (row) => row.term?.name,
+    cell: ({ row }) => h('span', { class: 'text-sm text-foreground/90' }, row.original.term?.name || '—'),
+  },
+  {
+    id: 'grade_level',
+    header: 'Grade',
+    accessorFn: (row) => row.grade_level?.name,
+    cell: ({ row }) => h('span', { class: 'text-sm text-foreground/90' }, row.original.grade_level?.name || '—'),
+  },
+  {
+    id: 'subject',
+    header: 'Subject',
+    accessorFn: (row) => row.subject?.name,
+    cell: ({ row }) => h('span', { class: 'text-sm text-foreground/90' }, row.original.subject?.name || '—'),
+  },
+  {
+    id: 'marks',
+    header: 'Marks',
+    accessorFn: (row) => row.total_marks,
+    cell: ({ row }) => h('span', { class: 'text-sm font-medium' }, String(row.original.total_marks ?? '—')),
+  },
   { id: 'results', header: 'Results' },
   { id: 'status', header: 'Status' },
   { id: 'actions', header: '' },
