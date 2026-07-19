@@ -272,7 +272,44 @@ export const listPageRegistry: Record<string, ListPageConfig> = {
   'enterprise-academic': { title: 'Academic Calendar', endpoint: moduleEndpoints.enterpriseAcademic, columns: defaultColumns(['title', 'start_date', 'end_date', 'type']) },
   'enterprise-exams': { title: 'Question Bank', endpoint: moduleEndpoints.enterpriseExams, columns: defaultColumns(['question', 'subject_id', 'difficulty', 'created_at']) },
   'enterprise-hr': { title: 'Performance Reviews', endpoint: moduleEndpoints.enterpriseHr, columns: defaultColumns(['employee_id', 'period', 'rating', 'created_at']) },
-  'enterprise-warnings': { title: 'Early Warnings', endpoint: moduleEndpoints.enterpriseEarlyWarnings, columns: defaultColumns(['student_id', 'type', 'severity', 'created_at']) },
+  'enterprise-warnings': {
+    title: 'Early Warnings',
+    description: 'Computed risk signals — high dropout risk and unpaid fee balances.',
+    endpoint: moduleEndpoints.enterpriseEarlyWarnings,
+    columns: [
+      textColumn('Student', 'student_name'),
+      textColumn('Type', 'type'),
+      {
+        id: 'severity',
+        header: 'Severity',
+        cell: ({ row }) => {
+          const level = row.original.risk_level
+          if (level != null) return String(level)
+          const balance = row.original.balance
+          if (balance != null) return `Balance: ${balance}`
+          return '—'
+        },
+      },
+      {
+        id: 'detail',
+        header: 'Detail',
+        cell: ({ row }) => {
+          if (row.original.type === 'unpaid_fees') {
+            return row.original.balance != null ? `Owes ${row.original.balance}` : '—'
+          }
+          const attendance = row.original.attendance_rate
+          const score = row.original.average_score_percent
+          const risk = row.original.dropout_risk_score
+          const parts = [
+            attendance != null ? `Attendance ${attendance}%` : null,
+            score != null ? `Avg ${score}%` : null,
+            risk != null ? `Risk ${risk}` : null,
+          ].filter(Boolean)
+          return parts.length ? parts.join(' · ') : '—'
+        },
+      },
+    ],
+  },
   'enterprise-alumni': { title: 'Alumni', endpoint: moduleEndpoints.enterpriseAlumni, columns: defaultColumns(['full_name', 'graduation_year', 'email', 'status']) },
   'enterprise-campaigns': { title: 'Campaigns', endpoint: moduleEndpoints.enterpriseCampaigns, columns: defaultColumns(['name', 'audience', 'status', 'created_at']) },
 
