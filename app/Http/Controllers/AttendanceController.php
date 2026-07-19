@@ -6,7 +6,9 @@ use App\Models\Attendance;
 use App\Models\ClassModel;
 use App\Models\Student;
 use App\Services\AttendanceNotificationService;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 
 class AttendanceController extends Controller
@@ -20,6 +22,12 @@ class AttendanceController extends Controller
 
     public function index(Request $request)
     {
+        $this->authorizeModuleAccess(
+            $request,
+            capabilities: ['canManageStudents', 'canManageTeachers'],
+            permissionSlugs: ['attendance.manage'],
+        );
+
         $user = $request->user();
         $schoolId = $user?->school_id;
         $query = Attendance::with(['student', 'classModel'])
@@ -54,6 +62,12 @@ class AttendanceController extends Controller
 
     public function store(Request $request)
     {
+        $this->authorizeModuleAccess(
+            $request,
+            capabilities: ['canManageStudents', 'canManageTeachers'],
+            permissionSlugs: ['attendance.manage'],
+        );
+
         $validator = Validator::make($request->all(), [
             'class_id' => 'required', // Can be string (class name) or integer (class ID)
             'date' => 'required|date',
@@ -180,6 +194,44 @@ class AttendanceController extends Controller
         ?int $classId,
         array $values,
     ): Attendance {
+        $payload = array_merge($values, [
+            'school_id' => $schoolId,
+            'student_id' => $studentId,
+            'date' => $date,
+            'class_id' => $classId,
+        ]);
+
+        return DB::transaction(function () use ($schoolId, $studentId, $date, $classId, $payload) {
+            $existing = $this->findAttendanceForUpsert($schoolId, $studentId, $date, $classId, lock: true);
+
+            if ($existing) {
+                $existing->update($payload);
+
+                return $existing->fresh();
+            }
+
+            try {
+                return Attendance::withoutGlobalScopes()->create($payload);
+            } catch (UniqueConstraintViolationException $e) {
+                $retry = $this->findAttendanceForUpsert($schoolId, $studentId, $date, $classId, lock: true);
+                if ($retry) {
+                    $retry->update($payload);
+
+                    return $retry->fresh();
+                }
+
+                throw $e;
+            }
+        });
+    }
+
+    private function findAttendanceForUpsert(
+        int $schoolId,
+        int $studentId,
+        string $date,
+        ?int $classId,
+        bool $lock = false,
+    ): ?Attendance {
         $query = Attendance::withoutGlobalScopes()
             ->where('student_id', $studentId)
             ->whereDate('date', $date);
@@ -198,22 +250,13 @@ class AttendanceController extends Controller
             $query->whereNull('class_id');
         }
 
-        $existing = $query->orderByRaw('CASE WHEN class_id IS NULL THEN 1 ELSE 0 END')->first();
+        $query->orderByRaw('CASE WHEN class_id IS NULL THEN 1 ELSE 0 END');
 
-        $payload = array_merge($values, [
-            'school_id' => $schoolId,
-            'student_id' => $studentId,
-            'date' => $date,
-            'class_id' => $classId,
-        ]);
-
-        if ($existing) {
-            $existing->update($payload);
-
-            return $existing->fresh();
+        if ($lock) {
+            $query->lockForUpdate();
         }
 
-        return Attendance::withoutGlobalScopes()->create($payload);
+        return $query->first();
     }
 
     public function studentSummary(Request $request, $id)

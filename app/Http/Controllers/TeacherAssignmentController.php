@@ -14,6 +14,12 @@ class TeacherAssignmentController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
+        $this->authorizeModuleAccess(
+            $request,
+            capabilities: ['canManageTeachers'],
+            permissionSlugs: ['academics.manage', 'hr.manage'],
+        );
+
         $schoolId = $request->user()->school_id;
         
         $query = TeacherAssignment::where('school_id', $schoolId)
@@ -41,6 +47,12 @@ class TeacherAssignmentController extends Controller
      */
     public function store(Request $request): JsonResponse
     {
+        $this->authorizeModuleAccess(
+            $request,
+            capabilities: ['canManageTeachers'],
+            permissionSlugs: ['academics.manage', 'hr.manage'],
+        );
+
         $schoolId = $request->user()->school_id;
 
         $validated = $request->validate([
@@ -70,6 +82,15 @@ class TeacherAssignmentController extends Controller
                 ->findOrFail($validated['class_id']);
         }
 
+        if ($this->activeAssignmentExists($schoolId, $validated)) {
+            return response()->json([
+                'message' => 'Validation failed',
+                'errors' => [
+                    'teacher_id' => ['This teacher is already assigned to that class and subject.'],
+                ],
+            ], 422);
+        }
+
         $assignment = TeacherAssignment::create([
             'school_id' => $schoolId,
             ...$validated,
@@ -85,6 +106,12 @@ class TeacherAssignmentController extends Controller
      */
     public function update(Request $request, int $id): JsonResponse
     {
+        $this->authorizeModuleAccess(
+            $request,
+            capabilities: ['canManageTeachers'],
+            permissionSlugs: ['academics.manage', 'hr.manage'],
+        );
+
         $schoolId = $request->user()->school_id;
         $assignment = TeacherAssignment::where('school_id', $schoolId)->findOrFail($id);
 
@@ -105,6 +132,20 @@ class TeacherAssignmentController extends Controller
                 ->findOrFail($validated['teacher_id']);
         }
 
+        $candidate = array_merge($assignment->only([
+            'teacher_id', 'class_id', 'subject_id', 'is_active',
+        ]), $validated);
+
+        if (($candidate['is_active'] ?? true)
+            && $this->activeAssignmentExists($schoolId, $candidate, excludeId: $assignment->id)) {
+            return response()->json([
+                'message' => 'Validation failed',
+                'errors' => [
+                    'teacher_id' => ['This teacher is already assigned to that class and subject.'],
+                ],
+            ], 422);
+        }
+
         $assignment->update($validated);
 
         return response()->json($assignment->load(['teacher', 'gradeLevel', 'classModel', 'subject']));
@@ -115,11 +156,46 @@ class TeacherAssignmentController extends Controller
      */
     public function destroy(Request $request, int $id): JsonResponse
     {
+        $this->authorizeModuleAccess(
+            $request,
+            capabilities: ['canManageTeachers'],
+            permissionSlugs: ['academics.manage', 'hr.manage'],
+        );
+
         $schoolId = $request->user()->school_id;
         $assignment = TeacherAssignment::where('school_id', $schoolId)->findOrFail($id);
 
         $assignment->delete();
 
         return response()->json(['message' => 'Teacher assignment deleted successfully']);
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    private function activeAssignmentExists(int $schoolId, array $data, ?int $excludeId = null): bool
+    {
+        $query = TeacherAssignment::query()
+            ->where('school_id', $schoolId)
+            ->where('teacher_id', $data['teacher_id'])
+            ->where('is_active', true);
+
+        if (array_key_exists('class_id', $data) && $data['class_id'] !== null) {
+            $query->where('class_id', $data['class_id']);
+        } else {
+            $query->whereNull('class_id');
+        }
+
+        if (array_key_exists('subject_id', $data) && $data['subject_id'] !== null) {
+            $query->where('subject_id', $data['subject_id']);
+        } else {
+            $query->whereNull('subject_id');
+        }
+
+        if ($excludeId !== null) {
+            $query->where('id', '!=', $excludeId);
+        }
+
+        return $query->exists();
     }
 }

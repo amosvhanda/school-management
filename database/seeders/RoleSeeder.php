@@ -26,7 +26,8 @@ class RoleSeeder extends Seeder
                 'name' => 'Teacher',
                 'slug' => 'teacher',
                 'description' => 'Teaching staff — attendance, marks, and class tools. Add library/transport etc. via extra permissions on the user or role.',
-                'permission_ids' => [5, 10, 12, 14, 15, 19, 22],
+                // No academics.manage (14): that unlocks school-wide setup / canManageTeachers.
+                'permission_ids' => [5, 10, 12, 15, 19, 22],
             ],
             [
                 'name' => 'Parent',

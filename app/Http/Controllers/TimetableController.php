@@ -10,6 +10,7 @@ use App\Models\Subject;
 use App\Models\Teacher;
 use App\Models\Timetable;
 use App\Models\User;
+use App\Services\PermissionService;
 use App\Services\TimetableConflictService;
 use App\Services\TimetableGeneratorService;
 use Illuminate\Http\JsonResponse;
@@ -382,17 +383,21 @@ class TimetableController extends Controller
             return 'teacher';
         }
 
-        return 'school';
+        // Full school timetable is admin-only (parents/finance/etc. must not see all slots).
+        if (app(PermissionService::class)->hasCapability($user, 'canManageTeachers')) {
+            return 'school';
+        }
+
+        $query->whereRaw('1 = 0');
+
+        return 'none';
     }
 
     private function forbidUnlessCanManage(Request $request): ?JsonResponse
     {
         $user = $request->user();
-        $role = $user?->role instanceof UserRole
-            ? $user->role
-            : UserRole::tryFromMixed(is_string($user?->role) ? $user->role : null);
 
-        if (! $role?->canManageTeachers()) {
+        if (! $user || ! app(PermissionService::class)->hasCapability($user, 'canManageTeachers')) {
             return response()->json([
                 'message' => 'Only school administrators can modify the timetable.',
             ], 403);

@@ -104,7 +104,7 @@ export const staffRoutes: RouteRecordRaw[] = [
     path: 'academics/grades',
     name: 'academics-grades',
     component: () => import('@/modules/academics/views/GradebookView.vue'),
-    meta: { capability: 'canManageExaminations' },
+    meta: { capability: ['canManageExaminations', 'canEnterExamResults'] },
   },
   staffListRoute('academics/timetable', 'academics-timetable', 'academics-timetable', 'canManageTeachers'),
   {

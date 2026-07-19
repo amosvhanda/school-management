@@ -291,4 +291,30 @@ class TimetableApiTest extends TestCase
 
         $response->assertForbidden();
     }
+
+    public function test_parent_cannot_see_school_wide_timetable(): void
+    {
+        $school = \App\Models\School::factory()->create();
+        $class = ClassModel::factory()->create(['school_id' => $school->id]);
+        $subject = Subject::factory()->create(['school_id' => $school->id]);
+        $teacher = Teacher::factory()->create(['school_id' => $school->id]);
+
+        Timetable::factory()->create([
+            'school_id' => $school->id,
+            'class_id' => $class->id,
+            'subject_id' => $subject->id,
+            'subject' => $subject->name,
+            'teacher_id' => $teacher->id,
+            'day' => 'Monday',
+        ]);
+
+        $auth = $this->createAuthenticatedUser('parent', $school->id);
+
+        $this->withHeaders([
+            'Authorization' => 'Bearer '.$auth['token'],
+        ])->getJson('/api/v1/timetable')
+            ->assertOk()
+            ->assertJsonCount(0, 'data')
+            ->assertJsonPath('meta.scope', 'none');
+    }
 }

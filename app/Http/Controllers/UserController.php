@@ -17,6 +17,8 @@ class UserController extends Controller
 
     public function index(Request $request)
     {
+        $this->authorizeUserAccess($request, 'view');
+
         $query = User::query();
         $currentUser = $request->user();
 
@@ -59,6 +61,8 @@ class UserController extends Controller
 
     public function show(Request $request, $id)
     {
+        $this->authorizeUserAccess($request, 'view');
+
         $user = $this->findScopedUser($request, $id);
 
         return response()->json([
@@ -68,6 +72,8 @@ class UserController extends Controller
 
     public function store(Request $request)
     {
+        $this->authorizeUserAccess($request, 'create');
+
         $validator = Validator::make($request->all(), [
             'name' => 'nullable|string|max:255',
             'firstName' => 'nullable|string|max:255',
@@ -108,6 +114,10 @@ class UserController extends Controller
         }
 
         $currentUser = $request->user();
+        if ($denied = $this->rejectPrivilegedRoleAssignment($currentUser, $role)) {
+            return $denied;
+        }
+
         $schoolId = $currentUser?->school_id;
         if ($currentUser && ! $currentUser->isSuperAdmin() && $schoolId === null) {
             return response()->json([
@@ -139,6 +149,8 @@ class UserController extends Controller
 
     public function update(Request $request, $id)
     {
+        $this->authorizeUserAccess($request, 'edit');
+
         $user = $this->findScopedUser($request, $id);
 
         $validator = Validator::make($request->all(), [
@@ -191,6 +203,9 @@ class UserController extends Controller
                     ],
                 ], 422);
             }
+            if ($denied = $this->rejectPrivilegedRoleAssignment($request->user(), $role)) {
+                return $denied;
+            }
             $user->role = $role;
         }
 
@@ -203,6 +218,9 @@ class UserController extends Controller
         }
 
         if ($request->has('permission_ids')) {
+            if ($denied = $this->rejectInvalidPermissionIds($request->input('permission_ids', []))) {
+                return $denied;
+            }
             $ids = array_values(array_unique(array_map('intval', $request->input('permission_ids', []))));
             $user->permission_ids = $ids === [] ? null : $ids;
         }
@@ -217,6 +235,8 @@ class UserController extends Controller
 
     public function destroy(Request $request, $id)
     {
+        $this->authorizeUserAccess($request, 'delete');
+
         $currentUser = $request->user();
         if ($currentUser && (int) $currentUser->id === (int) $id) {
             return response()->json([
@@ -234,6 +254,8 @@ class UserController extends Controller
 
     public function activate(Request $request, $id)
     {
+        $this->authorizeUserAccess($request, 'edit');
+
         $user = $this->findScopedUser($request, $id);
         $user->status = 'active';
         $user->save();
@@ -246,6 +268,8 @@ class UserController extends Controller
 
     public function deactivate(Request $request, $id)
     {
+        $this->authorizeUserAccess($request, 'edit');
+
         $user = $this->findScopedUser($request, $id);
         $user->status = 'inactive';
         $user->save();
@@ -258,6 +282,8 @@ class UserController extends Controller
 
     public function resetPassword(Request $request, $id)
     {
+        $this->authorizeUserAccess($request, 'edit');
+
         $user = $this->findScopedUser($request, $id);
         $user->password = Hash::make('password123');
         $user->save();
@@ -269,6 +295,8 @@ class UserController extends Controller
 
     public function assignRole(Request $request, $id)
     {
+        $this->authorizeUserAccess($request, 'edit');
+
         $validator = Validator::make($request->all(), [
             'role' => 'required|string',
         ]);
@@ -290,6 +318,10 @@ class UserController extends Controller
             ], 422);
         }
 
+        if ($denied = $this->rejectPrivilegedRoleAssignment($request->user(), $role)) {
+            return $denied;
+        }
+
         $user = $this->findScopedUser($request, $id);
         $oldRole = $user->role instanceof \App\Enums\UserRole ? $user->role->value : (string) $user->role;
         $user->role = $role;
@@ -308,6 +340,70 @@ class UserController extends Controller
             'message' => 'Role updated successfully',
             'data' => $this->formatUser($user),
         ]);
+    }
+
+    private function authorizeUserAccess(Request $request, string $action): void
+    {
+        $slugs = match ($action) {
+            'create' => ['users.create'],
+            'edit' => ['users.edit'],
+            'delete' => ['users.delete'],
+            default => ['users.view', 'users.create', 'users.edit', 'users.delete'],
+        };
+
+        $this->authorizeModuleAccess(
+            $request,
+            capabilities: ['canManageTeachers'],
+            permissionSlugs: $slugs,
+        );
+    }
+
+    private function rejectPrivilegedRoleAssignment(?User $actor, string $role): ?\Illuminate\Http\JsonResponse
+    {
+        if ($role !== UserRole::SuperAdmin->value) {
+            return null;
+        }
+
+        if ($actor?->isSuperAdmin()) {
+            return null;
+        }
+
+        return response()->json([
+            'message' => 'Validation failed',
+            'errors' => [
+                'role' => ['Only a super admin can assign the super_admin role.'],
+            ],
+        ], 422);
+    }
+
+    /**
+     * @param  mixed  $permissionIds
+     */
+    private function rejectInvalidPermissionIds($permissionIds): ?\Illuminate\Http\JsonResponse
+    {
+        if (! is_array($permissionIds)) {
+            return response()->json([
+                'message' => 'Validation failed',
+                'errors' => [
+                    'permission_ids' => ['Permission ids must be an array.'],
+                ],
+            ], 422);
+        }
+
+        $allowed = collect(config('permissions', []))->pluck('id')->map(fn ($id) => (int) $id)->all();
+        $ids = array_values(array_unique(array_map('intval', $permissionIds)));
+        $invalid = array_values(array_diff($ids, $allowed));
+
+        if ($invalid !== []) {
+            return response()->json([
+                'message' => 'Validation failed',
+                'errors' => [
+                    'permission_ids' => ['One or more permission ids are invalid.'],
+                ],
+            ], 422);
+        }
+
+        return null;
     }
 
     private function allowedRoles(): array

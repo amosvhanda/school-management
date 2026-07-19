@@ -267,7 +267,7 @@ class ExamController extends Controller
         $validator = Validator::make($request->all(), [
             'results' => 'required|array',
             'results.*.student_id' => 'required|exists:students,id',
-            'results.*.marks_obtained' => 'required|numeric|min:0',
+            'results.*.marks_obtained' => 'required|numeric|min:0|max:'.$exam->total_marks,
             'results.*.remarks' => 'nullable|string',
         ]);
 

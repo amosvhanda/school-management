@@ -34,6 +34,12 @@ class StudentLifecycleController extends Controller
 
     public function show(Request $request, int $student)
     {
+        $this->authorizeModuleAccess(
+            $request,
+            capabilities: ['canManageStudents', 'canManageTeachers'],
+            permissionSlugs: ['students.manage'],
+        );
+
         $schoolId = $request->user()?->school_id;
 
         $student = Student::query()
@@ -168,6 +174,12 @@ class StudentLifecycleController extends Controller
 
     public function place(Request $request, int $student)
     {
+        $this->authorizeModuleAccess(
+            $request,
+            capabilities: ['canManageStudents', 'canManageTeachers'],
+            permissionSlugs: ['students.manage', 'enrollment.manage'],
+        );
+
         $schoolId = $request->user()?->school_id;
         $student = Student::query()
             ->when($schoolId, fn ($q) => $q->where('school_id', $schoolId))
@@ -197,6 +209,12 @@ class StudentLifecycleController extends Controller
 
     public function transition(Request $request, int $student)
     {
+        $this->authorizeModuleAccess(
+            $request,
+            capabilities: ['canManageStudents', 'canManageTeachers'],
+            permissionSlugs: ['students.manage', 'enrollment.manage'],
+        );
+
         $schoolId = $request->user()?->school_id;
         $student = Student::query()
             ->when($schoolId, fn ($q) => $q->where('school_id', $schoolId))
@@ -221,6 +239,12 @@ class StudentLifecycleController extends Controller
 
     public function promoteOne(Request $request, int $student)
     {
+        $this->authorizeModuleAccess(
+            $request,
+            capabilities: ['canManageStudents', 'canManageTeachers'],
+            permissionSlugs: ['students.manage', 'enrollment.manage'],
+        );
+
         $schoolId = $request->user()?->school_id;
         $student = Student::query()
             ->when($schoolId, fn ($q) => $q->where('school_id', $schoolId))

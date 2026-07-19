@@ -85,6 +85,12 @@ class LibraryController extends Controller
         $loan = LibraryLoan::with('book')->findOrFail($loanId);
         $book = LibraryBook::where('school_id', $request->user()->school_id)->findOrFail($loan->book_id);
 
+        if ($loan->status !== 'borrowed') {
+            return response()->json([
+                'message' => 'This loan has already been returned.',
+            ], 422);
+        }
+
         $fine = 0;
         if (now()->gt($loan->due_at)) {
             $fine = now()->diffInDays($loan->due_at) * 1.0;

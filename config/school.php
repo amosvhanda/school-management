@@ -43,7 +43,7 @@ return [
       'currency' => ['type' => 'string', 'default' => 'USD', 'public' => true],
       'date_format' => ['type' => 'string', 'default' => 'Y-m-d', 'public' => true],
       'time_format' => ['type' => 'string', 'default' => 'H:i', 'public' => true],
-      'timezone' => ['type' => 'string', 'default' => 'UTC', 'public' => true],
+      'timezone' => ['type' => 'string', 'default' => 'Africa/Harare', 'public' => true],
       'locale' => ['type' => 'string', 'default' => 'en', 'public' => true],
     ],
     'academic' => [

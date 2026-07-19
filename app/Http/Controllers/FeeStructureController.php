@@ -11,6 +11,12 @@ class FeeStructureController extends Controller
 {
     public function index(Request $request)
     {
+        $this->authorizeModuleAccess(
+            $request,
+            capabilities: ['canManageFinance'],
+            permissionSlugs: ['finance.manage', 'transactions.view'],
+        );
+
         $query = FeeStructure::query();
 
         if ($request->has('class_id')) {
@@ -38,11 +44,17 @@ class FeeStructureController extends Controller
 
     public function store(Request $request)
     {
+        $this->authorizeModuleAccess(
+            $request,
+            capabilities: ['canManageFinance'],
+            permissionSlugs: ['finance.manage'],
+        );
+
         $validator = Validator::make($request->all(), [
             'class' => 'required|string',
             'category' => 'required|string',
             'amount' => 'required|numeric|min:0.01',
-            'currency' => 'required|string|in:USD,ZWL',
+            'currency' => 'required|string|in:USD,ZWG',
         ]);
 
         if ($validator->fails()) {
@@ -67,11 +79,17 @@ class FeeStructureController extends Controller
 
     public function update(Request $request, $id)
     {
+        $this->authorizeModuleAccess(
+            $request,
+            capabilities: ['canManageFinance'],
+            permissionSlugs: ['finance.manage'],
+        );
+
         $feeStructure = FeeStructure::findOrFail($id);
 
         $validator = Validator::make($request->all(), [
             'amount' => 'sometimes|numeric|min:0.01',
-            'currency' => 'sometimes|string|in:USD,ZWL',
+            'currency' => 'sometimes|string|in:USD,ZWG',
         ]);
 
         if ($validator->fails()) {
@@ -90,8 +108,14 @@ class FeeStructureController extends Controller
         ]);
     }
 
-    public function destroy($id)
+    public function destroy(Request $request, $id)
     {
+        $this->authorizeModuleAccess(
+            $request,
+            capabilities: ['canManageFinance'],
+            permissionSlugs: ['finance.manage'],
+        );
+
         $feeStructure = FeeStructure::findOrFail($id);
         $feeStructure->delete();
 

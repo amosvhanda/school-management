@@ -21,7 +21,15 @@ class ReportController extends Controller
      */
     public function academicPerformance(Request $request)
     {
-        $query = Grade::with(['student', 'classModel', 'teacher']);
+        $this->authorizeModuleAccess(
+            $request,
+            capabilities: ['canManageTeachers', 'canManageExaminations'],
+            permissionSlugs: ['reports.view', 'reports.generate'],
+        );
+
+        $schoolId = $request->user()?->school_id;
+        $query = Grade::with(['student', 'classModel', 'teacher'])
+            ->when($schoolId, fn ($q) => $q->where('school_id', $schoolId));
 
         if ($request->filled('term')) {
             $query->where('term', $request->term);
@@ -84,7 +92,15 @@ class ReportController extends Controller
      */
     public function attendance(Request $request)
     {
-        $query = Attendance::with(['student', 'classModel']);
+        $this->authorizeModuleAccess(
+            $request,
+            capabilities: ['canManageTeachers', 'canManageStudents'],
+            permissionSlugs: ['reports.view', 'reports.generate', 'attendance.manage'],
+        );
+
+        $schoolId = $request->user()?->school_id;
+        $query = Attendance::with(['student', 'classModel'])
+            ->when($schoolId, fn ($q) => $q->where('school_id', $schoolId));
 
         if ($request->filled('from')) {
             $query->whereDate('date', '>=', $request->from);
@@ -135,6 +151,12 @@ class ReportController extends Controller
      */
     public function financial(Request $request)
     {
+        $this->authorizeModuleAccess(
+            $request,
+            capabilities: ['canManageFinance', 'canManageTeachers'],
+            permissionSlugs: ['reports.view', 'reports.generate', 'finance.manage'],
+        );
+
         $schoolId = $request->user()?->school_id;
         $currency = $request->get('currency', 'all');
 

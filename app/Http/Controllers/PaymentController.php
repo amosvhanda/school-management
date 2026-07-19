@@ -25,6 +25,12 @@ class PaymentController extends Controller
 
     public function index(Request $request)
     {
+        $this->authorizeModuleAccess(
+            $request,
+            capabilities: ['canManageFinance'],
+            permissionSlugs: ['finance.manage', 'transactions.view'],
+        );
+
         $schoolId = $request->user()->school_id;
 
         // Optimized Eager Loading
@@ -92,6 +98,12 @@ class PaymentController extends Controller
 
     public function store(Request $request)
     {
+        $this->authorizeModuleAccess(
+            $request,
+            capabilities: ['canManageFinance'],
+            permissionSlugs: ['finance.manage'],
+        );
+
         $schoolId = $request->user()->school_id;
 
         // Use relationship if available to save a query, or fallback safely
@@ -149,6 +161,12 @@ class PaymentController extends Controller
 
     public function receipt(Request $request, Payment $payment)
     {
+        $this->authorizeModuleAccess(
+            $request,
+            capabilities: ['canManageFinance'],
+            permissionSlugs: ['finance.manage', 'transactions.view'],
+        );
+
         // Tenant Scoping Guard
         if ($request->user()->school_id && $payment->school_id !== $request->user()->school_id) {
             abort(403, 'Unauthorized action.');
@@ -173,6 +191,12 @@ class PaymentController extends Controller
 
     public function reverse(Request $request, Payment $payment)
     {
+        $this->authorizeModuleAccess(
+            $request,
+            capabilities: ['canManageFinance'],
+            permissionSlugs: ['finance.manage'],
+        );
+
         // Tenant Scoping Guard
         if ($request->user()->school_id && $payment->school_id !== $request->user()->school_id) {
             abort(403, 'Unauthorized action.');
@@ -218,6 +242,12 @@ class PaymentController extends Controller
 
     public function destroy(Request $request, Payment $payment)
     {
+        $this->authorizeModuleAccess(
+            $request,
+            capabilities: ['canManageFinance'],
+            permissionSlugs: ['finance.manage'],
+        );
+
         // Tenant Scoping Guard
         if ($request->user()->school_id && $payment->school_id !== $request->user()->school_id) {
             abort(403, 'Unauthorized action.');

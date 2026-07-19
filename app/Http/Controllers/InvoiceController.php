@@ -17,6 +17,12 @@ class InvoiceController extends Controller
 
     public function index(Request $request)
     {
+        $this->authorizeModuleAccess(
+            $request,
+            capabilities: ['canManageFinance'],
+            permissionSlugs: ['finance.manage', 'transactions.view'],
+        );
+
         $schoolId = $request->user()->school_id;
 
         if ($schoolId) {
@@ -76,6 +82,12 @@ class InvoiceController extends Controller
 
     public function show(Request $request, Invoice $invoice)
     {
+        $this->authorizeModuleAccess(
+            $request,
+            capabilities: ['canManageFinance'],
+            permissionSlugs: ['finance.manage', 'transactions.view'],
+        );
+
         if ($request->user()->school_id && $invoice->school_id !== $request->user()->school_id) {
             abort(403, 'Unauthorized action.');
         }
@@ -91,6 +103,12 @@ class InvoiceController extends Controller
 
     public function store(Request $request)
     {
+        $this->authorizeModuleAccess(
+            $request,
+            capabilities: ['canManageFinance'],
+            permissionSlugs: ['finance.manage'],
+        );
+
         $schoolId = $request->user()->school_id;
 
         $validator = Validator::make($request->all(), [
@@ -181,6 +199,12 @@ class InvoiceController extends Controller
 
     public function update(Request $request, Invoice $invoice)
     {
+        $this->authorizeModuleAccess(
+            $request,
+            capabilities: ['canManageFinance'],
+            permissionSlugs: ['finance.manage'],
+        );
+
         if ($request->user()->school_id && $invoice->school_id !== $request->user()->school_id) {
             abort(403, 'Unauthorized action.');
         }
