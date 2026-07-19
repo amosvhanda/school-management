@@ -4,11 +4,13 @@ namespace App\Http\Controllers;
 
 use App\Models\Teacher;
 use App\Models\Subject;
+use App\Services\StaffNumberService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 
 class TeacherController extends Controller
 {
+    public function __construct(private StaffNumberService $staffNumbers) {}
     public function index(Request $request)
     {
         $query = Teacher::query();
@@ -95,12 +97,7 @@ class TeacherController extends Controller
             'phone' => $request->phone,
             'subject' => $request->subject,
             'department' => $request->department,
-            'employee_id' => 'TCH' . date('Y') . str_pad(
-                Teacher::withoutGlobalScopes()->where('school_id', $schoolId)->count() + 1,
-                4,
-                '0',
-                STR_PAD_LEFT
-            ),
+            'employee_id' => $this->staffNumbers->generateEmployeeNumber((int) $schoolId),
             'status' => 'active',
             'school_id' => $schoolId,
         ]);

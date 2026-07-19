@@ -9,13 +9,17 @@ use App\Http\Resources\Api\V1\TeacherResource;
 use App\Models\CustomField;
 use App\Models\Teacher;
 use App\Services\CustomFieldService;
+use App\Services\StaffNumberService;
 use Illuminate\Http\Request;
 
 class TeacherController extends Controller
 {
     use HandlesResourceQueries;
 
-    public function __construct(private CustomFieldService $customFieldService) {}
+    public function __construct(
+        private CustomFieldService $customFieldService,
+        private StaffNumberService $staffNumbers,
+    ) {}
 
     public function index(Request $request)
     {
@@ -69,7 +73,7 @@ class TeacherController extends Controller
             'department' => $request->department,
             'qualification' => $request->qualification,
             'joining_date' => $request->joiningDate,
-            'employee_id' => 'TCH'.date('Y').str_pad(Teacher::count() + 1, 4, '0', STR_PAD_LEFT),
+            'employee_id' => $this->staffNumbers->generateEmployeeNumber((int) $request->user()->school_id),
             'status' => 'active',
             'school_id' => $request->user()->school_id,
         ]);

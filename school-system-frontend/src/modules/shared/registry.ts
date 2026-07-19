@@ -186,7 +186,13 @@ export const listPageRegistry: Record<string, ListPageConfig> = {
     description: 'Shared categories used by fee structures (tuition, levies, exams…).',
   },
   'finance-transactions': { title: 'Transactions', endpoint: moduleEndpoints.transactions, columns: transactionColumns },
-  'finance-payroll': { title: 'Payroll', endpoint: moduleEndpoints.payroll, columns: payrollColumns },
+  'finance-payroll': {
+    title: 'Payroll',
+    description:
+      'Generate monthly payslips for staff, then Process each pending row to record payment. Employee numbers come from teacher records (SCHOOL-EMP####).',
+    endpoint: moduleEndpoints.payroll,
+    columns: payrollColumns,
+  },
 
   'ops-inventory': {
     title: 'Inventory Items',

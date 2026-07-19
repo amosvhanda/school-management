@@ -9,10 +9,17 @@ class PayrollResource extends JsonResource
 {
     public function toArray(Request $request): array
     {
+        $monthLabel = $this->month
+            ? \Illuminate\Support\Carbon::create()->month((int) $this->month)->format('M')
+            : null;
+
         return [
             'id' => $this->id,
             'school_id' => $this->school_id,
             'teacher_id' => $this->teacher_id,
+            'employee_name' => $this->whenLoaded('teacher', fn () => $this->teacher?->name),
+            'employee_number' => $this->whenLoaded('teacher', fn () => $this->teacher?->employee_id),
+            'period' => $monthLabel && $this->year ? "{$monthLabel} {$this->year}" : null,
             'month' => $this->month,
             'year' => $this->year,
             'base_salary' => $this->base_salary,

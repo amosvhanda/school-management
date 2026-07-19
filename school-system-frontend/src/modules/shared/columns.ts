@@ -432,9 +432,33 @@ export const feeCategoryColumns: ColumnDef<Record<string, unknown>>[] = [
 ]
 
 export const payrollColumns: ColumnDef<Record<string, unknown>>[] = [
-  textColumn('Employee', 'employee_name'),
-  textColumn('Month', 'month'),
-  textColumn('Year', 'year'),
+  {
+    id: 'employee_number',
+    header: 'Employee #',
+    cell: ({ row }) => {
+      const nested = row.original.teacher
+      const number =
+        row.original.employee_number
+        ?? (nested && typeof nested === 'object'
+          ? (nested as Record<string, unknown>).employee_id
+          : null)
+      return h('span', { class: 'font-mono text-xs' }, String(number ?? '—'))
+    },
+  },
+  {
+    id: 'employee_name',
+    header: 'Employee',
+    cell: ({ row }) => {
+      const nested = row.original.teacher
+      const name =
+        row.original.employee_name
+        ?? (nested && typeof nested === 'object'
+          ? (nested as Record<string, unknown>).name
+          : null)
+      return String(name ?? '—')
+    },
+  },
+  textColumn('Period', 'period'),
   currencyColumn('Gross', 'gross_salary'),
   currencyColumn('Net', 'net_salary'),
   statusColumn(),

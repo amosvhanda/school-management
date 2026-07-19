@@ -54,7 +54,9 @@ function formatRelationLabel(row: Record<string, unknown>, endpoint: string): st
     return `${name}${form}`
   }
   if (endpoint.includes('/teachers') || endpoint.includes('/payroll/teachers')) {
-    return displayPerson(row, 'Teacher')
+    const name = displayPerson(row, 'Teacher')
+    const emp = row.employee_id ? ` · ${row.employee_id}` : ''
+    return `${name}${emp}`
   }
   if (endpoint.includes('/grade-levels')) {
     return String(row.name ?? 'Grade level')

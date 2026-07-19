@@ -104,8 +104,26 @@ export const moduleActionsRegistry: Record<string, RowActionConfig[]> = {
       label: 'Process',
       method: 'post',
       path: (id) => endpoints.payroll.process(id),
-      when: (row) => String(row.status ?? '').toLowerCase() === 'pending',
-      successMessage: 'Payroll processed',
+      when: (row) => String(row.status ?? '').toLowerCase() === 'pending' || String(row.status ?? '').toLowerCase() === 'partial',
+      body: () => {
+        const method = window.prompt(
+          'Payment method (bank_transfer, cash, ecocash, onemoney, zipit, swipe)',
+          'bank_transfer',
+        )
+        if (method == null) return null
+        const normalized = method.trim().toLowerCase()
+        const allowed = ['bank_transfer', 'cash', 'ecocash', 'onemoney', 'zipit', 'swipe']
+        if (!allowed.includes(normalized)) {
+          window.alert(`Choose one of: ${allowed.join(', ')}`)
+          return null
+        }
+        const reference = window.prompt('Payment reference (optional)', '') ?? ''
+        return {
+          payment_method: normalized,
+          payment_reference: reference.trim() || undefined,
+        }
+      },
+      successMessage: 'Payroll payment recorded',
     },
   ],
   'ops-inventory': [
