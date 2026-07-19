@@ -96,7 +96,8 @@ class TermController extends Controller
             ], 422);
         }
 
-        // If setting as current, unset other current terms in the same academic year
+        // If setting as current, unset other current terms in the same academic year.
+        // Current-term lookups require is_active, so always activate when marking current.
         if ($request->boolean('is_current')) {
             Term::where('school_id', $schoolId)
                 ->where('academic_year', $request->academic_year)
@@ -148,11 +149,14 @@ class TermController extends Controller
         }
 
         // If setting as current, unset other current terms in the same academic year
+        // and always activate this term (current scope requires is_active).
         if ($request->has('is_current') && $request->boolean('is_current')) {
             Term::where('school_id', $schoolId)
                 ->where('academic_year', $term->academic_year)
                 ->where('id', '!=', $term->id)
                 ->update(['is_current' => false]);
+
+            $request->merge(['is_active' => true]);
         }
 
         $term->update($request->only([

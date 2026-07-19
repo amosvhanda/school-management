@@ -76,7 +76,7 @@ export const moduleActionsRegistry: Record<string, RowActionConfig[]> = {
       method: 'put',
       path: (id) => endpoints.terms.detail(id),
       when: (row) => row.is_current !== true && row.is_current !== 1,
-      body: { is_current: true },
+      body: { is_current: true, is_active: true },
       successMessage: 'Current term updated',
     },
   ],
