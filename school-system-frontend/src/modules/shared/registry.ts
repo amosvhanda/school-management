@@ -47,7 +47,7 @@ export interface ListPageConfig {
 }
 
 export const listPageRegistry: Record<string, ListPageConfig> = {
-  students: { title: 'Students', description: 'Enrolled students', endpoint: moduleEndpoints.students, columns: studentColumns },
+  students: { title: 'Students', description: 'Enrolled students — admission numbers are auto-assigned (SCHOOLCODE-YEAR-####)', endpoint: moduleEndpoints.students, columns: studentColumns },
   teachers: { title: 'Teachers', description: 'Manage teaching staff records', endpoint: moduleEndpoints.teachers, columns: teacherColumns },
   guardians: { title: 'Guardians', description: 'Manage parent and guardian records', endpoint: moduleEndpoints.guardians, columns: guardianColumns },
   enrollment: { title: 'Enrollment Applications', endpoint: moduleEndpoints.enrollment, columns: enrollmentColumns },

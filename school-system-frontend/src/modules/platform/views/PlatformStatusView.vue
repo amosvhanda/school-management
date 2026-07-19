@@ -227,7 +227,7 @@ onMounted(load)
               <div>
                 <p class="text-sm font-medium">{{ school.name }}</p>
                 <p class="text-xs text-muted-foreground">
-                  {{ school.code || `School #${school.id}` }}
+                  {{ school.code || school.name || 'School' }}
                   · license {{ school.license_status || 'none' }}
                 </p>
               </div>
@@ -287,7 +287,7 @@ onMounted(load)
                   </span>
                   <span v-else>—</span>
                   <span v-if="alert.school_name || alert.school_id">
-                    · {{ alert.school_name || `School #${alert.school_id}` }}
+                    · {{ alert.school_name || alert.school_code || 'School' }}
                     <span v-if="alert.school_code"> ({{ alert.school_code }})</span>
                   </span>
                 </p>

@@ -14,6 +14,7 @@ use App\Models\Student;
 use App\Models\StudentDocument;
 use App\Services\Domain\SchoolDomainRules;
 use App\Services\ParentAccessService;
+use App\Services\StudentAdmissionService;
 use App\Services\StudentPromotionService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -28,6 +29,7 @@ class StudentController extends Controller
         private StudentPromotionService $promotionService,
         private ParentAccessService $parentAccess,
         private SchoolDomainRules $domainRules,
+        private StudentAdmissionService $admissionService,
     ) {}
 
     public function index(Request $request)
@@ -138,16 +140,14 @@ class StudentController extends Controller
             ], 422);
         }
 
+        $studentNumber = $this->admissionService->generateStudentNumber((int) $schoolId);
+        $this->domainRules->assertAdmissionNumberAvailable((int) $schoolId, $studentNumber);
+
         $student = Student::create([
             'first_name' => $request->firstName,
             'last_name' => $request->surname,
             'full_name' => $request->firstName.' '.$request->surname,
-            'student_number' => 'SCH'.date('Y').str_pad(
-                Student::withoutGlobalScopes()->where('school_id', $schoolId)->count() + 1,
-                4,
-                '0',
-                STR_PAD_LEFT
-            ),
+            'student_number' => $studentNumber,
             'class' => $request->class,
             'date_of_birth' => $request->dateOfBirth,
             'gender' => $request->gender,

@@ -42,7 +42,7 @@ class StudentSeeder extends Seeder
                 if (!in_array($s['class'], $classNames, true)) {
                     continue;
                 }
-                $sn = implode('-', $base) . '-F' . ($idx + 1);
+                $sn = implode('-', $base) . '-' . str_pad((string) ($idx + 1), 4, '0', STR_PAD_LEFT);
                 $fullName = $s['fn'] . ' ' . $s['sn'];
                 
                 // Link user for first school only, and only if it's the student user

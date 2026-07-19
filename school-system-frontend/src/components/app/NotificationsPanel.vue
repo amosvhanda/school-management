@@ -114,7 +114,7 @@ const selectedChildLabel = computed(() => {
   const selectedId = Number(selectedStudentId.value)
   const child = parentChildren.value.find((item) => item.id === selectedId)
   if (!child) return 'Selected child'
-  return child.fullName ?? child.full_name ?? `Student #${child.id}`
+  return child.fullName ?? child.full_name ?? (child.student_number ? `Student ${child.student_number}` : 'Student')
 })
 
 const badgeTotal = computed(() => {
@@ -237,7 +237,7 @@ watch(
                 :key="child.id"
                 :value="String(child.id)"
               >
-                {{ child.fullName ?? child.full_name ?? `Student #${child.id}` }}
+                {{ child.fullName ?? child.full_name ?? (child.student_number ? `Student ${child.student_number}` : 'Student') }}
               </SelectItem>
             </SelectContent>
           </Select>

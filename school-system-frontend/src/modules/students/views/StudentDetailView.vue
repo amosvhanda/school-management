@@ -487,7 +487,7 @@ onMounted(load)
                 </TableHeader>
                 <TableBody>
                   <TableRow v-for="inv in invoices" :key="inv.id">
-                    <TableCell>{{ inv.invoice_number ?? inv.id }}</TableCell>
+                    <TableCell>{{ inv.invoice_number ?? '—' }}</TableCell>
                     <TableCell>{{ formatMoney(invoiceTotal(inv), inv.currency) }}</TableCell>
                     <TableCell>{{ formatMoney(inv.balance, inv.currency) }}</TableCell>
                     <TableCell>{{ formatDate(inv.due_date) }}</TableCell>

@@ -131,7 +131,7 @@ watch(studentId, (value) => {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem v-for="c in children" :key="c.id" :value="String(c.id)">
-                    {{ c.fullName ?? c.full_name ?? `Student #${c.id}` }}
+                    {{ c.fullName ?? c.full_name ?? (c.student_number ? `Student ${c.student_number}` : 'Student') }}
                   </SelectItem>
                 </SelectContent>
               </Select>

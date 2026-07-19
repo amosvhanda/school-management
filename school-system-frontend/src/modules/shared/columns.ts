@@ -12,6 +12,7 @@ import {
   isTimeFieldKey,
 } from '@/lib/format'
 import { relationLabelFromRow } from '@/lib/relation-display'
+import { safeDisplayValue } from '@/lib/entity-display'
 
 export function textColumn(header: string, key: string): ColumnDef<Record<string, unknown>> {
   return {
@@ -19,8 +20,7 @@ export function textColumn(header: string, key: string): ColumnDef<Record<string
     header,
     cell: ({ row }) => {
       const relationLabel = relationLabelFromRow(row.original, key)
-      if (relationLabel) return relationLabel
-      return String(row.getValue(key) ?? '—')
+      return safeDisplayValue(key, row.getValue(key), relationLabel)
     },
   }
 }
@@ -37,6 +37,49 @@ export function nestedColumn(header: string, key: string, nestedKey: string): Co
       return '—'
     },
   }
+}
+
+/** Student name with admission number when the nested student object is loaded. */
+export function studentRelationColumn(
+  header = 'Student',
+  key = 'student',
+): ColumnDef<Record<string, unknown>> {
+  return {
+    id: `${key}_display`,
+    header,
+    cell: ({ row }) => {
+      const student = row.original[key] ?? row.original[toCamelCase(key)]
+      if (student && typeof student === 'object') {
+        const record = student as Record<string, unknown>
+        const name = String(
+          record.full_name
+          ?? (`${record.first_name ?? ''} ${record.last_name ?? ''}`.trim() || '—'),
+        )
+        const number = record.student_number ? String(record.student_number) : ''
+        if (!number) return name
+        return h('span', { class: 'inline-flex flex-col gap-0.5' }, [
+          h('span', { class: 'text-sm text-foreground' }, name),
+          h('span', { class: 'font-mono text-xs text-muted-foreground' }, number),
+        ])
+      }
+
+      const flatName = row.original.full_name ?? row.original.student_name
+      const flatNumber = row.original.student_number
+      if (flatName != null) {
+        if (flatNumber == null) return String(flatName)
+        return h('span', { class: 'inline-flex flex-col gap-0.5' }, [
+          h('span', { class: 'text-sm text-foreground' }, String(flatName)),
+          h('span', { class: 'font-mono text-xs text-muted-foreground' }, String(flatNumber)),
+        ])
+      }
+
+      return '—'
+    },
+  }
+}
+
+function toCamelCase(value: string): string {
+  return value.replace(/_([a-z])/g, (_, c: string) => c.toUpperCase())
 }
 
 /** Renders full_name, name, or first/last name from a row or nested object key. */
@@ -130,6 +173,14 @@ export function timeColumn(header: string, key: string): ColumnDef<Record<string
 }
 
 function smartColumn(key: string): ColumnDef<Record<string, unknown>> {
+  if (key === 'id') {
+    return {
+      id: '_hidden_id',
+      header: '',
+      cell: () => null,
+      enableHiding: true,
+    }
+  }
   if (key === 'status') return statusColumn()
   if (isDateTimeFieldKey(key)) return dateTimeColumn(headerFromKey(key), key)
   if (isDateFieldKey(key)) return dateColumn(headerFromKey(key), key)
@@ -154,7 +205,7 @@ export function viewActionColumn(routeName: string, idKey = 'id'): ColumnDef<Rec
 }
 
 export function defaultColumns(keys: string[]): ColumnDef<Record<string, unknown>>[] {
-  return keys.map(smartColumn)
+  return keys.filter((key) => key !== 'id').map(smartColumn)
 }
 
 export const studentColumns: ColumnDef<Record<string, unknown>>[] = [
@@ -236,7 +287,10 @@ export const guardianColumns: ColumnDef<Record<string, unknown>>[] = [
         .map((student) => {
           if (!student || typeof student !== 'object') return ''
           const record = student as Record<string, unknown>
-          return String(record.full_name ?? `${record.first_name ?? ''} ${record.last_name ?? ''}`.trim())
+          const name = String(record.full_name ?? `${record.first_name ?? ''} ${record.last_name ?? ''}`.trim())
+          const number = record.student_number ? String(record.student_number) : ''
+          if (!name) return ''
+          return number ? `${name} (${number})` : name
         })
         .filter(Boolean)
         .join(', ')
@@ -281,7 +335,7 @@ export const examColumns: ColumnDef<Record<string, unknown>>[] = [
 
 export const attendanceColumns: ColumnDef<Record<string, unknown>>[] = [
   dateColumn('Date', 'date'),
-  nestedColumn('Student', 'student', 'full_name'),
+  studentRelationColumn(),
   nestedColumn('Class', 'class_model', 'name'),
   statusColumn(),
 ]
@@ -395,7 +449,7 @@ export const disciplineColumns: ColumnDef<Record<string, unknown>>[] = [
   dateColumn('Date', 'incident_date'),
   textColumn('Category', 'category'),
   textColumn('Severity', 'severity'),
-  nestedColumn('Student', 'student', 'full_name'),
+  studentRelationColumn(),
 ]
 export const complianceColumns = defaultColumns(['title', 'category', 'status'])
 export const consentColumns = defaultColumns(['title', 'status', 'created_at'])
@@ -418,7 +472,7 @@ export const assetColumns = defaultColumns(['name', 'category', 'purchase_date',
 export const hostelColumns = defaultColumns(['name', 'capacity', 'gender', 'status'])
 export const visitorColumns = defaultColumns(['name', 'purpose', 'check_in_at', 'status'])
 export const healthColumns: ColumnDef<Record<string, unknown>>[] = [
-  nestedColumn('Student', 'student', 'full_name'),
+  studentRelationColumn(),
   dateColumn('Visit date', 'visit_date'),
   textColumn('Complaint', 'complaint'),
   textColumn('Diagnosis', 'diagnosis'),
@@ -439,12 +493,13 @@ export const workflowColumns: ColumnDef<Record<string, unknown>>[] = [
 ]
 export const portalChildColumns: ColumnDef<Record<string, unknown>>[] = [
   personNameColumn('Name'),
+  textColumn('Student #', 'student_number'),
   textColumn('Class', 'class'),
   currencyColumn('Balance', 'balance'),
   viewActionColumn('parent-child-detail'),
 ]
 
-export const genericColumns = defaultColumns(['id', 'name', 'status', 'created_at'])
+export const genericColumns = defaultColumns(['name', 'status', 'created_at'])
 
 export const userColumns: ColumnDef<Record<string, unknown>>[] = [
   textColumn('Name', 'name'),
@@ -455,7 +510,7 @@ export const userColumns: ColumnDef<Record<string, unknown>>[] = [
 
 export const paymentColumns: ColumnDef<Record<string, unknown>>[] = [
   dateColumn('Date', 'date'),
-  nestedColumn('Student', 'student', 'full_name'),
+  studentRelationColumn(),
   nestedColumn('Invoice', 'invoice', 'invoice_number'),
   currencyColumn('Amount', 'amount'),
   textColumn('Method', 'method'),
@@ -465,7 +520,7 @@ export const paymentColumns: ColumnDef<Record<string, unknown>>[] = [
 
 export const invoiceColumns: ColumnDef<Record<string, unknown>>[] = [
   textColumn('Invoice #', 'invoice_number'),
-  nestedColumn('Student', 'student', 'full_name'),
+  studentRelationColumn(),
   currencyColumn('Amount', 'amount'),
   currencyColumn('Paid', 'amount_paid'),
   currencyColumn('Balance', 'balance'),

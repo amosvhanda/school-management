@@ -203,7 +203,7 @@ async function loadRegister() {
       const saved = byStudent.get(student.id)
       return {
         student_id: student.id,
-        full_name: student.full_name ?? `Student #${student.id}`,
+        full_name: student.full_name ?? (student.student_number ? `Student ${student.student_number}` : 'Student'),
         student_number: student.student_number ?? '—',
         status: saved?.status ?? 'present',
         time_in: parseTimeIn(saved?.time_in),

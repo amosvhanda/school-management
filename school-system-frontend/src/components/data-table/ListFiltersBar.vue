@@ -57,7 +57,7 @@ const activeFilters = computed(() =>
         return {
           key: filter.key,
           label: filter.label,
-          value: relationLabel ?? raw,
+          value: relationLabel ?? filter.label,
         }
       }
 

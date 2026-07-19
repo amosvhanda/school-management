@@ -380,7 +380,7 @@ onMounted(async () => {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem v-for="s in students" :key="s.id" :value="String(s.id)">
-                  {{ s.full_name ?? `Student #${s.id}` }}
+                  {{ s.full_name ?? (s.student_number ? `Student ${s.student_number}` : 'Student') }}
                 </SelectItem>
               </SelectContent>
             </Select>

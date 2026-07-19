@@ -98,25 +98,40 @@ class StudentAdmissionService
 
     /**
      * Generate unique student number — single source for admission and direct create.
+     *
+     * Format: {SCHOOL_CODE}-{YEAR}-{####}
+     * Example: MUF001-2026-0001 (school code MUF001, year 2026, sequence 1)
+     *
+     * Numbers are assigned once at create/admission and are not changed on
+     * class placement or promotion.
      */
     public function generateStudentNumber(int $schoolId): string
     {
         $school = School::findOrFail($schoolId);
-        $code = strtoupper(substr((string) ($school->code ?: 'SCH'), 0, 3));
+        $rawCode = strtoupper((string) ($school->code ?: 'SCH'));
+        $code = preg_replace('/[^A-Z0-9]/', '', $rawCode) ?: 'SCH';
         $year = date('Y');
+        $prefix = "{$code}-{$year}-";
 
         $lastStudent = Student::where('school_id', $schoolId)
-            ->where('student_number', 'like', "{$code}{$year}%")
-            ->orderBy('student_number', 'desc')
+            ->where('student_number', 'like', $prefix.'%')
+            ->orderByDesc('student_number')
             ->first();
 
+        $next = 1;
         if ($lastStudent) {
-            $lastNumber = (int) substr((string) $lastStudent->student_number, -4);
-            $newNumber = $lastNumber + 1;
-        } else {
-            $newNumber = 1;
+            $tail = (string) substr((string) $lastStudent->student_number, strlen($prefix));
+            // Prefer numeric sequences (0001); ignore demo suffixes like F3.
+            if (ctype_digit($tail)) {
+                $next = ((int) $tail) + 1;
+            } else {
+                $count = Student::where('school_id', $schoolId)
+                    ->where('student_number', 'like', $prefix.'%')
+                    ->count();
+                $next = $count + 1;
+            }
         }
 
-        return sprintf('%s%s%04d', $code, $year, $newNumber);
+        return sprintf('%s%04d', $prefix, $next);
     }
 }

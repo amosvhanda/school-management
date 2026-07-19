@@ -561,7 +561,9 @@ function formatChangeValue(value: unknown): string {
             <h3 class="text-sm font-medium">Record affected</h3>
             <p class="text-sm">
               {{ selectedLog.target.type_label }}
-              <span v-if="selectedLog.target.id">#{{ selectedLog.target.id }}</span>
+              <span v-if="selectedLog.target.name || selectedLog.target.label">
+                · {{ selectedLog.target.name || selectedLog.target.label }}
+              </span>
             </p>
           </section>
 

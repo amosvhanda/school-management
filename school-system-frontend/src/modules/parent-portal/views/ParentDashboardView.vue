@@ -182,7 +182,7 @@ onMounted(load)
               class="h-full"
             >
               <CardHeader class="pb-2">
-                <CardTitle class="text-base">{{ child.fullName ?? child.full_name ?? `Student #${child.id}` }}</CardTitle>
+                <CardTitle class="text-base">{{ child.fullName ?? child.full_name ?? (child.student_number ? `Student ${child.student_number}` : 'Student') }}</CardTitle>
                 <CardDescription>{{ child.class ?? 'Class not assigned' }}</CardDescription>
               </CardHeader>
               <CardContent class="space-y-3">

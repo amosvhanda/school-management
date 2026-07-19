@@ -64,7 +64,7 @@ const selectedChildLabel = computed(() => {
   const selectedId = Number(selectedStudentId.value)
   const child = children.value.find((item) => item.id === selectedId)
   if (!child) return 'selected child'
-  return child.fullName ?? child.full_name ?? `Student #${child.id}`
+  return child.fullName ?? child.full_name ?? (child.student_number ? `Student ${child.student_number}` : 'Student')
 })
 
 const notificationsView = computed<NotificationViewModel[]>(() =>
@@ -184,7 +184,7 @@ onMounted(async () => {
               :key="child.id"
               :value="String(child.id)"
             >
-              {{ child.fullName ?? child.full_name ?? `Student #${child.id}` }}
+              {{ child.fullName ?? child.full_name ?? (child.student_number ? `Student ${child.student_number}` : 'Student') }}
             </SelectItem>
           </SelectContent>
         </Select>

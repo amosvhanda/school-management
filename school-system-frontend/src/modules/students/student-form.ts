@@ -107,6 +107,7 @@ export const studentFormFields: FormFieldSchema[] = mergeFormSections(
       type: 'relation',
       required: true,
       placeholder: 'Select class',
+      description: 'Admission number is assigned automatically as SCHOOLCODE-YEAR-#### (e.g. MUF001-2026-0001).',
       relation: {
         endpoint: moduleEndpoints.classes,
         fallbackRowKey: 'class',

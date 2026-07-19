@@ -524,7 +524,7 @@ onMounted(load)
                   <SelectTrigger class="flex-1"><SelectValue placeholder="Select route" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem v-for="r in routes" :key="String(r.id)" :value="String(r.id)">
-                      {{ r.name ?? `Route #${r.id}` }}
+                      {{ r.name ?? 'Transport route' }}
                     </SelectItem>
                   </SelectContent>
                 </Select>
@@ -550,7 +550,7 @@ onMounted(load)
                   <SelectTrigger class="flex-1"><SelectValue placeholder="Select book" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem v-for="b in books" :key="String(b.id)" :value="String(b.id)">
-                      {{ b.title ?? `Book #${b.id}` }}
+                      {{ b.title ?? 'Library book' }}
                     </SelectItem>
                   </SelectContent>
                 </Select>

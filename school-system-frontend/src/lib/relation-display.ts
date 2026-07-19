@@ -2,15 +2,21 @@ function relationObjectLabel(value: unknown): string | null {
   if (!value || typeof value !== 'object') return null
 
   const row = value as Record<string, unknown>
-  const label =
+  const name =
     row.full_name
     ?? row.fullName
     ?? row.name
     ?? row.title
     ?? (`${row.first_name ?? ''} ${row.last_name ?? ''}`.trim() || null)
 
-  if (label == null || String(label).trim() === '') return null
-  return String(label)
+  if (name == null || String(name).trim() === '') return null
+
+  const number = row.student_number ?? row.studentNumber
+  if (number != null && String(number).trim() !== '') {
+    return `${String(name)} · ${String(number)}`
+  }
+
+  return String(name)
 }
 
 function toCamelCase(value: string): string {

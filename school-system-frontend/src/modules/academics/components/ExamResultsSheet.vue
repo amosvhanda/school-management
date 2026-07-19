@@ -94,7 +94,7 @@ async function loadExam(id: number) {
       const prior = existing.get(student.id)
       return {
         student_id: student.id,
-        full_name: student.full_name ?? `Student #${student.id}`,
+        full_name: student.full_name ?? (student.student_number ? `Student ${student.student_number}` : 'Student'),
         student_number: student.student_number ?? '—',
         marks_obtained: prior?.marks_obtained != null ? String(prior.marks_obtained) : '',
         remarks: prior?.remarks ?? '',

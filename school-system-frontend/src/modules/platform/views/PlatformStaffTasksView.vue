@@ -461,7 +461,7 @@ onMounted(load)
                   </Badge>
                 </div>
                 <p class="text-sm text-muted-foreground">
-                  {{ task.school?.name || `School #${task.school_id ?? '—'}` }}
+                  {{ task.school?.name || task.school?.code || 'School' }}
                   <span v-if="task.school?.code"> ({{ task.school.code }})</span>
                   · Assigned to {{ task.assignee?.name || '—' }}
                   <span v-if="task.assignee?.role"> ({{ roleLabel(task.assignee.role) }})</span>

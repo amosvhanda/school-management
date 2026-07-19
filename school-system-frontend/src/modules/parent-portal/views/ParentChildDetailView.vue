@@ -39,7 +39,7 @@ const discipline = ref<Record<string, unknown>[]>([])
 const progress = ref<Record<string, unknown> | null>(null)
 
 const childName = computed(() =>
-  String(child.value?.full_name ?? child.value?.fullName ?? `Student #${studentId.value}`),
+  String(child.value?.full_name ?? child.value?.fullName ?? (child.value?.student_number ? `Student ${child.value.student_number}` : 'Student')),
 )
 
 const overallAverage = computed(() => {

@@ -325,7 +325,7 @@ onMounted(load)
                   </Badge>
                 </div>
                 <p class="text-sm text-muted-foreground">
-                  {{ doc.school?.name || `School #${doc.school_id ?? '—'}` }}
+                  {{ doc.school?.name || doc.school?.code || 'School' }}
                   <span v-if="doc.school?.code"> ({{ doc.school.code }})</span>
                 </p>
                 <p class="text-xs text-muted-foreground">

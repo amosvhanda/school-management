@@ -123,44 +123,51 @@ class AuditService
             return null;
         }
 
-        $request = $this->request ?? request();
-        $context = $this->resolveRequestContext($request);
+        try {
+            $request = $this->request ?? request();
+            $context = $this->resolveRequestContext($request);
 
-        $entry = LoginHistory::create([
-            'school_id' => $user?->school_id,
-            'user_id' => $user?->id,
-            'email' => $email ?? $user?->email,
-            'event' => $event,
-            'ip_address' => $context['ip_address'],
-            'user_agent' => $context['user_agent'],
-            'device_type' => $context['device_type'],
-            'platform' => $context['platform'],
-            'location' => $context['location'],
-            'token_name' => $tokenName,
-            'failure_reason' => $failureReason,
-            'created_at' => now(),
-        ]);
+            $entry = LoginHistory::create([
+                'school_id' => $user?->school_id,
+                'user_id' => $user?->id,
+                'email' => $email ?? $user?->email,
+                'event' => $event,
+                'ip_address' => $context['ip_address'],
+                'user_agent' => $context['user_agent'],
+                'device_type' => $context['device_type'],
+                'platform' => $context['platform'],
+                'location' => $context['location'],
+                'token_name' => $tokenName,
+                'failure_reason' => $failureReason,
+                'created_at' => now(),
+            ]);
 
-        if (in_array($event, ['login', 'logout', 'failed_login'], true)) {
-            $this->log(
-                module: 'auth',
-                action: $event,
-                auditable: $user,
-                description: match ($event) {
-                    'login' => ($user?->name ?? $email ?? 'User').' signed in',
-                    'logout' => ($user?->name ?? $email ?? 'User').' signed out',
-                    default => 'Failed sign-in attempt for '.($email ?? 'unknown email'),
-                },
-                metadata: array_filter([
-                    'email' => $email ?? $user?->email,
-                    'failure_reason' => $failureReason,
-                    'token_name' => $tokenName,
-                ]),
-                user: $user,
-            );
+            if (in_array($event, ['login', 'logout', 'failed_login'], true)) {
+                $this->log(
+                    module: 'auth',
+                    action: $event,
+                    auditable: $user,
+                    description: match ($event) {
+                        'login' => ($user?->name ?? $email ?? 'User').' signed in',
+                        'logout' => ($user?->name ?? $email ?? 'User').' signed out',
+                        default => 'Failed sign-in attempt for '.($email ?? 'unknown email'),
+                    },
+                    metadata: array_filter([
+                        'email' => $email ?? $user?->email,
+                        'failure_reason' => $failureReason,
+                        'token_name' => $tokenName,
+                    ]),
+                    user: $user,
+                );
+            }
+
+            return $entry;
+        } catch (\Throwable $e) {
+            // Never block authentication because audit/history storage failed.
+            report($e);
+
+            return null;
         }
-
-        return $entry;
     }
 
     public function logExport(string $reportType, string $format, ?array $filters = null): ?AuditLog

@@ -1,6 +1,7 @@
 import { fetchList } from '@/services/dashboard.service'
 import { moduleEndpoints } from '@/services'
 import type { FormFieldSchema } from '@/components/forms/useFormBuilder'
+import { displayPerson, displayStudent } from '@/lib/entity-display'
 
 export interface RelationOption {
   value: string
@@ -40,39 +41,30 @@ export async function loadRelationOptions(
 
 function formatRelationLabel(row: Record<string, unknown>, endpoint: string): string {
   if (endpoint.includes('/students')) {
-    const name = String(
-      row.full_name
-      ?? (`${row.first_name ?? ''} ${row.last_name ?? ''}`.trim() || `Student #${row.id}`),
-    )
-    const number = row.student_number ? ` · ${row.student_number}` : ''
-    return `${name}${number}`
+    return displayStudent(row)
   }
   if (endpoint.includes('/guardians')) {
-    const name = `${row.first_name ?? ''} ${row.last_name ?? ''}`.trim()
+    const name = displayPerson(row, 'Guardian')
     const phone = row.phone ? ` · ${row.phone}` : ''
-    return `${name || 'Guardian'}${phone}`
+    return `${name}${phone}`
   }
   if (endpoint.includes('/classes')) {
     const name = String(row.name ?? 'Class')
     const form = row.form ? ` · ${row.form}` : ''
     return `${name}${form}`
   }
-  if (endpoint.includes('/teachers')) {
-    return String(
-      row.name
-      ?? row.full_name
-      ?? (`${row.first_name ?? ''} ${row.last_name ?? ''}`.trim() || `Teacher #${row.id}`),
-    )
+  if (endpoint.includes('/teachers') || endpoint.includes('/payroll/teachers')) {
+    return displayPerson(row, 'Teacher')
   }
   if (endpoint.includes('/grade-levels')) {
-    return String(row.name ?? `Grade ${row.id}`)
+    return String(row.name ?? 'Grade level')
   }
   if (endpoint.includes('/subjects')) {
     const code = row.code ? ` (${row.code})` : ''
     return `${row.name ?? 'Subject'}${code}`
   }
   if (endpoint.includes('/departments')) {
-    return String(row.name ?? `Department ${row.id}`)
+    return String(row.name ?? 'Department')
   }
   if (endpoint.includes('/inventory')) {
     const sku = row.sku ? ` · ${row.sku}` : ''
@@ -80,26 +72,22 @@ function formatRelationLabel(row: Record<string, unknown>, endpoint: string): st
   }
   if (endpoint.includes('/transport/vehicles')) {
     const reg = row.registration_number ? ` · ${row.registration_number}` : ''
-    return `${row.make ?? 'Vehicle'}${reg}`
+    return `${row.make ?? row.name ?? 'Vehicle'}${reg}`
   }
   if (endpoint.includes('/transport/drivers')) {
     const license = row.license_number ? ` · ${row.license_number}` : ''
-    return `${row.full_name ?? 'Driver'}${license}`
-  }
-  if (endpoint.includes('/payroll/teachers')) {
-    return String(
-      row.name
-      ?? row.full_name
-      ?? (`${row.first_name ?? ''} ${row.last_name ?? ''}`.trim() || `Staff #${row.id}`),
-    )
+    return `${displayPerson(row, 'Driver')}${license}`
   }
   if (endpoint.includes('/invoices')) {
-    const number = row.invoice_number ? String(row.invoice_number) : `#${row.id}`
+    const number = row.invoice_number ? String(row.invoice_number) : 'Invoice'
     const balance = row.balance != null ? ` · bal ${row.balance}` : ''
     const desc = row.description ? ` — ${String(row.description).slice(0, 40)}` : ''
     return `${number}${balance}${desc}`
   }
-  return String(row.name ?? row.title ?? row.full_name ?? row.label ?? row.id ?? '—')
+  if (endpoint.includes('/fee-categories')) {
+    return String(row.name ?? 'Fee category')
+  }
+  return String(row.name ?? row.title ?? row.full_name ?? row.label ?? row.code ?? '—')
 }
 
 export function getCachedRelationOptions(

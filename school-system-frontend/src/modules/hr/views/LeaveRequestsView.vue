@@ -410,9 +410,11 @@ onMounted(async () => {
     <Sheet v-model:open="detailOpen">
       <SheetContent class="w-full overflow-y-auto sm:max-w-lg">
         <SheetHeader v-if="detailRow">
-          <SheetTitle>Leave request #{{ detailRow.id }}</SheetTitle>
+          <SheetTitle>
+            Leave · {{ detailRow.teacher_name || 'Staff' }} · {{ leaveTypeLabel(detailRow.type) }}
+          </SheetTitle>
           <SheetDescription>
-            {{ detailRow.teacher_name }} · {{ leaveTypeLabel(detailRow.type) }}
+            {{ formatDate(detailRow.start_date) }} – {{ formatDate(detailRow.end_date) }}
           </SheetDescription>
         </SheetHeader>
 
