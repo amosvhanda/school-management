@@ -64,6 +64,8 @@ export function useFormBuilder<T extends z.ZodTypeAny>(schema: T, initialValues?
     validationSchema: toTypedSchema(schema),
     initialValues: initialValues as never,
     validateOnMount: false,
+    /** Staged forms hide fields per step; keep values when those fields unmount. */
+    keepValuesOnUnmount: true,
   })
 
   function applyServerErrors(error: unknown, fieldAliases?: Record<string, string>) {

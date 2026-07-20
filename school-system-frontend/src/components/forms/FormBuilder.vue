@@ -164,7 +164,7 @@ function colClass(field: FormFieldSchema) {
                   v-else-if="field.type === 'select'"
                   :model-value="componentField.modelValue !== undefined && componentField.modelValue !== null ? String(componentField.modelValue) : undefined"
                   :disabled="field.disabled"
-                  @update:model-value="componentField.onInput"
+                  @update:model-value="componentField['onUpdate:modelValue']"
                 >
                   <SelectTrigger
                     :class="formSelectTriggerClass"

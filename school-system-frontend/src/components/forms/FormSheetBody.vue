@@ -74,9 +74,23 @@ watch(
   { deep: true, immediate: true },
 )
 
-const onSubmit = handleSubmit((values) => {
-  emit('submit', values as Record<string, unknown>)
-})
+const onSubmit = handleSubmit(
+  (values) => {
+    emit('submit', values as Record<string, unknown>)
+  },
+  ({ errors }) => {
+    if (!isStaged.value) return
+    const errorFields = Object.keys(errors)
+    if (!errorFields.length) return
+    for (let i = 0; i < steps.value.length; i++) {
+      const step = steps.value[i]
+      if (step.fieldNames.some((name) => errorFields.includes(name))) {
+        currentStep.value = i
+        break
+      }
+    }
+  },
+)
 
 async function validateCurrentStep(): Promise<boolean> {
   if (!isStaged.value) return true
