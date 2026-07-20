@@ -174,6 +174,18 @@ function commitTextInput() {
   if (date) viewDate.value = startOfMonth(date)
 }
 
+defineExpose({ commitPendingInput: commitTextInput })
+
+watch(textDraft, (value) => {
+  const parsed = parseFlexibleDateInput(value)
+  if (!parsed || !isValidIsoDate(parsed) || isDisabled(parsed)) return
+  if (parsed === isoDateFromValue(props.modelValue)) return
+  emit('update:modelValue', parsed)
+  textDraft.value = formatDate(parsed)
+  const date = parseDateValue(parsed)
+  if (date) viewDate.value = startOfMonth(date)
+})
+
 watch(
   () => props.modelValue,
   (value) => {

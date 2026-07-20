@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Api\V1\Student;
 
 use App\Http\Requests\Api\V1\ApiFormRequest;
+use App\Models\ClassModel;
 use App\Rules\ZimbabweMobileNumber;
 
 class UpdateStudentRequest extends ApiFormRequest
@@ -12,6 +13,24 @@ class UpdateStudentRequest extends ApiFormRequest
         $student = $this->route('student');
 
         return $student && (bool) $this->user()?->can('update', $student);
+    }
+
+    protected function prepareForValidation(): void
+    {
+        if ($this->filled('class') || ! $this->filled('class_id')) {
+            return;
+        }
+
+        $schoolId = $this->user()?->school_id;
+        $query = ClassModel::query()->where('id', (int) $this->class_id);
+        if ($schoolId !== null) {
+            $query->where('school_id', $schoolId);
+        }
+
+        $className = $query->value('name');
+        if ($className) {
+            $this->merge(['class' => $className]);
+        }
     }
 
     public function rules(): array

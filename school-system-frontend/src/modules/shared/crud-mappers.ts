@@ -1,4 +1,5 @@
 import type { FormFieldSchema } from '@/components/forms/useFormBuilder'
+import { isoDateFromValue } from '@/lib/date-picker'
 import { findRelationIdByLabel, findRelationLabel, findRelationRaw } from '@/lib/relation-options'
 import { moduleEndpoints } from '@/services'
 import { mapLeaveFormToPayload } from '@/modules/hr/leave-form'
@@ -118,6 +119,12 @@ function coerceFieldValue(field: FormFieldSchema, raw: unknown): unknown {
 
   if (field.type === 'checkbox') {
     return Boolean(raw)
+  }
+
+  if (field.type === 'date') {
+    if (raw === '' || raw == null) return ''
+    const iso = isoDateFromValue(String(raw))
+    return iso || String(raw).trim().slice(0, 10)
   }
 
   return raw
@@ -262,9 +269,13 @@ function mapStudentPayload(
 
   if (payload.class_id) {
     payload.class_id = Number(payload.class_id)
-    const className = findRelationLabel(moduleEndpoints.classes, payload.class_id)
+    const raw = findRelationRaw(moduleEndpoints.classes, payload.class_id)
+    const label = findRelationLabel(moduleEndpoints.classes, payload.class_id)
+    const className = raw?.name
+      ? String(raw.name)
+      : label?.split(' · ')[0]
     if (className) {
-      payload.class = className.split(' · ')[0]
+      payload.class = className
     }
   }
 

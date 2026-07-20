@@ -144,6 +144,34 @@ class StudentApiTest extends TestCase
         ]);
     }
 
+    public function test_create_student_with_class_id_only(): void
+    {
+        $auth = $this->createAuthenticatedUser();
+        $class = ClassModel::factory()->create(['school_id' => $auth['school']->id]);
+
+        $response = $this->withHeaders([
+            'Authorization' => 'Bearer '.$auth['token'],
+        ])->postJson('/api/v1/students', [
+            'firstName' => 'Jane',
+            'surname' => 'Smith',
+            'dateOfBirth' => '2011-06-15',
+            'gender' => 'female',
+            'class_id' => $class->id,
+        ]);
+
+        $response->assertCreated()
+            ->assertJsonPath('data.first_name', 'Jane')
+            ->assertJsonPath('data.class_id', $class->id);
+
+        $this->assertDatabaseHas('students', [
+            'first_name' => 'Jane',
+            'last_name' => 'Smith',
+            'class' => $class->name,
+            'class_id' => $class->id,
+            'school_id' => $auth['school']->id,
+        ]);
+    }
+
     public function test_get_student_by_id(): void
     {
         $auth = $this->createAuthenticatedUser();

@@ -104,7 +104,17 @@ function goBack() {
   }
 }
 
+async function commitFocusedField() {
+  const active = document.activeElement
+  if (active instanceof HTMLElement) {
+    active.blur()
+    await nextTick()
+  }
+}
+
 async function onPrimaryAction() {
+  await commitFocusedField()
+
   if (isStaged.value && !isLastStep.value) {
     await goNext()
     return

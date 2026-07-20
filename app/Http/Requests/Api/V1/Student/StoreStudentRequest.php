@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Api\V1\Student;
 
 use App\Http\Requests\Api\V1\ApiFormRequest;
+use App\Models\ClassModel;
 use App\Rules\ZimbabweMobileNumber;
 
 class StoreStudentRequest extends ApiFormRequest
@@ -12,13 +13,31 @@ class StoreStudentRequest extends ApiFormRequest
         return (bool) $this->user()?->can('create', \App\Models\Student::class);
     }
 
+    protected function prepareForValidation(): void
+    {
+        if ($this->filled('class') || ! $this->filled('class_id')) {
+            return;
+        }
+
+        $schoolId = $this->user()?->school_id;
+        $query = ClassModel::query()->where('id', (int) $this->class_id);
+        if ($schoolId !== null) {
+            $query->where('school_id', $schoolId);
+        }
+
+        $className = $query->value('name');
+        if ($className) {
+            $this->merge(['class' => $className]);
+        }
+    }
+
     public function rules(): array
     {
         return [
             'firstName' => ['required', 'string', 'max:255'],
             'surname' => ['required', 'string', 'max:255'],
-            'class' => ['required', 'string'],
-            'class_id' => ['nullable', 'integer', 'exists:classes,id'],
+            'class' => ['required_without:class_id', 'nullable', 'string'],
+            'class_id' => ['required_without:class', 'nullable', 'integer', 'exists:classes,id'],
             'grade_level_id' => ['nullable', 'integer', 'exists:grade_levels,id'],
             'dateOfBirth' => ['nullable', 'date'],
             'gender' => ['nullable', 'string', 'in:male,female,other'],

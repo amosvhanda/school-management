@@ -116,16 +116,26 @@ export const emailRequiredSchema = z
   .min(1, 'Email is required')
   .email('Enter a valid email address')
 
+function localCalendarIso(date: Date): string {
+  const y = date.getFullYear()
+  const m = String(date.getMonth() + 1).padStart(2, '0')
+  const d = String(date.getDate()).padStart(2, '0')
+  return `${y}-${m}-${d}`
+}
+
 export function studentDobBounds(): { min: string; max: string } {
   const today = new Date()
+  today.setHours(0, 0, 0, 0)
   const max = new Date(today.getFullYear() - 3, today.getMonth(), today.getDate())
   const min = new Date(today.getFullYear() - 25, today.getMonth(), today.getDate())
   return {
-    min: min.toISOString().slice(0, 10),
-    max: max.toISOString().slice(0, 10),
+    min: localCalendarIso(min),
+    max: localCalendarIso(max),
   }
 }
 
 export function todayIsoDate(): string {
-  return new Date().toISOString().slice(0, 10)
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  return localCalendarIso(today)
 }

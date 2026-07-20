@@ -66,10 +66,11 @@ export function useFormBuilder<T extends z.ZodTypeAny>(schema: T, initialValues?
     validateOnMount: false,
   })
 
-  function applyServerErrors(error: unknown) {
+  function applyServerErrors(error: unknown, fieldAliases?: Record<string, string>) {
     const errors = getValidationErrors(error)
     Object.entries(errors).forEach(([field, messages]) => {
-      form.setFieldError(field as never, messages[0])
+      const mappedField = fieldAliases?.[field] ?? field
+      form.setFieldError(mappedField as never, messages[0])
     })
   }
 

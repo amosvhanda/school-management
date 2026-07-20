@@ -213,7 +213,7 @@ const { table, globalFilter } = useDataTable({
 const defaultSchema = z.object({})
 const schema = computed(() => props.formSchema ?? defaultSchema)
 const formResetValues = ref<Record<string, unknown> | undefined>()
-const formSheetRef = ref<{ applyServerErrors: (error: unknown) => void } | null>(null)
+const formSheetRef = ref<{ applyServerErrors: (error: unknown, fieldAliases?: Record<string, string>) => void } | null>(null)
 
 const { formLoading, prepareCreate, prepareEdit } = useFormSheetLoader(() => ({
   endpoint: props.endpoint,
@@ -544,7 +544,10 @@ async function onSubmit(values: Record<string, unknown>) {
     clearRelationCache()
     await load()
   } catch (err) {
-    formSheetRef.value?.applyServerErrors(err)
+    const serverFieldAliases = props.listKey === 'students'
+      ? { class: 'class_id', dateOfBirth: 'dateOfBirth' }
+      : undefined
+    formSheetRef.value?.applyServerErrors(err, serverFieldAliases)
     toast.error('Save failed', getErrorMessage(err))
   } finally {
     saving.value = false
