@@ -2,6 +2,8 @@
 import { computed } from 'vue'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { Progress } from '@/components/ui/progress'
+import { Separator } from '@/components/ui/separator'
 import { formatDate } from '@/lib/format'
 import type { AttendanceSummary } from '@/types/dashboard'
 
@@ -13,41 +15,62 @@ const rate = computed(() => {
 })
 
 const segments = computed(() => [
-  { label: 'Present', value: props.summary.present, color: 'bg-emerald-500' },
-  { label: 'Absent', value: props.summary.absent, color: 'bg-destructive' },
-  { label: 'Late', value: props.summary.late, color: 'bg-amber-500' },
-  { label: 'Excused', value: props.summary.excused, color: 'bg-blue-500' },
+  { label: 'Present', value: props.summary.present, color: 'bg-emerald-500', text: 'text-emerald-600 dark:text-emerald-400' },
+  { label: 'Absent', value: props.summary.absent, color: 'bg-destructive', text: 'text-destructive' },
+  { label: 'Late', value: props.summary.late, color: 'bg-amber-500', text: 'text-amber-600 dark:text-amber-400' },
+  { label: 'Excused', value: props.summary.excused, color: 'bg-sky-500', text: 'text-sky-600 dark:text-sky-400' },
 ])
 </script>
 
 <template>
-  <Card class="bg-card text-card-foreground shadow-sm">
-    <CardHeader class="border-b border-border/60 pb-4">
-      <div class="flex items-center justify-between gap-4">
-        <div>
+  <Card class="h-full">
+    <CardHeader class="border-b border-border/60 px-5 pb-4">
+      <div class="flex items-start justify-between gap-4">
+        <div class="space-y-1">
           <CardTitle class="text-base font-semibold tracking-tight">Attendance today</CardTitle>
-          <CardDescription class="text-xs">{{ formatDate(summary.date) }}</CardDescription>
+          <CardDescription>{{ formatDate(summary.date) }}</CardDescription>
         </div>
-        <Badge variant="secondary" class="font-medium">{{ rate }}% present</Badge>
+        <Badge variant="secondary" class="font-medium tabular-nums">{{ rate }}% present</Badge>
       </div>
     </CardHeader>
-    <CardContent class="space-y-4 pt-6">
-      <div class="flex h-3 overflow-hidden rounded-full bg-muted">
+    <CardContent class="space-y-5 px-5 pt-5">
+      <div class="space-y-2">
+        <div class="flex items-center justify-between text-sm">
+          <span class="text-muted-foreground">Present rate</span>
+          <span class="font-medium tabular-nums">{{ summary.present }} / {{ summary.total || 0 }}</span>
+        </div>
+        <Progress :model-value="rate" class="h-2.5" aria-label="Present rate" />
+      </div>
+
+      <div
+        class="flex h-3 overflow-hidden rounded-full bg-muted"
+        role="img"
+        :aria-label="`Attendance breakdown: ${segments.map((s) => `${s.label} ${s.value}`).join(', ')}`"
+      >
         <div
           v-for="seg in segments.filter((s) => s.value > 0)"
           :key="seg.label"
           :class="seg.color"
-          :style="{ width: `${(seg.value / summary.total) * 100}%` }"
+          :style="{ width: summary.total ? `${(seg.value / summary.total) * 100}%` : '0%' }"
           :title="`${seg.label}: ${seg.value}`"
         />
       </div>
+
+      <Separator />
+
       <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <div v-for="seg in segments" :key="seg.label" class="rounded-lg border border-muted/80 p-3 bg-muted/5">
+        <div
+          v-for="seg in segments"
+          :key="seg.label"
+          class="rounded-lg border border-border/70 bg-muted/20 p-3"
+        >
           <div class="flex items-center gap-2">
-            <span :class="['size-2 rounded-full', seg.color]" />
-            <span class="text-xs text-muted-foreground font-medium">{{ seg.label }}</span>
+            <span :class="['size-2 rounded-full', seg.color]" aria-hidden="true" />
+            <span class="text-xs font-medium text-muted-foreground">{{ seg.label }}</span>
           </div>
-          <p class="mt-1 text-xl font-bold tracking-tight text-foreground">{{ seg.value }}</p>
+          <p :class="['mt-1.5 text-xl font-semibold tracking-tight tabular-nums', seg.text]">
+            {{ seg.value }}
+          </p>
         </div>
       </div>
     </CardContent>

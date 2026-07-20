@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useToast } from './use-toast'
-import { X } from 'lucide-vue-next'
+import { X } from '@lucide/vue'
 
 const { toasts, dismiss } = useToast()
 </script>

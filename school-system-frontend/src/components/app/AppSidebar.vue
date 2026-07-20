@@ -1,9 +1,8 @@
 <script setup lang="ts">
 import { computed, watch } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
-// Corrected wildcard package import path matching modern guidelines
-import * as icons from 'lucide-vue-next'
-import { GraduationCap } from 'lucide-vue-next'
+import * as icons from '@lucide/vue'
+import { GraduationCap } from '@lucide/vue'
 import {
   Sidebar,
   SidebarContent,
@@ -86,7 +85,7 @@ watch(
         :aria-label="`${school?.name ?? title} home`"
       >
         <div
-          class="flex size-9 shrink-0 items-center justify-center rounded-xl bg-sidebar-primary text-sidebar-primary-foreground shadow-[var(--shadow-soft)]"
+          class="flex size-9 shrink-0 items-center justify-center rounded-xl bg-sidebar-primary text-sidebar-primary-foreground"
         >
           <GraduationCap class="size-4" aria-hidden="true" />
         </div>

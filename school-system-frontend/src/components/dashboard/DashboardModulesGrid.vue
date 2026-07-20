@@ -1,13 +1,15 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { RouterLink } from 'vue-router'
-import * as icons from 'lucide-vue-next'
-import { ArrowUpRight, Search } from 'lucide-vue-next'
+import * as icons from '@lucide/vue'
+import { ArrowUpRight, Search } from '@lucide/vue'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Card, CardContent } from '@/components/ui/card'
 import { useAuth } from '@/composables/useAuth'
 import { canAccessNavItem } from '@/lib/permissions'
 import type { DashboardModuleGroup } from '@/lib/dashboard-modules'
+import DashboardSection from '@/components/dashboard/DashboardSection.vue'
 
 const props = withDefaults(
   defineProps<{
@@ -57,12 +59,13 @@ const totalModules = computed(() =>
 </script>
 
 <template>
-  <section v-if="totalModules > 0" aria-labelledby="dashboard-modules-title" class="space-y-6">
+  <section v-if="totalModules > 0 || search" aria-labelledby="dashboard-modules-title" class="space-y-6">
     <div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-      <div>
-        <h2 id="dashboard-modules-title" class="text-lg font-semibold tracking-tight text-foreground">{{ title }}</h2>
-        <p class="text-sm text-muted-foreground">{{ description }}</p>
-      </div>
+      <DashboardSection
+        title-id="dashboard-modules-title"
+        :title="title"
+        :description="description"
+      />
       <div class="w-full max-w-xs space-y-2">
         <Label for="module-search" class="sr-only">Search modules</Label>
         <div class="relative">
@@ -84,7 +87,7 @@ const totalModules = computed(() =>
 
     <div class="space-y-8">
       <div v-for="group in visibleGroups" :key="group.label" class="space-y-3">
-        <h3 class="text-xs font-semibold uppercase tracking-wider text-muted-foreground/90">
+        <h3 class="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
           {{ group.label }}
         </h3>
         <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
@@ -92,23 +95,31 @@ const totalModules = computed(() =>
             v-for="module in group.modules"
             :key="module.href"
             :to="module.href"
-            class="group rounded-xl border bg-card text-card-foreground shadow-sm flex items-start gap-3 p-4 transition-all hover:border-muted-foreground/30 hover:shadow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            class="group rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
-            <div
-              class="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground transition-colors group-hover:bg-primary/10 group-hover:text-primary"
-            >
-              <component :is="resolveIcon(module.icon)" class="size-4" aria-hidden="true" />
-            </div>
-            <div class="min-w-0 flex-1">
-              <div class="flex items-start justify-between gap-2">
-                <p class="text-sm font-medium leading-snug group-hover:text-primary transition-colors">{{ module.title }}</p>
-                <ArrowUpRight
-                  class="size-3.5 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100"
-                  aria-hidden="true"
-                />
-              </div>
-              <p class="mt-0.5 text-xs text-muted-foreground line-clamp-2 leading-normal">{{ module.description }}</p>
-            </div>
+            <Card class="h-full transition-colors hover:bg-muted/30">
+              <CardContent class="flex items-start gap-3 px-4 py-4">
+                <div
+                  class="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground transition-colors group-hover:bg-primary/10 group-hover:text-primary"
+                >
+                  <component :is="resolveIcon(module.icon)" class="size-4" aria-hidden="true" />
+                </div>
+                <div class="min-w-0 flex-1">
+                  <div class="flex items-start justify-between gap-2">
+                    <p class="text-sm leading-snug font-medium transition-colors group-hover:text-primary">
+                      {{ module.title }}
+                    </p>
+                    <ArrowUpRight
+                      class="size-3.5 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100"
+                      aria-hidden="true"
+                    />
+                  </div>
+                  <p class="mt-0.5 line-clamp-2 text-xs leading-normal text-muted-foreground">
+                    {{ module.description }}
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
           </RouterLink>
         </div>
       </div>

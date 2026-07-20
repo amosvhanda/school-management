@@ -1,6 +1,6 @@
 <script setup lang="ts" generic="T">
 import { FlexRender, type ColumnDef, type Table as TableType } from '@tanstack/vue-table'
-import { Search } from 'lucide-vue-next'
+import { Search } from '@lucide/vue'
 import { Input } from '@/components/ui/input'
 import {
   Table,
@@ -11,6 +11,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
 import EmptyState from '@/components/feedback/EmptyState.vue'
 
 defineProps<{
@@ -35,16 +36,15 @@ defineSlots<{
   toolbar?(): unknown
   filters?(): unknown
 } & {
-  [name in `cell-${string}`]?: (props: { row: any }) => unknown
+  [name in `cell-${string}`]?: (props: { row: any; cell?: any }) => unknown
 }>()
 </script>
 
 <template>
-  <div class="rounded-xl border bg-card text-card-foreground shadow-sm overflow-hidden">
-    <!-- Top Interactive Toolbar -->
+  <Card class="gap-0 overflow-hidden py-0">
     <div
       v-if="searchable !== false"
-      class="flex flex-col gap-3 border-b border-border/60 p-4 sm:flex-row sm:items-center sm:justify-between bg-card"
+      class="flex flex-col gap-3 border-b border-border/60 bg-card px-4 py-4 sm:flex-row sm:items-center sm:justify-between"
     >
       <div class="relative w-full max-w-sm">
         <Search
@@ -55,7 +55,7 @@ defineSlots<{
           :model-value="globalFilter"
           :placeholder="searchPlaceholder ?? 'Search records…'"
           :aria-label="searchPlaceholder ?? 'Search records'"
-          class="h-10 pl-9 text-sm bg-background"
+          class="h-10 bg-background pl-9 text-sm"
           type="search"
           @update:model-value="$emit('update:globalFilter', String($event))"
         />
@@ -65,18 +65,20 @@ defineSlots<{
       </div>
     </div>
 
-    <!-- Context Optional Filters Bar -->
     <slot name="filters" />
 
-    <!-- Table Workspace -->
     <div class="overflow-x-auto">
       <Table aria-label="Data table">
         <TableHeader>
-          <TableRow v-for="headerGroup in table.getHeaderGroups()" :key="headerGroup.id" class="hover:bg-transparent border-b border-border/60">
+          <TableRow
+            v-for="headerGroup in table.getHeaderGroups()"
+            :key="headerGroup.id"
+            class="border-b border-border/60 hover:bg-transparent"
+          >
             <TableHead
               v-for="header in headerGroup.headers"
               :key="header.id"
-              class="h-11 bg-muted/40 text-xs font-semibold uppercase tracking-wider text-muted-foreground vertical-middle"
+              class="h-11 bg-muted/40 text-xs font-semibold tracking-wider text-muted-foreground uppercase"
             >
               <FlexRender
                 v-if="!header.isPlaceholder"
@@ -91,7 +93,7 @@ defineSlots<{
             <TableRow
               v-for="row in table.getRowModel().rows"
               :key="row.id"
-              class="transition-colors border-b border-border/40 last:border-0 hover:bg-muted/30"
+              class="border-b border-border/40 transition-colors last:border-0 hover:bg-muted/30"
             >
               <TableCell v-for="cell in row.getVisibleCells()" :key="cell.id" class="py-3 text-sm">
                 <slot
@@ -109,15 +111,18 @@ defineSlots<{
             </TableRow>
           </template>
           <TableRow v-else>
-            <TableCell :colspan="columns.length" class="h-40 text-center">
-              <EmptyState />
+            <TableCell :colspan="columns.length" class="h-44 p-0 text-center">
+              <EmptyState
+                variant="embedded"
+                title="No records found"
+                description="Try adjusting search or filters, or create a new record."
+              />
             </TableCell>
           </TableRow>
         </TableBody>
       </Table>
     </div>
 
-    <!-- Bottom Pagination Infrastructure -->
     <div
       class="flex flex-col gap-3 border-t border-border/60 bg-card px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
       aria-live="polite"
@@ -135,7 +140,7 @@ defineSlots<{
         <Button
           variant="outline"
           size="sm"
-          class="h-8 text-xs px-3"
+          class="h-8 px-3 text-xs"
           :disabled="serverPagination ? (serverPage ?? 1) <= 1 : !table.getCanPreviousPage()"
           @click="serverPagination ? $emit('server-page-change', (serverPage ?? 1) - 1) : table.previousPage()"
         >
@@ -144,7 +149,7 @@ defineSlots<{
         <Button
           variant="outline"
           size="sm"
-          class="h-8 text-xs px-3"
+          class="h-8 px-3 text-xs"
           :disabled="serverPagination ? (serverPage ?? 1) >= (serverPageCount ?? 1) : !table.getCanNextPage()"
           @click="serverPagination ? $emit('server-page-change', (serverPage ?? 1) + 1) : table.nextPage()"
         >
@@ -152,5 +157,5 @@ defineSlots<{
         </Button>
       </nav>
     </div>
-  </div>
+  </Card>
 </template>

@@ -2,7 +2,7 @@
 import { computed, ref, onMounted } from 'vue'
 import { RouterLink } from 'vue-router'
 import type { ColumnDef } from '@tanstack/vue-table'
-import { KeyRound, Plus, Shield, Users } from 'lucide-vue-next'
+import { KeyRound, Plus, Shield, Users } from '@lucide/vue'
 import PageLoader from '@/components/feedback/PageLoader.vue'
 import ErrorState from '@/components/feedback/ErrorState.vue'
 import DataTable from '@/components/data-table/DataTable.vue'

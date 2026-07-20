@@ -143,12 +143,12 @@
 }
 
 @layer utilities {
+  /* Align with shadcn Card: ring surface, no soft-shadow dialect */
   .surface-card {
-    @apply rounded-xl border border-border/80 bg-card;
-    box-shadow: var(--shadow-soft);
+    @apply rounded-xl bg-card text-card-foreground ring-1 ring-foreground/10;
   }
   .surface-muted {
-    @apply rounded-xl border border-border/60 bg-muted/40;
+    @apply rounded-xl bg-muted/40 ring-1 ring-foreground/5;
   }
   .page-canvas {
     background:

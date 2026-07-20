@@ -22,6 +22,8 @@ import type { StaffDashboardVariant } from '@/lib/role-dashboard'
 import { useAuth } from '@/composables/useAuth'
 import type { NavCapability } from '@/types/navigation'
 import { cn } from '@/lib/utils'
+import { Card, CardContent } from '@/components/ui/card'
+import DashboardSection from './DashboardSection.vue'
 
 interface QuickAction {
   label: string
@@ -29,7 +31,7 @@ interface QuickAction {
   href: string
   icon: Component
   accent?: string
-  capability: NavCapability
+  capability?: NavCapability
   variants: StaffDashboardVariant[]
 }
 
@@ -206,36 +208,48 @@ const { checkCapability } = useAuth()
 const actions = computed(() =>
   allActions.filter(
     (action) =>
-      action.variants.includes(props.variant) && checkCapability(action.capability),
+      action.variants.includes(props.variant)
+      && (!action.capability || checkCapability(action.capability)),
   ),
 )
 </script>
 
 <template>
-  <section v-if="actions.length" aria-labelledby="quick-actions-title">
-    <div class="mb-4">
-      <h2 id="quick-actions-title" class="text-sm font-semibold tracking-tight">Quick actions</h2>
-      <p class="text-xs text-muted-foreground">Shortcuts for your role</p>
-    </div>
+  <section v-if="actions.length" aria-labelledby="quick-actions-title" class="space-y-4">
+    <DashboardSection
+      title-id="quick-actions-title"
+      title="Quick actions"
+      description="Shortcuts for your role"
+    />
     <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
       <RouterLink
         v-for="action in actions"
         :key="action.href"
         :to="action.href"
-        class="group surface-card flex flex-col gap-3 p-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        class="group rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
-        <div class="flex items-start justify-between gap-2">
-          <div
-            :class="cn('flex size-9 items-center justify-center rounded-lg', action.accent ?? 'bg-muted text-muted-foreground')"
-          >
-            <component :is="action.icon" class="size-4" aria-hidden="true" />
-          </div>
-          <ArrowUpRight class="size-3.5 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" aria-hidden="true" />
-        </div>
-        <div>
-          <p class="text-sm font-medium leading-none">{{ action.label }}</p>
-          <p class="mt-1 text-xs text-muted-foreground">{{ action.description }}</p>
-        </div>
+        <Card class="h-full transition-colors hover:bg-muted/30">
+          <CardContent class="flex flex-col gap-3 px-4 py-4">
+            <div class="flex items-start justify-between gap-2">
+              <div
+                :class="cn(
+                  'flex size-9 items-center justify-center rounded-lg',
+                  action.accent ?? 'bg-muted text-muted-foreground',
+                )"
+              >
+                <component :is="action.icon" class="size-4" aria-hidden="true" />
+              </div>
+              <ArrowUpRight
+                class="size-3.5 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100"
+                aria-hidden="true"
+              />
+            </div>
+            <div>
+              <p class="text-sm font-medium leading-none">{{ action.label }}</p>
+              <p class="mt-1.5 text-xs text-muted-foreground">{{ action.description }}</p>
+            </div>
+          </CardContent>
+        </Card>
       </RouterLink>
     </div>
   </section>

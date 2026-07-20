@@ -7,7 +7,7 @@ import {
   Save,
   UserX,
   Users,
-} from 'lucide-vue-next'
+} from '@lucide/vue'
 import PageLoader from '@/components/feedback/PageLoader.vue'
 import ErrorState from '@/components/feedback/ErrorState.vue'
 import PageShell from '@/components/layout/PageShell.vue'

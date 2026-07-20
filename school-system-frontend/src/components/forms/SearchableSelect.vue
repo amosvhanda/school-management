@@ -2,7 +2,7 @@
 import { computed, nextTick, ref, watch } from 'vue'
 import { useDebounceFn } from '@vueuse/core'
 // Corrected package reference coordinates
-import { Check, ChevronsUpDown, RefreshCw, Search } from 'lucide-vue-next'
+import { Check, ChevronsUpDown, RefreshCw, Search } from '@lucide/vue'
 import { PopoverContent, PopoverPortal, PopoverRoot, PopoverTrigger } from 'reka-ui'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'

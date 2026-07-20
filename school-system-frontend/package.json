@@ -26,7 +26,6 @@
     "axios": "^1.18.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
-    "lucide-vue-next": "^1.0.0",
     "nprogress": "^0.2.0",
     "pinia": "^3.0.4",
     "reka-ui": "^2.10.0",

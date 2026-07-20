@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { Banknote, Receipt, TrendingDown, Wallet, ArrowDownCircle, Scale } from 'lucide-vue-next'
+import { Banknote, Receipt, TrendingDown, Wallet, ArrowDownCircle, Scale } from '@lucide/vue'
 import KpiCard from './KpiCard.vue'
+import DashboardSection from './DashboardSection.vue'
 import { formatMoney } from '@/lib/finance-constants'
 
 const props = defineProps<{
@@ -22,7 +23,13 @@ const netCashToday = computed(() => Number(props.summary.netCashToday ?? (props.
 </script>
 
 <template>
-  <div class="space-y-4">
+  <section class="space-y-4" aria-labelledby="finance-overview-title">
+    <DashboardSection
+      title-id="finance-overview-title"
+      title="Finance overview"
+      description="Collections, payroll outflow, and net cash position"
+    />
+
     <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
       <KpiCard
         title="Outstanding fees"
@@ -82,5 +89,5 @@ const netCashToday = computed(() => Number(props.summary.netCashToday ?? (props.
         href="/finance/payroll?status=pending"
       />
     </div>
-  </div>
+  </section>
 </template>

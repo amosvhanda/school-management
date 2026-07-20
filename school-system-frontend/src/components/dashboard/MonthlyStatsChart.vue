@@ -2,17 +2,24 @@
 import { computed } from 'vue'
 import { VisAxis, VisGroupedBar, VisXYContainer } from '@unovis/vue'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { ChartContainer } from '@/components/ui/chart'
-import type { ChartConfig } from '@/components/ui/chart'
+import {
+  ChartContainer,
+  ChartCrosshair,
+  ChartLegendContent,
+  ChartTooltipContent,
+  componentToString,
+  type ChartConfig,
+} from '@/components/ui/chart'
+import EmptyState from '@/components/feedback/EmptyState.vue'
 import { formatMonth } from '@/lib/format'
 import type { MonthlyStat } from '@/types/dashboard'
 
 const props = defineProps<{ data: MonthlyStat[] }>()
 
 const chartConfig = {
-  Revenue: { label: 'Revenue', color: 'hsl(var(--chart-1))' },
-  Users: { label: 'Users', color: 'hsl(var(--chart-2))' },
-  Transactions: { label: 'Transactions', color: 'hsl(var(--chart-3))' },
+  Revenue: { label: 'Revenue', color: 'var(--chart-1)' },
+  Users: { label: 'Users', color: 'var(--chart-2)' },
+  Transactions: { label: 'Transactions', color: 'var(--chart-3)' },
 } satisfies ChartConfig
 
 const chartData = computed(() => {
@@ -25,24 +32,50 @@ const chartData = computed(() => {
     return row
   })
 })
+
+const hasData = computed(() =>
+  chartData.value.some((row) =>
+    Number(row.Revenue) > 0 || Number(row.Users) > 0 || Number(row.Transactions) > 0,
+  ),
+)
+
+const tooltip = computed(() =>
+  componentToString(chartConfig, ChartTooltipContent, {
+    labelFormatter: (x) => String(chartData.value[Number(x)]?.month ?? x),
+  }),
+)
 </script>
 
 <template>
-  <Card class="surface-card border-0 shadow-sm">
-    <CardHeader class="border-b border-border/60 pb-4">
-      <CardTitle class="text-base font-semibold">Monthly overview</CardTitle>
+  <Card>
+    <CardHeader class="border-b border-border/60 px-5 pb-4">
+      <CardTitle class="text-base font-semibold tracking-tight">Monthly overview</CardTitle>
       <CardDescription>Revenue, new users, and transactions by month</CardDescription>
     </CardHeader>
-    <CardContent>
-      <ChartContainer :config="chartConfig" class="aspect-auto h-[280px] w-full">
-        <VisXYContainer :data="chartData" :margin="{ left: 8, right: 8, top: 8, bottom: 28 }">
+    <CardContent class="px-5 pt-5">
+      <EmptyState
+        v-if="!chartData.length || !hasData"
+        class="h-[280px] justify-center"
+        title="No monthly stats yet"
+        description="Revenue and enrolment trends will show here as activity builds up."
+      />
+      <ChartContainer v-else :config="chartConfig" class="aspect-auto h-[280px] w-full" cursor>
+        <VisXYContainer :data="chartData" :margin="{ left: 8, right: 12, top: 12, bottom: 28 }">
           <VisGroupedBar
             :x="(d: { index: number }) => d.index"
-            :y="[(d: Record<string, number>) => d.Revenue, (d: Record<string, number>) => d.Users, (d: Record<string, number>) => d.Transactions]"
-            :color="['hsl(var(--chart-1))', 'hsl(var(--chart-2))', 'hsl(var(--chart-3))']"
-            :rounded-corners="4"
-            :bar-padding="0.15"
-            :group-padding="0.2"
+            :y="[
+              (d: Record<string, number>) => d.Revenue,
+              (d: Record<string, number>) => d.Users,
+              (d: Record<string, number>) => d.Transactions,
+            ]"
+            :color="['var(--chart-1)', 'var(--chart-2)', 'var(--chart-3)']"
+            :rounded-corners="6"
+            :bar-padding="0.18"
+            :group-padding="0.28"
+          />
+          <ChartCrosshair
+            color="var(--chart-1)"
+            :template="tooltip"
           />
           <VisAxis
             type="x"
@@ -50,16 +83,18 @@ const chartData = computed(() => {
             :tick-format="(i: number) => String(chartData[i]?.month ?? '')"
             :num-ticks="6"
             :grid-line="false"
+            :tick-line="false"
+            :domain-line="false"
           />
-          <VisAxis type="y" :num-ticks="4" />
+          <VisAxis
+            type="y"
+            :num-ticks="4"
+            :tick-line="false"
+            :domain-line="false"
+          />
         </VisXYContainer>
+        <ChartLegendContent />
       </ChartContainer>
-      <div class="mt-4 flex flex-wrap gap-4 text-xs text-muted-foreground">
-        <span v-for="(cfg, key) in chartConfig" :key="key" class="flex items-center gap-1.5">
-          <span class="size-2 rounded-full" :style="{ background: cfg.color }" />
-          {{ cfg.label }}
-        </span>
-      </div>
     </CardContent>
   </Card>
 </template>

@@ -12,8 +12,6 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import PageLoader from '@/components/feedback/PageLoader.vue'
-import { formSurfaceClass } from '@/lib/form-standards'
-import { cn } from '@/lib/utils'
 
 const open = defineModel<boolean>('open', { required: true })
 
@@ -44,12 +42,9 @@ watch(
 <template>
   <Dialog v-model:open="open">
     <DialogContent
-      :class="cn(
-        'flex max-h-[90vh] w-full flex-col gap-0 overflow-hidden p-0 sm:max-w-xl',
-        formSurfaceClass,
-      )"
+      class="flex max-h-[90vh] w-full flex-col gap-0 overflow-hidden p-0 sm:max-w-xl"
     >
-      <DialogHeader class="shrink-0 space-y-1 border-b border-muted/60 px-6 pb-4 pt-6">
+      <DialogHeader class="shrink-0 space-y-1 border-b border-border/60 px-6 pt-6 pb-4">
         <DialogTitle class="text-base font-semibold tracking-tight">
           Extra module access
         </DialogTitle>

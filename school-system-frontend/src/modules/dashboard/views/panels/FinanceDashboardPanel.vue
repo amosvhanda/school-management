@@ -97,14 +97,20 @@ onMounted(() => load({ analytics: true, activityFeed: true, financeSummary: true
         <FinanceOverviewPanel :summary="financeSummary" :kpis="kpis" />
       </section>
 
-      <section class="grid gap-6 xl:grid-cols-12">
-        <div class="space-y-6 xl:col-span-8">
-          <MonthlyStatsChart :data="monthly" />
-          <ActivityChart :data="activity" />
+      <section class="space-y-4" aria-labelledby="finance-insights-title">
+        <div>
+          <h2 id="finance-insights-title" class="text-base font-semibold tracking-tight md:text-lg">Insights</h2>
+          <p class="text-sm text-muted-foreground">Monthly performance, activity trend, and recent ledger events</p>
         </div>
-        <div class="xl:col-span-4 space-y-6">
-          <PayrollPanel :summary="kpis.payrollSummary" />
-          <ActivityFeed :items="recent" class="min-h-72" />
+        <div class="grid gap-6 xl:grid-cols-12">
+          <div class="space-y-6 xl:col-span-8">
+            <MonthlyStatsChart :data="monthly" />
+            <ActivityChart :data="activity" />
+          </div>
+          <div class="space-y-6 xl:col-span-4">
+            <PayrollPanel :summary="kpis.payrollSummary" />
+            <ActivityFeed :items="recent" class="min-h-72" />
+          </div>
         </div>
       </section>
 

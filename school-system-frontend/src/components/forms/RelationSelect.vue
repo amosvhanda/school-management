@@ -3,7 +3,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useFormValues } from 'vee-validate'
 import { RouterLink } from 'vue-router'
 // Corrected Lucide module source path
-import { ExternalLink, X } from 'lucide-vue-next'
+import { ExternalLink, X } from '@lucide/vue'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import SearchableSelect from '@/components/forms/SearchableSelect.vue'

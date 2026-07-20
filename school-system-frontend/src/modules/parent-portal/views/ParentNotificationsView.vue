@@ -48,6 +48,7 @@ interface ChildOption {
   id: number
   full_name?: string
   fullName?: string
+  student_number?: string
 }
 
 const toast = useToast()

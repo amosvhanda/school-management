@@ -223,7 +223,7 @@ const { formLoading, prepareCreate, prepareEdit } = useFormSheetLoader(() => ({
   createDefaults: () => {
     if (props.listKey === 'students') return { guardianMode: 'new' }
     if (props.listKey === 'teachers') return teacherCreateDefaults(schoolCurrency.value)
-    return undefined
+    return {}
   },
   idKey: idKey.value,
 }))

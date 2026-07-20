@@ -23,7 +23,6 @@ import {
   formFieldsAnimateOptions,
   formInputClass,
   formLabelClass,
-  formSurfaceClass,
 } from '@/lib/form-standards'
 import { loginFormSchema } from '@/modules/auth/auth-form'
 import { cn } from '@/lib/utils'
@@ -140,10 +139,7 @@ async function quickSignIn(account: DemoAccount) {
         </CardContent>
       </Card>
 
-      <Card
-        class="overflow-hidden border-border/70 p-0 shadow-[var(--shadow-soft)]"
-        :class="formSurfaceClass"
-      >
+      <Card class="overflow-hidden p-0">
         <CardContent class="grid p-0 md:grid-cols-2">
           <form
             v-auto-animate="formFieldsAnimateOptions"
@@ -154,7 +150,7 @@ async function quickSignIn(account: DemoAccount) {
           >
             <div class="flex flex-col items-center gap-3 text-center md:items-start md:text-left">
               <div
-                class="flex size-11 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-[var(--shadow-soft)]"
+                class="flex size-11 items-center justify-center rounded-xl bg-primary text-primary-foreground"
                 aria-hidden="true"
               >
                 <GraduationCap class="size-5" />

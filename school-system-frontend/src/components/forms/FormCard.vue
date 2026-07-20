@@ -4,8 +4,7 @@ import type { z } from 'zod'
 import FormCardBody from '@/components/forms/FormCardBody.vue'
 import type { FormFieldSchema } from '@/components/forms/useFormBuilder'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { FORM_REQUIRED_DESCRIPTION, formSurfaceClass } from '@/lib/form-standards'
-import { cn } from '@/lib/utils'
+import { FORM_REQUIRED_DESCRIPTION } from '@/lib/form-standards'
 
 withDefaults(
   defineProps<{
@@ -41,8 +40,8 @@ defineExpose({
 </script>
 
 <template>
-  <Card :class="cn('w-full', formSurfaceClass)">
-    <CardHeader class="border-b border-muted/60 pb-4">
+  <Card class="w-full">
+    <CardHeader class="border-b border-border/60 px-6 pb-4">
       <CardTitle class="text-base font-semibold tracking-tight">
         {{ title }}
       </CardTitle>
@@ -50,7 +49,7 @@ defineExpose({
         {{ description ?? FORM_REQUIRED_DESCRIPTION }}
       </CardDescription>
     </CardHeader>
-    <CardContent class="pt-6">
+    <CardContent class="px-6 pt-6">
       <FormCardBody
         ref="bodyRef"
         :fields="fields"

@@ -12,18 +12,18 @@ const sorted = computed(() =>
 </script>
 
 <template>
-  <Card class="bg-card text-card-foreground shadow-sm">
-    <CardHeader>
+  <Card>
+    <CardHeader class="border-b border-border/60 px-5 pb-4">
       <CardTitle class="text-base font-semibold tracking-tight">Subject performance</CardTitle>
-      <CardDescription class="text-xs">Average exam scores by subject</CardDescription>
+      <CardDescription>Average exam scores by subject</CardDescription>
     </CardHeader>
-    <CardContent class="space-y-4">
+    <CardContent class="space-y-4 px-5 pt-5">
       <div v-for="item in sorted" :key="item.subject_id" class="space-y-2">
         <div class="flex justify-between text-sm">
-          <span class="text-muted-foreground font-medium">Subject #{{ item.subject_id }}</span>
-          <span class="font-semibold text-foreground">{{ item.average_percent }}%</span>
+          <span class="font-medium text-muted-foreground">Subject #{{ item.subject_id }}</span>
+          <span class="font-semibold tabular-nums text-foreground">{{ item.average_percent }}%</span>
         </div>
-        <Progress :model-value="item.average_percent" class="h-2" />
+        <Progress :model-value="item.average_percent" class="h-2.5" :aria-label="`Subject ${item.subject_id} average`" />
       </div>
     </CardContent>
   </Card>

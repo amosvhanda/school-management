@@ -50,25 +50,25 @@ export function resolveFormSheetColumns(size: FormSheetSize): FormSheetColumns {
 export const formLabelClass =
   'text-xs font-semibold uppercase tracking-wider text-muted-foreground'
 
-/** Fluid inputs with soft borders and refined focus rings. */
+/** Fluid inputs aligned with shadcn focus rings. */
 export const formInputClass =
-  'w-full border-muted/60 shadow-sm focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-0'
+  'w-full focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-0'
 
 export const formTextareaClass =
-  'w-full min-h-[88px] resize-y border-muted/60 shadow-sm focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-0'
+  'w-full min-h-[88px] resize-y focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-0'
 
 export const formSelectTriggerClass =
-  'w-full border-muted/60 shadow-sm focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-0'
+  'w-full focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-0'
 
 /** Section headings inside multi-step / grouped forms. */
 export const formSectionLegendClass =
-  'mb-4 w-full border-b border-muted/60 pb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground'
+  'mb-4 w-full border-b border-border/60 pb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground'
 
 /** Tactile button feedback for primary actions. */
 export const formButtonClass = 'transition-all duration-200 active:scale-[0.98]'
 
-/** Premium card / panel surfaces. */
-export const formSurfaceClass = 'border-muted/60 shadow-sm'
+/** Surfaces match shadcn Card / Dialog (ring, not soft shadow). */
+export const formSurfaceClass = 'ring-1 ring-foreground/10'
 
 /** Responsive grid — never fixed widths on fields. */
 export function formGridClass(columns: FormSheetColumns = 2): string {

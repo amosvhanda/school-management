@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { FilterX, SlidersHorizontal } from 'lucide-vue-next'
+import { FilterX, SlidersHorizontal, X } from '@lucide/vue'
 import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
 import { findRelationLabel } from '@/lib/relation-options'
 import {
   Select,
@@ -84,19 +85,16 @@ const hasActive = computed(() => (props.activeCount ?? 0) > 0)
 
 <template>
   <section
-    class="flex flex-col gap-3 border-b border-border/60 bg-muted/10 px-4 py-3.5"
+    class="flex flex-col gap-3 border-b border-border/60 bg-muted/20 px-4 py-3.5"
     aria-label="List filters"
   >
     <div class="flex flex-wrap items-center justify-between gap-2">
-      <div class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground/90">
-        <SlidersHorizontal class="size-3.5 text-muted-foreground/70" aria-hidden="true" />
-        <span>Filters Matrix</span>
-        <span
-          v-if="hasActive"
-          class="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-bold text-primary transition-all"
-        >
+      <div class="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+        <SlidersHorizontal class="size-3.5" aria-hidden="true" />
+        <span>Filters</span>
+        <Badge v-if="hasActive" variant="secondary" class="h-5 px-1.5 text-[10px] font-semibold">
           {{ activeCount }} active
-        </span>
+        </Badge>
       </div>
 
       <Button
@@ -104,15 +102,15 @@ const hasActive = computed(() => (props.activeCount ?? 0) > 0)
         type="button"
         variant="ghost"
         size="sm"
-        class="h-7 text-xs px-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+        class="h-7 px-2 text-xs text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
         @click="emit('clear')"
       >
         <FilterX class="mr-1.5 size-3.5" aria-hidden="true" />
-        Reset entries
+        Clear all
       </Button>
     </div>
 
-    <div class="flex flex-wrap items-center gap-3 mt-1">
+    <div class="flex flex-wrap items-center gap-3">
       <template v-for="filter in filters" :key="filter.key">
         <RelationFilterSelect
           v-if="filter.type === 'relation' && filter.relation"
@@ -130,7 +128,7 @@ const hasActive = computed(() => (props.activeCount ?? 0) > 0)
             :model-value="model[filter.key] || ALL"
             @update:model-value="update(filter.key, String($event ?? ALL))"
           >
-            <SelectTrigger class="h-9 w-full text-xs bg-background" :aria-label="filter.label">
+            <SelectTrigger class="h-9 w-full bg-background text-xs" :aria-label="filter.label">
               <SelectValue :placeholder="filter.placeholder ?? filter.label" />
             </SelectTrigger>
             <SelectContent>
@@ -151,23 +149,26 @@ const hasActive = computed(() => (props.activeCount ?? 0) > 0)
       </template>
     </div>
 
-    <div v-if="activeFilters.length" class="flex flex-wrap gap-2">
-      <span
+    <div v-if="activeFilters.length" class="flex flex-wrap gap-2" aria-label="Active filters">
+      <Badge
         v-for="chip in activeFilters"
         :key="chip.key"
-        class="inline-flex items-center gap-2 rounded-full border border-border/70 bg-background px-2.5 py-1 text-[11px] text-muted-foreground"
+        variant="secondary"
+        class="gap-1.5 py-1 pr-1 font-normal"
       >
         <span class="font-medium text-foreground">{{ chip.label }}:</span>
         <span>{{ chip.value }}</span>
-        <button
+        <Button
           type="button"
-          class="text-muted-foreground hover:text-destructive"
+          variant="ghost"
+          size="icon"
+          class="size-5 rounded-full text-muted-foreground hover:text-destructive"
           :aria-label="`Clear ${chip.label} filter`"
           @click="clearFilter(chip.key)"
         >
-          ×
-        </button>
-      </span>
+          <X class="size-3" aria-hidden="true" />
+        </Button>
+      </Badge>
     </div>
   </section>
 </template>

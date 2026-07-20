@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, toRef } from 'vue'
 import { useFormCascade } from '@/composables/useFormCascade'
-import { Phone } from 'lucide-vue-next'
+import { Phone } from '@lucide/vue'
 import {
   FormControl,
   FormDescription,

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { AlertTriangle, CheckCircle2, Clock } from 'lucide-vue-next'
+import { AlertTriangle, CheckCircle2, Clock } from '@lucide/vue'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import {
@@ -36,12 +36,12 @@ function alertDetail(alert: Record<string, unknown>) {
 <template>
   <div class="grid gap-4 lg:grid-cols-3">
     <Card class="lg:col-span-2">
-      <CardHeader>
-        <CardTitle class="text-base font-semibold tracking-tight flex items-center gap-2">
-          <AlertTriangle class="size-4 text-amber-500" />
+      <CardHeader class="border-b border-border/60 px-5 pb-4">
+        <CardTitle class="flex items-center gap-2 text-base font-semibold tracking-tight">
+          <AlertTriangle class="size-4 text-amber-500" aria-hidden="true" />
           Risk alerts
         </CardTitle>
-        <CardDescription class="text-xs">Students requiring attention</CardDescription>
+        <CardDescription>Students requiring attention</CardDescription>
       </CardHeader>
       <CardContent class="p-0">
         <EmptyState v-if="!topAlerts.length" title="No active alerts" description="All students look good for now." class="py-12" />
@@ -68,42 +68,42 @@ function alertDetail(alert: Record<string, unknown>) {
 
     <div class="space-y-4">
       <Card>
-        <CardHeader class="pb-2">
-          <CardTitle class="text-sm font-semibold text-muted-foreground uppercase tracking-wider">School health</CardTitle>
+        <CardHeader class="border-b border-border/60 px-5 pb-3">
+          <CardTitle class="text-sm font-semibold tracking-wide text-muted-foreground uppercase">School health</CardTitle>
         </CardHeader>
-        <CardContent class="space-y-3 text-sm pt-2">
-          <div class="flex justify-between items-center border-b border-muted/40 pb-1.5">
+        <CardContent class="space-y-3 px-5 pt-4 text-sm">
+          <div class="flex items-center justify-between border-b border-border/50 pb-2">
             <span class="text-muted-foreground">Active students</span>
-            <span class="font-semibold text-foreground">{{ data.school_health.active_students }}</span>
+            <span class="font-semibold tabular-nums text-foreground">{{ data.school_health.active_students }}</span>
           </div>
-          <div class="flex justify-between items-center border-b border-muted/40 pb-1.5">
+          <div class="flex items-center justify-between border-b border-border/50 pb-2">
             <span class="text-muted-foreground">Avg performance</span>
-            <span class="font-semibold text-foreground">{{ data.school_health.average_performance }}%</span>
+            <span class="font-semibold tabular-nums text-foreground">{{ data.school_health.average_performance }}%</span>
           </div>
-          <div class="flex justify-between items-center">
+          <div class="flex items-center justify-between">
             <span class="text-muted-foreground">Attendance anomalies</span>
-            <span class="font-semibold text-amber-600 dark:text-amber-500">{{ data.school_health.attendance_anomalies }}</span>
+            <span class="font-semibold tabular-nums text-amber-600 dark:text-amber-500">{{ data.school_health.attendance_anomalies }}</span>
           </div>
         </CardContent>
       </Card>
 
       <Card>
-        <CardHeader class="pb-2">
-          <CardTitle class="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Scorecard</CardTitle>
+        <CardHeader class="border-b border-border/60 px-5 pb-3">
+          <CardTitle class="text-sm font-semibold tracking-wide text-muted-foreground uppercase">Scorecard</CardTitle>
         </CardHeader>
-        <CardContent class="space-y-3 text-sm pt-2">
-          <div class="flex justify-between items-center border-b border-muted/40 pb-1.5">
+        <CardContent class="space-y-3 px-5 pt-4 text-sm">
+          <div class="flex items-center justify-between border-b border-border/50 pb-2">
             <span class="text-muted-foreground">Enrollment</span>
-            <span class="font-semibold text-foreground">{{ data.kpi_scorecard.enrollment }}</span>
+            <span class="font-semibold tabular-nums text-foreground">{{ data.kpi_scorecard.enrollment }}</span>
           </div>
-          <div class="flex justify-between items-center border-b border-muted/40 pb-1.5">
+          <div class="flex items-center justify-between border-b border-border/50 pb-2">
             <span class="text-muted-foreground">Fee collection</span>
-            <span class="font-semibold text-foreground">{{ data.kpi_scorecard.fee_collection_rate }}%</span>
+            <span class="font-semibold tabular-nums text-foreground">{{ data.kpi_scorecard.fee_collection_rate }}%</span>
           </div>
           <div class="flex items-center justify-between">
             <span class="text-muted-foreground">Pending leave</span>
-            <span class="flex items-center gap-1 font-semibold text-foreground">
-              <Clock class="size-3.5 text-muted-foreground" />
+            <span class="flex items-center gap-1 font-semibold tabular-nums text-foreground">
+              <Clock class="size-3.5 text-muted-foreground" aria-hidden="true" />
               {{ data.kpi_scorecard.pending_leave }}
             </span>
           </div>
@@ -111,13 +111,13 @@ function alertDetail(alert: Record<string, unknown>) {
       </Card>
 
       <Card>
-        <CardHeader class="pb-2">
-          <CardTitle class="text-sm font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
-            <CheckCircle2 class="size-4 text-emerald-500" />
+        <CardHeader class="border-b border-border/60 px-5 pb-3">
+          <CardTitle class="flex items-center gap-2 text-sm font-semibold tracking-wide text-muted-foreground uppercase">
+            <CheckCircle2 class="size-4 text-emerald-500" aria-hidden="true" />
             Approvals
           </CardTitle>
         </CardHeader>
-        <CardContent class="pt-1">
+        <CardContent class="px-5 pt-4">
           <p class="text-3xl font-bold tracking-tight text-foreground">{{ data.approval_queue.length }}</p>
           <p class="text-xs text-muted-foreground mt-0.5">Pending workflow items</p>
         </CardContent>

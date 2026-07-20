@@ -39,6 +39,7 @@ interface Child {
   id: number
   full_name?: string
   fullName?: string
+  student_number?: string
   class?: string
   balance?: number
   currency?: string

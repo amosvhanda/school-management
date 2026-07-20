@@ -5,7 +5,7 @@ import {
   FileText,
   Receipt,
   UserPlus,
-} from 'lucide-vue-next'
+} from '@lucide/vue'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Badge } from '@/components/ui/badge'
@@ -37,10 +37,10 @@ const formatted = computed(() =>
 </script>
 
 <template>
-  <Card :class="['bg-card text-card-foreground shadow-sm flex h-full flex-col', props.class]">
-    <CardHeader class="border-b border-border/60 pb-4">
+  <Card :class="['flex h-full flex-col', props.class]">
+    <CardHeader class="border-b border-border/60 px-5 pb-4">
       <CardTitle class="text-base font-semibold tracking-tight">Recent activity</CardTitle>
-      <CardDescription class="text-xs">Latest payments, invoices, and registrations</CardDescription>
+      <CardDescription>Latest payments, invoices, and registrations</CardDescription>
     </CardHeader>
     <CardContent class="flex flex-1 flex-col p-0">
       <EmptyState
@@ -50,29 +50,29 @@ const formatted = computed(() =>
         description="Transactions and registrations will appear here in real time."
       />
       <ScrollArea v-else class="flex-1">
-        <div class="relative px-4 py-2">
+        <ul class="relative space-y-1 px-4 py-3" aria-label="Recent activity">
           <div
-            class="absolute top-4 bottom-4 left-[27px] w-px bg-border"
+            class="absolute top-5 bottom-5 left-[29px] w-px bg-border"
             aria-hidden="true"
           />
-          <div
+          <li
             v-for="item in formatted"
             :key="String(item.id)"
-            class="relative flex gap-3 rounded-lg py-3 pl-1 transition-colors hover:bg-muted/40"
+            class="relative flex gap-3 rounded-lg py-3 pl-1 transition-colors hover:bg-muted/50"
           >
             <div class="relative z-10 flex size-9 shrink-0 items-center justify-center rounded-full border bg-background shadow-sm">
-              <component :is="item.Icon" class="size-3.5 text-primary" />
+              <component :is="item.Icon" class="size-3.5 text-primary" aria-hidden="true" />
             </div>
             <div class="min-w-0 flex-1 pt-0.5">
               <p class="text-sm leading-snug font-medium text-foreground">{{ item.description }}</p>
               <p class="mt-0.5 text-xs text-muted-foreground">{{ item.user }}</p>
-              <p class="text-[10px] text-muted-foreground/70">{{ item.time }}</p>
+              <p class="text-[11px] text-muted-foreground/80">{{ item.time }}</p>
             </div>
-            <Badge :variant="statusVariant(item.status)" class="mt-1 shrink-0 h-fit text-xs font-normal capitalize">
+            <Badge :variant="statusVariant(item.status)" class="mt-1 h-fit shrink-0 text-xs font-normal capitalize">
               {{ item.action }}
             </Badge>
-          </div>
-        </div>
+          </li>
+        </ul>
       </ScrollArea>
     </CardContent>
   </Card>

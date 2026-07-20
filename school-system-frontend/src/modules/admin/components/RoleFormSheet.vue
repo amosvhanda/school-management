@@ -27,8 +27,6 @@ import {
 } from '@/components/ui/dialog'
 import PageLoader from '@/components/feedback/PageLoader.vue'
 import { getValidationErrors } from '@/lib/api-response'
-import { formSurfaceClass } from '@/lib/form-standards'
-import { cn } from '@/lib/utils'
 
 const open = defineModel<boolean>('open', { required: true })
 
@@ -104,12 +102,9 @@ const onSubmit = form.handleSubmit((formValues: RoleFormValues) => {
   <Dialog v-model:open="open">
     <!-- DialogContent automatically places the panel right in the middle of the page -->
     <DialogContent
-      :class="cn(
-        'flex max-h-[85vh] w-full max-w-xl flex-col gap-0 overflow-hidden p-0',
-        formSurfaceClass,
-      )"
+      class="flex max-h-[85vh] w-full max-w-xl flex-col gap-0 overflow-hidden p-0"
     >
-      <DialogHeader class="shrink-0 space-y-1 border-b border-muted/60 px-6 pb-4 pt-6">
+      <DialogHeader class="shrink-0 space-y-1 border-b border-border/60 px-6 pt-6 pb-4">
         <DialogTitle class="text-base font-semibold tracking-tight">{{ title }}</DialogTitle>
         <DialogDescription class="text-xs leading-relaxed">
           <template v-if="isSystemRole">

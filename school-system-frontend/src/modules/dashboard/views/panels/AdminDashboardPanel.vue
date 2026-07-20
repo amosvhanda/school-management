@@ -106,7 +106,7 @@ onMounted(() => load({
 </script>
 
 <template>
-  <div class="mx-auto max-w-[1600px] space-y-8 pb-8">
+  <div class="mx-auto max-w-[1600px] space-y-8 pb-10">
     <DashboardHero
       :name="user?.name"
       :role="meta.label"
@@ -129,19 +129,31 @@ onMounted(() => load({
       <DashboardSecondaryMetrics :kpis="kpis" />
       <RoleQuickActions variant="admin" />
 
-      <section class="grid gap-6 xl:grid-cols-12">
-        <div class="space-y-6 xl:col-span-8">
-          <ActivityChart :data="activity" />
-          <MonthlyStatsChart :data="monthly" />
+      <section class="space-y-4" aria-labelledby="insights-title">
+        <div>
+          <h2 id="insights-title" class="text-base font-semibold tracking-tight md:text-lg">Insights</h2>
+          <p class="text-sm text-muted-foreground">Trends, monthly performance, and recent school activity</p>
         </div>
-        <div class="xl:col-span-4">
-          <ActivityFeed :items="recent" class="min-h-105" />
+        <div class="grid gap-6 xl:grid-cols-12">
+          <div class="space-y-6 xl:col-span-8">
+            <ActivityChart :data="activity" />
+            <MonthlyStatsChart :data="monthly" />
+          </div>
+          <div class="xl:col-span-4">
+            <ActivityFeed :items="recent" class="min-h-105" />
+          </div>
         </div>
       </section>
 
-      <section class="grid gap-6 lg:grid-cols-2">
-        <AttendancePanel :summary="kpis.attendanceSummary" />
-        <PayrollPanel :summary="kpis.payrollSummary" />
+      <section class="space-y-4" aria-labelledby="ops-title">
+        <div>
+          <h2 id="ops-title" class="text-base font-semibold tracking-tight md:text-lg">Daily operations</h2>
+          <p class="text-sm text-muted-foreground">Attendance and payroll at a glance</p>
+        </div>
+        <div class="grid gap-6 lg:grid-cols-2">
+          <AttendancePanel :summary="kpis.attendanceSummary" />
+          <PayrollPanel :summary="kpis.payrollSummary" />
+        </div>
       </section>
 
       <section v-if="financeSummary && checkCapability('canManageFinance')">
@@ -149,8 +161,8 @@ onMounted(() => load({
       </section>
 
       <section v-if="commandCenter" class="space-y-6">
-        <div class="border-b pb-4">
-          <h2 class="text-lg font-semibold tracking-tight">Executive overview</h2>
+        <div>
+          <h2 class="text-base font-semibold tracking-tight md:text-lg">Executive overview</h2>
           <p class="text-sm text-muted-foreground">School health, risk alerts, and performance</p>
         </div>
         <CommandCenterSection :data="commandCenter" />

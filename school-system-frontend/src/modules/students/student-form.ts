@@ -90,6 +90,8 @@ export const studentFormFields: FormFieldSchema[] = mergeFormSections(
       required: true,
       min: dobBounds.min,
       max: dobBounds.max,
+      placeholder: 'DD/MM/YYYY',
+      description: 'Type the date (e.g. 15/05/2010) or use the calendar to pick month and year quickly.',
     },
     {
       name: 'gender',

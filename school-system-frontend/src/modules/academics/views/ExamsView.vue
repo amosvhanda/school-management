@@ -11,7 +11,7 @@ import {
   Send,
   Trash2,
   Upload,
-} from 'lucide-vue-next'
+} from '@lucide/vue'
 import PageLoader from '@/components/feedback/PageLoader.vue'
 import ErrorState from '@/components/feedback/ErrorState.vue'
 import DataTable from '@/components/data-table/DataTable.vue'

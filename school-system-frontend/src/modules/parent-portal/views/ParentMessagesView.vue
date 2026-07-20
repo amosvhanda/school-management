@@ -40,6 +40,7 @@ interface ChildOption {
   id: number
   fullName?: string
   full_name?: string
+  student_number?: string
 }
 
 interface MessageRow {

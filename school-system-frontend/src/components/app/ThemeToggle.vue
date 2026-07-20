@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // Corrected Lucide import path coordinates
-import { Moon, Sun } from 'lucide-vue-next'
+import { Moon, Sun } from '@lucide/vue'
 import { Button } from '@/components/ui/button'
 import { useUiStore } from '@/stores/ui.store'
 
