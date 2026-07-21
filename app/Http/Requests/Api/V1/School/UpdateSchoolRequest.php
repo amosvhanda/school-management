@@ -23,6 +23,14 @@ class UpdateSchoolRequest extends ApiFormRequest
             'currency' => ['nullable', 'string', 'in:USD,ZWG'],
             'academic_year' => ['nullable', 'string'],
             'current_term' => ['nullable', 'string'],
+            'principal_name' => ['nullable', 'string', 'max:255'],
+            'website' => ['nullable', 'url:http,https', 'max:255'],
+            'year_founded' => ['nullable', 'integer', 'min:1800', 'max:' . date('Y')],
+            'suburb' => ['nullable', 'string', 'max:255'],
+            'city' => ['nullable', 'string', 'max:255'],
+            'student_capacity' => ['nullable', 'integer', 'min:1'],
+            'timezone' => ['nullable', 'string', 'max:100'],
+            'motto' => ['nullable', 'string', 'max:500'],
         ];
     }
 }

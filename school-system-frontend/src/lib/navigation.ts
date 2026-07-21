@@ -92,7 +92,7 @@ export const staffNavigation: NavGroup[] = [
     items: [
       { title: 'Users', href: '/admin/users', icon: 'UserCog', capability: 'canManageTeachers' },
       { title: 'Roles', href: '/admin/roles', icon: 'KeyRound', capability: 'canManageTeachers' },
-      { title: 'Settings', href: '/settings', icon: 'Settings', capability: 'canManageTeachers' },
+      { title: 'School Setup', href: '/settings', icon: 'Settings', capability: 'canManageTeachers' },
     ],
   },
 ]
