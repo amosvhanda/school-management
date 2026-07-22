@@ -11,6 +11,7 @@ import {
   SlidersHorizontal,
 } from '@lucide/vue'
 import PageShell from '@/components/layout/PageShell.vue'
+import WorkspaceCard from '@/components/layout/WorkspaceCard.vue'
 import FormBuilder from '@/components/forms/FormBuilder.vue'
 import { useFormBuilder } from '@/components/forms/useFormBuilder'
 import PageLoader from '@/components/feedback/PageLoader.vue'
@@ -425,109 +426,93 @@ onMounted(load)
       </section>
 
       <div class="grid gap-6 xl:grid-cols-[minmax(0,1.7fr)_minmax(20rem,0.9fr)]">
-        <Card class="overflow-hidden border-border/70 shadow-sm">
-          <CardHeader class="border-b border-border/60 bg-gradient-to-r from-background via-background to-muted/40 px-6 py-6">
-            <div class="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-              <div class="space-y-2">
-                <CardTitle class="text-xl">{{ activeTabConfig.title }}</CardTitle>
-                <CardDescription class="max-w-2xl text-sm leading-relaxed">
-                  {{ activeTabConfig.description }}
-                </CardDescription>
-              </div>
-
-              <div
-                v-if="isProfileTab"
-                class="flex items-center gap-4 rounded-2xl border border-border/60 bg-background px-5 py-4"
-              >
-                <div class="inline-flex size-16 shrink-0 items-center justify-center rounded-full bg-muted text-xl font-semibold text-muted-foreground">
-                  {{ String(currentSchool?.name ?? 'SC').slice(0, 2).toUpperCase() }}
-                </div>
-                <div class="space-y-1.5">
-                  <p class="text-sm font-medium text-foreground">Upload School Logo</p>
-                  <p class="text-xs text-muted-foreground">
-                    Recommended: 500x500px, PNG or JPG, max 2MB
-                  </p>
-                </div>
-              </div>
-
-              <div
-                v-else-if="activeSectionMeta"
-                class="flex items-center gap-4 rounded-2xl border border-border/60 bg-background px-5 py-4"
-              >
-                <div class="inline-flex size-16 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
-                  <component :is="activeTabConfig.icon" class="size-7" aria-hidden="true" />
-                </div>
-                <div class="space-y-1.5">
-                  <p class="text-sm font-medium text-foreground">{{ activeSectionMeta.label }}</p>
-                  <p class="text-2xl font-semibold tracking-tight text-foreground">
-                    {{ activeSectionMeta.value }}
-                  </p>
-                </div>
-              </div>
+        <WorkspaceCard
+          :title="activeTabConfig.title"
+          :description="activeTabConfig.description"
+        >
+          <template v-if="isProfileTab" #meta>
+            <div class="inline-flex size-16 shrink-0 items-center justify-center rounded-full bg-muted text-xl font-semibold text-muted-foreground">
+              {{ String(currentSchool?.name ?? 'SC').slice(0, 2).toUpperCase() }}
             </div>
-          </CardHeader>
-
-          <CardContent class="px-6 py-6">
-            <div v-if="isProfileTab">
-              <form
-                id="school-setup-form"
-                class="space-y-6"
-                novalidate
-                :aria-busy="isSubmitting"
-                @submit.prevent="onSubmit"
-              >
-                <FormBuilder
-                  :fields="formFields"
-                  :columns="2"
-                />
-
-                <div class="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border/60 bg-muted/30 px-4 py-3">
-                  <p class="text-sm text-muted-foreground">
-                    Fees currency applies to invoices, fee structures, student accounts, store sales, and trip fees.
-                  </p>
-                  <div class="flex items-center gap-2 text-sm">
-                    <Badge :variant="currencyLocked ? 'secondary' : 'outline'">
-                      {{ currencyLocked ? 'Currency locked' : 'Currency editable' }}
-                    </Badge>
-                    <Button type="submit" :disabled="isSubmitting" variant="outline">
-                      <Check class="mr-2 size-4" aria-hidden="true" />
-                      {{ isSubmitting ? 'Saving…' : 'Save profile' }}
-                    </Button>
-                  </div>
-                </div>
-              </form>
-            </div>
-
-            <div v-else class="space-y-8">
-              <section
-                v-for="(section, index) in activeSections"
-                :key="`${activeTab}-${section.listKey}`"
-                class="space-y-3"
-              >
-                <div v-if="section.title || activeSections.length > 1" class="space-y-1">
-                  <h3 class="text-base font-semibold text-foreground">
-                    {{ section.title }}
-                  </h3>
-                  <p v-if="section.description" class="text-sm text-muted-foreground">
-                    {{ section.description }}
-                  </p>
-                </div>
-                <SchoolSetupSection
-                  :list-key="section.listKey"
-                  :auto-create="route.query.create === '1' && index === 0"
-                  @saved="loadSetupCounts"
-                />
-              </section>
-              <p
-                v-if="!activeSections.length"
-                class="text-sm text-muted-foreground"
-                role="status"
-              >
-                This setup section is not available.
+            <div class="space-y-1.5">
+              <p class="text-sm font-medium text-foreground">Upload School Logo</p>
+              <p class="text-xs text-muted-foreground">
+                Recommended: 500x500px, PNG or JPG, max 2MB
               </p>
             </div>
-          </CardContent>
-        </Card>
+          </template>
+
+          <template v-else-if="activeSectionMeta" #meta>
+            <div class="inline-flex size-16 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
+              <component :is="activeTabConfig.icon" class="size-7" aria-hidden="true" />
+            </div>
+            <div class="space-y-1.5">
+              <p class="text-sm font-medium text-foreground">{{ activeSectionMeta.label }}</p>
+              <p class="text-2xl font-semibold tracking-tight text-foreground">
+                {{ activeSectionMeta.value }}
+              </p>
+            </div>
+          </template>
+
+          <div v-if="isProfileTab">
+            <form
+              id="school-setup-form"
+              class="space-y-6"
+              novalidate
+              :aria-busy="isSubmitting"
+              @submit.prevent="onSubmit"
+            >
+              <FormBuilder
+                :fields="formFields"
+                :columns="2"
+              />
+
+              <div class="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border/60 bg-muted/30 px-4 py-3">
+                <p class="text-sm text-muted-foreground">
+                  Fees currency applies to invoices, fee structures, student accounts, store sales, and trip fees.
+                </p>
+                <div class="flex items-center gap-2 text-sm">
+                  <Badge :variant="currencyLocked ? 'secondary' : 'outline'">
+                    {{ currencyLocked ? 'Currency locked' : 'Currency editable' }}
+                  </Badge>
+                  <Button type="submit" :disabled="isSubmitting" variant="outline">
+                    <Check class="mr-2 size-4" aria-hidden="true" />
+                    {{ isSubmitting ? 'Saving…' : 'Save profile' }}
+                  </Button>
+                </div>
+              </div>
+            </form>
+          </div>
+
+          <div v-else class="space-y-8">
+            <section
+              v-for="(section, index) in activeSections"
+              :key="`${activeTab}-${section.listKey}`"
+              class="space-y-3"
+            >
+              <div v-if="section.title || activeSections.length > 1" class="space-y-1">
+                <h3 class="text-base font-semibold text-foreground">
+                  {{ section.title }}
+                </h3>
+                <p v-if="section.description" class="text-sm text-muted-foreground">
+                  {{ section.description }}
+                </p>
+              </div>
+              <SchoolSetupSection
+                :list-key="section.listKey"
+                :auto-create="route.query.create === '1' && index === 0"
+                @saved="loadSetupCounts"
+              />
+            </section>
+            <p
+              v-if="!activeSections.length"
+              class="text-sm text-muted-foreground"
+              role="status"
+            >
+              This setup section is not available.
+            </p>
+          </div>
+        </WorkspaceCard>
 
         <div class="space-y-6">
           <Card class="border-border/70 shadow-sm">

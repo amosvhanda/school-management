@@ -10,6 +10,7 @@ import DataTable from '@/components/data-table/DataTable.vue'
 import ListFiltersBar from '@/components/data-table/ListFiltersBar.vue'
 import FormSheet from '@/components/forms/FormSheet.vue'
 import PageShell from '@/components/layout/PageShell.vue'
+import WorkspaceCard from '@/components/layout/WorkspaceCard.vue'
 import type { FormFieldSchema } from '@/components/forms/useFormBuilder'
 import { useDataTable } from '@/components/data-table/useDataTable'
 import { Button } from '@/components/ui/button'
@@ -603,7 +604,7 @@ defineExpose({ load, openEdit })
 </script>
 
 <template>
-  <PageShell v-if="!embedded" :title="title" :description="subtitle">
+  <PageShell v-if="!embedded" :title="title" :description="subtitle" max-width="wide">
     <template #actions>
       <Button
         v-for="action in toolbarActions"
@@ -622,31 +623,40 @@ defineExpose({ load, openEdit })
 
     <PageLoader v-if="loading" :label="`Loading ${title}`" />
     <ErrorState v-else-if="error" :description="error" @retry="load" />
-    <DataTable
+    <WorkspaceCard
       v-else
-      :table="table"
-      :columns="displayColumns"
-      :global-filter="globalFilter"
-      :search-placeholder="`Search ${title.toLowerCase()}…`"
-      :server-pagination="serverPagination"
-      :server-page="serverPage"
-      :server-page-count="serverPageCount"
-      :server-total="serverTotal"
-      @update:global-filter="globalFilter = $event"
-      @server-page-change="onServerPageChange"
+      :title="title"
+      :description="subtitle"
+      meta-label="Records"
+      :meta-value="serverPagination ? serverTotal : tableRows.length"
+      flush
     >
-      <template v-if="listFilters.length" #filters>
-        <ListFiltersBar
-          v-model="filterValues"
-          :filters="listFilters"
-          :active-count="activeFilterCount"
-          @clear="clearFilters"
-        />
-      </template>
-      <template #toolbar>
-        <slot name="toolbar" />
-      </template>
-    </DataTable>
+      <DataTable
+        :framed="false"
+        :table="table"
+        :columns="displayColumns"
+        :global-filter="globalFilter"
+        :search-placeholder="`Search ${title.toLowerCase()}…`"
+        :server-pagination="serverPagination"
+        :server-page="serverPage"
+        :server-page-count="serverPageCount"
+        :server-total="serverTotal"
+        @update:global-filter="globalFilter = $event"
+        @server-page-change="onServerPageChange"
+      >
+        <template v-if="listFilters.length" #filters>
+          <ListFiltersBar
+            v-model="filterValues"
+            :filters="listFilters"
+            :active-count="activeFilterCount"
+            @clear="clearFilters"
+          />
+        </template>
+        <template #toolbar>
+          <slot name="toolbar" />
+        </template>
+      </DataTable>
+    </WorkspaceCard>
 
     <FormSheet
       v-if="formFields && formSchema"

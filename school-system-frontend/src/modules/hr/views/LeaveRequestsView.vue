@@ -328,7 +328,7 @@ onMounted(async () => {
   <PageShell
     title="Leave requests"
     description="Submit, review, and audit staff leave with a full approval trail"
-  >
+   max-width="wide">
     <template #actions>
       <Button variant="outline" @click="openAuditTrail">
         <ScrollText class="mr-2 h-4 w-4" aria-hidden="true" />

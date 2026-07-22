@@ -4,6 +4,7 @@ import { RouterLink } from 'vue-router'
 import { ArrowUpRight, TrendingUp, AlertTriangle, DollarSign, Building2 } from '@lucide/vue'
 import PageLoader from '@/components/feedback/PageLoader.vue'
 import ErrorState from '@/components/feedback/ErrorState.vue'
+import PageShell from '@/components/layout/PageShell.vue'
 import KpiCard from '@/components/dashboard/KpiCard.vue'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
@@ -70,12 +71,11 @@ onMounted(load)
 </script>
 
 <template>
-  <div class="space-y-6">
-    <div>
-      <h1 class="text-2xl font-semibold tracking-tight">School analytics</h1>
-      <p class="text-muted-foreground">Cross-section insights — open a section hub for focused KPIs and shortcuts</p>
-    </div>
-
+  <PageShell
+    title="School analytics"
+    description="Cross-section insights — open a section hub for focused KPIs and shortcuts"
+    max-width="wide"
+  >
     <section aria-labelledby="section-hub-links" class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
       <h2 id="section-hub-links" class="sr-only">Section analytics hubs</h2>
       <RouterLink
@@ -183,5 +183,5 @@ onMounted(load)
         </CardContent>
       </Card>
     </template>
-  </div>
+  </PageShell>
 </template>

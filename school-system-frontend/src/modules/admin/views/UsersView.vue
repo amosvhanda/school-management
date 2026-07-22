@@ -10,6 +10,7 @@ import UserRowActions from '@/modules/admin/components/UserRowActions.vue'
 import UserExtraPermissionsSheet from '@/modules/admin/components/UserExtraPermissionsSheet.vue'
 import { useDataTable } from '@/components/data-table/useDataTable'
 import PageShell from '@/components/layout/PageShell.vue'
+import WorkspaceCard from '@/components/layout/WorkspaceCard.vue'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { useToast } from '@/components/ui/toast/use-toast'
@@ -193,7 +194,7 @@ onMounted(load)
 </script>
 
 <template>
-  <PageShell title="Users" description="Manage staff accounts, roles, and access">
+  <PageShell title="Users" description="Manage staff accounts, roles, and access" max-width="wide">
     <template #actions>
       <Button @click="openCreate">
         <UserPlus class="mr-2 h-4 w-4" aria-hidden="true" />
@@ -204,49 +205,58 @@ onMounted(load)
     <PageLoader v-if="loading" label="Loading users…" />
     <ErrorState v-else-if="error" :description="error" @retry="load" />
 
-    <DataTable
+    <WorkspaceCard
       v-else
-      :table="table"
-      :columns="columns"
-      :global-filter="globalFilter"
-      search-placeholder="Search users…"
-      @update:global-filter="globalFilter = $event"
+      title="Users"
+      description="Manage staff accounts, roles, and access"
+      meta-label="Records"
+      :meta-value="rows.length"
+      flush
     >
-      <!-- Clean, readable custom column template structures -->
-      <template #cell-name="{ row }">
-        <span class="font-medium text-sm text-foreground">{{ row.original.name }}</span>
-      </template>
+      <DataTable
+        :framed="false"
+        :table="table"
+        :columns="columns"
+        :global-filter="globalFilter"
+        search-placeholder="Search users…"
+        @update:global-filter="globalFilter = $event"
+      >
+        <!-- Clean, readable custom column template structures -->
+        <template #cell-name="{ row }">
+          <span class="font-medium text-sm text-foreground">{{ row.original.name }}</span>
+        </template>
 
-      <template #cell-email="{ row }">
-        <span class="text-sm text-muted-foreground">{{ row.original.email }}</span>
-      </template>
+        <template #cell-email="{ row }">
+          <span class="text-sm text-muted-foreground">{{ row.original.email }}</span>
+        </template>
 
-      <template #cell-role="{ row }">
-        <Badge variant="outline" class="font-normal text-xs uppercase tracking-wider">
-          {{ row.original.role }}
-        </Badge>
-      </template>
+        <template #cell-role="{ row }">
+          <Badge variant="outline" class="font-normal text-xs uppercase tracking-wider">
+            {{ row.original.role }}
+          </Badge>
+        </template>
 
-      <template #cell-status="{ row }">
-        <Badge
-          :variant="row.original.status === 'active' ? 'default' : 'secondary'"
-          class="font-normal text-xs capitalize"
-        >
-          {{ row.original.status }}
-        </Badge>
-      </template>
+        <template #cell-status="{ row }">
+          <Badge
+            :variant="row.original.status === 'active' ? 'default' : 'secondary'"
+            class="font-normal text-xs capitalize"
+          >
+            {{ row.original.status }}
+          </Badge>
+        </template>
 
-      <template #cell-actions="{ row }">
-        <div class="flex justify-end pr-2">
-          <UserRowActions
-            :user="row.original"
-            @edit="openEdit(row.original)"
-            @permissions="openPermissions(row.original)"
-            @refresh="load"
-          />
-        </div>
-      </template>
-    </DataTable>
+        <template #cell-actions="{ row }">
+          <div class="flex justify-end pr-2">
+            <UserRowActions
+              :user="row.original"
+              @edit="openEdit(row.original)"
+              @permissions="openPermissions(row.original)"
+              @refresh="load"
+            />
+          </div>
+        </template>
+      </DataTable>
+    </WorkspaceCard>
   </PageShell>
 
   <FormSheet

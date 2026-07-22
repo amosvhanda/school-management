@@ -25,6 +25,11 @@ defineProps<{
   serverPage?: number
   serverPageCount?: number
   serverTotal?: number
+  /**
+   * When false, render table chrome without an outer Card
+   * (use inside WorkspaceCard to avoid nested cards).
+   */
+  framed?: boolean
 }>()
 
 defineEmits<{
@@ -41,7 +46,10 @@ defineSlots<{
 </script>
 
 <template>
-  <Card class="gap-0 overflow-hidden py-0">
+  <component
+    :is="framed === false ? 'div' : Card"
+    :class="framed === false ? 'overflow-hidden' : 'gap-0 overflow-hidden py-0'"
+  >
     <div
       v-if="searchable !== false"
       class="flex flex-col gap-3 border-b border-border/60 bg-card px-4 py-4 sm:flex-row sm:items-center sm:justify-between"
@@ -157,5 +165,5 @@ defineSlots<{
         </Button>
       </nav>
     </div>
-  </Card>
+  </component>
 </template>

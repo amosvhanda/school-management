@@ -7,6 +7,7 @@ import DataTable from '@/components/data-table/DataTable.vue'
 import ListFiltersBar from '@/components/data-table/ListFiltersBar.vue'
 import { Button } from '@/components/ui/button'
 import PageShell from '@/components/layout/PageShell.vue'
+import WorkspaceCard from '@/components/layout/WorkspaceCard.vue'
 import { useDataTable } from '@/components/data-table/useDataTable'
 import { useToast } from '@/composables/useToast'
 import { useListFilters } from '@/composables/useListFilters'
@@ -158,25 +159,34 @@ onMounted(load)
 </script>
 
 <template>
-  <PageShell :title="title" :description="subtitle">
+  <PageShell :title="title" :description="subtitle" max-width="wide">
     <PageLoader v-if="loading" />
     <ErrorState v-else-if="error" :description="error" @retry="load" />
-    <DataTable
+    <WorkspaceCard
       v-else
-      :table="table"
-      :columns="displayColumns"
-      :global-filter="globalFilter"
-      :search-placeholder="`Search ${title.toLowerCase()}…`"
-      @update:global-filter="globalFilter = $event"
+      :title="title"
+      :description="subtitle"
+      meta-label="Records"
+      :meta-value="tableRows.length"
+      flush
     >
-      <template v-if="listFilters.length" #filters>
-        <ListFiltersBar
-          v-model="filterValues"
-          :filters="listFilters"
-          :active-count="activeFilterCount"
-          @clear="clearFilters"
-        />
-      </template>
-    </DataTable>
+      <DataTable
+        :framed="false"
+        :table="table"
+        :columns="displayColumns"
+        :global-filter="globalFilter"
+        :search-placeholder="`Search ${title.toLowerCase()}…`"
+        @update:global-filter="globalFilter = $event"
+      >
+        <template v-if="listFilters.length" #filters>
+          <ListFiltersBar
+            v-model="filterValues"
+            :filters="listFilters"
+            :active-count="activeFilterCount"
+            @clear="clearFilters"
+          />
+        </template>
+      </DataTable>
+    </WorkspaceCard>
   </PageShell>
 </template>

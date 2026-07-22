@@ -3,6 +3,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { Plus, Search, SlidersHorizontal } from '@lucide/vue'
 import PageLoader from '@/components/feedback/PageLoader.vue'
 import ErrorState from '@/components/feedback/ErrorState.vue'
+import PageShell from '@/components/layout/PageShell.vue'
 import {
   Table,
   TableBody,
@@ -224,32 +225,30 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="space-y-6">
-    <div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-      <div>
-        <h1 class="text-2xl font-semibold tracking-tight text-foreground">Gradebook</h1>
-        <p class="text-sm text-muted-foreground">Enter and review marks by class</p>
+  <PageShell
+    title="Gradebook"
+    description="Enter and review marks by class"
+    max-width="wide"
+  >
+    <template #actions>
+      <div class="space-y-1">
+        <Label for="class-select" class="sr-only">Class Selector</Label>
+        <Select v-model="selectedClass">
+          <SelectTrigger id="class-select" class="w-48 h-10">
+            <SelectValue placeholder="Select class" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem v-for="cls in classes" :key="cls.id" :value="String(cls.id)">
+              {{ cls.name }}
+            </SelectItem>
+          </SelectContent>
+        </Select>
       </div>
-      <div class="flex flex-wrap items-center gap-2">
-        <div class="space-y-1">
-          <Label for="class-select" class="sr-only">Class Selector</Label>
-          <Select v-model="selectedClass">
-            <SelectTrigger id="class-select" class="w-48 h-10">
-              <SelectValue placeholder="Select class" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem v-for="cls in classes" :key="cls.id" :value="String(cls.id)">
-                {{ cls.name }}
-              </SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        <Button class="h-10 px-4" @click="openEntry">
-          <Plus class="mr-2 h-4 w-4" aria-hidden="true" />
-          Enter marks
-        </Button>
-      </div>
-    </div>
+      <Button class="h-10 px-4" @click="openEntry">
+        <Plus class="mr-2 h-4 w-4" aria-hidden="true" />
+        Enter marks
+      </Button>
+    </template>
 
     <PageLoader v-if="loading" label="Loading gradebook layers…" />
     <ErrorState v-else-if="error" :description="error" @retry="loadClasses" />
@@ -452,5 +451,5 @@ onMounted(async () => {
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  </div>
+  </PageShell>
 </template>

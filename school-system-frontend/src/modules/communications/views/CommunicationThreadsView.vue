@@ -3,6 +3,7 @@ import { computed, onMounted, ref } from 'vue'
 import { MessageSquare, Send } from '@lucide/vue'
 import PageLoader from '@/components/feedback/PageLoader.vue'
 import ErrorState from '@/components/feedback/ErrorState.vue'
+import PageShell from '@/components/layout/PageShell.vue'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -99,12 +100,11 @@ onMounted(loadThreads)
 </script>
 
 <template>
-  <div class="space-y-6">
-    <div>
-      <h1 class="text-2xl font-semibold tracking-tight">Message threads</h1>
-      <p class="text-muted-foreground">Respond to parent communications</p>
-    </div>
-
+  <PageShell
+    title="Message threads"
+    description="Respond to parent communications"
+    max-width="wide"
+  >
     <PageLoader v-if="loading" />
     <ErrorState v-else-if="error" :description="error" @retry="loadThreads" />
 
@@ -178,5 +178,5 @@ onMounted(loadThreads)
         </CardContent>
       </Card>
     </div>
-  </div>
+  </PageShell>
 </template>

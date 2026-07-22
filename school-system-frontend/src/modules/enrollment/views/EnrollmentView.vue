@@ -243,7 +243,7 @@ onMounted(load)
   <PageShell
     title="Enrollment"
     description="Review applications and place admitted students into class, stream, and house"
-  >
+   max-width="wide">
     <template #actions>
       <Button @click="openCreate">
         <Plus class="mr-2 h-4 w-4" aria-hidden="true" />

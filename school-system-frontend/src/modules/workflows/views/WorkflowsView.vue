@@ -325,7 +325,7 @@ onMounted(load)
   <PageShell
     title="Approval workflows"
     description="Review multi-step approvals for procurement, finance, HR, and examinations"
-  >
+   max-width="wide">
     <template #actions>
       <Button variant="outline" @click="openAuditTrail">
         <ScrollText class="mr-2 h-4 w-4" aria-hidden="true" />

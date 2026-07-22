@@ -117,7 +117,7 @@ onMounted(load)
 </script>
 
 <template>
-  <PageShell :title="pageTitle" :description="pageDescription">
+  <PageShell :title="pageTitle" :description="pageDescription" max-width="wide">
     <template #actions>
       <Button type="button" variant="outline" size="sm" :disabled="loading" @click="load">
         <RefreshCw class="mr-2 size-4" :class="loading ? 'animate-spin' : ''" aria-hidden="true" />

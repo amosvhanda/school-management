@@ -4,6 +4,7 @@ import { RouterLink } from 'vue-router'
 import { CreditCard, Receipt, Tags, ArrowRight, BarChart3, Banknote, ArrowLeftRight, Scale, ShoppingCart } from '@lucide/vue'
 import PageLoader from '@/components/feedback/PageLoader.vue'
 import ErrorState from '@/components/feedback/ErrorState.vue'
+import PageShell from '@/components/layout/PageShell.vue'
 import FinanceOverviewPanel from '@/components/dashboard/FinanceOverviewPanel.vue'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -57,17 +58,16 @@ onMounted(load)
 </script>
 
 <template>
-  <div class="space-y-6">
-    <div>
-      <h1 class="text-2xl font-semibold tracking-tight">Finance overview</h1>
-      <p class="text-muted-foreground">
-        Money in (fees + till), money out (payroll), and
-        <RouterLink class="text-primary underline-offset-2 hover:underline" to="/finance/cash-flow">
-          cash flow 360
-        </RouterLink>
-        so everything balances
-      </p>
-    </div>
+  <PageShell
+    title="Finance overview"
+    description="Money in (fees + till), money out (payroll), and cash flow so everything balances."
+    max-width="wide"
+  >
+    <template #actions>
+      <Button variant="outline" as-child>
+        <RouterLink to="/finance/cash-flow">Cash flow 360</RouterLink>
+      </Button>
+    </template>
 
     <PageLoader v-if="loading" />
     <ErrorState v-else-if="error" :description="error" @retry="load" />
@@ -130,5 +130,5 @@ onMounted(load)
         </CardContent>
       </Card>
     </template>
-  </div>
+  </PageShell>
 </template>

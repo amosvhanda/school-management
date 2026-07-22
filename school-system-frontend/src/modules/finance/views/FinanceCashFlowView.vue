@@ -4,6 +4,7 @@ import { RouterLink } from 'vue-router'
 import { ArrowDownCircle, ArrowUpCircle, CheckCircle2, Scale, AlertTriangle } from '@lucide/vue'
 import PageLoader from '@/components/feedback/PageLoader.vue'
 import ErrorState from '@/components/feedback/ErrorState.vue'
+import PageShell from '@/components/layout/PageShell.vue'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -73,32 +74,27 @@ onMounted(load)
 </script>
 
 <template>
-  <div class="space-y-6">
-    <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-      <div>
-        <h1 class="text-2xl font-semibold tracking-tight">Cash flow 360</h1>
-        <p class="text-muted-foreground">
-          Money coming in and going out — they always reconcile:
-          {{ report?.equation ?? 'Money in − Money out = Net cash' }}
-        </p>
-      </div>
-      <div class="flex flex-wrap items-center gap-2">
-        <div class="flex flex-wrap gap-1" role="group" aria-label="Report period">
-          <Button
-            v-for="option in periods"
-            :key="option.value"
-            size="sm"
-            :variant="period === option.value ? 'default' : 'outline'"
-            @click="period = option.value"
-          >
-            {{ option.label }}
-          </Button>
-        </div>
-        <Button variant="outline" as-child>
-          <RouterLink to="/finance">Overview</RouterLink>
+  <PageShell
+    title="Cash flow 360"
+    :description="`Money coming in and going out — they always reconcile: ${report?.equation ?? 'Money in − Money out = Net cash'}`"
+    max-width="wide"
+  >
+    <template #actions>
+      <div class="flex flex-wrap gap-1" role="group" aria-label="Report period">
+        <Button
+          v-for="option in periods"
+          :key="option.value"
+          size="sm"
+          :variant="period === option.value ? 'default' : 'outline'"
+          @click="period = option.value"
+        >
+          {{ option.label }}
         </Button>
       </div>
-    </div>
+      <Button variant="outline" as-child>
+        <RouterLink to="/finance">Overview</RouterLink>
+      </Button>
+    </template>
 
     <PageLoader v-if="loading" label="Loading cash flow" />
     <ErrorState v-else-if="error" :description="error" @retry="load" />
@@ -354,5 +350,5 @@ onMounted(load)
         </CardContent>
       </Card>
     </template>
-  </div>
+  </PageShell>
 </template>

@@ -335,7 +335,7 @@ onMounted(load)
     :description="canManageExams
       ? 'Schedule exams, enter marks, approve results, and publish to parents'
       : 'Enter marks for exams in subjects you teach'"
-  >
+   max-width="wide">
     <template #actions>
       <Button v-if="canManageExams" @click="openCreate">
         <Plus class="mr-2 h-4 w-4" aria-hidden="true" />

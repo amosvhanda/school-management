@@ -3,6 +3,7 @@ import { computed, onMounted, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import PageLoader from '@/components/feedback/PageLoader.vue'
 import ErrorState from '@/components/feedback/ErrorState.vue'
+import PageShell from '@/components/layout/PageShell.vue'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import {
@@ -49,18 +50,16 @@ onMounted(load)
 </script>
 
 <template>
-  <div class="space-y-6">
-    <div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-      <div>
-        <h1 class="text-2xl font-semibold tracking-tight">Accounts receivable aging</h1>
-        <p class="text-muted-foreground">
-          Outstanding invoice balances grouped by how long they have been due
-        </p>
-      </div>
+  <PageShell
+    title="Accounts receivable aging"
+    description="Outstanding invoice balances grouped by how long they have been due"
+    max-width="wide"
+  >
+    <template #actions>
       <Button variant="outline" as-child>
         <RouterLink to="/finance">Back to overview</RouterLink>
       </Button>
-    </div>
+    </template>
 
     <PageLoader v-if="loading" label="Loading aging report" />
     <ErrorState v-else-if="error" :description="error" @retry="load" />
@@ -123,5 +122,5 @@ onMounted(load)
         </CardContent>
       </Card>
     </template>
-  </div>
+  </PageShell>
 </template>

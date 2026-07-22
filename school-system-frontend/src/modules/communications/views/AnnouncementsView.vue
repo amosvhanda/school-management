@@ -312,7 +312,7 @@ onMounted(async () => {
   <PageShell
     title="Announcements"
     description="Broadcast one-way updates to parents, students, and staff. For two-way chat, use Messages."
-  >
+   max-width="wide">
     <template #actions>
       <Button @click="openCreate">
         <Plus class="mr-2 h-4 w-4" aria-hidden="true" />

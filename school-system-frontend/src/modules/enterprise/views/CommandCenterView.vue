@@ -2,6 +2,7 @@
 import { onMounted, ref } from 'vue'
 import PageLoader from '@/components/feedback/PageLoader.vue'
 import ErrorState from '@/components/feedback/ErrorState.vue'
+import PageShell from '@/components/layout/PageShell.vue'
 import KpiCard from '@/components/dashboard/KpiCard.vue'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { fetchCommandCenter } from '@/services/dashboard.service'
@@ -27,11 +28,11 @@ onMounted(load)
 </script>
 
 <template>
-  <div class="space-y-6">
-    <div>
-      <h1 class="text-2xl font-semibold tracking-tight">Command center</h1>
-      <p class="text-muted-foreground">Executive overview of school health, finance, and risk</p>
-    </div>
+  <PageShell
+    title="Command center"
+    description="Executive overview of school health, finance, and risk"
+    max-width="wide"
+  >
     <PageLoader v-if="loading" />
     <ErrorState v-else-if="error" :description="error" @retry="load" />
     <template v-else-if="data">
@@ -59,5 +60,5 @@ onMounted(load)
         </Card>
       </div>
     </template>
-  </div>
+  </PageShell>
 </template>

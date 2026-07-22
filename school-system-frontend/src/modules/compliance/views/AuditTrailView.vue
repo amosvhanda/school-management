@@ -428,7 +428,7 @@ function formatChangeValue(value: unknown): string {
   <PageShell
     title="Audit trail"
     description="A clear record of who did what across your school — changes, exports, and sign-ins."
-  >
+   max-width="wide">
     <Tabs v-model="activeTab" class="space-y-6">
       <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <TabsList aria-label="Audit views">
