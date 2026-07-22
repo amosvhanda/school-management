@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { moduleEndpoints } from '@/services'
 import type { FormFieldSchema } from '@/components/forms/useFormBuilder'
 import { formSection, genderOptions, mergeFormSections } from '@/lib/form-standards'
+import { classRelation, gradeLevelRelation } from '@/lib/form-relations'
 import { guardianRelationshipOptions } from '@/modules/guardians/guardian-form'
 import {
   dateOfBirthSchema,
@@ -110,23 +111,14 @@ export const studentFormFields: FormFieldSchema[] = mergeFormSections(
       required: true,
       placeholder: 'Select class',
       description: 'Admission number is assigned automatically as SCHOOLCODE-YEAR-#### (e.g. MUF001-2026-0001).',
-      relation: {
-        endpoint: moduleEndpoints.classes,
-        fallbackRowKey: 'class',
-        createRoute: '/academics/classes?create=1',
-        moduleLabel: 'class',
-      },
+      relation: classRelation({ fallbackRowKey: 'class' }),
     },
     {
       name: 'grade_level_id',
       label: 'Grade level',
       type: 'relation',
       placeholder: 'Select grade level',
-      relation: {
-        endpoint: moduleEndpoints.gradeLevels,
-        createRoute: '/academics/grade-levels?create=1',
-        moduleLabel: 'grade level',
-      },
+      relation: gradeLevelRelation(),
     },
   ]),
   formSection('Contact information', [

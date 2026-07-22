@@ -1,4 +1,5 @@
 import type { RouteRecordRaw } from 'vue-router'
+import { redirectToSchoolSetup } from '@/modules/settings/school-setup-links'
 
 const RegistryListPage = () => import('@/modules/shared/RegistryListPage.vue')
 
@@ -94,22 +95,65 @@ export const staffRoutes: RouteRecordRaw[] = [
     component: () => import('@/modules/enrollment/views/EnrollmentView.vue'),
     meta: { capability: 'canManageStudents' },
   },
-  staffListRoute('academics/classes', 'academics-setup', 'academics-setup', 'canManageTeachers'),
-  { path: 'academics/setup', redirect: { name: 'academics-setup' } },
-  staffListRoute('academics/streams', 'academics-streams', 'academics-streams', 'canManageTeachers'),
-  staffListRoute('academics/houses', 'academics-houses', 'academics-houses', 'canManageTeachers'),
-  staffListRoute('academics/subject-packages', 'academics-subject-packages', 'academics-subject-packages', 'canManageTeachers'),
+  {
+    path: 'academics/classes',
+    name: 'academics-setup',
+    redirect: redirectToSchoolSetup('classes'),
+  },
+  {
+    path: 'academics/setup',
+    redirect: redirectToSchoolSetup('classes'),
+  },
+  {
+    path: 'academics/streams',
+    name: 'academics-streams',
+    redirect: redirectToSchoolSetup('streams'),
+  },
+  {
+    path: 'academics/houses',
+    name: 'academics-houses',
+    redirect: redirectToSchoolSetup('houses'),
+  },
+  {
+    path: 'academics/subject-packages',
+    name: 'academics-subject-packages',
+    redirect: redirectToSchoolSetup('subject-packages'),
+  },
   sectionAnalyticsRoute('academics/analytics', 'academics-analytics', 'academics', [
     'canManageTeachers',
     'canManageStudents',
     'canEnterExamResults',
   ]),
-  staffListRoute('academics/subjects', 'academics-subjects', 'academics-subjects', 'canManageTeachers'),
-  staffListRoute('academics/departments', 'academics-departments', 'academics-departments', 'canManageTeachers'),
-  staffListRoute('academics/grade-levels', 'academics-grade-levels', 'academics-grade-levels', 'canManageTeachers'),
-  staffListRoute('academics/grading-scales', 'academics-grading-scales', 'academics-grading-scales', 'canManageTeachers'),
-  staffListRoute('academics/rooms', 'academics-rooms', 'academics-rooms', 'canManageTeachers'),
-  staffListRoute('academics/terms', 'academics-terms', 'academics-terms', 'canManageTeachers'),
+  {
+    path: 'academics/subjects',
+    name: 'academics-subjects',
+    redirect: redirectToSchoolSetup('subjects'),
+  },
+  {
+    path: 'academics/departments',
+    name: 'academics-departments',
+    redirect: redirectToSchoolSetup('departments'),
+  },
+  {
+    path: 'academics/grade-levels',
+    name: 'academics-grade-levels',
+    redirect: redirectToSchoolSetup('grade-levels'),
+  },
+  {
+    path: 'academics/grading-scales',
+    name: 'academics-grading-scales',
+    redirect: redirectToSchoolSetup('grading'),
+  },
+  {
+    path: 'academics/rooms',
+    name: 'academics-rooms',
+    redirect: redirectToSchoolSetup('rooms'),
+  },
+  {
+    path: 'academics/terms',
+    name: 'academics-terms',
+    redirect: redirectToSchoolSetup('academic-setup'),
+  },
   staffListRoute('academics/assignments', 'academics-assignments', 'academics-assignments', 'canManageTeachers'),
   staffListRoute('academics/tests', 'academics-tests', 'academics-tests', 'canManageExaminations'),
   staffListRoute('academics/teacher-assignments', 'academics-teacher-assignments', 'academics-teacher-assignments', 'canManageTeachers'),

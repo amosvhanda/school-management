@@ -212,6 +212,9 @@ Route::middleware(['auth:sanctum', 'school.isolated', 'school.licensed'])->group
     Route::put('/houses/{id}', [AcademicStructureController::class, 'updateHouse']);
     Route::get('/subject-packages', [AcademicStructureController::class, 'subjectPackages']);
     Route::post('/subject-packages', [AcademicStructureController::class, 'storeSubjectPackage']);
+    Route::get('/subject-packages/{id}', [AcademicStructureController::class, 'showSubjectPackage']);
+    Route::put('/subject-packages/{id}', [AcademicStructureController::class, 'updateSubjectPackage']);
+    Route::delete('/subject-packages/{id}', [AcademicStructureController::class, 'destroySubjectPackage']);
 
     // Inventory / uniform store
     Route::get('/inventory/items', [InventoryController::class, 'index']);

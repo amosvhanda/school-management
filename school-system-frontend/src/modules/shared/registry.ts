@@ -66,13 +66,23 @@ export const listPageRegistry: Record<string, ListPageConfig> = {
 
   'academics-setup': {
     title: 'Classes',
-    description: 'Class and grade setup',
+    description: 'Class groups from grade level and stream (e.g. Form 4A2)',
     endpoint: moduleEndpoints.classes,
     columns: [
-      ...defaultColumns(['name', 'form']),
+      ...defaultColumns(['name']),
       { id: 'grade_level', header: 'Grade level', cell: ({ row }) => {
         const grade = row.original.grade_level ?? row.original.gradeLevel
         return grade && typeof grade === 'object' ? String((grade as Record<string, unknown>).name ?? '—') : '—'
+      } },
+      { id: 'stream', header: 'Stream', cell: ({ row }) => {
+        const stream = row.original.stream
+        if (stream && typeof stream === 'object') {
+          const name = String((stream as Record<string, unknown>).name ?? '').trim()
+          const code = String((stream as Record<string, unknown>).code ?? '').trim()
+          if (code && code.toLowerCase() !== name.toLowerCase()) return `${name} (${code})`
+          return name || code || '—'
+        }
+        return '—'
       } },
       ...defaultColumns(['capacity']),
       { id: 'teacher', header: 'Class teacher', cell: ({ row }) => {
@@ -101,8 +111,19 @@ export const listPageRegistry: Record<string, ListPageConfig> = {
     description: 'Subjects by grade and stream',
     endpoint: moduleEndpoints.subjectPackages,
     columns: [
-      nestedColumn('Grade level', 'gradeLevel', 'name'),
-      nestedColumn('Subject', 'subject', 'name'),
+      nestedColumn('Grade level', 'grade_level', 'name'),
+      {
+        id: 'subject',
+        header: 'Subject',
+        cell: ({ row }) => {
+          const subject = row.original.subject
+          if (!subject || typeof subject !== 'object') return '—'
+          const name = String((subject as Record<string, unknown>).name ?? '').trim()
+          const code = String((subject as Record<string, unknown>).code ?? '').trim()
+          if (name && code) return `${name} (${code})`
+          return name || code || '—'
+        },
+      },
       nestedColumn('Stream', 'stream', 'name'),
       { id: 'is_core', header: 'Core', cell: ({ row }) => (row.original.is_core ? 'Core' : 'Elective') },
     ],
@@ -158,8 +179,8 @@ export const listPageRegistry: Record<string, ListPageConfig> = {
     endpoint: moduleEndpoints.teacherAssignments,
     columns: [
       nestedColumn('Teacher', 'teacher', 'name'),
-      nestedColumn('Class', 'classModel', 'name'),
-      nestedColumn('Grade level', 'gradeLevel', 'name'),
+      nestedColumn('Class', 'class_model', 'name'),
+      nestedColumn('Grade level', 'grade_level', 'name'),
       nestedColumn('Subject', 'subject', 'name'),
       textColumn('Role', 'role'),
       { id: 'is_active', header: 'Status', cell: ({ row }) => (row.original.is_active === false ? 'Inactive' : 'Active') },

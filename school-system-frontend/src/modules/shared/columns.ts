@@ -30,7 +30,15 @@ export function nestedColumn(header: string, key: string, nestedKey: string): Co
     id: key,
     header,
     cell: ({ row }) => {
+      const snakeKey = key.includes('_')
+        ? key
+        : key.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`)
+      const camelKey = key.includes('_')
+        ? key.replace(/_([a-z])/g, (_, letter: string) => letter.toUpperCase())
+        : key
       const val = row.original[key]
+        ?? row.original[snakeKey]
+        ?? row.original[camelKey]
       if (val && typeof val === 'object') {
         return String((val as Record<string, unknown>)[nestedKey] ?? '—')
       }

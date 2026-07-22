@@ -9,6 +9,8 @@ import { moduleActionsRegistry, moduleToolbarActionsRegistry } from '@/modules/s
 
 const props = defineProps<{
   listKey: string
+  /** When embedded in School Setup, parent controls ?create=1 handling. */
+  autoCreate?: boolean
 }>()
 
 const emit = defineEmits<{ saved: [] }>()
@@ -44,6 +46,7 @@ const crudAccess = computed(() => {
     :toolbar-actions="moduleToolbarActionsRegistry[listKey]"
     :list-key="listKey"
     :staged="crud.staged"
+    :auto-create="autoCreate"
     @saved="emit('saved')"
   />
   <p v-else class="text-sm text-destructive">This setup section is not configured.</p>

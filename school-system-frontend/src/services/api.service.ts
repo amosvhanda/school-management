@@ -91,6 +91,9 @@ export const academicStructureApi = {
   subjectPackages: {
     list: (params?: ListQueryParams) => fetchList(e.subjectPackages.list, params),
     create: (payload: Record<string, unknown>) => createRecord(e.subjectPackages.store, payload),
+    update: (id: number | string, payload: Record<string, unknown>) =>
+      updateRecord(e.subjectPackages.detail(id), payload),
+    remove: (id: number | string) => deleteRecord(e.subjectPackages.detail(id)),
   },
 }
 

@@ -64,6 +64,11 @@ const props = defineProps<{
   staged?: boolean
   /** Render inside a parent layout without PageShell (e.g. school setup workspace). */
   embedded?: boolean
+  /**
+   * When embedded, parent decides whether to open the create sheet on mount.
+   * Standalone pages still honour `?create=1`.
+   */
+  autoCreate?: boolean
 }>()
 
 const emit = defineEmits<{ saved: [] }>()
@@ -334,6 +339,8 @@ async function openCreate() {
     formResetValues.value = { severity: 'low', status: 'open' }
   } else if (props.listKey === 'compliance-consent') {
     formResetValues.value = { requires_signature: false }
+  } else if (props.listKey === 'academics-setup') {
+    formResetValues.value = { capacity: 40 }
   } else if (
     props.listKey === 'academics-streams'
     || props.listKey === 'academics-houses'
@@ -574,10 +581,21 @@ onMounted(async () => {
   }
 
   await load()
-  if (route.query.create === '1' && props.canCreate && hasForm.value) {
+  const shouldAutoCreate = props.embedded
+    ? props.autoCreate === true
+    : route.query.create === '1'
+
+  if (shouldAutoCreate && props.canCreate && hasForm.value) {
     void openCreate()
-    const { create: _create, ...rest } = route.query
-    router.replace({ query: rest })
+    if (route.query.create === '1') {
+      const { create: _create, tab, ...rest } = route.query
+      router.replace({
+        query: {
+          ...rest,
+          ...(typeof tab === 'string' ? { tab } : {}),
+        },
+      })
+    }
   }
 })
 

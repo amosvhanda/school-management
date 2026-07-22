@@ -24,7 +24,7 @@ class ClassController extends Controller
             $query->where('form', $request->form);
         }
 
-        $query->with(['teacher', 'gradeLevel']);
+        $query->with(['teacher', 'gradeLevel', 'stream']);
 
         // Support 'all=true' parameter to get all classes without pagination
         if ($request->get('all') === 'true' || $request->get('all') === true) {
@@ -46,7 +46,7 @@ class ClassController extends Controller
             abort(403, 'Unauthorized action.');
         }
 
-        $class->load(['teacher', 'students']);
+        $class->load(['teacher', 'students', 'gradeLevel', 'stream']);
 
         return response()->json([
             'data' => $class,

@@ -146,7 +146,7 @@ async function loadAcademicsKpis(): Promise<SectionKpi[]> {
       value: String(kpis?.totalClasses ?? 0),
       subtitle: `${kpis?.activeStudents ?? 0} active students`,
       icon: BookOpen,
-      href: '/academics/classes',
+      href: '/settings?tab=classes',
     },
     {
       title: 'Grade records',

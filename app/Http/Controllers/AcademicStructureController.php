@@ -158,4 +158,59 @@ class AcademicStructureController extends Controller
             'data' => $row->load(['gradeLevel:id,name', 'subject:id,name,code', 'stream:id,name']),
         ], 201);
     }
+
+    public function showSubjectPackage(Request $request, int $id)
+    {
+        $row = GradeLevelSubject::query()
+            ->where('school_id', $request->user()->school_id)
+            ->with(['gradeLevel:id,name', 'subject:id,name,code', 'stream:id,name'])
+            ->findOrFail($id);
+
+        return response()->json(['data' => $row]);
+    }
+
+    public function updateSubjectPackage(Request $request, int $id)
+    {
+        $row = GradeLevelSubject::query()
+            ->where('school_id', $request->user()->school_id)
+            ->findOrFail($id);
+
+        $data = Validator::make($request->all(), [
+            'grade_level_id' => 'sometimes|integer|exists:grade_levels,id',
+            'subject_id' => 'sometimes|integer|exists:subjects,id',
+            'stream_id' => 'nullable|integer|exists:streams,id',
+            'is_core' => 'nullable|boolean',
+        ])->validate();
+
+        if (array_key_exists('is_core', $data)) {
+            $isCore = $data['is_core'];
+            if (is_string($isCore)) {
+                $isCore = ! in_array(strtolower($isCore), ['false', '0', 'elective', 'no'], true);
+            }
+            $data['is_core'] = (bool) $isCore;
+        }
+
+        if (array_key_exists('stream_id', $data) && $data['stream_id'] === null) {
+            $row->stream_id = null;
+        }
+
+        $row->fill($data);
+        $row->save();
+
+        return response()->json([
+            'message' => 'Subject package item updated',
+            'data' => $row->fresh()->load(['gradeLevel:id,name', 'subject:id,name,code', 'stream:id,name']),
+        ]);
+    }
+
+    public function destroySubjectPackage(Request $request, int $id)
+    {
+        $row = GradeLevelSubject::query()
+            ->where('school_id', $request->user()->school_id)
+            ->findOrFail($id);
+
+        $row->delete();
+
+        return response()->json(['message' => 'Subject package item deleted']);
+    }
 }

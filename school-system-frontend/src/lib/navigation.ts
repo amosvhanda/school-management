@@ -23,9 +23,6 @@ export const staffNavigation: NavGroup[] = [
     label: 'Academics',
     items: [
       { title: 'Analytics', href: '/academics/analytics', icon: 'BarChart3', capability: ['canManageTeachers', 'canManageStudents', 'canEnterExamResults'] },
-      { title: 'Classes', href: '/academics/classes', icon: 'BookOpen', capability: 'canManageTeachers' },
-      { title: 'Subjects', href: '/academics/subjects', icon: 'BookMarked', capability: 'canManageTeachers' },
-      { title: 'Terms', href: '/academics/terms', icon: 'Calendar', capability: 'canManageTeachers' },
       { title: 'Gradebook', href: '/academics/grades', icon: 'NotebookPen', capability: 'canManageExaminations' },
       { title: 'Attendance', href: '/academics/attendance', icon: 'ClipboardCheck', capability: 'canManageStudents' },
       { title: 'Exams', href: '/academics/exams', icon: 'FileText', capability: ['canManageExaminations', 'canEnterExamResults'] },

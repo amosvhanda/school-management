@@ -418,6 +418,37 @@ export function mapFormToPayload(
     }
   }
 
+  if (listKey === 'academics-setup') {
+    const capacity =
+      values.capacity === '' || values.capacity == null
+        ? 40
+        : Number(values.capacity)
+
+    const levelRaw = values.grade_level_id
+      ? findRelationRaw(moduleEndpoints.gradeLevels, values.grade_level_id)
+      : undefined
+    // `form` mirrors grade level — same concept, kept for API/filtering only.
+    const levelName = levelRaw?.name != null ? String(levelRaw.name).trim() : null
+
+    return {
+      name: String(values.name ?? '').trim(),
+      form: levelName,
+      capacity: Number.isFinite(capacity) && capacity >= 1 ? capacity : 40,
+      grade_level_id: values.grade_level_id ? Number(values.grade_level_id) : null,
+      stream_id: values.stream_id ? Number(values.stream_id) : null,
+      teacher_id: values.teacher_id ? Number(values.teacher_id) : null,
+    }
+  }
+
+  if (listKey === 'academics-subject-packages') {
+    return {
+      grade_level_id: values.grade_level_id ? Number(values.grade_level_id) : undefined,
+      subject_id: values.subject_id ? Number(values.subject_id) : undefined,
+      stream_id: values.stream_id ? Number(values.stream_id) : null,
+      is_core: values.is_core === 'true' || values.is_core === true,
+    }
+  }
+
   if (listKey === 'ops-inventory') {
     return {
       name: String(values.name ?? '').trim(),
@@ -596,6 +627,7 @@ export const backendCrudSupport: Record<string, { create: boolean; update: boole
   'academics-setup': { create: true, update: true, delete: true },
   'academics-streams': { create: true, update: true, delete: false },
   'academics-houses': { create: true, update: true, delete: false },
+  'academics-subject-packages': { create: true, update: true, delete: true },
   'academics-subjects': { create: true, update: true, delete: true },
   'academics-departments': { create: true, update: true, delete: true },
   'academics-grade-levels': { create: true, update: true, delete: true },

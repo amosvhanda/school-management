@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
-import { useFormValues } from 'vee-validate'
+import { useFormContext, useFormValues } from 'vee-validate'
 import { RouterLink } from 'vue-router'
 // Corrected Lucide module source path
 import { ExternalLink, X } from '@lucide/vue'
@@ -24,6 +24,7 @@ const emit = defineEmits<{
 }>()
 
 const formValues = useFormValues()
+const form = useFormContext()
 const options = ref<RelationOption[]>([])
 const loading = ref(true)
 const error = ref<string | null>(null)
@@ -104,6 +105,18 @@ watch(parentValue, () => {
 
 function onChange(value: string) {
   emit('update:modelValue', value)
+
+  const targetField = props.field.relation?.fillEmptyField
+  if (!targetField || !value) return
+
+  const current = (formValues.value as Record<string, unknown> | undefined)?.[targetField]
+  if (current != null && String(current).trim() !== '') return
+
+  const label = options.value.find((option) => option.value === value)?.label
+    ?? findRelationLabel(props.field.relation?.endpoint ?? '', value, requestParams.value)
+  if (!label) return
+
+  form.setFieldValue(targetField, label)
 }
 
 function clearSelection() {

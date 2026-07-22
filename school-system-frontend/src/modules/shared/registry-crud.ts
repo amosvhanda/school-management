@@ -12,6 +12,9 @@ import {
   classRelation,
   feeCategoryRelation,
   departmentRelation,
+  gradeLevelRelation,
+  streamRelation,
+  subjectRelation,
 } from '@/lib/form-relations'
 import { moduleEndpoints } from '@/services'
 import { studentFormFields, studentFormSchema } from '@/modules/students/student-form'
@@ -58,17 +61,16 @@ export const moduleCrudRegistry: Record<string, ModuleCrudConfig> = {
   guardians: crud(guardianFormFields, guardianFormSchema, { canEdit: true, canDelete: false }),
   'academics-setup': crud(
     [
-      { name: 'name', label: 'Class name', type: 'text', required: true, section: 'Class details', colSpan: 1 },
-      { name: 'form', label: 'Form / level label', type: 'text', section: 'Class details', placeholder: 'Form 1', colSpan: 1 },
-      { name: 'capacity', label: 'Capacity', type: 'number', section: 'Class details', colSpan: 1 },
       {
         name: 'grade_level_id',
         label: 'Grade level',
         type: 'relation',
+        required: true,
         section: 'Class details',
-        placeholder: 'Optional grade level',
+        placeholder: 'Select grade level',
+        description: 'Year level such as Form 4 or Lower 6. This is the academic level for the class.',
         colSpan: 1,
-        relation: { endpoint: moduleEndpoints.gradeLevels },
+        relation: gradeLevelRelation(),
       },
       {
         name: 'stream_id',
@@ -76,8 +78,34 @@ export const moduleCrudRegistry: Record<string, ModuleCrudConfig> = {
         type: 'relation',
         section: 'Class details',
         placeholder: 'Optional stream',
+        description:
+          'Form 1–4: section codes like A, B, A2 (class becomes Form 4A2). Lower/Upper 6: named streams like Commercials or Sciences (class becomes Lower 6 Commercials). Leave empty for Lower/Upper 6 with no stream.',
         colSpan: 1,
-        relation: { endpoint: moduleEndpoints.streams },
+        relation: streamRelation(),
+      },
+      {
+        name: 'name',
+        label: 'Class name',
+        type: 'text',
+        required: true,
+        section: 'Class details',
+        placeholder: 'e.g. Form 4A2 or Lower 6 Commercials',
+        description:
+          'Built automatically from grade level + stream. You can edit it if your school uses a custom label.',
+        colSpan: 1,
+        deriveClassName: {
+          levelField: 'grade_level_id',
+          streamField: 'stream_id',
+        },
+      },
+      {
+        name: 'capacity',
+        label: 'Capacity',
+        type: 'number',
+        section: 'Class details',
+        placeholder: '40',
+        description: 'Maximum learners for this class. Defaults to 40.',
+        colSpan: 1,
       },
       {
         name: 'teacher_id',
@@ -85,24 +113,47 @@ export const moduleCrudRegistry: Record<string, ModuleCrudConfig> = {
         type: 'relation',
         section: 'Class details',
         placeholder: 'Select teacher',
-        description: 'Optional. Assign the homeroom / class teacher.',
+        description: 'Optional homeroom / class teacher.',
         colSpan: 1,
-        relation: { endpoint: moduleEndpoints.teachers },
+        relation: {
+          endpoint: moduleEndpoints.teachers,
+          moduleLabel: 'teacher',
+          createRoute: '/teachers?create=1',
+        },
       },
     ],
     z.object({
-      name: z.string().min(1),
-      form: z.string().optional(),
-      capacity: z.coerce.number().optional(),
-      grade_level_id: z.string().optional().or(z.literal('')),
+      name: z.string().trim().min(1, 'Class name is required'),
+      capacity: z.preprocess(
+        (value) => (value === '' || value == null ? undefined : value),
+        z.coerce.number().int().min(1, 'Capacity must be at least 1').optional(),
+      ),
+      grade_level_id: z.string().min(1, 'Select a grade level'),
       stream_id: z.string().optional().or(z.literal('')),
       teacher_id: z.string().optional().or(z.literal('')),
     }),
   ),
   'academics-streams': crud(
     [
-      { name: 'name', label: 'Stream name', type: 'text', required: true, section: 'Stream', colSpan: 1 },
-      { name: 'code', label: 'Code', type: 'text', section: 'Stream', colSpan: 1 },
+      {
+        name: 'name',
+        label: 'Stream name',
+        type: 'text',
+        required: true,
+        section: 'Stream',
+        colSpan: 1,
+        placeholder: 'e.g. A2 or Commercials',
+        description: 'Form sections often use short codes (A, B, A2). A-level pathways use names (Commercials, Sciences, Arts).',
+      },
+      {
+        name: 'code',
+        label: 'Code',
+        type: 'text',
+        section: 'Stream',
+        colSpan: 1,
+        placeholder: 'e.g. A2',
+        description: 'Optional short code. For Form classes this is preferred in the class name (Form 4 + A2 → Form 4A2).',
+      },
       { name: 'description', label: 'Description', type: 'textarea', section: 'Stream', colSpan: 2 },
       { name: 'is_active', label: 'Active', type: 'checkbox', section: 'Stream', colSpan: 2 },
     ],
@@ -146,7 +197,7 @@ export const moduleCrudRegistry: Record<string, ModuleCrudConfig> = {
         type: 'relation',
         required: true,
         section: 'Package',
-        relation: { endpoint: moduleEndpoints.gradeLevels },
+        relation: gradeLevelRelation(),
       },
       {
         name: 'subject_id',
@@ -154,14 +205,14 @@ export const moduleCrudRegistry: Record<string, ModuleCrudConfig> = {
         type: 'relation',
         required: true,
         section: 'Package',
-        relation: { endpoint: moduleEndpoints.subjects },
+        relation: subjectRelation(),
       },
       {
         name: 'stream_id',
         label: 'Stream (optional)',
         type: 'relation',
         section: 'Package',
-        relation: { endpoint: moduleEndpoints.streams },
+        relation: streamRelation(),
       },
       {
         name: 'is_core',
@@ -180,7 +231,6 @@ export const moduleCrudRegistry: Record<string, ModuleCrudConfig> = {
       stream_id: z.string().optional().or(z.literal('')),
       is_core: z.string().optional(),
     }),
-    { canEdit: false, canDelete: false },
   ),
   'academics-subjects': crud(
     formSection('Subject', [

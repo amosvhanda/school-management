@@ -47,7 +47,12 @@ function inferPermissions(listKey: string): ModulePermissionConfig {
   }
   if (
     listKey.startsWith('academics-')
-    && (listKey.includes('exam') || listKey.includes('test') || listKey.includes('grade'))
+    && (
+      listKey.includes('exam')
+      || listKey.includes('test')
+      // Gradebook only — not grade-levels / grading-scales setup
+      || listKey === 'academics-grades'
+    )
   ) {
     return { create: EXAMS, edit: EXAMS, delete: ADMIN }
   }

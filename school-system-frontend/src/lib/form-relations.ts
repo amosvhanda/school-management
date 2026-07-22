@@ -1,5 +1,6 @@
 import type { RelationFieldConfig } from '@/components/forms/useFormBuilder'
 import { endpoints, moduleEndpoints } from '@/services'
+import { schoolSetupHref } from '@/modules/settings/school-setup-links'
 
 export function studentRelation(overrides?: Partial<RelationFieldConfig>): RelationFieldConfig {
   return {
@@ -22,7 +23,7 @@ export function guardianRelation(overrides?: Partial<RelationFieldConfig>): Rela
 export function classRelation(overrides?: Partial<RelationFieldConfig>): RelationFieldConfig {
   return {
     endpoint: moduleEndpoints.classes,
-    createRoute: '/academics/classes?create=1',
+    createRoute: schoolSetupHref('classes', { create: true }),
     moduleLabel: 'class',
     ...overrides,
   }
@@ -58,7 +59,7 @@ export function transportDriverRelation(overrides?: Partial<RelationFieldConfig>
 export function subjectRelation(overrides?: Partial<RelationFieldConfig>): RelationFieldConfig {
   return {
     endpoint: moduleEndpoints.subjects,
-    createRoute: '/academics/subjects?create=1',
+    createRoute: schoolSetupHref('subjects', { create: true }),
     moduleLabel: 'subject',
     fallbackRowKey: 'subject',
     ...overrides,
@@ -68,9 +69,27 @@ export function subjectRelation(overrides?: Partial<RelationFieldConfig>): Relat
 export function departmentRelation(overrides?: Partial<RelationFieldConfig>): RelationFieldConfig {
   return {
     endpoint: moduleEndpoints.departments,
-    createRoute: '/academics/departments?create=1',
+    createRoute: schoolSetupHref('departments', { create: true }),
     moduleLabel: 'department',
     fallbackRowKey: 'department',
+    ...overrides,
+  }
+}
+
+export function gradeLevelRelation(overrides?: Partial<RelationFieldConfig>): RelationFieldConfig {
+  return {
+    endpoint: moduleEndpoints.gradeLevels,
+    createRoute: schoolSetupHref('grade-levels', { create: true }),
+    moduleLabel: 'grade level',
+    ...overrides,
+  }
+}
+
+export function streamRelation(overrides?: Partial<RelationFieldConfig>): RelationFieldConfig {
+  return {
+    endpoint: moduleEndpoints.streams,
+    createRoute: schoolSetupHref('streams', { create: true }),
+    moduleLabel: 'stream',
     ...overrides,
   }
 }
@@ -78,7 +97,7 @@ export function departmentRelation(overrides?: Partial<RelationFieldConfig>): Re
 export function feeCategoryRelation(overrides?: Partial<RelationFieldConfig>): RelationFieldConfig {
   return {
     endpoint: moduleEndpoints.feeCategories,
-    createRoute: '/finance/fee-categories?create=1',
+    createRoute: schoolSetupHref('fees', { create: true }),
     moduleLabel: 'fee category',
     params: { all: true },
     ...overrides,

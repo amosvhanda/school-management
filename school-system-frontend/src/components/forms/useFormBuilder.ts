@@ -25,6 +25,20 @@ export interface RelationFieldConfig {
   /** Human label for empty states, e.g. `guardian`, `student` */
   moduleLabel?: string
   dependsOn?: RelationDependsOn
+  /**
+   * When an option is selected, copy its label into this form field
+   * only if that field is currently empty (e.g. grade level → form label).
+   */
+  fillEmptyField?: string
+}
+
+export interface ClassNameDeriveConfig {
+  /** Grade level relation field, e.g. `grade_level_id`. */
+  levelField: string
+  /** Stream relation field, e.g. `stream_id`. */
+  streamField: string
+  /** Optional form label field to mirror the grade level name. */
+  formField?: string
 }
 
 export type FormFieldType =
@@ -57,6 +71,11 @@ export interface FormFieldSchema {
   rowKey?: string
   payloadPath?: string
   relation?: RelationFieldConfig
+  /**
+   * On the class `name` field: auto-build display name from grade level + stream
+   * (Form 4A2 vs Lower 6 Commercials).
+   */
+  deriveClassName?: ClassNameDeriveConfig
 }
 
 export function useFormBuilder<T extends z.ZodTypeAny>(schema: T, initialValues?: FormValues<T>) {

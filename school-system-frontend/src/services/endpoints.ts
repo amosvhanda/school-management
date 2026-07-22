@@ -94,6 +94,7 @@ export const endpoints = {
   subjectPackages: {
     list: '/subject-packages',
     store: '/subject-packages',
+    detail: (id: number | string) => `/subject-packages/${id}`,
   },
   teachers: {
     list: '/teachers',

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, toRef } from 'vue'
 import { useFormCascade } from '@/composables/useFormCascade'
+import { useClassNameDerive } from '@/composables/useClassNameDerive'
 import { Phone } from '@lucide/vue'
 import {
   FormControl,
@@ -48,6 +49,7 @@ const props = withDefaults(
 )
 
 useFormCascade(toRef(() => props.fields))
+useClassNameDerive(toRef(() => props.fields))
 
 interface FieldGroup {
   title: string

@@ -1,14 +1,14 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
-import { RouterLink } from 'vue-router'
+import { RouterLink, useRoute, useRouter } from 'vue-router'
 import {
   Check,
   CheckCircle2,
   CircleDashed,
-  DoorOpen,
+  GitBranch,
+  Layers,
   Save,
   SlidersHorizontal,
-  Tags,
 } from '@lucide/vue'
 import PageShell from '@/components/layout/PageShell.vue'
 import FormBuilder from '@/components/forms/FormBuilder.vue'
@@ -31,9 +31,11 @@ import {
 } from '@/modules/settings/school-settings-form'
 import {
   SETUP_TABS,
+  sectionsForTab,
   tabById,
   type SetupTabId,
 } from '@/modules/settings/school-setup-tabs'
+import { schoolSetupLocation } from '@/modules/settings/school-setup-links'
 
 interface SchoolProfile {
   name?: string
@@ -55,14 +57,19 @@ interface SchoolProfile {
 
 interface SetupCounts {
   terms: number
+  gradeLevels: number
   classes: number
+  streams: number
   rooms: number
   subjects: number
   feeStructures: number
+  feeCategories: number
   timetable: number
 }
 
 const toast = useToast()
+const route = useRoute()
+const router = useRouter()
 const { loadSchool } = useSchoolProfile()
 const loading = ref(true)
 const error = ref<string | null>(null)
@@ -72,12 +79,22 @@ const formResetValues = ref<Record<string, unknown> | undefined>()
 const activeTab = ref<SetupTabId>('profile')
 const setupCounts = ref<SetupCounts>({
   terms: 0,
+  gradeLevels: 0,
   classes: 0,
+  streams: 0,
   rooms: 0,
   subjects: 0,
   feeStructures: 0,
+  feeCategories: 0,
   timetable: 0,
 })
+
+const validTabIds = new Set(SETUP_TABS.map((tab) => tab.id))
+
+function parseSetupTab(value: unknown): SetupTabId | null {
+  const tab = String(Array.isArray(value) ? value[0] : value ?? '')
+  return validTabIds.has(tab as SetupTabId) ? (tab as SetupTabId) : null
+}
 
 const formFields = computed(() =>
   schoolSettingsFormFields({ currencyLocked: currencyLocked.value }),
@@ -99,7 +116,7 @@ watch(
 )
 
 const activeTabConfig = computed(() => tabById(activeTab.value))
-const activeListKey = computed(() => activeTabConfig.value.listKey)
+const activeSections = computed(() => sectionsForTab(activeTabConfig.value))
 const isProfileTab = computed(() => activeTab.value === 'profile')
 
 const activeSectionMeta = computed(() => {
@@ -109,10 +126,20 @@ const activeSectionMeta = computed(() => {
         label: 'Terms configured',
         value: String(setupCounts.value.terms),
       }
+    case 'grade-levels':
+      return {
+        label: 'Grade levels',
+        value: String(setupCounts.value.gradeLevels),
+      }
     case 'classes':
       return {
         label: 'Classes configured',
         value: String(setupCounts.value.classes),
+      }
+    case 'streams':
+      return {
+        label: 'Streams configured',
+        value: String(setupCounts.value.streams),
       }
     case 'rooms':
       return {
@@ -158,6 +185,14 @@ const setupProgressItems = computed(() => [
       : 'No terms added yet',
   },
   {
+    tabId: 'grade-levels' as SetupTabId,
+    title: 'Grade Levels',
+    complete: setupCounts.value.gradeLevels > 0,
+    meta: setupCounts.value.gradeLevels > 0
+      ? `${setupCounts.value.gradeLevels} level${setupCounts.value.gradeLevels === 1 ? '' : 's'} configured`
+      : 'Add Form / Grade levels',
+  },
+  {
     tabId: 'classes' as SetupTabId,
     title: 'Classes',
     complete: setupCounts.value.classes > 0,
@@ -191,22 +226,38 @@ const quickLinks = computed(() => [
     icon: SlidersHorizontal,
   },
   {
-    title: 'Rooms',
-    description: 'Set up classrooms and specialist learning spaces.',
-    tabId: 'rooms' as SetupTabId,
-    icon: DoorOpen,
+    title: 'Grade levels',
+    description: 'Form 1–4, Grade 1–7, Lower/Upper 6.',
+    tabId: 'grade-levels' as SetupTabId,
+    icon: Layers,
   },
   {
-    title: 'Fee structures',
-    description: 'Define the charges used by invoices and student accounts.',
-    tabId: 'fees' as SetupTabId,
-    icon: Tags,
+    title: 'Streams',
+    description: 'Sciences, Arts, and other academic streams.',
+    tabId: 'streams' as SetupTabId,
+    icon: GitBranch,
   },
 ])
 
 function selectTab(tabId: SetupTabId) {
   activeTab.value = tabId
+  void router.replace(schoolSetupLocation(tabId, {
+    query: Object.fromEntries(
+      Object.entries(route.query).filter(([key]) => key !== 'tab' && key !== 'create'),
+    ),
+  }))
 }
+
+watch(
+  () => route.query.tab,
+  (tab) => {
+    const next = parseSetupTab(tab) ?? 'profile'
+    if (next !== activeTab.value) {
+      activeTab.value = next
+    }
+  },
+  { immediate: true },
+)
 
 const onSubmit = handleSubmit(async (values) => {
   try {
@@ -221,21 +272,37 @@ const onSubmit = handleSubmit(async (values) => {
 })
 
 async function loadSetupCounts() {
-  const [terms, classes, rooms, subjects, feeStructures, timetable] = await Promise.all([
+  const [
+    terms,
+    gradeLevels,
+    classes,
+    streams,
+    rooms,
+    subjects,
+    feeStructures,
+    feeCategories,
+    timetable,
+  ] = await Promise.all([
     fetchList(moduleEndpoints.terms, { all: true }).catch(() => []),
+    fetchList(moduleEndpoints.gradeLevels, { all: true }).catch(() => []),
     fetchList(moduleEndpoints.classes, { all: true }).catch(() => []),
+    fetchList(moduleEndpoints.streams, { all: true }).catch(() => []),
     fetchList(moduleEndpoints.rooms, { all: true }).catch(() => []),
     fetchList(moduleEndpoints.subjects, { all: true }).catch(() => []),
     fetchList(moduleEndpoints.feeStructures, { all: true }).catch(() => []),
+    fetchList(moduleEndpoints.feeCategories, { all: true }).catch(() => []),
     fetchList(moduleEndpoints.timetable, { all: true }).catch(() => []),
   ])
 
   setupCounts.value = {
     terms: Array.isArray(terms) ? terms.length : 0,
+    gradeLevels: Array.isArray(gradeLevels) ? gradeLevels.length : 0,
     classes: Array.isArray(classes) ? classes.length : 0,
+    streams: Array.isArray(streams) ? streams.length : 0,
     rooms: Array.isArray(rooms) ? rooms.length : 0,
     subjects: Array.isArray(subjects) ? subjects.length : 0,
     feeStructures: Array.isArray(feeStructures) ? feeStructures.length : 0,
+    feeCategories: Array.isArray(feeCategories) ? feeCategories.length : 0,
     timetable: Array.isArray(timetable) ? timetable.length : 0,
   }
 }
@@ -300,7 +367,7 @@ onMounted(load)
 
     <div v-else class="space-y-6">
       <section class="rounded-2xl border border-border/70 bg-card p-4 shadow-sm">
-        <div class="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+        <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
           <button
             v-for="item in setupProgressItems"
             :key="item.title"
@@ -401,7 +468,7 @@ onMounted(load)
           </CardHeader>
 
           <CardContent class="px-6 py-6">
-            <div v-show="isProfileTab">
+            <div v-if="isProfileTab">
               <form
                 id="school-setup-form"
                 class="space-y-6"
@@ -410,7 +477,6 @@ onMounted(load)
                 @submit.prevent="onSubmit"
               >
                 <FormBuilder
-                  form-key="school-settings"
                   :fields="formFields"
                   :columns="2"
                 />
@@ -432,14 +498,33 @@ onMounted(load)
               </form>
             </div>
 
-            <div v-show="!isProfileTab && activeListKey">
-              <KeepAlive>
+            <div v-else class="space-y-8">
+              <section
+                v-for="(section, index) in activeSections"
+                :key="`${activeTab}-${section.listKey}`"
+                class="space-y-3"
+              >
+                <div v-if="section.title || activeSections.length > 1" class="space-y-1">
+                  <h3 class="text-base font-semibold text-foreground">
+                    {{ section.title }}
+                  </h3>
+                  <p v-if="section.description" class="text-sm text-muted-foreground">
+                    {{ section.description }}
+                  </p>
+                </div>
                 <SchoolSetupSection
-                  :key="activeTab"
-                  :list-key="activeListKey!"
+                  :list-key="section.listKey"
+                  :auto-create="route.query.create === '1' && index === 0"
                   @saved="loadSetupCounts"
                 />
-              </KeepAlive>
+              </section>
+              <p
+                v-if="!activeSections.length"
+                class="text-sm text-muted-foreground"
+                role="status"
+              >
+                This setup section is not available.
+              </p>
             </div>
           </CardContent>
         </Card>

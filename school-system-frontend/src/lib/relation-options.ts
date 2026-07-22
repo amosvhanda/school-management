@@ -61,6 +61,14 @@ function formatRelationLabel(row: Record<string, unknown>, endpoint: string): st
   if (endpoint.includes('/grade-levels')) {
     return String(row.name ?? 'Grade level')
   }
+  if (endpoint.includes('/streams')) {
+    const name = String(row.name ?? 'Stream')
+    const code = row.code ? String(row.code).trim() : ''
+    if (code && code.toLowerCase() !== name.toLowerCase()) {
+      return `${name} (${code})`
+    }
+    return name
+  }
   if (endpoint.includes('/subjects')) {
     const code = row.code ? ` (${row.code})` : ''
     return `${row.name ?? 'Subject'}${code}`
