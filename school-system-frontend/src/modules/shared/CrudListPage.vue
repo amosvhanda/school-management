@@ -62,7 +62,11 @@ const props = defineProps<{
   toolbarActions?: RowActionConfig[]
   listKey?: string
   staged?: boolean
+  /** Render inside a parent layout without PageShell (e.g. school setup workspace). */
+  embedded?: boolean
 }>()
+
+const emit = defineEmits<{ saved: [] }>()
 
 const toast = useToast()
 const route = useRoute()
@@ -522,6 +526,7 @@ async function confirmDelete() {
     toast.success('Record deleted')
     deleteTarget.value = null
     await load()
+    emit('saved')
   } catch (err) {
     toast.error('Delete failed', getErrorMessage(err))
   }
@@ -543,6 +548,7 @@ async function onSubmit(values: Record<string, unknown>) {
     sheetOpen.value = false
     clearRelationCache()
     await load()
+    emit('saved')
   } catch (err) {
     const serverFieldAliases = props.listKey === 'students'
       ? { class: 'class_id', dateOfBirth: 'dateOfBirth' }
@@ -579,7 +585,7 @@ defineExpose({ load, openEdit })
 </script>
 
 <template>
-  <PageShell :title="title" :description="subtitle">
+  <PageShell v-if="!embedded" :title="title" :description="subtitle">
     <template #actions>
       <Button
         v-for="action in toolbarActions"
@@ -699,4 +705,132 @@ defineExpose({ load, openEdit })
       :loading="receiptLoading"
     />
   </PageShell>
+
+  <section v-else class="space-y-4" :aria-label="title">
+    <header class="flex flex-col gap-3 border-b border-border/60 pb-4 sm:flex-row sm:items-start sm:justify-between">
+      <div class="space-y-1">
+        <h2 class="text-xl font-semibold tracking-tight text-foreground">{{ title }}</h2>
+        <p v-if="subtitle" class="text-sm leading-relaxed text-muted-foreground">{{ subtitle }}</p>
+      </div>
+      <div class="flex flex-wrap items-center gap-2">
+        <Button
+          v-for="action in toolbarActions"
+          :key="action.label"
+          variant="outline"
+          size="sm"
+          :disabled="!!actionLoading"
+          @click="runToolbarAction(action)"
+        >
+          {{ action.label }}
+        </Button>
+        <Button v-if="canCreate && hasForm" size="sm" @click="openCreate">
+          <Plus class="mr-2 h-4 w-4" aria-hidden="true" />
+          {{ listKey === 'ops-visitors' ? 'Check in' : 'Add new' }}
+        </Button>
+      </div>
+    </header>
+
+    <PageLoader v-if="loading" :label="`Loading ${title}`" />
+    <ErrorState v-else-if="error" :description="error" @retry="load" />
+    <DataTable
+      v-else
+      :table="table"
+      :columns="displayColumns"
+      :global-filter="globalFilter"
+      :search-placeholder="`Search ${title.toLowerCase()}…`"
+      :server-pagination="serverPagination"
+      :server-page="serverPage"
+      :server-page-count="serverPageCount"
+      :server-total="serverTotal"
+      @update:global-filter="globalFilter = $event"
+      @server-page-change="onServerPageChange"
+    >
+      <template v-if="listFilters.length" #filters>
+        <ListFiltersBar
+          v-model="filterValues"
+          :filters="listFilters"
+          :active-count="activeFilterCount"
+          @clear="clearFilters"
+        />
+      </template>
+      <template #toolbar>
+        <slot name="toolbar" />
+      </template>
+    </DataTable>
+
+    <FormSheet
+      v-if="formFields && formSchema"
+      ref="formSheetRef"
+      v-model:open="sheetOpen"
+      :title="`${editingRow ? 'Edit' : 'Add'} ${title.replace(/s$/, '') || title}`"
+      :fields="formFields"
+      :schema="schema"
+      :reset-values="formResetValues"
+      :form-key="formInstanceKey"
+      :form-loading="formLoading"
+      :saving="saving"
+      :save-label="editingRow ? 'Save changes' : 'Save'"
+      :staged="staged"
+      @submit="onSubmit"
+    />
+
+    <FormSheet
+      v-if="actionPromptForm"
+      v-model:open="actionPromptOpen"
+      :title="actionPromptForm.title"
+      :description="actionPromptForm.description"
+      :fields="actionPromptForm.fields"
+      :schema="actionPromptForm.schema"
+      :reset-values="actionPromptResetValues"
+      :form-key="actionPromptKey"
+      :saving="actionPromptSaving"
+      :save-label="actionPromptForm.saveLabel ?? 'Confirm'"
+      :size="actionPromptForm.size"
+      @submit="onActionPromptSubmit"
+    />
+
+    <Dialog :open="!!deleteTarget" @update:open="(v) => !v && (deleteTarget = null)">
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Delete record?</DialogTitle>
+          <DialogDescription>This action cannot be undone.</DialogDescription>
+        </DialogHeader>
+        <DialogFooter class="gap-2">
+          <Button variant="outline" @click="deleteTarget = null">Cancel</Button>
+          <Button variant="destructive" @click="confirmDelete">Delete</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+
+    <Dialog :open="!!reverseTarget" @update:open="(v) => !v && (reverseTarget = null)">
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{{ reverseTarget?.action.label ?? 'Confirm' }}?</DialogTitle>
+          <DialogDescription>
+            Provide a reason for this action. This may be recorded in the audit trail.
+          </DialogDescription>
+        </DialogHeader>
+        <div class="space-y-2">
+          <Label for="action-reason-embedded">Reason</Label>
+          <Input
+            id="action-reason-embedded"
+            v-model="reverseReason"
+            placeholder="Optional note"
+          />
+        </div>
+        <DialogFooter class="gap-2">
+          <Button variant="outline" @click="reverseTarget = null">Cancel</Button>
+          <Button variant="destructive" @click="confirmReverse">
+            {{ reverseTarget?.action.label ?? 'Confirm' }}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+
+    <PaymentReceiptSheet
+      v-model:open="receiptOpen"
+      :receipt="receiptData"
+      :loading="receiptLoading"
+    />
+  </section>
 </template>

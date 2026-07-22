@@ -2,15 +2,11 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { RouterLink } from 'vue-router'
 import {
-  BookMarked,
-  CalendarDays,
   Check,
   CheckCircle2,
   CircleDashed,
   DoorOpen,
-  GraduationCap,
   Save,
-  School,
   SlidersHorizontal,
   Tags,
 } from '@lucide/vue'
@@ -19,6 +15,7 @@ import FormBuilder from '@/components/forms/FormBuilder.vue'
 import { useFormBuilder } from '@/components/forms/useFormBuilder'
 import PageLoader from '@/components/feedback/PageLoader.vue'
 import ErrorState from '@/components/feedback/ErrorState.vue'
+import SchoolSetupSection from '@/modules/settings/components/SchoolSetupSection.vue'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -32,6 +29,11 @@ import {
   schoolSettingsFormFields,
   schoolSettingsFormSchema,
 } from '@/modules/settings/school-settings-form'
+import {
+  SETUP_TABS,
+  tabById,
+  type SetupTabId,
+} from '@/modules/settings/school-setup-tabs'
 
 interface SchoolProfile {
   name?: string
@@ -67,6 +69,7 @@ const error = ref<string | null>(null)
 const currencyLocked = ref(false)
 const currentSchool = ref<SchoolProfile | null>(null)
 const formResetValues = ref<Record<string, unknown> | undefined>()
+const activeTab = ref<SetupTabId>('profile')
 const setupCounts = ref<SetupCounts>({
   terms: 0,
   classes: 0,
@@ -95,6 +98,10 @@ watch(
   { deep: true, immediate: true },
 )
 
+const activeTabConfig = computed(() => tabById(activeTab.value))
+const activeListKey = computed(() => activeTabConfig.value.listKey)
+const isProfileTab = computed(() => activeTab.value === 'profile')
+
 const schoolProfileComplete = computed(() => {
   const school = currentSchool.value
   if (!school) return false
@@ -105,42 +112,35 @@ const schoolProfileComplete = computed(() => {
 
 const setupProgressItems = computed(() => [
   {
+    tabId: 'profile' as SetupTabId,
     title: 'School Profile',
-    href: '/settings',
-    icon: School,
     complete: schoolProfileComplete.value,
     meta: schoolProfileComplete.value ? 'Complete' : 'Add your core school details',
   },
   {
+    tabId: 'academic-setup' as SetupTabId,
     title: 'Academic Terms',
-    href: '/academics/terms',
-    icon: CalendarDays,
     complete: setupCounts.value.terms > 0,
-    meta: setupCounts.value.terms > 0 ? `${setupCounts.value.terms} term${setupCounts.value.terms === 1 ? '' : 's'} configured` : 'No terms added yet',
+    meta: setupCounts.value.terms > 0
+      ? `${setupCounts.value.terms} term${setupCounts.value.terms === 1 ? '' : 's'} configured`
+      : 'No terms added yet',
   },
   {
+    tabId: 'classes' as SetupTabId,
     title: 'Classes',
-    href: '/academics/classes',
-    icon: GraduationCap,
     complete: setupCounts.value.classes > 0,
-    meta: setupCounts.value.classes > 0 ? `${setupCounts.value.classes} class${setupCounts.value.classes === 1 ? '' : 'es'} configured` : 'Create your first class',
+    meta: setupCounts.value.classes > 0
+      ? `${setupCounts.value.classes} class${setupCounts.value.classes === 1 ? '' : 'es'} configured`
+      : 'Create your first class',
   },
   {
+    tabId: 'subjects' as SetupTabId,
     title: 'Subjects',
-    href: '/academics/subjects',
-    icon: BookMarked,
     complete: setupCounts.value.subjects > 0,
-    meta: setupCounts.value.subjects > 0 ? `${setupCounts.value.subjects} subject${setupCounts.value.subjects === 1 ? '' : 's'} configured` : 'Add subjects for teaching',
+    meta: setupCounts.value.subjects > 0
+      ? `${setupCounts.value.subjects} subject${setupCounts.value.subjects === 1 ? '' : 's'} configured`
+      : 'Add subjects for teaching',
   },
-])
-
-const workspaceTabs = computed(() => [
-  { title: 'School Profile', href: '/settings', icon: School, current: true },
-  { title: 'Academic Setup', href: '/academics/terms', icon: CalendarDays, current: false },
-  { title: 'Classes', href: '/academics/classes', icon: GraduationCap, current: false },
-  { title: 'Rooms', href: '/academics/rooms', icon: DoorOpen, current: false },
-  { title: 'Subjects', href: '/academics/subjects', icon: BookMarked, current: false },
-  { title: 'Fee Structures', href: '/finance/fees', icon: Tags, current: false },
 ])
 
 const completionCount = computed(() =>
@@ -161,16 +161,20 @@ const quickLinks = computed(() => [
   {
     title: 'Rooms',
     description: 'Set up classrooms and specialist learning spaces.',
-    href: '/academics/rooms',
+    tabId: 'rooms' as SetupTabId,
     icon: DoorOpen,
   },
   {
     title: 'Fee structures',
     description: 'Define the charges used by invoices and student accounts.',
-    href: '/finance/fees',
+    tabId: 'fees' as SetupTabId,
     icon: Tags,
   },
 ])
+
+function selectTab(tabId: SetupTabId) {
+  activeTab.value = tabId
+}
 
 const onSubmit = handleSubmit(async (values) => {
   try {
@@ -247,6 +251,7 @@ onMounted(load)
   >
     <template #actions>
       <Button
+        v-if="isProfileTab"
         type="submit"
         form="school-setup-form"
         class="min-w-[10rem]"
@@ -264,11 +269,13 @@ onMounted(load)
     <div v-else class="space-y-6">
       <section class="rounded-2xl border border-border/70 bg-card p-4 shadow-sm">
         <div class="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-          <RouterLink
+          <button
             v-for="item in setupProgressItems"
             :key="item.title"
-            :to="item.href"
-            class="rounded-xl border border-border/60 bg-background px-4 py-3 transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            type="button"
+            class="rounded-xl border border-border/60 bg-background px-4 py-3 text-left transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            :aria-current="activeTab === item.tabId ? 'step' : undefined"
+            @click="selectTab(item.tabId)"
           >
             <div class="flex items-start gap-3">
               <div
@@ -280,7 +287,7 @@ onMounted(load)
                 )"
               >
                 <CheckCircle2 v-if="item.complete" class="size-4" aria-hidden="true" />
-                <component :is="item.icon" v-else class="size-4" aria-hidden="true" />
+                <CircleDashed v-else class="size-4" aria-hidden="true" />
               </div>
 
               <div class="min-w-0 space-y-1">
@@ -293,84 +300,98 @@ onMounted(load)
                 <p class="text-xs leading-relaxed text-muted-foreground">{{ item.meta }}</p>
               </div>
             </div>
-          </RouterLink>
+          </button>
         </div>
       </section>
 
       <section class="overflow-x-auto rounded-2xl border border-border/60 bg-muted/30 p-2">
         <nav class="flex min-w-max items-center gap-2" aria-label="School setup sections">
-          <RouterLink
-            v-for="tab in workspaceTabs"
-            :key="tab.title"
-            :to="tab.href"
+          <button
+            v-for="tab in SETUP_TABS"
+            :key="tab.id"
+            type="button"
             :class="cn(
               'inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-              tab.current
+              activeTab === tab.id
                 ? 'bg-background text-foreground shadow-sm'
                 : 'text-muted-foreground hover:bg-background/80 hover:text-foreground',
             )"
+            :aria-current="activeTab === tab.id ? 'page' : undefined"
+            @click="selectTab(tab.id)"
           >
             <component :is="tab.icon" class="size-4" aria-hidden="true" />
             {{ tab.title }}
-          </RouterLink>
+          </button>
         </nav>
       </section>
 
       <div class="grid gap-6 xl:grid-cols-[minmax(0,1.7fr)_minmax(20rem,0.9fr)]">
         <Card class="overflow-hidden border-border/70 shadow-sm">
-          <CardHeader class="border-b border-border/60 bg-gradient-to-r from-background via-background to-muted/40 px-6 py-6">
-            <div class="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-              <div class="space-y-2">
-                <CardTitle class="text-xl">School Profile</CardTitle>
-                <CardDescription class="max-w-2xl text-sm leading-relaxed">
-                  Basic information about your school that defines your institution and powers invoices,
-                  communications, and public-facing school details.
-                </CardDescription>
-              </div>
-
-              <div class="flex items-center gap-4 rounded-2xl border border-border/60 bg-background px-5 py-4">
-                <div class="inline-flex size-16 shrink-0 items-center justify-center rounded-full bg-muted text-xl font-semibold text-muted-foreground">
-                  {{ String(currentSchool?.name ?? 'SC').slice(0, 2).toUpperCase() }}
+          <div v-show="isProfileTab">
+            <CardHeader class="border-b border-border/60 bg-gradient-to-r from-background via-background to-muted/40 px-6 py-6">
+              <div class="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                <div class="space-y-2">
+                  <CardTitle class="text-xl">School Profile</CardTitle>
+                  <CardDescription class="max-w-2xl text-sm leading-relaxed">
+                    Basic information about your school that defines your institution and powers invoices,
+                    communications, and public-facing school details.
+                  </CardDescription>
                 </div>
-                <div class="space-y-1.5">
-                  <p class="text-sm font-medium text-foreground">Upload School Logo</p>
-                  <p class="text-xs text-muted-foreground">
-                    Recommended: 500x500px, PNG or JPG, max 2MB
+
+                <div class="flex items-center gap-4 rounded-2xl border border-border/60 bg-background px-5 py-4">
+                  <div class="inline-flex size-16 shrink-0 items-center justify-center rounded-full bg-muted text-xl font-semibold text-muted-foreground">
+                    {{ String(currentSchool?.name ?? 'SC').slice(0, 2).toUpperCase() }}
+                  </div>
+                  <div class="space-y-1.5">
+                    <p class="text-sm font-medium text-foreground">Upload School Logo</p>
+                    <p class="text-xs text-muted-foreground">
+                      Recommended: 500x500px, PNG or JPG, max 2MB
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </CardHeader>
+
+            <CardContent class="px-6 py-6">
+              <form
+                id="school-setup-form"
+                class="space-y-6"
+                novalidate
+                :aria-busy="isSubmitting"
+                @submit.prevent="onSubmit"
+              >
+                <FormBuilder
+                  form-key="school-settings"
+                  :fields="formFields"
+                  :columns="2"
+                />
+
+                <div class="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border/60 bg-muted/30 px-4 py-3">
+                  <p class="text-sm text-muted-foreground">
+                    Fees currency applies to invoices, fee structures, student accounts, store sales, and trip fees.
                   </p>
+                  <div class="flex items-center gap-2 text-sm">
+                    <Badge :variant="currencyLocked ? 'secondary' : 'outline'">
+                      {{ currencyLocked ? 'Currency locked' : 'Currency editable' }}
+                    </Badge>
+                    <Button type="submit" :disabled="isSubmitting" variant="outline">
+                      <Check class="mr-2 size-4" aria-hidden="true" />
+                      {{ isSubmitting ? 'Saving…' : 'Save profile' }}
+                    </Button>
+                  </div>
                 </div>
-              </div>
-            </div>
-          </CardHeader>
+              </form>
+            </CardContent>
+          </div>
 
-          <CardContent class="px-6 py-6">
-            <form
-              id="school-setup-form"
-              class="space-y-6"
-              novalidate
-              :aria-busy="isSubmitting"
-              @submit.prevent="onSubmit"
-            >
-              <FormBuilder
-                form-key="school-settings"
-                :fields="formFields"
-                :columns="2"
+          <CardContent v-if="!isProfileTab && activeListKey" class="px-6 py-6">
+            <KeepAlive>
+              <SchoolSetupSection
+                :key="activeTab"
+                :list-key="activeListKey"
+                @saved="loadSetupCounts"
               />
-
-              <div class="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border/60 bg-muted/30 px-4 py-3">
-                <p class="text-sm text-muted-foreground">
-                  Fees currency applies to invoices, fee structures, student accounts, store sales, and trip fees.
-                </p>
-                <div class="flex items-center gap-2 text-sm">
-                  <Badge :variant="currencyLocked ? 'secondary' : 'outline'">
-                    {{ currencyLocked ? 'Currency locked' : 'Currency editable' }}
-                  </Badge>
-                  <Button type="submit" :disabled="isSubmitting" variant="outline">
-                    <Check class="mr-2 size-4" aria-hidden="true" />
-                    {{ isSubmitting ? 'Saving…' : 'Save profile' }}
-                  </Button>
-                </div>
-              </div>
-            </form>
+            </KeepAlive>
           </CardContent>
         </Card>
 
@@ -397,10 +418,12 @@ onMounted(load)
               </div>
 
               <div class="space-y-3">
-                <div
+                <button
                   v-for="item in setupProgressItems"
                   :key="`${item.title}-summary`"
-                  class="flex items-center justify-between gap-3 rounded-xl border border-border/50 px-3 py-2"
+                  type="button"
+                  class="flex w-full items-center justify-between gap-3 rounded-xl border border-border/50 px-3 py-2 text-left transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  @click="selectTab(item.tabId)"
                 >
                   <div class="flex min-w-0 items-center gap-3">
                     <CheckCircle2
@@ -421,7 +444,7 @@ onMounted(load)
                   <Badge :variant="item.complete ? 'secondary' : 'outline'">
                     {{ item.complete ? 'Done' : 'Open' }}
                   </Badge>
-                </div>
+                </button>
               </div>
             </CardContent>
           </Card>
@@ -432,20 +455,35 @@ onMounted(load)
               <CardDescription>Jump into the next parts of your school setup workspace.</CardDescription>
             </CardHeader>
             <CardContent class="space-y-3">
-              <RouterLink
-                v-for="link in quickLinks"
-                :key="link.title"
-                :to="link.href"
-                class="flex items-start gap-3 rounded-xl border border-border/60 px-4 py-3 transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              >
-                <div class="inline-flex size-9 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
-                  <component :is="link.icon" class="size-4" aria-hidden="true" />
-                </div>
-                <div class="min-w-0">
-                  <p class="text-sm font-medium text-foreground">{{ link.title }}</p>
-                  <p class="text-xs leading-relaxed text-muted-foreground">{{ link.description }}</p>
-                </div>
-              </RouterLink>
+              <template v-for="link in quickLinks" :key="link.title">
+                <RouterLink
+                  v-if="'href' in link && link.href"
+                  :to="link.href"
+                  class="flex items-start gap-3 rounded-xl border border-border/60 px-4 py-3 transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  <div class="inline-flex size-9 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
+                    <component :is="link.icon" class="size-4" aria-hidden="true" />
+                  </div>
+                  <div class="min-w-0">
+                    <p class="text-sm font-medium text-foreground">{{ link.title }}</p>
+                    <p class="text-xs leading-relaxed text-muted-foreground">{{ link.description }}</p>
+                  </div>
+                </RouterLink>
+                <button
+                  v-else-if="'tabId' in link && link.tabId"
+                  type="button"
+                  class="flex w-full items-start gap-3 rounded-xl border border-border/60 px-4 py-3 text-left transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  @click="selectTab(link.tabId)"
+                >
+                  <div class="inline-flex size-9 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
+                    <component :is="link.icon" class="size-4" aria-hidden="true" />
+                  </div>
+                  <div class="min-w-0">
+                    <p class="text-sm font-medium text-foreground">{{ link.title }}</p>
+                    <p class="text-xs leading-relaxed text-muted-foreground">{{ link.description }}</p>
+                  </div>
+                </button>
+              </template>
             </CardContent>
           </Card>
 
