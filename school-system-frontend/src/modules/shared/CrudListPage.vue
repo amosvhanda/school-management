@@ -707,28 +707,25 @@ defineExpose({ load, openEdit })
   </PageShell>
 
   <section v-else class="space-y-4" :aria-label="title">
-    <header class="flex flex-col gap-3 border-b border-border/60 pb-4 sm:flex-row sm:items-start sm:justify-between">
-      <div class="space-y-1">
-        <h2 class="text-xl font-semibold tracking-tight text-foreground">{{ title }}</h2>
-        <p v-if="subtitle" class="text-sm leading-relaxed text-muted-foreground">{{ subtitle }}</p>
-      </div>
-      <div class="flex flex-wrap items-center gap-2">
-        <Button
-          v-for="action in toolbarActions"
-          :key="action.label"
-          variant="outline"
-          size="sm"
-          :disabled="!!actionLoading"
-          @click="runToolbarAction(action)"
-        >
-          {{ action.label }}
-        </Button>
-        <Button v-if="canCreate && hasForm" size="sm" @click="openCreate">
-          <Plus class="mr-2 h-4 w-4" aria-hidden="true" />
-          {{ listKey === 'ops-visitors' ? 'Check in' : 'Add new' }}
-        </Button>
-      </div>
-    </header>
+    <div
+      v-if="(canCreate && hasForm) || (toolbarActions?.length ?? 0) > 0"
+      class="flex flex-wrap items-center justify-end gap-2"
+    >
+      <Button
+        v-for="action in toolbarActions"
+        :key="action.label"
+        variant="outline"
+        size="sm"
+        :disabled="!!actionLoading"
+        @click="runToolbarAction(action)"
+      >
+        {{ action.label }}
+      </Button>
+      <Button v-if="canCreate && hasForm" size="sm" @click="openCreate">
+        <Plus class="mr-2 h-4 w-4" aria-hidden="true" />
+        {{ listKey === 'ops-visitors' ? 'Check in' : 'Add new' }}
+      </Button>
+    </div>
 
     <PageLoader v-if="loading" :label="`Loading ${title}`" />
     <ErrorState v-else-if="error" :description="error" @retry="load" />

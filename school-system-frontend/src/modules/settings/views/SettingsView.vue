@@ -102,6 +102,38 @@ const activeTabConfig = computed(() => tabById(activeTab.value))
 const activeListKey = computed(() => activeTabConfig.value.listKey)
 const isProfileTab = computed(() => activeTab.value === 'profile')
 
+const activeSectionMeta = computed(() => {
+  switch (activeTab.value) {
+    case 'academic-setup':
+      return {
+        label: 'Terms configured',
+        value: String(setupCounts.value.terms),
+      }
+    case 'classes':
+      return {
+        label: 'Classes configured',
+        value: String(setupCounts.value.classes),
+      }
+    case 'rooms':
+      return {
+        label: 'Rooms configured',
+        value: String(setupCounts.value.rooms),
+      }
+    case 'subjects':
+      return {
+        label: 'Subjects configured',
+        value: String(setupCounts.value.subjects),
+      }
+    case 'fees':
+      return {
+        label: 'Fee structures',
+        value: String(setupCounts.value.feeStructures),
+      }
+    default:
+      return null
+  }
+})
+
 const schoolProfileComplete = computed(() => {
   const school = currentSchool.value
   if (!school) return false
@@ -327,32 +359,49 @@ onMounted(load)
 
       <div class="grid gap-6 xl:grid-cols-[minmax(0,1.7fr)_minmax(20rem,0.9fr)]">
         <Card class="overflow-hidden border-border/70 shadow-sm">
-          <div v-show="isProfileTab">
-            <CardHeader class="border-b border-border/60 bg-gradient-to-r from-background via-background to-muted/40 px-6 py-6">
-              <div class="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-                <div class="space-y-2">
-                  <CardTitle class="text-xl">School Profile</CardTitle>
-                  <CardDescription class="max-w-2xl text-sm leading-relaxed">
-                    Basic information about your school that defines your institution and powers invoices,
-                    communications, and public-facing school details.
-                  </CardDescription>
-                </div>
+          <CardHeader class="border-b border-border/60 bg-gradient-to-r from-background via-background to-muted/40 px-6 py-6">
+            <div class="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+              <div class="space-y-2">
+                <CardTitle class="text-xl">{{ activeTabConfig.title }}</CardTitle>
+                <CardDescription class="max-w-2xl text-sm leading-relaxed">
+                  {{ activeTabConfig.description }}
+                </CardDescription>
+              </div>
 
-                <div class="flex items-center gap-4 rounded-2xl border border-border/60 bg-background px-5 py-4">
-                  <div class="inline-flex size-16 shrink-0 items-center justify-center rounded-full bg-muted text-xl font-semibold text-muted-foreground">
-                    {{ String(currentSchool?.name ?? 'SC').slice(0, 2).toUpperCase() }}
-                  </div>
-                  <div class="space-y-1.5">
-                    <p class="text-sm font-medium text-foreground">Upload School Logo</p>
-                    <p class="text-xs text-muted-foreground">
-                      Recommended: 500x500px, PNG or JPG, max 2MB
-                    </p>
-                  </div>
+              <div
+                v-if="isProfileTab"
+                class="flex items-center gap-4 rounded-2xl border border-border/60 bg-background px-5 py-4"
+              >
+                <div class="inline-flex size-16 shrink-0 items-center justify-center rounded-full bg-muted text-xl font-semibold text-muted-foreground">
+                  {{ String(currentSchool?.name ?? 'SC').slice(0, 2).toUpperCase() }}
+                </div>
+                <div class="space-y-1.5">
+                  <p class="text-sm font-medium text-foreground">Upload School Logo</p>
+                  <p class="text-xs text-muted-foreground">
+                    Recommended: 500x500px, PNG or JPG, max 2MB
+                  </p>
                 </div>
               </div>
-            </CardHeader>
 
-            <CardContent class="px-6 py-6">
+              <div
+                v-else-if="activeSectionMeta"
+                class="flex items-center gap-4 rounded-2xl border border-border/60 bg-background px-5 py-4"
+              >
+                <div class="inline-flex size-16 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
+                  <component :is="activeTabConfig.icon" class="size-7" aria-hidden="true" />
+                </div>
+                <div class="space-y-1.5">
+                  <p class="text-sm font-medium text-foreground">{{ activeSectionMeta.label }}</p>
+                  <p class="text-2xl font-semibold tracking-tight text-foreground">
+                    {{ activeSectionMeta.value }}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </CardHeader>
+
+          <CardContent class="px-6 py-6">
+            <div v-show="isProfileTab">
               <form
                 id="school-setup-form"
                 class="space-y-6"
@@ -381,17 +430,17 @@ onMounted(load)
                   </div>
                 </div>
               </form>
-            </CardContent>
-          </div>
+            </div>
 
-          <CardContent v-if="!isProfileTab && activeListKey" class="px-6 py-6">
-            <KeepAlive>
-              <SchoolSetupSection
-                :key="activeTab"
-                :list-key="activeListKey"
-                @saved="loadSetupCounts"
-              />
-            </KeepAlive>
+            <div v-show="!isProfileTab && activeListKey">
+              <KeepAlive>
+                <SchoolSetupSection
+                  :key="activeTab"
+                  :list-key="activeListKey!"
+                  @saved="loadSetupCounts"
+                />
+              </KeepAlive>
+            </div>
           </CardContent>
         </Card>
 
