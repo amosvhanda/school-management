@@ -4,7 +4,6 @@ import { useRoute, useRouter } from 'vue-router'
 import type { ColumnDef } from '@tanstack/vue-table'
 import {
   ClipboardCheck,
-  MoreHorizontal,
   Palmtree,
   Plus,
   ScrollText,
@@ -12,6 +11,8 @@ import {
 import PageLoader from '@/components/feedback/PageLoader.vue'
 import ErrorState from '@/components/feedback/ErrorState.vue'
 import DataTable from '@/components/data-table/DataTable.vue'
+import TableRowActions from '@/components/data-table/TableRowActions.vue'
+import type { TableRowMenuAction } from '@/components/data-table/TableRowActions.vue'
 import ListFiltersBar from '@/components/data-table/ListFiltersBar.vue'
 import FormSheet from '@/components/forms/FormSheet.vue'
 import PageShell from '@/components/layout/PageShell.vue'
@@ -19,12 +20,6 @@ import KpiCard from '@/components/dashboard/KpiCard.vue'
 import { useDataTable } from '@/components/data-table/useDataTable'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
 import {
   Dialog,
   DialogContent,
@@ -161,43 +156,29 @@ const columns: ColumnDef<LeaveRequestRow>[] = [
   },
   {
     id: 'actions',
-    header: '',
-    cell: ({ row }) =>
-      h(
-        DropdownMenu,
-        {},
-        {
-          default: () => [
-            h(
-              DropdownMenuTrigger,
-              { asChild: true },
-              {
-                default: () =>
-                  h(Button, { variant: 'ghost', size: 'icon', class: 'h-8 w-8' }, () =>
-                    h(MoreHorizontal, { class: 'h-4 w-4', 'aria-hidden': 'true' }),
-                  ),
-              },
-            ),
-            h(DropdownMenuContent, { align: 'end' }, () => [
-              h(
-                DropdownMenuItem,
-                { onClick: () => openDetail(row.original) },
-                () => 'View & audit',
-              ),
-              row.original.status === 'pending'
-                ? h(DropdownMenuItem, { onClick: () => approve(row.original) }, () => 'Approve')
-                : null,
-              row.original.status === 'pending'
-                ? h(
-                    DropdownMenuItem,
-                    { class: 'text-destructive', onClick: () => openReject(row.original) },
-                    () => 'Reject',
-                  )
-                : null,
-            ]),
-          ],
-        },
-      ),
+    header: () => h('span', { class: 'sr-only' }, 'Actions'),
+    cell: ({ row }) => {
+      const record = row.original
+      const menuActions: TableRowMenuAction[] = []
+      if (record.status === 'pending') {
+        menuActions.push(
+          {
+            label: 'Approve',
+            onSelect: () => { void approve(record) },
+          },
+          {
+            label: 'Reject',
+            destructive: true,
+            onSelect: () => openReject(record),
+          },
+        )
+      }
+      return h(TableRowActions, {
+        canView: true,
+        actions: menuActions,
+        onView: () => openDetail(record),
+      })
+    },
   },
 ]
 

@@ -2,10 +2,11 @@
 import { computed, h, nextTick, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import type { ColumnDef } from '@tanstack/vue-table'
-import { Megaphone, MoreHorizontal, Pencil, Plus, Trash2 } from '@lucide/vue'
+import { Megaphone, Plus } from '@lucide/vue'
 import PageLoader from '@/components/feedback/PageLoader.vue'
 import ErrorState from '@/components/feedback/ErrorState.vue'
 import DataTable from '@/components/data-table/DataTable.vue'
+import TableRowActions from '@/components/data-table/TableRowActions.vue'
 import ListFiltersBar from '@/components/data-table/ListFiltersBar.vue'
 import FormSheet from '@/components/forms/FormSheet.vue'
 import PageShell from '@/components/layout/PageShell.vue'
@@ -13,13 +14,6 @@ import KpiCard from '@/components/dashboard/KpiCard.vue'
 import { useDataTable } from '@/components/data-table/useDataTable'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
 import {
   Dialog,
   DialogContent,
@@ -189,39 +183,15 @@ const columns = computed<ColumnDef<Record<string, unknown>>[]>(() => [
   },
   {
     id: 'actions',
-    header: '',
+    header: () => h('span', { class: 'sr-only' }, 'Actions'),
     cell: ({ row }) => {
       const item = row.original as unknown as AnnouncementRow
-      return h(
-        DropdownMenu,
-        {},
-        {
-          default: () => [
-            h(DropdownMenuTrigger, { asChild: true }, () =>
-              h(Button, {
-                variant: 'ghost',
-                size: 'icon',
-                class: 'h-8 w-8',
-                'aria-label': `Actions for ${item.title}`,
-              }, () => h(MoreHorizontal, { class: 'h-4 w-4' })),
-            ),
-            h(DropdownMenuContent, { align: 'end' }, () => [
-              h(DropdownMenuItem, { onSelect: () => openEdit(item) }, () => [
-                h(Pencil, { class: 'mr-2 h-4 w-4' }),
-                'Edit',
-              ]),
-              h(DropdownMenuSeparator),
-              h(DropdownMenuItem, {
-                class: 'text-destructive focus:text-destructive',
-                onSelect: () => { deleteTarget.value = item },
-              }, () => [
-                h(Trash2, { class: 'mr-2 h-4 w-4' }),
-                'Delete',
-              ]),
-            ]),
-          ],
-        },
-      )
+      return h(TableRowActions, {
+        canEdit: true,
+        canDelete: true,
+        onEdit: () => { void openEdit(item) },
+        onDelete: () => { deleteTarget.value = item },
+      })
     },
   },
 ])

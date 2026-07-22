@@ -4,17 +4,13 @@ import type { ColumnDef } from '@tanstack/vue-table'
 import {
   Calendar,
   CheckCircle2,
-  ClipboardList,
-  MoreHorizontal,
-  Pencil,
   Plus,
-  Send,
-  Trash2,
   Upload,
 } from '@lucide/vue'
 import PageLoader from '@/components/feedback/PageLoader.vue'
 import ErrorState from '@/components/feedback/ErrorState.vue'
 import DataTable from '@/components/data-table/DataTable.vue'
+import TableRowActions from '@/components/data-table/TableRowActions.vue'
 import ListFiltersBar from '@/components/data-table/ListFiltersBar.vue'
 import FormSheet from '@/components/forms/FormSheet.vue'
 import ExamResultsSheet from '@/modules/academics/components/ExamResultsSheet.vue'
@@ -23,13 +19,6 @@ import PageShell from '@/components/layout/PageShell.vue'
 import KpiCard from '@/components/dashboard/KpiCard.vue'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
 import {
   Dialog,
   DialogContent,
@@ -81,6 +70,39 @@ const canManageExams = computed(() => checkCapability('canManageExaminations'))
 const canEnterResults = computed(() => checkCapability('canEnterExamResults'))
 const canShowActions = computed(() => canManageExams.value || canEnterResults.value)
 const canRemove = computed(() => checkCapability('canManageTeachers'))
+
+function examRowMenuActions(exam: ExamRow) {
+  const actions: Array<{
+    label: string
+    disabled?: boolean
+    destructive?: boolean
+    onSelect: () => void
+  }> = []
+
+  if (canManageExams.value || canEnterResults.value) {
+    actions.push({
+      label: 'Enter marks',
+      disabled: Boolean(exam.is_published || exam.results_approved_at),
+      onSelect: () => openResults(exam.id),
+    })
+  }
+
+  if (canManageExams.value && exam.exam_results_count && !exam.results_approved_at) {
+    actions.push({
+      label: 'Approve marks',
+      onSelect: () => { approveTarget.value = exam },
+    })
+  }
+
+  if (canManageExams.value && !exam.is_published) {
+    actions.push({
+      label: 'Publish',
+      onSelect: () => { publishTarget.value = exam },
+    })
+  }
+
+  return actions
+}
 
 const rows = ref<ExamRow[]>([])
 const loading = ref(true)
@@ -440,58 +462,14 @@ onMounted(load)
         </template>
 
         <template #cell-actions="{ row }">
-          <div v-if="canShowActions" class="flex justify-end items-center pr-2">
-            <DropdownMenu>
-              <DropdownMenuTrigger as-child>
-                <Button variant="ghost" size="icon" class="h-8 w-8">
-                  <MoreHorizontal class="h-4 w-4" />
-                  <span class="sr-only">Open action options</span>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" class="w-[180px]">
-                <DropdownMenuItem v-if="canManageExams" @click="openEdit(row.original)">
-                  <Pencil class="mr-2 h-4 w-4" />
-                  Edit exam details
-                </DropdownMenuItem>
-
-                <DropdownMenuItem
-                  v-if="canManageExams || canEnterResults"
-                  :disabled="Boolean(row.original.is_published || row.original.results_approved_at)"
-                  @click="openResults(row.original.id)"
-                >
-                  <ClipboardList class="mr-2 h-4 w-4" />
-                  Enter marks matrix
-                </DropdownMenuItem>
-
-                <DropdownMenuItem
-                  v-if="canManageExams && row.original.exam_results_count && !row.original.results_approved_at"
-                  @click="approveTarget = row.original"
-                >
-                  <CheckCircle2 class="mr-2 h-4 w-4" />
-                  Approve marks
-                </DropdownMenuItem>
-
-                <DropdownMenuItem
-                  v-if="canManageExams && !row.original.is_published"
-                  @click="publishTarget = row.original"
-                >
-                  <Send class="mr-2 h-4 w-4" />
-                  Publish to parents
-                </DropdownMenuItem>
-
-                <template v-if="canRemove">
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    class="text-destructive focus:text-destructive-foreground focus:bg-destructive"
-                    @click="deleteTarget = row.original"
-                  >
-                    <Trash2 class="mr-2 h-4 w-4" />
-                    Purge exam
-                  </DropdownMenuItem>
-                </template>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
+          <TableRowActions
+            v-if="canShowActions"
+            :can-edit="canManageExams"
+            :can-delete="canRemove"
+            :actions="examRowMenuActions(row.original)"
+            @edit="openEdit(row.original)"
+            @delete="deleteTarget = row.original"
+          />
         </template>
       </DataTable>
     </template>

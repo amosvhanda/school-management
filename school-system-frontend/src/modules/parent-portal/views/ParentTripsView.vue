@@ -2,6 +2,7 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import PageLoader from '@/components/feedback/PageLoader.vue'
 import ErrorState from '@/components/feedback/ErrorState.vue'
+import PageShell from '@/components/layout/PageShell.vue'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -108,14 +109,11 @@ onMounted(load)
 </script>
 
 <template>
-  <div class="space-y-6">
-    <div>
-      <h1 class="text-2xl font-semibold tracking-tight">School trips</h1>
-      <p class="text-muted-foreground">
-        Register your child for upcoming trips. Fees are added to their school account.
-      </p>
-    </div>
-
+  <PageShell
+    title="School trips"
+    description="Register your child for upcoming trips. Fees are added to their school account."
+    max-width="wide"
+  >
     <PageLoader v-if="loading" label="Loading trips" />
     <ErrorState v-else-if="error" :description="error" @retry="load" />
 
@@ -196,5 +194,5 @@ onMounted(load)
         No open school trips at the moment.
       </p>
     </template>
-  </div>
+  </PageShell>
 </template>

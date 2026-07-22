@@ -6,6 +6,7 @@ import { KeyRound, Plus, Shield, Users } from '@lucide/vue'
 import PageLoader from '@/components/feedback/PageLoader.vue'
 import ErrorState from '@/components/feedback/ErrorState.vue'
 import DataTable from '@/components/data-table/DataTable.vue'
+import TableRowActions from '@/components/data-table/TableRowActions.vue'
 import PageShell from '@/components/layout/PageShell.vue'
 import KpiCard from '@/components/dashboard/KpiCard.vue'
 import RoleFormSheet from '@/modules/admin/components/RoleFormSheet.vue'
@@ -282,19 +283,14 @@ onMounted(load)
             </template>
 
             <template #cell-actions="{ row }">
-              <div class="flex items-center gap-1 justify-end">
-                <Button variant="ghost" size="sm" class="h-8 text-xs px-2.5" @click="openDetail(row.original)">View</Button>
-                <Button variant="ghost" size="sm" class="h-8 text-xs px-2.5" @click="openEdit(row.original)">Edit</Button>
-                <Button
-                  v-if="!row.original.is_system"
-                  variant="ghost"
-                  size="sm"
-                  class="h-8 text-xs px-2.5 text-destructive hover:bg-destructive/10 hover:text-destructive"
-                  @click="deleteTarget = row.original"
-                >
-                  Delete
-                </Button>
-              </div>
+              <TableRowActions
+                can-view
+                can-edit
+                :can-delete="!row.original.is_system"
+                @view="openDetail(row.original)"
+                @edit="openEdit(row.original)"
+                @delete="deleteTarget = row.original"
+              />
             </template>
           </DataTable>
         </TabsContent>

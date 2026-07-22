@@ -8,6 +8,7 @@ import {
   Table,
   TableBody,
   TableCell,
+  TableEmpty,
   TableHead,
   TableHeader,
   TableRow,
@@ -316,21 +317,22 @@ onMounted(async () => {
 
         <CardContent class="p-0">
           <PageLoader v-if="gradesLoading" class="py-12" label="Syncing entry metrics…" />
-          <div v-else-if="filteredGrades.length" class="overflow-x-auto">
+          <div v-else class="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead class="text-xs font-medium">Student</TableHead>
-                  <TableHead class="text-xs font-medium">Subject</TableHead>
-                  <TableHead class="text-xs font-medium">Term</TableHead>
-                  <TableHead class="text-xs font-medium">Score</TableHead>
-                  <TableHead class="text-xs font-medium">Grade</TableHead>
+                  <TableHead>Student</TableHead>
+                  <TableHead>Subject</TableHead>
+                  <TableHead>Term</TableHead>
+                  <TableHead>Score</TableHead>
+                  <TableHead>Grade</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                <TableRow v-for="g in filteredGrades" :key="g.id" class="transition-colors">
-                  <TableCell class="font-medium text-sm text-foreground">{{ g.student?.full_name ?? '—' }}</TableCell>
-                  <TableCell class="text-sm text-foreground/90">
+                <template v-if="filteredGrades.length">
+                <TableRow v-for="g in filteredGrades" :key="g.id">
+                  <TableCell class="font-medium">{{ g.student?.full_name ?? '—' }}</TableCell>
+                  <TableCell>
                     <div class="flex flex-col gap-0.5">
                       <span>{{ g.subject ?? '—' }}</span>
                       <span class="text-[10px] uppercase tracking-wider text-muted-foreground font-medium sm:hidden">
@@ -338,8 +340,8 @@ onMounted(async () => {
                       </span>
                     </div>
                   </TableCell>
-                  <TableCell class="text-sm text-muted-foreground">{{ g.term ?? '—' }}</TableCell>
-                  <TableCell class="text-sm font-mono tracking-tight text-foreground">
+                  <TableCell class="text-muted-foreground">{{ g.term ?? '—' }}</TableCell>
+                  <TableCell class="font-mono tracking-tight">
                     {{ g.score ?? '—' }}{{ g.total ? ` / ${g.total}` : '' }}
                   </TableCell>
                   <TableCell>
@@ -351,12 +353,18 @@ onMounted(async () => {
                     </div>
                   </TableCell>
                 </TableRow>
+                </template>
+                <TableEmpty
+                  v-else
+                  :colspan="5"
+                  :title="grades.length ? 'No matching grades' : 'No grades yet'"
+                  :description="grades.length
+                    ? 'No logs match your search filters.'
+                    : 'Use Enter marks to add the first record for this class.'"
+                />
               </TableBody>
             </Table>
           </div>
-          <p v-else class="py-12 text-center text-sm text-muted-foreground italic">
-            {{ grades.length ? 'No logs match your search filters.' : 'No grades for this class yet. Use "Enter marks" to add the first record.' }}
-          </p>
         </CardContent>
       </Card>
     </template>

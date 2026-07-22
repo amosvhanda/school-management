@@ -327,8 +327,29 @@ class ReportController extends Controller
     }
 
     /**
-     * Store report template (Fix 4.6).
+     * List report templates for the current school.
      */
+    public function templates(Request $request)
+    {
+        $this->authorizeModuleAccess(
+            $request,
+            capabilities: ['canManageTeachers', 'canManageExaminations', 'canManageFinance'],
+            permissionSlugs: ['reports.view', 'reports.generate'],
+        );
+
+        $schoolId = $request->user()?->school_id;
+        $templates = ReportTemplate::query()
+            ->when($schoolId, fn ($q) => $q->where('school_id', $schoolId))
+            ->orderBy('category')
+            ->orderBy('name')
+            ->get();
+
+        return response()->json([
+            'data' => $templates,
+            'message' => 'Success',
+        ]);
+    }
+
     public function store(Request $request)
     {
         $validator = Validator::make($request->all(), [

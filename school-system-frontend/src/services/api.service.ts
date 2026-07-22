@@ -226,7 +226,7 @@ export const financeApi = {
   },
   transactions: {
     list: (params?: ListQueryParams) => fetchList(e.transactions.list, params),
-    summary: () => fetchOne(e.transactions.summary),
+    summary: (params?: ListQueryParams) => fetchOne(e.transactions.summary, params),
   },
   invoices: {
     list: (params?: ListQueryParams) => fetchList(e.invoices.list, params),
@@ -239,9 +239,10 @@ export const financeApi = {
   payroll: {
     list: (params?: ListQueryParams) => fetchList(e.payroll.list, params),
     teachers: () => fetchList(e.payroll.teachers),
-    summary: () => fetchOne(e.payroll.summary),
-    trends: () => fetchList(e.payroll.trends),
-    departmentSummary: () => fetchOne(e.payroll.departmentSummary),
+    summary: (params?: ListQueryParams) => fetchOne(e.payroll.summary, params),
+    trends: (params?: ListQueryParams) => fetchList(e.payroll.trends, params),
+    departmentSummary: (params?: ListQueryParams) =>
+      fetchOne(e.payroll.departmentSummary, params),
     teacherHistory: (id: number | string) => fetchList(e.payroll.teacherHistory(id)),
     payslip: (id: number | string) => fetchOne(e.payroll.payslip(id)),
     generate: (payload: Record<string, unknown>) => postRecord(e.payroll.generate, payload),
@@ -470,6 +471,7 @@ export interface ReportExportPayload {
 }
 
 export const reportsApi = {
+  templates: (params?: ListQueryParams) => fetchList(e.reports.templates, params),
   export: async (payload: ReportExportPayload) => {
     const { data } = await api.get(e.reports.export, { params: payload })
     return unwrapOne<Record<string, unknown>>(data)

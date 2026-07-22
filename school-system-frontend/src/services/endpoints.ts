@@ -305,6 +305,7 @@ export const endpoints = {
   },
   reports: {
     store: '/reports',
+    templates: '/reports/templates',
     export: '/reports/export',
     academicPerformance: '/reports/academic-performance',
     attendance: '/reports/attendance',

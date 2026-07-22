@@ -1,34 +1,32 @@
 <script setup lang="ts">
-import type { HTMLAttributes } from "vue"
-import { reactiveOmit } from "@vueuse/core"
-import { cn } from "@/lib/utils"
-import TableCell from "./TableCell.vue"
-import TableRow from "./TableRow.vue"
+import type { Component } from 'vue'
+import EmptyState from '@/components/feedback/EmptyState.vue'
+import TableCell from './TableCell.vue'
+import TableRow from './TableRow.vue'
 
-const props = withDefaults(defineProps<{
-  class?: HTMLAttributes["class"]
-  colspan?: number
-}>(), {
-  colspan: 1,
-})
-
-const delegatedProps = reactiveOmit(props, "class")
+withDefaults(
+  defineProps<{
+    colspan: number
+    title?: string
+    description?: string
+    icon?: Component
+  }>(),
+  {
+    title: 'No records found',
+    description: 'Try adjusting search or filters, or create a new record.',
+  },
+)
 </script>
 
 <template>
-  <TableRow>
-    <TableCell
-      :class="
-        cn(
-          'p-4 whitespace-nowrap align-middle text-sm text-foreground',
-          props.class,
-        )
-      "
-      v-bind="delegatedProps"
-    >
-      <div class="flex items-center justify-center py-10">
-        <slot />
-      </div>
+  <TableRow class="hover:bg-transparent">
+    <TableCell :colspan="colspan" class="h-44 p-0 text-center">
+      <EmptyState
+        variant="embedded"
+        :title="title"
+        :description="description"
+        :icon="icon"
+      />
     </TableCell>
   </TableRow>
 </template>

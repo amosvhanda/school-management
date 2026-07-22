@@ -14,11 +14,12 @@ import {
 } from '@lucide/vue'
 import PageLoader from '@/components/feedback/PageLoader.vue'
 import ErrorState from '@/components/feedback/ErrorState.vue'
-import KpiCard from '@/components/dashboard/KpiCard.vue'
+import DashboardHero from '@/components/dashboard/DashboardHero.vue'
+import MetricBand from '@/components/dashboard/MetricBand.vue'
+import type { MetricCard } from '@/components/dashboard/MetricBand.vue'
 import DashboardModulesGrid from '@/components/dashboard/DashboardModulesGrid.vue'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import { useAuth } from '@/composables/useAuth'
 import { parentPortalApi } from '@/services/index'
 import { PARENT_DASHBOARD_MODULE_GROUPS } from '@/lib/dashboard-modules'
@@ -48,14 +49,93 @@ interface Child {
 const { user } = useAuth()
 const loading = ref(true)
 const error = ref<string | null>(null)
+const lastUpdated = ref<Date | null>(null)
 const dashboard = ref<PortalDashboard | null>(null)
 const children = ref<Child[]>([])
 
-const greeting = computed(() => {
-  const hour = new Date().getHours()
-  if (hour < 12) return 'Good morning'
-  if (hour < 17) return 'Good afternoon'
-  return 'Good evening'
+const overviewCards = computed<MetricCard[]>(() => {
+  const d = dashboard.value
+  if (!d) return []
+  return [
+    {
+      title: 'My children',
+      value: d.children_count ?? 0,
+      subtitle: 'Enrolled students',
+      icon: GraduationCap,
+      href: '/portal/children',
+    },
+    {
+      title: 'Outstanding fees',
+      value: `$${Number(d.outstanding_balance ?? 0).toLocaleString()}`,
+      subtitle: 'Total balance due',
+      icon: TrendingDown,
+      accent: 'warning',
+          href: '/portal/children',
+        },
+        {
+          title: 'Notifications',
+          value: d.unread_notifications ?? 0,
+          subtitle: 'Unread alerts',
+          icon: Bell,
+          accent: (d.unread_notifications ?? 0) > 0 ? 'danger' : undefined,
+          href: '/portal/hub?tab=notifications',
+        },
+        {
+          title: 'Open messages',
+          value: d.open_communications ?? 0,
+          subtitle: 'Active conversations',
+          icon: MessageSquare,
+          href: '/portal/hub?tab=messages',
+        },
+      ]
+    })
+
+    const activityCards = computed<MetricCard[]>(() => {
+      const d = dashboard.value
+      if (!d) return []
+      const cards: MetricCard[] = [
+        {
+          title: 'Recent absences',
+          value: d.recent_absences ?? 0,
+          subtitle: 'Last 30 days',
+          icon: UserX,
+          accent: (d.recent_absences ?? 0) > 0 ? 'danger' : undefined,
+          href: '/portal/children',
+        },
+        {
+          title: 'Recent results',
+          value: d.recent_results ?? 0,
+          subtitle: 'Published in last 30 days',
+          icon: FileText,
+          href: '/portal/children',
+        },
+        {
+          title: 'Consent forms',
+          value: d.pending_consent_forms ?? 0,
+          subtitle: 'Awaiting your response',
+          icon: FileCheck,
+          accent: (d.pending_consent_forms ?? 0) > 0 ? 'warning' : undefined,
+          href: '/portal/hub?tab=consent',
+        },
+        {
+          title: 'Announcements',
+          value: d.recent_announcements ?? 0,
+          subtitle: 'Last 30 days',
+          icon: Megaphone,
+          href: '/portal/hub?tab=announcements',
+        },
+      ]
+  if ((d.open_discipline ?? 0) > 0) {
+    cards.push({
+      title: 'Discipline notes',
+      value: d.open_discipline ?? 0,
+      subtitle: 'Recent incidents (90 days)',
+      icon: ShieldAlert,
+      accent: 'danger',
+      href: '/portal/children',
+    })
+  }
+  return cards
 })
 
 async function load() {
@@ -64,6 +144,7 @@ async function load() {
   try {
     dashboard.value = await parentPortalApi.dashboard() as PortalDashboard
     children.value = await parentPortalApi.children() as Child[]
+    lastUpdated.value = new Date()
   } catch (err) {
     error.value = err instanceof Error ? err.message : 'Failed to load portal'
   } finally {
@@ -71,102 +152,42 @@ async function load() {
   }
 }
 
+function refresh() {
+  return load()
+}
+
 onMounted(load)
 </script>
 
 <template>
-  <div class="space-y-6">
-    <div>
-      <Badge variant="secondary" class="mb-2 font-normal">Parent</Badge>
-      <h1 class="text-2xl font-semibold tracking-tight">
-        {{ greeting }}, {{ user?.name?.split(' ')[0] ?? 'there' }}
-      </h1>
-      <p class="text-muted-foreground">Overview of your children's school activity</p>
-    </div>
+  <div class="mx-auto w-full max-w-[1600px] space-y-8 pb-8">
+    <DashboardHero
+      :name="user?.name"
+      role="Parent"
+      subtitle="Overview of your children's school activity, fees, and communications."
+      :loading="loading"
+      :last-updated="lastUpdated"
+      @refresh="refresh"
+    />
 
-    <PageLoader v-if="loading" />
-    <ErrorState v-else-if="error" :description="error" @retry="load" />
+    <PageLoader v-if="loading" label="Loading parent portal…" />
+    <ErrorState v-else-if="error" :description="error" @retry="refresh" />
 
     <template v-else-if="dashboard">
-      <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <KpiCard
-          title="My children"
-          :value="String(dashboard.children_count ?? 0)"
-          subtitle="Enrolled students"
-          :icon="GraduationCap"
-          href="/portal/children"
-        />
-        <KpiCard
-          title="Outstanding fees"
-          :value="`$${Number(dashboard.outstanding_balance ?? 0).toLocaleString()}`"
-          subtitle="Total balance due"
-          :icon="TrendingDown"
-          accent="warning"
-          href="/portal/children"
-        />
-        <KpiCard
-          title="Notifications"
-          :value="String(dashboard.unread_notifications ?? 0)"
-          subtitle="Unread alerts"
-          :icon="Bell"
-          :accent="(dashboard.unread_notifications ?? 0) > 0 ? 'danger' : undefined"
-          href="/portal/notifications"
-        />
-        <KpiCard
-          title="Open messages"
-          :value="String(dashboard.open_communications ?? 0)"
-          subtitle="Active conversations"
-          :icon="MessageSquare"
-          href="/portal/messages"
-        />
-      </div>
+      <MetricBand
+        title="Family overview"
+        description="The numbers that matter most for your children right now"
+        :cards="overviewCards"
+      />
 
-      <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <KpiCard
-          title="Recent absences"
-          :value="String(dashboard.recent_absences ?? 0)"
-          subtitle="Last 30 days"
-          :icon="UserX"
-          :accent="(dashboard.recent_absences ?? 0) > 0 ? 'danger' : undefined"
-          href="/portal/children"
-        />
-        <KpiCard
-          title="Recent results"
-          :value="String(dashboard.recent_results ?? 0)"
-          subtitle="Published in last 30 days"
-          :icon="FileText"
-          href="/portal/children"
-        />
-        <KpiCard
-          title="Consent forms"
-          :value="String(dashboard.pending_consent_forms ?? 0)"
-          subtitle="Awaiting your response"
-          :icon="FileCheck"
-          :accent="(dashboard.pending_consent_forms ?? 0) > 0 ? 'warning' : undefined"
-          href="/portal/consent"
-        />
-        <KpiCard
-          title="Announcements"
-          :value="String(dashboard.recent_announcements ?? 0)"
-          subtitle="Last 30 days"
-          :icon="Megaphone"
-          href="/portal/announcements"
-        />
-      </div>
+      <MetricBand
+        title="Recent activity"
+        description="Attendance, results, consents, and school notices"
+        :cards="activityCards"
+      />
 
-      <div v-if="(dashboard.open_discipline ?? 0) > 0" class="grid gap-4 sm:grid-cols-2">
-        <KpiCard
-          title="Discipline notes"
-          :value="String(dashboard.open_discipline ?? 0)"
-          subtitle="Recent incidents (90 days)"
-          :icon="ShieldAlert"
-          accent="danger"
-          href="/portal/children"
-        />
-      </div>
-
-      <Card>
-        <CardHeader class="flex flex-row items-center justify-between">
+      <Card class="border-border/70">
+        <CardHeader class="flex flex-row items-center justify-between gap-4">
           <div>
             <CardTitle>My children</CardTitle>
             <CardDescription>Quick view — open a child for results, attendance, fees, and discipline</CardDescription>
@@ -180,7 +201,7 @@ onMounted(load)
             <Card
               v-for="child in children"
               :key="child.id"
-              class="h-full"
+              class="h-full border-border/70"
             >
               <CardHeader class="pb-2">
                 <CardTitle class="text-base">{{ child.fullName ?? child.full_name ?? (child.student_number ? `Student ${child.student_number}` : 'Student') }}</CardTitle>

@@ -4,6 +4,7 @@ import { CheckCircle2, CircleDashed } from '@lucide/vue'
 import PageLoader from '@/components/feedback/PageLoader.vue'
 import ErrorState from '@/components/feedback/ErrorState.vue'
 import EmptyState from '@/components/feedback/EmptyState.vue'
+import PageShell from '@/components/layout/PageShell.vue'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -239,14 +240,11 @@ onMounted(load)
 </script>
 
 <template>
-  <div class="space-y-6">
-    <header class="space-y-1">
-      <h1 class="text-2xl font-semibold tracking-tight">Consent forms</h1>
-      <p class="text-muted-foreground">
-        Approve or decline separately for each child on the same form.
-      </p>
-    </header>
-
+  <PageShell
+    title="Consent forms"
+    description="Approve or decline separately for each child on the same form."
+    max-width="wide"
+  >
     <PageLoader v-if="loading" label="Loading consent forms" />
     <ErrorState v-else-if="error" :description="error" @retry="load" />
 
@@ -440,5 +438,5 @@ onMounted(load)
         </SheetFooter>
       </SheetContent>
     </Sheet>
-  </div>
+  </PageShell>
 </template>

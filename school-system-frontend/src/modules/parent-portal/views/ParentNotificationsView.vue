@@ -2,6 +2,7 @@
 import { computed, onMounted, ref } from 'vue'
 import PageLoader from '@/components/feedback/PageLoader.vue'
 import ErrorState from '@/components/feedback/ErrorState.vue'
+import PageShell from '@/components/layout/PageShell.vue'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -167,12 +168,12 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="space-y-6">
-    <div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-      <div>
-        <h1 class="text-2xl font-semibold tracking-tight">Notifications</h1>
-        <p class="text-muted-foreground">Alerts for {{ selectedChildLabel }}</p>
-      </div>
+  <PageShell
+    title="Notifications"
+    :description="`Alerts for ${selectedChildLabel}`"
+    max-width="wide"
+  >
+    <template #actions>
       <div class="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
         <Select :model-value="selectedStudentId" @update:model-value="onChildFilterChange">
           <SelectTrigger class="w-full sm:w-[220px]">
@@ -199,7 +200,7 @@ onMounted(async () => {
           Mark all read
         </Button>
       </div>
-    </div>
+    </template>
 
     <PageLoader v-if="loading" />
     <ErrorState v-else-if="error" :description="error" @retry="load" />
@@ -234,5 +235,5 @@ onMounted(async () => {
       </Card>
       <p v-if="!notificationsView.length" class="text-sm text-muted-foreground">No notifications.</p>
     </div>
-  </div>
+  </PageShell>
 </template>

@@ -3,6 +3,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { MessageSquare, Plus, Send } from '@lucide/vue'
 import PageLoader from '@/components/feedback/PageLoader.vue'
 import ErrorState from '@/components/feedback/ErrorState.vue'
+import PageShell from '@/components/layout/PageShell.vue'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -179,17 +180,17 @@ watch(
 </script>
 
 <template>
-  <div class="space-y-6">
-    <div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-      <div>
-        <h1 class="text-2xl font-semibold tracking-tight">Messages</h1>
-        <p class="text-muted-foreground">Contact the school about your children</p>
-      </div>
+  <PageShell
+    title="Messages"
+    description="Contact the school about your children"
+    max-width="wide"
+  >
+    <template #actions>
       <Button @click="openNewThread">
         <Plus class="mr-2 h-4 w-4" aria-hidden="true" />
         New message
       </Button>
-    </div>
+    </template>
 
     <PageLoader v-if="loading" />
     <ErrorState v-else-if="error" :description="error" @retry="loadThreads" />
@@ -296,5 +297,5 @@ watch(
         </form>
       </SheetContent>
     </Sheet>
-  </div>
+  </PageShell>
 </template>

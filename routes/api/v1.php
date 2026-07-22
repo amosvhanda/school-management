@@ -415,6 +415,7 @@ Route::middleware(['auth:sanctum', 'school.isolated', 'school.licensed'])->group
 
     // Reports & announcements
     Route::get('/reports/export', [ReportController::class, 'export']);
+    Route::get('/reports/templates', [ReportController::class, 'templates']);
     Route::get('/reports/academic-performance', [ReportController::class, 'academicPerformance']);
     Route::get('/reports/attendance', [ReportController::class, 'attendance']);
     Route::get('/reports/financial', [ReportController::class, 'financial']);

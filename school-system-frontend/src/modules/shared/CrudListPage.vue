@@ -3,10 +3,11 @@ import { ref, onMounted, computed, h, nextTick, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { z } from 'zod'
 import type { ColumnDef } from '@tanstack/vue-table'
-import { Pencil, Plus, Trash2 } from '@lucide/vue'
+import { Plus } from '@lucide/vue'
 import PageLoader from '@/components/feedback/PageLoader.vue'
 import ErrorState from '@/components/feedback/ErrorState.vue'
 import DataTable from '@/components/data-table/DataTable.vue'
+import TableRowActions from '@/components/data-table/TableRowActions.vue'
 import ListFiltersBar from '@/components/data-table/ListFiltersBar.vue'
 import FormSheet from '@/components/forms/FormSheet.vue'
 import PageShell from '@/components/layout/PageShell.vue'
@@ -134,51 +135,27 @@ const displayColumns = computed<ColumnDef<Record<string, unknown>, unknown>[]>((
       const id = record[idKey.value]
       if (id == null) return null
 
-      const buttons: ReturnType<typeof h>[] = []
+      const canEditRow = props.canEdit && hasForm.value && (
+        props.listKey !== 'finance-payroll'
+        || String(record.status ?? '').toLowerCase() === 'pending'
+      )
 
-      if (props.canEdit && hasForm.value) {
-        const canEditRow = props.listKey !== 'finance-payroll'
-          || String(record.status ?? '').toLowerCase() === 'pending'
-        if (canEditRow) {
-          buttons.push(
-            h(Button, {
-              size: 'sm',
-              variant: 'ghost',
-              'aria-label': 'Edit record',
-              onClick: () => openEdit(record),
-            }, () => h(Pencil, { class: 'h-4 w-4', 'aria-hidden': 'true' })),
-          )
-        }
-      }
+      const menuActions = (props.rowActions ?? [])
+        .filter((action) => !action.when || action.when(record))
+        .map((action) => ({
+          label: action.label,
+          disabled: actionLoading.value === `${action.label}-${id}`,
+          destructive: action.variant === 'destructive',
+          onSelect: () => { void runAction(action, record) },
+        }))
 
-      for (const action of props.rowActions ?? []) {
-        if (action.when && !action.when(record)) continue
-        buttons.push(
-          h(
-            Button,
-            {
-              size: 'sm',
-              variant: action.variant ?? 'outline',
-              disabled: actionLoading.value === `${action.label}-${id}`,
-              onClick: () => runAction(action, record),
-            },
-            () => action.label,
-          ),
-        )
-      }
-
-      if (props.canDelete) {
-        buttons.push(
-          h(Button, {
-            size: 'sm',
-            variant: 'ghost',
-            'aria-label': 'Delete record',
-            onClick: () => { deleteTarget.value = record },
-          }, () => h(Trash2, { class: 'h-4 w-4 text-destructive', 'aria-hidden': 'true' })),
-        )
-      }
-
-      return h('div', { class: 'flex flex-wrap justify-end gap-1' }, buttons)
+      return h(TableRowActions, {
+        canEdit: canEditRow,
+        canDelete: props.canDelete,
+        actions: menuActions,
+        onEdit: () => { void openEdit(record) },
+        onDelete: () => { deleteTarget.value = record },
+      })
     },
   })
 
@@ -759,6 +736,7 @@ defineExpose({ load, openEdit })
     <ErrorState v-else-if="error" :description="error" @retry="load" />
     <DataTable
       v-else
+      :framed="false"
       :table="table"
       :columns="displayColumns"
       :global-filter="globalFilter"

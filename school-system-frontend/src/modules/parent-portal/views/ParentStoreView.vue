@@ -3,6 +3,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { RouterLink } from 'vue-router'
 import PageLoader from '@/components/feedback/PageLoader.vue'
 import ErrorState from '@/components/feedback/ErrorState.vue'
+import PageShell from '@/components/layout/PageShell.vue'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -133,18 +134,16 @@ onMounted(load)
 </script>
 
 <template>
-  <div class="space-y-6">
-    <div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-      <div>
-        <h1 class="text-2xl font-semibold tracking-tight">School store</h1>
-        <p class="text-muted-foreground">
-          Order uniforms and school stock for your child. Orders are charged to their fee account.
-        </p>
-      </div>
+  <PageShell
+    title="School store"
+    description="Order uniforms and school stock for your child. Orders are charged to their fee account."
+    max-width="wide"
+  >
+    <template #actions>
       <Button variant="outline" as-child>
         <RouterLink to="/portal/children">My children</RouterLink>
       </Button>
-    </div>
+    </template>
 
     <PageLoader v-if="loading" label="Loading store" />
     <ErrorState v-else-if="error" :description="error" @retry="load" />
@@ -239,5 +238,5 @@ onMounted(load)
         </CardContent>
       </Card>
     </template>
-  </div>
+  </PageShell>
 </template>

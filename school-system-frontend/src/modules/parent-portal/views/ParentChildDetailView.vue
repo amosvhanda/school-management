@@ -4,6 +4,7 @@ import { useRoute, RouterLink } from 'vue-router'
 import { Download, FileSpreadsheet } from '@lucide/vue'
 import PageLoader from '@/components/feedback/PageLoader.vue'
 import ErrorState from '@/components/feedback/ErrorState.vue'
+import PageShell from '@/components/layout/PageShell.vue'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -41,6 +42,12 @@ const progress = ref<Record<string, unknown> | null>(null)
 const childName = computed(() =>
   String(child.value?.full_name ?? child.value?.fullName ?? (child.value?.student_number ? `Student ${child.value.student_number}` : 'Student')),
 )
+
+const childDescription = computed(() => {
+  const classLabel = child.value?.class ? `Class: ${child.value.class}` : 'Child profile'
+  const number = child.value?.student_number ? ` · ${child.value.student_number}` : ''
+  return `${classLabel}${number}`
+})
 
 const overallAverage = computed(() => {
   const bySubject = progress.value?.by_subject as Array<{ average_percent?: number }> | undefined
@@ -134,29 +141,24 @@ onMounted(load)
 </script>
 
 <template>
-  <div class="space-y-6">
-    <div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-      <div>
-        <h1 class="text-2xl font-semibold tracking-tight">{{ childName }}</h1>
-        <p class="text-muted-foreground">
-          {{ child?.class ? `Class: ${child.class}` : 'Child profile' }}
-          <span v-if="child?.student_number"> · {{ child.student_number }}</span>
-        </p>
-      </div>
-      <div class="flex flex-wrap gap-2">
-        <Button variant="outline" :disabled="downloading || loading" @click="downloadResults('html')">
-          <Download class="mr-2 size-4" aria-hidden="true" />
-          Download report card
-        </Button>
-        <Button variant="outline" :disabled="downloading || loading" @click="downloadResults('csv')">
-          <FileSpreadsheet class="mr-2 size-4" aria-hidden="true" />
-          Download CSV
-        </Button>
-        <Button variant="outline" as-child>
-          <RouterLink to="/portal/children">Back to children</RouterLink>
-        </Button>
-      </div>
-    </div>
+  <PageShell
+    :title="childName"
+    :description="childDescription"
+    max-width="wide"
+  >
+    <template #actions>
+      <Button variant="outline" :disabled="downloading || loading" @click="downloadResults('html')">
+        <Download class="mr-2 size-4" aria-hidden="true" />
+        Download report card
+      </Button>
+      <Button variant="outline" :disabled="downloading || loading" @click="downloadResults('csv')">
+        <FileSpreadsheet class="mr-2 size-4" aria-hidden="true" />
+        Download CSV
+      </Button>
+      <Button variant="outline" as-child>
+        <RouterLink to="/portal/children">Back to children</RouterLink>
+      </Button>
+    </template>
 
     <PageLoader v-if="loading" />
     <ErrorState v-else-if="error" :description="error" @retry="load" />
@@ -379,5 +381,5 @@ onMounted(load)
         </TabsContent>
       </Tabs>
     </template>
-  </div>
+  </PageShell>
 </template>

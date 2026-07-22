@@ -92,7 +92,7 @@ watch(
         <div class="min-w-0 flex-1 group-data-[collapsible=icon]:hidden">
           <p class="truncate text-sm font-semibold leading-none tracking-tight text-sidebar-foreground">{{ school?.name ?? title }}</p>
           <p class="mt-1.5 truncate text-[11px] text-sidebar-foreground/55">
-            {{ school?.code ? `${school.code} · ` : '' }}School Management
+            {{ school?.code ? `${school.code} · ` : '' }}{{ title }}
           </p>
         </div>
       </RouterLink>
@@ -136,8 +136,10 @@ watch(
 
     <SidebarFooter class="border-t border-sidebar-border/80 p-2 md:p-3">
       <div class="rounded-xl border border-sidebar-border/60 bg-sidebar-accent/40 px-3 py-2.5 group-data-[collapsible=icon]:hidden">
-        <p class="truncate text-xs font-semibold text-sidebar-foreground">{{ user?.name ?? 'Staff user' }}</p>
-        <p class="mt-0.5 truncate text-[11px] text-sidebar-foreground/55">{{ user?.email }}</p>
+        <p class="truncate text-xs font-semibold text-sidebar-foreground">{{ user?.name ?? 'User' }}</p>
+        <p class="mt-0.5 truncate text-[11px] capitalize text-sidebar-foreground/55">
+          {{ user?.role?.replaceAll('_', ' ') ?? title }}
+        </p>
       </div>
       <p
         class="hidden truncate text-center text-[10px] font-bold tracking-tight text-sidebar-foreground/70 group-data-[collapsible=icon]:block py-2"

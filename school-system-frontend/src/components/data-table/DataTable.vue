@@ -6,31 +6,45 @@ import {
   Table,
   TableBody,
   TableCell,
+  TableEmpty,
   TableHead,
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
-import EmptyState from '@/components/feedback/EmptyState.vue'
+import { tableHeaderRowClass } from '@/components/ui/table/table-chrome'
 
-defineProps<{
-  table: TableType<T>
-  columns: ColumnDef<T, unknown>[]
-  globalFilter: string
-  searchable?: boolean
-  searchPlaceholder?: string
-  /** Server-side pagination metadata */
-  serverPagination?: boolean
-  serverPage?: number
-  serverPageCount?: number
-  serverTotal?: number
-  /**
-   * When false, render table chrome without an outer Card
-   * (use inside WorkspaceCard to avoid nested cards).
-   */
-  framed?: boolean
-}>()
+withDefaults(
+  defineProps<{
+    table: TableType<T>
+    columns: ColumnDef<T, unknown>[]
+    globalFilter: string
+    searchable?: boolean
+    searchPlaceholder?: string
+    /** Server-side pagination metadata */
+    serverPagination?: boolean
+    serverPage?: number
+    serverPageCount?: number
+    serverTotal?: number
+    /**
+     * When false, render table chrome without an outer Card
+     * (use inside WorkspaceCard to avoid nested cards).
+     */
+    framed?: boolean
+    /** Hide pagination footer (ops / embedded summary tables). */
+    showPagination?: boolean
+    emptyTitle?: string
+    emptyDescription?: string
+  }>(),
+  {
+    searchable: true,
+    framed: true,
+    showPagination: true,
+    emptyTitle: 'No records found',
+    emptyDescription: 'Try adjusting search or filters, or create a new record.',
+  },
+)
 
 defineEmits<{
   'update:globalFilter': [value: string]
@@ -81,12 +95,11 @@ defineSlots<{
           <TableRow
             v-for="headerGroup in table.getHeaderGroups()"
             :key="headerGroup.id"
-            class="border-b border-border/60 hover:bg-transparent"
+            :class="tableHeaderRowClass"
           >
             <TableHead
               v-for="header in headerGroup.headers"
               :key="header.id"
-              class="h-11 bg-muted/40 text-xs font-semibold tracking-wider text-muted-foreground uppercase"
             >
               <FlexRender
                 v-if="!header.isPlaceholder"
@@ -101,9 +114,8 @@ defineSlots<{
             <TableRow
               v-for="row in table.getRowModel().rows"
               :key="row.id"
-              class="border-b border-border/40 transition-colors last:border-0 hover:bg-muted/30"
             >
-              <TableCell v-for="cell in row.getVisibleCells()" :key="cell.id" class="py-3 text-sm">
+              <TableCell v-for="cell in row.getVisibleCells()" :key="cell.id">
                 <slot
                   v-if="$slots[`cell-${cell.column.id}`]"
                   :name="`cell-${cell.column.id}`"
@@ -118,20 +130,18 @@ defineSlots<{
               </TableCell>
             </TableRow>
           </template>
-          <TableRow v-else>
-            <TableCell :colspan="columns.length" class="h-44 p-0 text-center">
-              <EmptyState
-                variant="embedded"
-                title="No records found"
-                description="Try adjusting search or filters, or create a new record."
-              />
-            </TableCell>
-          </TableRow>
+          <TableEmpty
+            v-else
+            :colspan="columns.length"
+            :title="emptyTitle"
+            :description="emptyDescription"
+          />
         </TableBody>
       </Table>
     </div>
 
     <div
+      v-if="showPagination"
       class="flex flex-col gap-3 border-t border-border/60 bg-card px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
       aria-live="polite"
     >

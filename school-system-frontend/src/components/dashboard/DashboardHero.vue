@@ -64,10 +64,11 @@ const heroSubtitle = computed(() =>
       </div>
     </div>
 
-    <div class="flex shrink-0 items-center gap-3">
+    <div class="flex shrink-0 flex-wrap items-center gap-3">
       <p v-if="lastUpdated" class="hidden text-xs text-muted-foreground sm:block">
         Updated {{ updatedLabel }}
       </p>
+      <slot name="actions" />
       <Button
         variant="outline"
         size="sm"

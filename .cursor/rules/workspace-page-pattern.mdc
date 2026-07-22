@@ -1,0 +1,48 @@
+---
+description: Operational workspace page layout pattern for main nav modules
+globs: school-system-frontend/src/modules/**/*.vue
+alwaysApply: false
+---
+
+# Operational Workspace Page Pattern
+
+Use this layout for **operational / management** nav pages (Attendance, Timetable, Payroll, and similar). Prefer this over a bare registry table when the module has KPIs, filters, or multiple sub-views.
+
+**All roles share one product chrome** (sidebar + header + tokens). Role switch changes nav and data only — not a separate visual system.
+
+## Navigation hubs (Settings pattern)
+
+Prefer **one sidebar item per domain** with `ModuleHub` + `?tab=` sections (like School Setup), instead of listing every sub-feature in the sidebar.
+
+- Hub shell: `ModuleHub.vue` + tab config + `redirectToHubTab` for old paths
+- Registry CRUD in a tab: `listKey` / `sections` via `RegistrySection`
+- Custom workspace in a tab: lazy `component` (PageShell auto-hides chrome when embedded)
+- Keep fat daily tools as top-level when needed (Attendance, Gradebook, Exams, Timetable)
+
+Existing hubs: Finance, Operations, People, Communications, HR, Admin, Parent School life, Settings.
+
+## Structure (top → bottom) for ops pages
+
+1. **`PageShell`** — page title, short description, `max-width="wide"`, primary actions in `#actions`
+2. **Optional alert banner** — risk / warnings with a clear next action
+3. **Optional setup / filters card**
+4. **KPI / stat cards** — via `MetricBand` / `KpiCard`
+5. **Optional progress**
+6. **Tabs** — Current / Mark / History / Analytics / Audit as needed
+7. **Primary content card**
+
+## Dashboards (all roles)
+
+- Canvas: `max-w-[1600px] space-y-8`
+- Header: `DashboardHero`
+- KPIs: `MetricBand`
+
+## Visual rules
+
+- Reuse shadcn-vue + existing tokens; no one-off purple/cream themes
+- Row actions: ellipsis dropdown — not a wall of buttons
+
+## When NOT to use ModuleHub
+
+- Simple CRUD with no related siblings → standalone `CrudListPage`
+- Settings-style wizards with progress → keep Settings pattern as-is

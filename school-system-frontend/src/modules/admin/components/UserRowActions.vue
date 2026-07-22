@@ -8,6 +8,11 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import {
+  TABLE_ACTION_ICONS,
+  tableActionIconClass,
+  tableActionMenuIconClass,
+} from '@/components/data-table/table-action-icons'
 import { useToast } from '@/components/ui/toast/use-toast'
 import { getErrorMessage } from '@/lib/api-response'
 import { usersApi } from '@/services/api.service'
@@ -35,7 +40,7 @@ async function toggleStatus() {
 
     toast({
       title: `User ${isDeactivating ? 'deactivated' : 'activated'}`,
-      description: `The user account state has been successfully updated.`,
+      description: 'The user account state has been successfully updated.',
     })
     emit('refresh')
   } catch (err) {
@@ -65,36 +70,58 @@ async function resetPassword() {
 </script>
 
 <template>
-  <DropdownMenu>
-    <DropdownMenuTrigger as-child>
-      <Button variant="ghost" size="icon" class="h-8 w-8">
-        <MoreHorizontal class="h-4 w-4" />
-        <span class="sr-only">Open actions menu</span>
-      </Button>
-    </DropdownMenuTrigger>
+  <div class="flex items-center justify-end gap-0.5">
+    <Button
+      type="button"
+      variant="ghost"
+      size="icon"
+      class="size-8"
+      aria-label="Edit user"
+      @click="emit('edit')"
+    >
+      <component :is="TABLE_ACTION_ICONS.edit" :class="tableActionIconClass" aria-hidden="true" />
+    </Button>
 
-    <DropdownMenuContent align="end" class="w-[160px]">
-      <DropdownMenuItem @click="emit('edit')">
-        Edit details
-      </DropdownMenuItem>
+    <DropdownMenu>
+      <DropdownMenuTrigger as-child>
+        <Button variant="ghost" size="icon" class="size-8" aria-label="More user actions">
+          <MoreHorizontal :class="tableActionIconClass" aria-hidden="true" />
+        </Button>
+      </DropdownMenuTrigger>
 
-      <DropdownMenuItem @click="emit('permissions')">
-        Extra module access
-      </DropdownMenuItem>
+      <DropdownMenuContent align="end" class="min-w-[11rem]">
+        <DropdownMenuItem @click="emit('permissions')">
+          <component
+            :is="TABLE_ACTION_ICONS.permissions"
+            :class="tableActionMenuIconClass"
+            aria-hidden="true"
+          />
+          Extra module access
+        </DropdownMenuItem>
 
-      <DropdownMenuItem @click="resetPassword">
-        Reset password
-      </DropdownMenuItem>
+        <DropdownMenuItem @click="resetPassword">
+          <component
+            :is="TABLE_ACTION_ICONS.details"
+            :class="tableActionMenuIconClass"
+            aria-hidden="true"
+          />
+          Reset password
+        </DropdownMenuItem>
 
-      <DropdownMenuSeparator />
+        <DropdownMenuSeparator />
 
-      <!-- Styled conditionally if deactivating a live user -->
-      <DropdownMenuItem
-        @click="toggleStatus"
-        :class="user.status === 'active' ? 'text-destructive focus:text-destructive-foreground focus:bg-destructive' : ''"
-      >
-        {{ user.status === 'active' ? 'Deactivate user' : 'Activate user' }}
-      </DropdownMenuItem>
-    </DropdownMenuContent>
-  </DropdownMenu>
+        <DropdownMenuItem
+          :class="user.status === 'active' ? 'text-destructive focus:text-destructive' : undefined"
+          @click="toggleStatus"
+        >
+          <component
+            :is="TABLE_ACTION_ICONS.deactivate"
+            :class="tableActionMenuIconClass"
+            aria-hidden="true"
+          />
+          {{ user.status === 'active' ? 'Deactivate user' : 'Activate user' }}
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  </div>
 </template>
