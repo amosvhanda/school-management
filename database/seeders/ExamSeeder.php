@@ -53,7 +53,11 @@ class ExamSeeder extends Seeder
                                 'total_marks' => 100,
                                 'passing_marks' => 50,
                                 'academic_year' => $academicYear,
-                                'is_published' => false,
+                                // Publish Mid-Term and Final so parent/student portals show results.
+                                'is_published' => in_array($examType, ['Mid-Term Exam', 'Final Exam'], true),
+                                'results_approved_at' => in_array($examType, ['Mid-Term Exam', 'Final Exam'], true)
+                                    ? now()->subDays(3)
+                                    : null,
                             ]
                         );
                     }

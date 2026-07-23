@@ -26,9 +26,10 @@ class PaymentSeeder extends Seeder
         
         $methods = ZimbabweData::PAYMENT_METHODS;
         $count = 0;
+        $limit = 80;
 
         foreach ($invoices as $inv) {
-            if ($count >= 20) {
+            if ($count >= $limit) {
                 break;
             }
             

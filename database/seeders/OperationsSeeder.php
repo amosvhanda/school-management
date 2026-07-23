@@ -147,20 +147,65 @@ class OperationsSeeder extends Seeder
             );
 
             if ($parent) {
-                ParentNotification::updateOrCreate(
-                    [
-                        'school_id' => $school->id,
-                        'parent_user_id' => $parent->id,
-                        'type' => 'attendance_alert',
-                        'title' => 'Attendance Update',
-                    ],
-                    [
-                        'student_id' => $student->id,
-                        'body' => 'Your child was marked present today.',
-                        'data' => ['student_id' => $student->id],
-                        'read_at' => null,
-                    ]
-                );
+                $linkedStudents = $parent->students()->orderBy('students.id')->limit(5)->get();
+                if ($linkedStudents->isEmpty()) {
+                    $linkedStudents = collect([$student])->filter();
+                }
+
+                foreach ($linkedStudents as $index => $linkedStudent) {
+                    ParentNotification::updateOrCreate(
+                        [
+                            'school_id' => $school->id,
+                            'parent_user_id' => $parent->id,
+                            'student_id' => $linkedStudent->id,
+                            'type' => 'attendance_alert',
+                            'title' => 'Attendance Update',
+                        ],
+                        [
+                            'body' => $linkedStudent->full_name
+                                ? "{$linkedStudent->full_name} was marked present today."
+                                : 'Your child was marked present today.',
+                            'data' => ['student_id' => $linkedStudent->id],
+                            'read_at' => $index === 0 ? null : now()->subDay(),
+                        ]
+                    );
+
+                    ParentNotification::updateOrCreate(
+                        [
+                            'school_id' => $school->id,
+                            'parent_user_id' => $parent->id,
+                            'student_id' => $linkedStudent->id,
+                            'type' => 'results_published',
+                            'title' => 'New results available',
+                        ],
+                        [
+                            'body' => 'New assessment results have been published for your child.',
+                            'data' => ['student_id' => $linkedStudent->id],
+                            'read_at' => null,
+                        ]
+                    );
+
+                    DisciplinaryRecord::updateOrCreate(
+                        [
+                            'school_id' => $school->id,
+                            'student_id' => $linkedStudent->id,
+                            'incident_date' => now()->subDays(10 + $index)->toDateString(),
+                            'category' => $index % 2 === 0 ? 'uniform' : 'behaviour',
+                        ],
+                        [
+                            'severity' => $index === 0 ? 'minor' : 'moderate',
+                            'description' => $index % 2 === 0
+                                ? 'Incorrect uniform shoes worn.'
+                                : 'Disruptive behaviour during lesson.',
+                            'action_taken' => $index % 2 === 0
+                                ? 'Verbal warning issued.'
+                                : 'Parent meeting requested.',
+                            'recorded_by' => $teacherUser?->id,
+                            'parent_notified' => true,
+                            'parent_notified_at' => now()->subDays(9 + $index),
+                        ]
+                    );
+                }
 
                 $thread = CommunicationThread::updateOrCreate(
                     [
@@ -184,24 +229,33 @@ class OperationsSeeder extends Seeder
                     ],
                     ['read_at' => null]
                 );
-            }
 
-            DisciplinaryRecord::updateOrCreate(
-                [
-                    'school_id' => $school->id,
-                    'student_id' => $student->id,
-                    'incident_date' => now()->subDays(20)->toDateString(),
-                    'category' => 'uniform',
-                ],
-                [
-                    'severity' => 'minor',
-                    'description' => 'Incorrect uniform shoes worn.',
-                    'action_taken' => 'Verbal warning issued.',
-                    'recorded_by' => $teacherUser?->id,
-                    'parent_notified' => true,
-                    'parent_notified_at' => now()->subDays(19),
-                ]
-            );
+                CommunicationMessage::updateOrCreate(
+                    [
+                        'thread_id' => $thread->id,
+                        'sender_id' => $parent->id,
+                        'body' => 'Thank you. We will review the homework schedule at home.',
+                    ],
+                    ['read_at' => now()->subHours(6)]
+                );
+            } else {
+                DisciplinaryRecord::updateOrCreate(
+                    [
+                        'school_id' => $school->id,
+                        'student_id' => $student->id,
+                        'incident_date' => now()->subDays(20)->toDateString(),
+                        'category' => 'uniform',
+                    ],
+                    [
+                        'severity' => 'minor',
+                        'description' => 'Incorrect uniform shoes worn.',
+                        'action_taken' => 'Verbal warning issued.',
+                        'recorded_by' => $teacherUser?->id,
+                        'parent_notified' => true,
+                        'parent_notified_at' => now()->subDays(19),
+                    ]
+                );
+            }
 
             if ($teacher) {
                 LeaveRequest::updateOrCreate(

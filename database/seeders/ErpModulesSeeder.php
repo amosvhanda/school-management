@@ -353,6 +353,31 @@ class ErpModulesSeeder extends Seeder
                 );
             }
 
+            // Second form left unanswered so parents can test the consent workflow.
+            ConsentForm::updateOrCreate(
+                ['school_id' => $school->id, 'title' => 'School Trip Photo & Media Consent'],
+                [
+                    'content' => 'I consent for the school to take and use photos/videos of my child during school trips and events for educational and promotional purposes.',
+                    'target_audience' => 'parents',
+                    'due_date' => now()->addWeeks(3)->toDateString(),
+                    'requires_signature' => true,
+                    'status' => 'active',
+                    'created_by' => $admin->id,
+                ]
+            );
+
+            ConsentForm::updateOrCreate(
+                ['school_id' => $school->id, 'title' => 'After-School Club Participation'],
+                [
+                    'content' => 'I consent for my child to join after-school clubs and activities for this term.',
+                    'target_audience' => 'parents',
+                    'due_date' => now()->addDays(10)->toDateString(),
+                    'requires_signature' => false,
+                    'status' => 'active',
+                    'created_by' => $admin->id,
+                ]
+            );
+
             Budget::updateOrCreate(
                 ['school_id' => $school->id, 'name' => 'Operations Budget ' . now()->year, 'fiscal_year' => (string) now()->year],
                 [

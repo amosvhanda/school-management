@@ -42,6 +42,8 @@ class DemoDataSeeder extends Seeder
             TestResultSeeder::class,
             ErpModulesSeeder::class,
             OperationsSeeder::class,
+            SchoolTripSeeder::class,
+            AuditTrailSeeder::class,
             EnterpriseModulesSeeder::class,
             PlatformFeaturesSeeder::class,
             WorkflowSeeder::class,

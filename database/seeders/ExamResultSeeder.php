@@ -49,6 +49,18 @@ class ExamResultSeeder extends Seeder
                     );
                 }
             }
+
+            // Ensure parents and students can see a solid set of published results.
+            Exam::query()
+                ->where('school_id', $school->id)
+                ->where(function ($query) {
+                    $query->where('name', 'like', 'Mid-Term%')
+                        ->orWhere('name', 'like', 'Final%');
+                })
+                ->update([
+                    'is_published' => true,
+                    'results_approved_at' => now()->subDays(2),
+                ]);
         }
     }
 
