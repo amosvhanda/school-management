@@ -11,6 +11,7 @@ use App\Http\Controllers\Api\V1\LicenseController;
 use App\Http\Controllers\Api\V1\ProfileController;
 use App\Http\Controllers\Api\V1\SchoolController;
 use App\Http\Controllers\Api\V1\SettingsController;
+use App\Http\Controllers\Api\V1\TeacherPortalController;
 use App\Http\Controllers\Api\V1\UploadController;
 use App\Http\Controllers\AssetController;
 use App\Http\Controllers\AssignmentController;
@@ -138,6 +139,65 @@ Route::middleware(['auth:sanctum', 'school.isolated', 'school.licensed'])->group
 
     // Generic staff file upload (resources, homework, avatars, report cards).
     Route::post('/uploads', [UploadController::class, 'store']);
+
+    // Teacher portal (scoped to the authenticated teacher).
+    Route::prefix('teacher-portal')->group(function () {
+        Route::get('/dashboard', [TeacherPortalController::class, 'dashboard']);
+        Route::get('/classes', [TeacherPortalController::class, 'myClasses']);
+        Route::get('/students/{studentId}', [TeacherPortalController::class, 'classStudentDetail']);
+
+        Route::post('/attendance/submit', [TeacherPortalController::class, 'submitAttendance']);
+        Route::post('/attendance/lock', [TeacherPortalController::class, 'lockAttendance']);
+        Route::get('/attendance/reports', [TeacherPortalController::class, 'attendanceReports']);
+
+        Route::get('/timetable/free-periods', [TeacherPortalController::class, 'freePeriods']);
+        Route::get('/timetable/exams', [TeacherPortalController::class, 'examTimetable']);
+        Route::get('/timetable/change-requests', [TeacherPortalController::class, 'timetableChangeRequests']);
+        Route::post('/timetable/change-requests', [TeacherPortalController::class, 'storeTimetableChangeRequest']);
+
+        Route::get('/calendar', [TeacherPortalController::class, 'calendar']);
+
+        Route::get('/lesson-plans', [TeacherPortalController::class, 'lessonPlans']);
+        Route::post('/lesson-plans', [TeacherPortalController::class, 'storeLessonPlan']);
+        Route::put('/lesson-plans/{id}', [TeacherPortalController::class, 'updateLessonPlan']);
+
+        Route::get('/syllabus-topics', [TeacherPortalController::class, 'syllabusTopics']);
+        Route::post('/syllabus-topics', [TeacherPortalController::class, 'storeSyllabusTopic']);
+        Route::put('/syllabus-topics/{id}', [TeacherPortalController::class, 'updateSyllabusTopic']);
+
+        Route::get('/resources', [TeacherPortalController::class, 'resources']);
+        Route::post('/resources', [TeacherPortalController::class, 'storeResource']);
+
+        Route::get('/assignments/{assignmentId}/submissions', [TeacherPortalController::class, 'assignmentSubmissions']);
+        Route::post('/submissions', [TeacherPortalController::class, 'storeSubmission']);
+        Route::post('/submissions/{id}/grade', [TeacherPortalController::class, 'gradeSubmission']);
+
+        Route::get('/online-lessons', [TeacherPortalController::class, 'onlineLessons']);
+        Route::post('/online-lessons', [TeacherPortalController::class, 'storeOnlineLesson']);
+
+        Route::get('/report-cards', [TeacherPortalController::class, 'reportCards']);
+        Route::post('/report-cards', [TeacherPortalController::class, 'storeReportCard']);
+
+        Route::get('/behaviour', [TeacherPortalController::class, 'behaviourPoints']);
+        Route::post('/behaviour', [TeacherPortalController::class, 'storeBehaviourPoint']);
+        Route::get('/interventions', [TeacherPortalController::class, 'interventions']);
+        Route::post('/interventions', [TeacherPortalController::class, 'storeIntervention']);
+        Route::get('/participation', [TeacherPortalController::class, 'participation']);
+        Route::post('/participation', [TeacherPortalController::class, 'storeParticipation']);
+
+        Route::get('/department', [TeacherPortalController::class, 'department']);
+        Route::get('/leave', [TeacherPortalController::class, 'myLeave']);
+        Route::post('/leave', [TeacherPortalController::class, 'applyLeave']);
+        Route::get('/substitutions', [TeacherPortalController::class, 'substitutions']);
+        Route::post('/substitutions/{id}/accept', [TeacherPortalController::class, 'acceptSubstitution']);
+
+        Route::get('/notifications', [TeacherPortalController::class, 'notifications']);
+        Route::post('/notifications/{id}/read', [TeacherPortalController::class, 'markNotificationRead']);
+        Route::post('/notifications/read-all', [TeacherPortalController::class, 'markAllNotificationsRead']);
+
+        Route::post('/ai/generate', [TeacherPortalController::class, 'aiGenerate']);
+        Route::get('/export', [TeacherPortalController::class, 'export']);
+    });
 
     // School
     Route::get('/school', [SchoolController::class, 'show']);

@@ -64,6 +64,77 @@ export const uploadsApi = {
   },
 }
 
+export const teacherPortalApi = {
+  dashboard: () => fetchOne(e.teacherPortal.dashboard),
+  classes: () => fetchOne(e.teacherPortal.classes),
+  student: (id: number | string) => fetchOne(e.teacherPortal.student(id)),
+  submitAttendance: (payload: Record<string, unknown>) =>
+    postRecord(e.teacherPortal.attendanceSubmit, payload),
+  lockAttendance: (payload: Record<string, unknown>) =>
+    postRecord(e.teacherPortal.attendanceLock, payload),
+  attendanceReports: (params?: ListQueryParams) =>
+    fetchOne(e.teacherPortal.attendanceReports, params),
+  freePeriods: () => fetchOne(e.teacherPortal.freePeriods),
+  examTimetable: () => fetchOne(e.teacherPortal.examTimetable),
+  timetableChangeRequests: () => fetchOne(e.teacherPortal.timetableChangeRequests),
+  requestTimetableChange: (payload: Record<string, unknown>) =>
+    postRecord(e.teacherPortal.timetableChangeRequests, payload),
+  calendar: () => fetchOne(e.teacherPortal.calendar),
+  lessonPlans: () => fetchOne(e.teacherPortal.lessonPlans),
+  createLessonPlan: (payload: Record<string, unknown>) =>
+    postRecord(e.teacherPortal.lessonPlans, payload),
+  updateLessonPlan: (id: number | string, payload: Record<string, unknown>) =>
+    updateRecord(e.teacherPortal.lessonPlan(id), payload),
+  syllabusTopics: (params?: ListQueryParams) =>
+    fetchOne(e.teacherPortal.syllabusTopics, params),
+  createSyllabusTopic: (payload: Record<string, unknown>) =>
+    postRecord(e.teacherPortal.syllabusTopics, payload),
+  updateSyllabusTopic: (id: number | string, payload: Record<string, unknown>) =>
+    updateRecord(e.teacherPortal.syllabusTopic(id), payload),
+  resources: (params?: ListQueryParams) => fetchOne(e.teacherPortal.resources, params),
+  createResource: (payload: Record<string, unknown>) =>
+    postRecord(e.teacherPortal.resources, payload),
+  submissions: (assignmentId: number | string) =>
+    fetchOne(e.teacherPortal.submissions(assignmentId)),
+  storeSubmission: (payload: Record<string, unknown>) =>
+    postRecord(e.teacherPortal.storeSubmission, payload),
+  gradeSubmission: (id: number | string, payload: Record<string, unknown>) =>
+    postRecord(e.teacherPortal.gradeSubmission(id), payload),
+  onlineLessons: () => fetchOne(e.teacherPortal.onlineLessons),
+  createOnlineLesson: (payload: Record<string, unknown>) =>
+    postRecord(e.teacherPortal.onlineLessons, payload),
+  reportCards: () => fetchOne(e.teacherPortal.reportCards),
+  saveReportCard: (payload: Record<string, unknown>) =>
+    postRecord(e.teacherPortal.reportCards, payload),
+  behaviour: (params?: ListQueryParams) => fetchOne(e.teacherPortal.behaviour, params),
+  recordBehaviour: (payload: Record<string, unknown>) =>
+    postRecord(e.teacherPortal.behaviour, payload),
+  interventions: () => fetchOne(e.teacherPortal.interventions),
+  createIntervention: (payload: Record<string, unknown>) =>
+    postRecord(e.teacherPortal.interventions, payload),
+  participation: () => fetchOne(e.teacherPortal.participation),
+  recordParticipation: (payload: Record<string, unknown>) =>
+    postRecord(e.teacherPortal.participation, payload),
+  department: () => fetchOne(e.teacherPortal.department),
+  leave: () => fetchOne(e.teacherPortal.leave),
+  applyLeave: (payload: Record<string, unknown>) => postRecord(e.teacherPortal.leave, payload),
+  substitutions: () => fetchOne(e.teacherPortal.substitutions),
+  acceptSubstitution: (id: number | string) =>
+    postRecord(e.teacherPortal.acceptSubstitution(id), {}),
+  notifications: () => fetchOne(e.teacherPortal.notifications),
+  markNotificationRead: (id: number | string) =>
+    postRecord(e.teacherPortal.markNotificationRead(id), {}),
+  markAllNotificationsRead: () => postRecord(e.teacherPortal.markAllNotificationsRead, {}),
+  aiGenerate: (payload: Record<string, unknown>) =>
+    postRecord(e.teacherPortal.aiGenerate, payload),
+  exportUrl: (params: Record<string, string | number>) => {
+    const qs = new URLSearchParams(
+      Object.entries(params).map(([k, v]) => [k, String(v)]),
+    ).toString()
+    return `${e.teacherPortal.export}?${qs}`
+  },
+}
+
 export const studentsApi = {
   ...crud(e.students.list, e.students.detail),
   promote: (payload: Record<string, unknown>) => postRecord(e.students.promote, payload),

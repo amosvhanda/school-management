@@ -26,14 +26,15 @@ class Assignment extends Model
         'submissions_count',
         'instructions',
         'attachment_url',
+        'submission_type',
     ];
 
     protected function casts(): array
     {
         return [
-        'due_date' => 'date',
-        'total_marks' => 'decimal:2',
-    ];
+            'due_date' => 'date',
+            'total_marks' => 'decimal:2',
+        ];
     }
 
     public function classModel(): BelongsTo

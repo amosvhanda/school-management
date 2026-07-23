@@ -218,6 +218,12 @@ export const staffRoutes: RouteRecordRaw[] = [
     component: () => import('@/modules/academics/views/AttendanceRegisterView.vue'),
     meta: { capability: 'canManageStudents' },
   },
+  {
+    path: 'teaching',
+    name: 'teaching',
+    component: () => import('@/modules/teaching/views/TeachingHubView.vue'),
+    meta: { capability: 'isStaff', roles: ['teacher', 'admin', 'school_admin'] },
+  },
   staffListRoute('academics/holiday-programs', 'academics-holiday-programs', 'academics-holiday-programs', 'canManageTeachers'),
   {
     path: 'finance',

@@ -37,7 +37,7 @@ import { canShowDashboardItem } from '@/lib/dashboard-access'
 import { getDashboardModuleGroupsForVariant, getRoleDashboardMeta } from '@/lib/role-dashboard'
 import DashboardModulesGrid from '@/components/dashboard/DashboardModulesGrid.vue'
 import { useRouter } from 'vue-router'
-import { academicsApi, teachersApi } from '@/services/api.service'
+import { academicsApi, teachersApi, teacherPortalApi } from '@/services/api.service'
 import { fetchList } from '@/services/dashboard.service'
 import { moduleEndpoints } from '@/services'
 import { api } from '@/lib/api'
@@ -125,6 +125,13 @@ const todayLessons = ref<LessonRow[]>([])
 const recentGrades = ref<GradeRow[]>([])
 const workItems = ref<WorkRow[]>([])
 const pendingGrades = ref(0)
+const portalExtras = ref<{
+  pending_attendance_classes?: number
+  upcoming_exams?: Array<{ id: number; name?: string; exam_date?: string }>
+  announcements?: Array<{ id: number; title?: string; created_at?: string }>
+  unread_notifications?: number
+  workload?: { lesson_plans_draft?: number; assignments_open?: number; submissions_to_grade?: number }
+} | null>(null)
 
 const heroName = computed(() => teacher.value?.name || user.value?.name || 'Teacher')
 
@@ -174,6 +181,15 @@ const overviewCards = computed<MetricCard[]>(() => [
     capability: ['canManageExaminations', 'canEnterExamResults'],
     accent: pendingGrades.value > 0 ? 'warning' : undefined,
   },
+  {
+    title: 'Pending attendance',
+    value: portalExtras.value?.pending_attendance_classes ?? 0,
+    subtitle: 'Classes without today’s register',
+    icon: ClipboardCheck,
+    href: '/academics/attendance',
+    capability: 'canManageStudents',
+    accent: (portalExtras.value?.pending_attendance_classes ?? 0) > 0 ? 'warning' : undefined,
+  },
 ])
 
 const quickActions = computed(() => {
@@ -198,6 +214,13 @@ const quickActions = computed(() => {
       icon: GraduationCap,
       primary: false,
       capability: 'canEnterExamResults' as const,
+    },
+    {
+      label: 'Teaching workspace',
+      href: '/teaching',
+      icon: BookOpen,
+      primary: false,
+      capability: 'isStaff' as const,
     },
     {
       label: 'Message Class',
@@ -324,7 +347,7 @@ async function load() {
       teacher.value = { name: user.value?.name }
     }
 
-    const [assignments, timetableRes, assignmentList, testList] = await Promise.all([
+    const [assignments, timetableRes, assignmentList, testList, portal] = await Promise.all([
       teacherId
         ? (academicsApi.teacherAssignments.list({
             teacher_id: teacherId,
@@ -337,7 +360,9 @@ async function load() {
       teacherId
         ? (academicsApi.tests.list({ teacher_id: teacherId, limit: 20 }) as Promise<Record<string, unknown>[]>).catch(() => [])
         : Promise.resolve([]),
+      teacherPortalApi.dashboard().catch(() => null),
     ])
+    portalExtras.value = portal as typeof portalExtras.value
 
     const activeAssignments = assignments.filter((a) => a.is_active !== false && a.class_id)
     const classMap = new Map<number, ClassCard>()
@@ -503,6 +528,55 @@ onMounted(load)
         description="Your classes, learners, and today’s teaching load"
         :cards="overviewCards"
       />
+
+      <section
+        v-if="portalExtras"
+        class="grid gap-4 lg:grid-cols-3"
+        aria-label="Announcements, exams, and workload"
+      >
+        <Card class="border-border/70 shadow-sm">
+          <CardHeader>
+            <CardTitle class="text-base">School announcements</CardTitle>
+            <CardDescription>Latest notices for staff.</CardDescription>
+          </CardHeader>
+          <CardContent class="space-y-2 text-sm">
+            <p v-if="!(portalExtras.announcements || []).length" class="text-muted-foreground">No announcements.</p>
+            <div v-for="a in portalExtras.announcements || []" :key="a.id" class="rounded-lg border border-border/60 px-3 py-2">
+              <p class="font-medium">{{ a.title }}</p>
+            </div>
+            <Button variant="outline" size="sm" as-child class="mt-2">
+              <RouterLink to="/teaching?tab=notifications">
+                Notifications ({{ portalExtras.unread_notifications ?? 0 }} unread)
+              </RouterLink>
+            </Button>
+          </CardContent>
+        </Card>
+        <Card class="border-border/70 shadow-sm">
+          <CardHeader>
+            <CardTitle class="text-base">Upcoming examinations</CardTitle>
+          </CardHeader>
+          <CardContent class="space-y-2 text-sm">
+            <p v-if="!(portalExtras.upcoming_exams || []).length" class="text-muted-foreground">No upcoming exams.</p>
+            <div v-for="e in portalExtras.upcoming_exams || []" :key="e.id" class="rounded-lg border border-border/60 px-3 py-2">
+              <p class="font-medium">{{ e.name }}</p>
+              <p class="text-muted-foreground">{{ e.exam_date }}</p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card class="border-border/70 shadow-sm">
+          <CardHeader>
+            <CardTitle class="text-base">Teaching workload</CardTitle>
+          </CardHeader>
+          <CardContent class="space-y-2 text-sm">
+            <p>Draft lesson plans: {{ portalExtras.workload?.lesson_plans_draft ?? 0 }}</p>
+            <p>Open assignments: {{ portalExtras.workload?.assignments_open ?? 0 }}</p>
+            <p>Submissions to grade: {{ portalExtras.workload?.submissions_to_grade ?? 0 }}</p>
+            <Button size="sm" as-child class="mt-2">
+              <RouterLink to="/teaching">Open teaching workspace</RouterLink>
+            </Button>
+          </CardContent>
+        </Card>
+      </section>
 
       <section class="grid gap-6 lg:grid-cols-2" aria-label="Classes and lessons">
         <Card class="border-border/70 shadow-sm">

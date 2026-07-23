@@ -9,6 +9,8 @@ import {
   CheckCircle2,
   Clock,
   Copy,
+  DoorOpen,
+  Lock,
   Save,
   Search,
   Thermometer,
@@ -48,13 +50,13 @@ import { useAuth } from '@/composables/useAuth'
 import { getErrorMessage } from '@/lib/api-response'
 import { formatDate, formatDateTime } from '@/lib/format'
 import { cn } from '@/lib/utils'
-import { academicsApi, complianceApi, reportsApi } from '@/services/api.service'
+import { academicsApi, complianceApi, reportsApi, teacherPortalApi } from '@/services/api.service'
 import { fetchAnalyticsInsights, fetchList } from '@/services/dashboard.service'
 import { moduleEndpoints } from '@/services'
 import type { ListQueryParams } from '@/types/api'
 import type { AttendanceReport } from '@/modules/analytics/types/academics-analytics'
 
-type AttendanceStatus = 'present' | 'absent' | 'late' | 'excused' | 'sick'
+type AttendanceStatus = 'present' | 'absent' | 'late' | 'excused' | 'sick' | 'left_early'
 type MarkStatus = AttendanceStatus | 'unmarked'
 type SortKey = 'name' | 'id' | 'status'
 type StatusFilter = 'all' | MarkStatus
@@ -138,6 +140,12 @@ const MARK_OPTIONS: {
     activeClass: 'border-rose-500 bg-rose-500 text-white hover:bg-rose-500/90',
   },
   {
+    value: 'left_early',
+    label: 'Left early',
+    icon: DoorOpen,
+    activeClass: 'border-violet-600 bg-violet-600 text-white hover:bg-violet-600/90',
+  },
+  {
     value: 'absent',
     label: 'Absent',
     icon: X,
@@ -190,8 +198,9 @@ const stats = computed(() => {
   const late = registerRows.value.filter((r) => r.status === 'late').length
   const excused = registerRows.value.filter((r) => r.status === 'excused').length
   const sick = registerRows.value.filter((r) => r.status === 'sick').length
+  const leftEarly = registerRows.value.filter((r) => r.status === 'left_early').length
   const unmarked = registerRows.value.filter((r) => r.status === 'unmarked').length
-  const marked = present + absent + late + excused + sick
+  const marked = present + absent + late + excused + sick + leftEarly
   const pct = (n: number) => (total > 0 ? Math.round((n / total) * 100) : 0)
 
   return {
@@ -201,6 +210,7 @@ const stats = computed(() => {
     late,
     excused,
     sick,
+    leftEarly,
     unmarked,
     marked,
     presentPct: pct(present),
@@ -208,6 +218,7 @@ const stats = computed(() => {
     latePct: pct(late),
     excusedPct: pct(excused),
     sickPct: pct(sick),
+    leftEarlyPct: pct(leftEarly),
     progressPct: pct(marked),
   }
 })
@@ -277,6 +288,8 @@ function statusBadgeVariant(status: AttendanceStatus) {
       return 'outline' as const
     case 'sick':
       return 'destructive' as const
+    case 'left_early':
+      return 'outline' as const
     default:
       return 'secondary' as const
   }
@@ -560,6 +573,7 @@ async function saveRegister() {
         status: row.status,
         remarks: row.remarks.trim() || null,
         time: row.status === 'late' && row.time_in ? row.time_in : null,
+        subject_id: null,
       })),
     })
     registerDirty.value = false
@@ -569,6 +583,32 @@ async function saveRegister() {
     toast.error('Save failed', { description: getErrorMessage(err) })
   } finally {
     saving.value = false
+  }
+}
+
+async function submitRegister() {
+  if (!selectedClassId.value) return
+  try {
+    await teacherPortalApi.submitAttendance({
+      class_id: Number(selectedClassId.value),
+      date: registerDate.value,
+    })
+    toast.success('Attendance submitted')
+  } catch (err) {
+    toast.error('Submit failed', { description: getErrorMessage(err) })
+  }
+}
+
+async function lockRegister() {
+  if (!selectedClassId.value) return
+  try {
+    await teacherPortalApi.lockAttendance({
+      class_id: Number(selectedClassId.value),
+      date: registerDate.value,
+    })
+    toast.success('Attendance locked')
+  } catch (err) {
+    toast.error('Lock failed', { description: getErrorMessage(err) })
   }
 }
 
@@ -618,6 +658,22 @@ onMounted(async () => {
       >
         <Save class="mr-2 size-4" aria-hidden="true" />
         {{ saving ? 'Saving…' : 'Save register' }}
+      </Button>
+      <Button
+        variant="outline"
+        :disabled="!selectedClassId || !registerRows.length"
+        @click="submitRegister"
+      >
+        <CheckCircle2 class="mr-2 size-4" aria-hidden="true" />
+        Submit
+      </Button>
+      <Button
+        variant="outline"
+        :disabled="!selectedClassId || !registerRows.length"
+        @click="lockRegister"
+      >
+        <Lock class="mr-2 size-4" aria-hidden="true" />
+        Lock
       </Button>
     </template>
 
@@ -728,6 +784,7 @@ onMounted(async () => {
                 <SelectItem value="late">Late</SelectItem>
                 <SelectItem value="excused">Excused</SelectItem>
                 <SelectItem value="sick">Sick</SelectItem>
+                <SelectItem value="left_early">Left early</SelectItem>
                 <SelectItem value="absent">Absent</SelectItem>
                 <SelectItem value="unmarked">Unmarked</SelectItem>
               </SelectContent>

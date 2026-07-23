@@ -20,6 +20,7 @@ export const staffNavigation: NavGroup[] = [
     label: 'Academics',
     items: [
       { title: 'Analytics', href: '/academics/analytics', icon: 'BarChart3', capability: ['canManageTeachers', 'canManageStudents', 'canEnterExamResults'] },
+      { title: 'Teaching workspace', href: '/teaching', icon: 'BookOpen', capability: 'isStaff' },
       { title: 'Gradebook', href: '/academics/grades', icon: 'NotebookPen', capability: ['canManageExaminations', 'canEnterExamResults'] },
       { title: 'Attendance', href: '/academics/attendance', icon: 'ClipboardCheck', capability: 'canManageStudents' },
       { title: 'Exams', href: '/academics/exams', icon: 'FileText', capability: ['canManageExaminations', 'canEnterExamResults'] },
@@ -85,11 +86,13 @@ export const teacherNavigation: NavGroup[] = [
         capability: ['canManageTeachers', 'canManageStudents', 'canEnterExamResults'],
         roles: ['teacher'],
       },
+      { title: 'My profile', href: '/profile', icon: 'UserCog', capability: 'isStaff', roles: ['teacher'] },
     ],
   },
   {
     label: 'Teaching',
     items: [
+      { title: 'Teaching workspace', href: '/teaching', icon: 'BookOpen', capability: 'isStaff', roles: ['teacher'] },
       { title: 'My timetable', href: '/academics/my-timetable', icon: 'CalendarDays', roles: ['teacher'] },
       { title: 'Attendance', href: '/academics/attendance', icon: 'ClipboardCheck', capability: 'canManageStudents', roles: ['teacher'] },
       { title: 'Gradebook', href: '/academics/grades', icon: 'NotebookPen', capability: ['canManageExaminations', 'canEnterExamResults'], roles: ['teacher'] },

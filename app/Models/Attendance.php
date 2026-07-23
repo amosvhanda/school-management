@@ -29,17 +29,22 @@ class Attendance extends Model
         'lesson_type',
         'parent_notified',
         'notification_sent_at',
+        'submitted_at',
+        'locked_at',
+        'locked_by',
     ];
 
     protected function casts(): array
     {
         return [
-        'date' => 'date',
-        'time_in' => 'datetime',
-        'time_out' => 'datetime',
-        'parent_notified' => 'boolean',
-        'notification_sent_at' => 'datetime',
-    ];
+            'date' => 'date',
+            'time_in' => 'datetime',
+            'time_out' => 'datetime',
+            'parent_notified' => 'boolean',
+            'notification_sent_at' => 'datetime',
+            'submitted_at' => 'datetime',
+            'locked_at' => 'datetime',
+        ];
     }
 
     public function student(): BelongsTo
