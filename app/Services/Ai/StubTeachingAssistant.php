@@ -44,11 +44,11 @@ class StubTeachingAssistant implements TeachingAssistant
                 $this->activities($topic),
             ],
             'class_analysis' => [
-                "Class performance analysis",
+                'Class performance analysis',
                 $this->classAnalysis($context),
             ],
             'interventions' => [
-                "Recommended interventions",
+                'Recommended interventions',
                 $this->interventions($context),
             ],
             'student_comment' => [
