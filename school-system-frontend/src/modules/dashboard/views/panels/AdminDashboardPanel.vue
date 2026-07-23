@@ -9,16 +9,17 @@ import {
 } from '@lucide/vue'
 import DashboardHero from '@/components/dashboard/DashboardHero.vue'
 import RoleQuickActions from '@/components/dashboard/RoleQuickActions.vue'
+import DashboardModulesGrid from '@/components/dashboard/DashboardModulesGrid.vue'
 import DashboardSkeleton from '@/components/dashboard/DashboardSkeleton.vue'
 import MetricBand from '@/components/dashboard/MetricBand.vue'
+import type { MetricCard } from '@/components/dashboard/MetricBand.vue'
 import ErrorState from '@/components/feedback/ErrorState.vue'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { useAuth } from '@/composables/useAuth'
 import { useStaffDashboard } from '@/composables/useStaffDashboard'
-import type { MetricCard } from '@/components/dashboard/MetricBand.vue'
 import { lazy } from '@/lib/lazy'
-import { getRoleDashboardMeta } from '@/lib/role-dashboard'
+import { getDashboardModuleGroupsForVariant, getRoleDashboardMeta } from '@/lib/role-dashboard'
 
 const AttendancePanel = lazy(() => import('@/components/dashboard/AttendancePanel.vue'))
 const PayrollPanel = lazy(() => import('@/components/dashboard/PayrollPanel.vue'))
@@ -41,7 +42,8 @@ const overviewCards = computed<MetricCard[]>(() => [
     subtitle: `${kpis.value?.totalStudents ?? 0} enrolled · ${kpis.value?.totalClasses ?? 0} classes`,
     icon: GraduationCap,
     trend: kpis.value?.studentsGrowth ?? 0,
-    href: '/students',
+    href: '/people?tab=students',
+    capability: 'canManageStudents',
   },
   {
     title: 'Teaching staff',
@@ -49,7 +51,8 @@ const overviewCards = computed<MetricCard[]>(() => [
     subtitle: `${kpis.value?.totalParents ?? 0} parents on file`,
     icon: Users,
     trend: kpis.value?.usersChange ?? 0,
-    href: '/teachers',
+    href: '/people?tab=teachers',
+    capability: 'canManageTeachers',
   },
   {
     title: 'Outstanding fees',
@@ -58,7 +61,8 @@ const overviewCards = computed<MetricCard[]>(() => [
     icon: DollarSign,
     accent: 'danger' as const,
     trend: kpis.value?.paymentsGrowth ?? 0,
-    href: '/finance/invoices',
+    href: '/finance?tab=invoices',
+    capability: 'canManageFinance',
   },
   {
     title: 'Pending enrollments',
@@ -66,7 +70,8 @@ const overviewCards = computed<MetricCard[]>(() => [
     subtitle: `${kpis.value?.pendingLeaveRequests ?? 0} leave requests waiting`,
     icon: ClipboardList,
     accent: (kpis.value?.pendingEnrollments ?? 0) > 0 ? 'warning' as const : undefined,
-    href: '/enrollment',
+    href: '/people?tab=enrollment',
+    capability: 'canManageStudents',
   },
 ])
 
@@ -114,7 +119,17 @@ onMounted(refresh)
 
       <RoleQuickActions variant="admin" />
 
-      <section class="space-y-4" aria-labelledby="ops-title">
+      <DashboardModulesGrid
+        :groups="getDashboardModuleGroupsForVariant('admin')"
+        title="Your modules"
+        description="Areas available for your administrator profile"
+      />
+
+      <section
+        v-if="checkCapability('canManageStudents') || checkCapability('canManageFinance')"
+        class="space-y-4"
+        aria-labelledby="ops-title"
+      >
         <div class="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <h2 id="ops-title" class="text-base font-semibold tracking-tight md:text-lg">
@@ -122,13 +137,13 @@ onMounted(refresh)
             </h2>
             <p class="text-sm text-muted-foreground">Attendance and payroll at a glance</p>
           </div>
-          <Button variant="outline" size="sm" as-child>
+          <Button v-if="checkCapability('canManageFinance')" variant="outline" size="sm" as-child>
             <RouterLink to="/finance">Open finance</RouterLink>
           </Button>
         </div>
         <div class="grid gap-6 lg:grid-cols-2">
-          <AttendancePanel :summary="kpis.attendanceSummary" />
-          <PayrollPanel :summary="kpis.payrollSummary" />
+          <AttendancePanel v-if="checkCapability('canManageStudents')" :summary="kpis.attendanceSummary" />
+          <PayrollPanel v-if="checkCapability('canManageFinance')" :summary="kpis.payrollSummary" />
         </div>
       </section>
 
@@ -149,7 +164,7 @@ onMounted(refresh)
         </div>
       </section>
 
-      <section v-if="commandCenter" class="space-y-4">
+      <section v-if="commandCenter && checkCapability('canManageTeachers')" class="space-y-4">
         <div class="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <h2 class="text-base font-semibold tracking-tight md:text-lg">Executive overview</h2>

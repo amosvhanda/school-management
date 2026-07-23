@@ -15,21 +15,24 @@ import {
   MessageSquare,
   NotebookPen,
   Receipt,
+  ShieldAlert,
   UserPlus,
   Wallet,
 } from '@lucide/vue'
 import type { StaffDashboardVariant } from '@/lib/role-dashboard'
 import { useAuth } from '@/composables/useAuth'
+import { canShowDashboardItem } from '@/lib/dashboard-access'
 import type { NavCapability } from '@/types/navigation'
 import { Card, CardContent } from '@/components/ui/card'
 import DashboardSection from './DashboardSection.vue'
+import { useRouter } from 'vue-router'
 
 interface QuickAction {
   label: string
   description: string
   href: string
   icon: Component
-  capability?: NavCapability
+  capability?: NavCapability | NavCapability[]
   variants: StaffDashboardVariant[]
 }
 
@@ -41,7 +44,7 @@ const allActions: QuickAction[] = [
   {
     label: 'Add student',
     description: 'Register a learner',
-    href: '/students?create=1',
+    href: '/people?tab=students&create=1',
     icon: GraduationCap,
     capability: 'canManageStudents',
     variants: ['admin'],
@@ -49,7 +52,7 @@ const allActions: QuickAction[] = [
   {
     label: 'Enrollment',
     description: 'Review applications',
-    href: '/enrollment',
+    href: '/people?tab=enrollment',
     icon: UserPlus,
     capability: 'canManageStudents',
     variants: ['admin'],
@@ -75,31 +78,40 @@ const allActions: QuickAction[] = [
     description: 'Your teaching schedule',
     href: '/academics/my-timetable',
     icon: CalendarDays,
+    capability: 'isStaff',
     variants: ['teacher'],
   },
   {
-    label: 'Students',
+    label: 'People',
     description: 'Learner records',
-    href: '/students',
+    href: '/people?tab=students',
     icon: GraduationCap,
+    capability: 'canManageStudents',
+    variants: ['teacher'],
+  },
+  {
+    label: 'Discipline',
+    description: 'Student conduct',
+    href: '/hr?tab=discipline',
+    icon: ShieldAlert,
     capability: 'canManageStudents',
     variants: ['teacher'],
   },
   {
     label: 'Messages',
     description: 'Parent & staff threads',
-    href: '/communications/threads',
+    href: '/communications?tab=messages',
     icon: MessageSquare,
     capability: 'isStaff',
-    variants: ['teacher', 'accounts'],
+    variants: ['teacher', 'accounts', 'finance'],
   },
   {
     label: 'Gradebook',
     description: 'Enter marks',
     href: '/academics/grades',
     icon: BookOpen,
-    capability: 'canManageExaminations',
-    variants: ['admin', 'examination_officer'],
+    capability: ['canManageExaminations', 'canEnterExamResults'],
+    variants: ['admin', 'examination_officer', 'teacher'],
   },
   {
     label: 'Enter exam results',
@@ -128,7 +140,7 @@ const allActions: QuickAction[] = [
   {
     label: 'Record payment',
     description: 'Fees & collections',
-    href: '/finance/payments?create=1',
+    href: '/finance?tab=payments&create=1',
     icon: Wallet,
     capability: 'canManageFinance',
     variants: ['admin', 'finance', 'accounts'],
@@ -136,7 +148,7 @@ const allActions: QuickAction[] = [
   {
     label: 'New invoice',
     description: 'Bill a student',
-    href: '/finance/invoices?create=1',
+    href: '/finance?tab=invoices&create=1',
     icon: Receipt,
     capability: 'canManageFinance',
     variants: ['admin', 'finance', 'accounts'],
@@ -152,7 +164,7 @@ const allActions: QuickAction[] = [
   {
     label: 'Payroll',
     description: 'Staff salaries',
-    href: '/finance/payroll',
+    href: '/finance?tab=payroll',
     icon: Banknote,
     capability: 'canManageFinance',
     variants: ['finance', 'accounts'],
@@ -160,7 +172,7 @@ const allActions: QuickAction[] = [
   {
     label: 'Aging report',
     description: 'Outstanding fees',
-    href: '/finance/reports',
+    href: '/finance?tab=aging',
     icon: BarChart3,
     capability: 'canManageFinance',
     variants: ['finance', 'accounts'],
@@ -168,7 +180,7 @@ const allActions: QuickAction[] = [
   {
     label: 'Fee structures',
     description: 'Configure school fees',
-    href: '/finance/fees',
+    href: '/finance?tab=fees',
     icon: Wallet,
     capability: 'canManageFinance',
     variants: ['finance'],
@@ -176,20 +188,36 @@ const allActions: QuickAction[] = [
   {
     label: 'Transactions',
     description: 'Ledger activity',
-    href: '/finance/transactions',
+    href: '/finance?tab=transactions',
     icon: ArrowUpRight,
     capability: 'canManageFinance',
     variants: ['accounts'],
   },
+  {
+    label: 'Audit trail',
+    description: 'System activity log',
+    href: '/hr?tab=audit',
+    icon: BarChart3,
+    capability: 'canViewAuditLogs',
+    variants: ['finance', 'accounts'],
+  },
 ]
 
-const { checkCapability } = useAuth()
+const { user } = useAuth()
+const router = useRouter()
 
 const actions = computed(() =>
   allActions.filter(
     (action) =>
       action.variants.includes(props.variant)
-      && (!action.capability || checkCapability(action.capability)),
+      && canShowDashboardItem(
+        user.value,
+        {
+          href: action.href,
+          capability: action.capability,
+        },
+        router,
+      ),
   ),
 )
 </script>

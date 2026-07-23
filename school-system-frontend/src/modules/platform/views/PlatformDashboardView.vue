@@ -308,6 +308,7 @@ onMounted(load)
         :groups="PLATFORM_DASHBOARD_MODULE_GROUPS"
         title="Platform modules"
         description="All platform administration areas available to super admin"
+        skip-permission-filter
       />
     </template>
   </div>

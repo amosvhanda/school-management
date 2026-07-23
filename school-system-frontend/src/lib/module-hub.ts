@@ -65,12 +65,16 @@ export function redirectToHubTab(
   routeName: string,
   tabId: string,
   defaultTabId = 'overview',
+  extraQuery?: RouteQuery,
 ) {
   return (to: { query: RouteQuery }) =>
     hubLocation(routeName, tabId, defaultTabId, {
       create: typeof to.query.create === 'string' && to.query.create === '1',
-      query: Object.fromEntries(
-        Object.entries(to.query).filter(([key]) => key !== 'tab' && key !== 'create'),
-      ),
+      query: {
+        ...Object.fromEntries(
+          Object.entries(to.query).filter(([key]) => key !== 'tab' && key !== 'create'),
+        ),
+        ...extraQuery,
+      },
     })
 }

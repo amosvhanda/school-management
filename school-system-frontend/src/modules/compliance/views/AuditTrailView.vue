@@ -49,7 +49,13 @@ import type { Paginator } from '@/types/api'
 const route = useRoute()
 const router = useRouter()
 
-const activeTab = ref<'activity' | 'login'>(route.query.tab === 'login' ? 'login' : 'activity')
+/** Use auditView — hub ModuleHub already owns ?tab= for section switching. */
+function auditViewFromQuery(value: unknown): 'activity' | 'login' {
+  const raw = Array.isArray(value) ? value[0] : value
+  return raw === 'login' ? 'login' : 'activity'
+}
+
+const activeTab = ref<'activity' | 'login'>(auditViewFromQuery(route.query.auditView ?? route.query.tab))
 const loading = ref(true)
 const error = ref<string | null>(null)
 const search = ref('')
@@ -126,15 +132,22 @@ const {
 
 watch(activeTab, (tab) => {
   const query = { ...route.query }
-  if (tab === 'login') query.tab = 'login'
-  else delete query.tab
+  // Hub owns ?tab= (e.g. audit). Only clear legacy login marker, never hub section tabs.
+  if (query.tab === 'login') delete query.tab
+  if (tab === 'login') query.auditView = 'login'
+  else delete query.auditView
   void router.replace({ query })
 })
 
 watch(
-  () => route.query.tab,
-  (tab) => {
-    activeTab.value = tab === 'login' ? 'login' : 'activity'
+  () => route.query.auditView,
+  (value) => {
+    // Ignore legacy ?tab=login only when auditView is absent.
+    if (value == null && route.query.tab === 'login') {
+      activeTab.value = 'login'
+      return
+    }
+    activeTab.value = auditViewFromQuery(value)
   },
 )
 

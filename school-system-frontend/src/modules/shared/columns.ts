@@ -844,7 +844,22 @@ export const portalChildColumns: ColumnDef<Record<string, unknown>>[] = [
   textColumn('Student #', 'student_number'),
   textColumn('Class', 'class'),
   currencyColumn('Balance', 'balance'),
-  viewActionColumn('parent-child-detail'),
+  {
+    id: 'actions',
+    header: '',
+    cell: ({ row }) => {
+      const id = row.original.id
+      if (id == null) return null
+      return h(
+        RouterLink,
+        {
+          to: { name: 'parent-child-detail', params: { id: String(id) }, query: { tab: 'progress' } },
+          class: 'text-sm font-medium text-primary hover:underline',
+        },
+        { default: () => 'View progress' },
+      )
+    },
+  },
 ]
 
 export const genericColumns = defaultColumns(['name', 'status', 'created_at'])

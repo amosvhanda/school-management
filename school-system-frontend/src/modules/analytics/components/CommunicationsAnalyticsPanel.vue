@@ -15,6 +15,8 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { formatDateTime } from '@/lib/format'
+import GuardedLink from '@/components/app/GuardedLink.vue'
+import { useRouteAccess } from '@/composables/useRouteAccess'
 import type {
   AnnouncementRow,
   CommunicationThreadRow,
@@ -28,6 +30,10 @@ const props = defineProps<{
   openThreads: number
   activeAnnouncements: number
 }>()
+
+const { canOpen } = useRouteAccess()
+const canOpenThreads = computed(() => canOpen('/communications/threads'))
+const canOpenAnnouncements = computed(() => canOpen('/communications/announcements'))
 
 const recentThreads = computed(() =>
   [...props.threads]
@@ -82,9 +88,10 @@ function threadAssignee(thread: CommunicationThreadRow): string {
             </li>
             <li>
               The thread appears in staff inbox at
-              <RouterLink to="/communications/threads" class="font-medium text-primary underline-offset-4 hover:underline">
+              <GuardedLink to="/communications/threads" class="font-medium text-primary underline-offset-4 hover:underline">
                 Messages
-              </RouterLink>.
+                <template #fallback><span class="font-medium text-foreground">Messages</span></template>
+              </GuardedLink>.
             </li>
             <li>
               When a teacher or admin replies, they are assigned to that thread and the conversation continues in the same thread.
@@ -100,7 +107,7 @@ function threadAssignee(thread: CommunicationThreadRow): string {
               <dd class="text-xl font-semibold">{{ unassignedThreads }}</dd>
             </div>
           </dl>
-          <Button as-child class="w-full sm:w-auto">
+          <Button v-if="canOpenThreads" as-child class="w-full sm:w-auto">
             <RouterLink to="/communications/threads">
               Open staff inbox
               <ArrowRight class="ml-2 h-4 w-4" aria-hidden="true" />
@@ -122,16 +129,17 @@ function threadAssignee(thread: CommunicationThreadRow): string {
         <CardContent class="space-y-4 pt-6">
           <p class="text-sm text-muted-foreground">
             Staff publish announcements from
-            <RouterLink to="/communications/announcements" class="font-medium text-primary underline-offset-4 hover:underline">
+            <GuardedLink to="/communications/announcements" class="font-medium text-primary underline-offset-4 hover:underline">
               Announcements
-            </RouterLink>.
+              <template #fallback><span class="font-medium text-foreground">Announcements</span></template>
+            </GuardedLink>.
             Parents see them in the portal feed; they cannot reply to an announcement directly.
           </p>
           <div class="rounded-lg border p-3">
             <p class="text-sm text-muted-foreground">Active announcements</p>
             <p class="text-xl font-semibold">{{ activeAnnouncements }}</p>
           </div>
-          <Button variant="outline" as-child class="w-full sm:w-auto">
+          <Button v-if="canOpenAnnouncements" variant="outline" as-child class="w-full sm:w-auto">
             <RouterLink to="/communications/announcements">
               Manage announcements
               <ArrowRight class="ml-2 h-4 w-4" aria-hidden="true" />
@@ -166,12 +174,13 @@ function threadAssignee(thread: CommunicationThreadRow): string {
             <TableBody>
               <TableRow v-for="thread in recentThreads" :key="thread.id">
                 <TableCell class="font-medium">
-                  <RouterLink
-                    :to="`/communications/threads`"
+                  <GuardedLink
+                    to="/communications/threads"
                     class="hover:text-primary hover:underline"
                   >
                     {{ thread.subject ?? 'No subject' }}
-                  </RouterLink>
+                    <template #fallback>{{ thread.subject ?? 'No subject' }}</template>
+                  </GuardedLink>
                 </TableCell>
                 <TableCell>{{ threadContact(thread) }}</TableCell>
                 <TableCell>
@@ -194,7 +203,7 @@ function threadAssignee(thread: CommunicationThreadRow): string {
           title="No message threads yet"
           description="Parents start conversations from the portal. Demo data includes a sample thread after seeding."
         >
-          <Button as-child class="mt-2" variant="outline">
+          <Button v-if="canOpenThreads" as-child class="mt-2" variant="outline">
             <RouterLink to="/communications/threads">Open inbox</RouterLink>
           </Button>
         </EmptyState>
@@ -229,7 +238,7 @@ function threadAssignee(thread: CommunicationThreadRow): string {
           title="No announcements yet"
           description="Publish a school-wide or class announcement for parents to read in the portal."
         >
-          <Button as-child class="mt-2" variant="outline">
+          <Button v-if="canOpenAnnouncements" as-child class="mt-2" variant="outline">
             <RouterLink to="/communications/announcements">Create announcement</RouterLink>
           </Button>
         </EmptyState>

@@ -19,7 +19,7 @@ import RelationSelect from './RelationSelect.vue'
 import { formFieldsAnimateOptions } from '@/lib/form-standards'
 import { guardianRelationshipOptions } from '@/modules/guardians/guardian-form'
 import { moduleEndpoints } from '@/services'
-import type { FormFieldSchema } from './useFormBuilder'
+import type { FormFieldSchema } from './useFormBuilder.ts'
 
 type GuardianMode = 'existing' | 'new' | 'none'
 

@@ -1,13 +1,13 @@
 import { createPinia } from 'pinia'
 import { createApp } from 'vue'
-import { bootstrapTheme } from './lib/theme'
-import { configureRequestProgress } from './lib/request-progress'
-import { useNotificationStore } from './stores/notification.store'
+import { bootstrapTheme } from './lib/theme.ts'
+import { configureRequestProgress } from './lib/request-progress.ts'
+import { useNotificationStore } from './stores/notification.store.ts'
 import './style.css'
 import App from './App.vue'
-import router from './app/router'
-import { installAutoAnimate } from './plugins/auto-animate'
-import { installVueQuery } from './plugins/vue-query'
+import router from './app/router/index.ts'
+import { installAutoAnimate } from './plugins/auto-animate.ts'
+import { installVueQuery } from './plugins/vue-query.ts'
 
 bootstrapTheme()
 configureRequestProgress()

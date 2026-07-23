@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { RouterLink } from 'vue-router'
 import type { DashboardKpis } from '@/types/dashboard'
 import { Card, CardContent } from '@/components/ui/card'
+import GuardedLink from '@/components/app/GuardedLink.vue'
 import DashboardSection from './DashboardSection.vue'
 
 defineProps<{ kpis: DashboardKpis }>()
@@ -39,7 +39,7 @@ defineProps<{ kpis: DashboardKpis }>()
           <p class="mt-1 text-2xl font-semibold tracking-tight tabular-nums">{{ kpis.totalActivity }}</p>
         </CardContent>
       </Card>
-      <RouterLink
+      <GuardedLink
         to="/enrollment"
         class="rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
@@ -49,8 +49,8 @@ defineProps<{ kpis: DashboardKpis }>()
             <p class="mt-1 text-2xl font-semibold tracking-tight tabular-nums">{{ kpis.pendingEnrollments ?? 0 }}</p>
           </CardContent>
         </Card>
-      </RouterLink>
-      <RouterLink
+      </GuardedLink>
+      <GuardedLink
         to="/hr/leave"
         class="rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
@@ -60,7 +60,7 @@ defineProps<{ kpis: DashboardKpis }>()
             <p class="mt-1 text-2xl font-semibold tracking-tight tabular-nums">{{ kpis.pendingLeaveRequests ?? 0 }}</p>
           </CardContent>
         </Card>
-      </RouterLink>
+      </GuardedLink>
     </div>
   </section>
 </template>

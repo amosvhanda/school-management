@@ -1,4 +1,4 @@
-import { Palmtree, Scale, ScrollText, ShieldAlert } from '@lucide/vue'
+import { FileCheck, Palmtree, Scale, ScrollText, ShieldAlert, TriangleAlert } from '@lucide/vue'
 import type { ModuleHubTab } from '@/lib/module-hub'
 
 export const HR_HUB_TABS: ModuleHubTab[] = [
@@ -25,6 +25,23 @@ export const HR_HUB_TABS: ModuleHubTab[] = [
     icon: Scale,
     capability: 'canManageTeachers',
     listKey: 'compliance',
+  },
+  {
+    id: 'incidents',
+    title: 'Incidents',
+    description: 'Compliance incidents and follow-up.',
+    icon: TriangleAlert,
+    capability: 'canManageTeachers',
+    listKey: 'compliance-incidents',
+  },
+  {
+    id: 'consent',
+    title: 'Consent',
+    description: 'Consent forms for students and guardians.',
+    icon: FileCheck,
+    // School-wide consent admin — not class teachers.
+    capability: 'canManageTeachers',
+    listKey: 'compliance-consent',
   },
   {
     id: 'audit',

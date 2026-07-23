@@ -410,6 +410,7 @@ onMounted(loadStudentPortal)
         :groups="STUDENT_DASHBOARD_MODULE_GROUPS"
         title="My modules"
         description="Jump to performance, attendance, exams, and fees"
+        skip-permission-filter
       />
     </template>
 

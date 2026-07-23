@@ -1,11 +1,13 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import { RouterLink } from 'vue-router'
 import type { Component } from 'vue'
 import { Card, CardFooter, CardHeader } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
+import { useRouteAccess } from '@/composables/useRouteAccess'
 import TrendBadge from '@/components/dashboard/TrendBadge.vue'
 
-defineProps<{
+const props = defineProps<{
   title: string
   value: string | number
   subtitle?: string
@@ -15,6 +17,12 @@ defineProps<{
   accent?: 'default' | 'success' | 'warning' | 'danger'
   href?: string
 }>()
+
+const { canOpen } = useRouteAccess()
+
+// Only linkify when the target route is actually reachable; otherwise keep the
+// KPI visible but non-interactive instead of leading users to "Access denied".
+const linkTo = computed(() => (props.href && canOpen(props.href) ? props.href : undefined))
 
 const accentClasses = {
   default: 'bg-primary/10 text-primary',
@@ -26,8 +34,8 @@ const accentClasses = {
 
 <template>
   <component
-    :is="href ? RouterLink : 'div'"
-    :to="href"
+    :is="linkTo ? RouterLink : 'div'"
+    :to="linkTo"
     class="block h-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background rounded-xl"
     :aria-label="`${title}: ${value}`"
   >

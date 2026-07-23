@@ -23,7 +23,8 @@ export const PEOPLE_HUB_TABS: ModuleHubTab[] = [
     title: 'Guardians',
     description: 'Parents and emergency contacts.',
     icon: UserCheck,
-    capability: 'canManageStudents',
+    // Office/admin function — teachers manage student records only, not guardians.
+    capability: 'canManageTeachers',
     listKey: 'guardians',
   },
   {
@@ -31,7 +32,8 @@ export const PEOPLE_HUB_TABS: ModuleHubTab[] = [
     title: 'Enrollment',
     description: 'Applications and intake pipeline.',
     icon: ClipboardList,
-    capability: 'canManageStudents',
+    // Office/admin function — not part of a teacher's remit.
+    capability: 'canManageTeachers',
     component: () => import('@/modules/enrollment/views/EnrollmentView.vue'),
   },
 ]

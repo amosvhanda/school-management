@@ -6,7 +6,6 @@ import {
   CalendarDays,
   ClipboardCheck,
   Eye,
-  FileText,
   GraduationCap,
   MessageSquare,
   NotebookPen,
@@ -34,7 +33,10 @@ import { useSchoolProfile } from '@/composables/useSchoolProfile'
 import { getErrorMessage, unwrapList } from '@/lib/api-response'
 import { formatDate, formatTime } from '@/lib/format'
 import { cn } from '@/lib/utils'
-import { getRoleDashboardMeta } from '@/lib/role-dashboard'
+import { canShowDashboardItem } from '@/lib/dashboard-access'
+import { getDashboardModuleGroupsForVariant, getRoleDashboardMeta } from '@/lib/role-dashboard'
+import DashboardModulesGrid from '@/components/dashboard/DashboardModulesGrid.vue'
+import { useRouter } from 'vue-router'
 import { academicsApi, teachersApi } from '@/services/api.service'
 import { fetchList } from '@/services/dashboard.service'
 import { moduleEndpoints } from '@/services'
@@ -110,6 +112,7 @@ interface WorkRow {
 const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'] as const
 
 const { user } = useAuth()
+const router = useRouter()
 const { school, loadSchool } = useSchoolProfile()
 const meta = getRoleDashboardMeta(user.value?.role)
 
@@ -144,13 +147,15 @@ const overviewCards = computed<MetricCard[]>(() => [
     subtitle: 'Assigned teaching groups',
     icon: BookOpen,
     href: '/academics/my-timetable',
+    capability: 'isStaff',
   },
   {
     title: 'Total Students',
     value: totalStudents.value,
     subtitle: 'Across your classes',
     icon: Users,
-    href: '/students',
+    href: '/people?tab=students',
+    capability: 'canManageStudents',
   },
   {
     title: "Today's Lessons",
@@ -158,6 +163,7 @@ const overviewCards = computed<MetricCard[]>(() => [
     subtitle: 'On your timetable today',
     icon: CalendarDays,
     href: '/academics/my-timetable',
+    capability: 'isStaff',
   },
   {
     title: 'Pending Grades',
@@ -165,42 +171,87 @@ const overviewCards = computed<MetricCard[]>(() => [
     subtitle: 'Tests needing attention',
     icon: GraduationCap,
     href: '/academics/grades',
+    capability: ['canManageExaminations', 'canEnterExamResults'],
     accent: pendingGrades.value > 0 ? 'warning' : undefined,
   },
 ])
 
-const quickActions = [
-  {
-    label: 'Take Attendance',
-    href: '/academics/attendance',
-    icon: ClipboardCheck,
-    primary: true,
-  },
-  {
-    label: 'Enter Marks',
-    href: '/academics/grades',
-    icon: NotebookPen,
-    primary: false,
-  },
-  {
-    label: 'Create Assignment',
-    href: '/academics/assignments?create=1',
-    icon: FileText,
-    primary: false,
-  },
-  {
-    label: 'Create Test',
-    href: '/academics/exams',
-    icon: GraduationCap,
-    primary: false,
-  },
-  {
-    label: 'Message Class',
-    href: '/communications/threads',
-    icon: MessageSquare,
-    primary: false,
-  },
-] as const
+const quickActions = computed(() => {
+  const actions = [
+    {
+      label: 'Take Attendance',
+      href: '/academics/attendance',
+      icon: ClipboardCheck,
+      primary: true,
+      capability: 'canManageStudents' as const,
+    },
+    {
+      label: 'Enter Marks',
+      href: '/academics/grades',
+      icon: NotebookPen,
+      primary: false,
+      capability: 'canEnterExamResults' as const,
+    },
+    {
+      label: 'Exams',
+      href: '/academics/exams',
+      icon: GraduationCap,
+      primary: false,
+      capability: 'canEnterExamResults' as const,
+    },
+    {
+      label: 'Message Class',
+      href: '/communications?tab=messages',
+      icon: MessageSquare,
+      primary: false,
+      capability: 'isStaff' as const,
+    },
+  ]
+  return actions.filter((action) =>
+    canShowDashboardItem(
+      user.value,
+      { href: action.href, capability: action.capability },
+      router,
+    ),
+  )
+})
+
+const canOpenPeople = computed(() =>
+  canShowDashboardItem(
+    user.value,
+    { href: '/people?tab=students', capability: ['canManageStudents', 'canManageTeachers'] },
+    router,
+  ),
+)
+
+const canTakeAttendance = computed(() =>
+  canShowDashboardItem(
+    user.value,
+    { href: '/academics/attendance', capability: 'canManageStudents' },
+    router,
+  ),
+)
+
+const canOpenGradebook = computed(() =>
+  canShowDashboardItem(
+    user.value,
+    { href: '/academics/grades', capability: ['canManageExaminations', 'canEnterExamResults'] },
+    router,
+  ),
+)
+
+const canOpenExams = computed(() =>
+  canShowDashboardItem(
+    user.value,
+    { href: '/academics/exams', capability: ['canManageExaminations', 'canEnterExamResults'] },
+    router,
+  ),
+)
+
+/** Row actions link to capability-gated list pages — hide them when the target would be denied. */
+function canOpenWorkItem(href: string) {
+  return canShowDashboardItem(user.value, { href, allowWithoutCapability: true }, router)
+}
 
 function clock(value?: string | null) {
   return formatTime(value, '—')
@@ -308,18 +359,12 @@ async function load() {
       }
     }
 
-    // Also include classes from timetable if missing from assignments
-    for (const slot of timetableRes) {
+    // Only use timetable rows for classes this teacher is assigned to.
+    const assignedClassIds = new Set(classMap.keys())
+    const myTimetable = timetableRes.filter((slot) => {
       const classId = Number(slot.class_id ?? slot.class_model?.id)
-      if (!Number.isFinite(classId) || classMap.has(classId)) continue
-      classMap.set(classId, {
-        classId,
-        className: slot.class_model?.name || `Class ${classId}`,
-        subject: subjectLabel(slot),
-        studentCount: 0,
-        nextLesson: null,
-      })
-    }
+      return Number.isFinite(classId) && assignedClassIds.has(classId)
+    })
 
     const classIds = [...classMap.keys()]
     await Promise.all(
@@ -338,7 +383,7 @@ async function load() {
     )
 
     const todayName = DAYS[new Date().getDay()]
-    const todaySlots = timetableRes
+    const todaySlots = myTimetable
       .filter((s) => (s.day || '') === todayName)
       .map((s) => {
         const start = clock(s.start_time)
@@ -483,14 +528,14 @@ onMounted(load)
                   Next lesson {{ cls.nextLesson }}
                 </p>
               </div>
-              <div class="flex shrink-0 gap-2">
-                <Button variant="outline" size="sm" as-child>
-                  <RouterLink :to="`/students?class_id=${cls.classId}`" :aria-label="`View ${cls.className}`">
+              <div v-if="canOpenPeople || canTakeAttendance" class="flex shrink-0 gap-2">
+                <Button v-if="canOpenPeople" variant="outline" size="sm" as-child>
+                  <RouterLink :to="`/people?tab=students&class_id=${cls.classId}`" :aria-label="`View ${cls.className}`">
                     <Eye class="mr-1.5 size-3.5" aria-hidden="true" />
                     View
                   </RouterLink>
                 </Button>
-                <Button size="sm" as-child>
+                <Button v-if="canTakeAttendance" size="sm" as-child>
                   <RouterLink
                     :to="`/academics/attendance?class_id=${cls.classId}`"
                     :aria-label="`Mark register for ${cls.className}`"
@@ -546,11 +591,11 @@ onMounted(load)
         </Card>
       </section>
 
-      <section aria-labelledby="teacher-quick-actions">
+      <section v-if="quickActions.length" aria-labelledby="teacher-quick-actions">
         <h2 id="teacher-quick-actions" class="mb-3 text-sm font-medium text-muted-foreground">
           Quick Actions
         </h2>
-        <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+        <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <RouterLink
             v-for="action in quickActions"
             :key="action.label"
@@ -573,13 +618,22 @@ onMounted(load)
         </div>
       </section>
 
+      <DashboardModulesGrid
+        :groups="getDashboardModuleGroupsForVariant('teacher')"
+        title="Your teaching modules"
+        description="Only the areas available for your teacher profile"
+      />
+
       <Card class="overflow-hidden border-border/70 shadow-sm">
         <CardHeader class="flex flex-row items-center justify-between gap-3 border-b border-border/60">
           <div>
             <CardTitle class="text-base">Recent Grades</CardTitle>
             <CardDescription>Latest marks from your classes.</CardDescription>
           </div>
-          <Button as-child>
+          <Button
+            v-if="canOpenGradebook"
+            as-child
+          >
             <RouterLink to="/academics/grades">
               <NotebookPen class="mr-2 size-4" aria-hidden="true" />
               Add Grades
@@ -630,12 +684,12 @@ onMounted(load)
             <CardTitle class="text-base">My Assignments &amp; Tests</CardTitle>
             <CardDescription>Work set for your classes.</CardDescription>
           </div>
-          <div class="flex flex-wrap gap-2">
-            <Button variant="outline" as-child>
-              <RouterLink to="/academics/assignments?create=1">+ Assignment</RouterLink>
+          <div v-if="canOpenGradebook || canOpenExams" class="flex flex-wrap gap-2">
+            <Button v-if="canOpenGradebook" variant="outline" as-child>
+              <RouterLink to="/academics/grades">Open gradebook</RouterLink>
             </Button>
-            <Button as-child>
-              <RouterLink to="/academics/exams">+ Test / Exam</RouterLink>
+            <Button v-if="canOpenExams" as-child>
+              <RouterLink to="/academics/exams">Open exams</RouterLink>
             </Button>
           </div>
         </CardHeader>
@@ -670,16 +724,19 @@ onMounted(load)
                   <TableCell class="tabular-nums">{{ row.totalMarks ?? '—' }}</TableCell>
                   <TableCell class="text-right">
                     <div class="inline-flex gap-1">
-                      <Button variant="ghost" size="icon" class="size-8" as-child>
-                        <RouterLink :to="row.href" :aria-label="`View ${row.title}`">
-                          <Eye class="size-4" aria-hidden="true" />
-                        </RouterLink>
-                      </Button>
-                      <Button variant="ghost" size="icon" class="size-8" as-child>
-                        <RouterLink :to="row.href" :aria-label="`Edit ${row.title}`">
-                          <Pencil class="size-4" aria-hidden="true" />
-                        </RouterLink>
-                      </Button>
+                      <template v-if="canOpenWorkItem(row.href)">
+                        <Button variant="ghost" size="icon" class="size-8" as-child>
+                          <RouterLink :to="row.href" :aria-label="`View ${row.title}`">
+                            <Eye class="size-4" aria-hidden="true" />
+                          </RouterLink>
+                        </Button>
+                        <Button variant="ghost" size="icon" class="size-8" as-child>
+                          <RouterLink :to="row.href" :aria-label="`Edit ${row.title}`">
+                            <Pencil class="size-4" aria-hidden="true" />
+                          </RouterLink>
+                        </Button>
+                      </template>
+                      <span v-else class="text-sm text-muted-foreground">—</span>
                     </div>
                   </TableCell>
                 </TableRow>

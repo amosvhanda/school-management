@@ -37,6 +37,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet'
+import { useAuth } from '@/composables/useAuth'
 import { useToast } from '@/composables/useToast'
 import { useFormSheetLoader } from '@/composables/useFormSheetLoader'
 import { useListFilters } from '@/composables/useListFilters'
@@ -58,6 +59,8 @@ import { hrApi } from '@/services/api.service'
 const toast = useToast()
 const route = useRoute()
 const router = useRouter()
+const { checkCapability } = useAuth()
+const canViewAudit = computed(() => checkCapability('canViewAuditLogs'))
 
 const rows = ref<LeaveRequestRow[]>([])
 const loading = ref(true)
@@ -282,7 +285,7 @@ async function onSubmit(values: Record<string, unknown>) {
 }
 
 function openAuditTrail() {
-  router.push({ path: '/compliance/audit', query: { module: 'hr' } })
+  router.push({ path: '/hr', query: { tab: 'audit', module: 'hr' } })
 }
 
 let searchTimer: ReturnType<typeof setTimeout> | undefined
@@ -311,7 +314,7 @@ onMounted(async () => {
     description="Submit, review, and audit staff leave with a full approval trail"
    max-width="wide">
     <template #actions>
-      <Button variant="outline" @click="openAuditTrail">
+      <Button v-if="canViewAudit" variant="outline" @click="openAuditTrail">
         <ScrollText class="mr-2 h-4 w-4" aria-hidden="true" />
         HR audit trail
       </Button>
@@ -347,11 +350,12 @@ onMounted(async () => {
           :icon="Palmtree"
         />
         <KpiCard
+          v-if="canViewAudit"
           title="Audit"
           value="HR log"
           subtitle="All actions recorded"
           :icon="ScrollText"
-          href="/compliance/audit?module=hr"
+          href="/hr?tab=audit&module=hr"
         />
       </div>
 

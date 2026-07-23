@@ -26,6 +26,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { formatDateTime } from '@/lib/format'
+import { useRouteAccess } from '@/composables/useRouteAccess'
 import type { AttendanceSummary } from '@/types/dashboard'
 import {
   ACADEMICS_PERIOD_OPTIONS,
@@ -46,6 +47,11 @@ const props = defineProps<{
 }>()
 
 const period = defineModel<AcademicsPeriod>('period', { required: true })
+
+const { canOpen } = useRouteAccess()
+const canOpenAttendance = computed(() => canOpen('/academics/attendance'))
+const canOpenGradebook = computed(() => canOpen('/academics/grades'))
+const canOpenExams = computed(() => canOpen('/academics/exams'))
 
 const periodLabel = computed(
   () => ACADEMICS_PERIOD_OPTIONS.find((o) => o.value === period.value)?.label ?? 'Period',
@@ -145,7 +151,7 @@ function onPeriodChange(value: unknown) {
               <CardTitle class="text-base font-semibold">Attendance overview</CardTitle>
               <CardDescription>{{ periodLabel }} — {{ attendance?.total_records ?? 0 }} records</CardDescription>
             </div>
-            <Button variant="outline" size="sm" as-child>
+            <Button v-if="canOpenAttendance" variant="outline" size="sm" as-child>
               <RouterLink to="/academics/attendance">
                 <ClipboardCheck class="mr-2 h-4 w-4" aria-hidden="true" />
                 Open register
@@ -206,7 +212,7 @@ function onPeriodChange(value: unknown) {
             title="No attendance in this period"
             description="Mark attendance from the register or widen the reporting period."
           >
-            <Button as-child class="mt-2">
+            <Button v-if="canOpenAttendance" as-child class="mt-2">
               <RouterLink to="/academics/attendance">Take attendance</RouterLink>
             </Button>
           </EmptyState>
@@ -221,7 +227,7 @@ function onPeriodChange(value: unknown) {
                 <CardTitle class="text-base font-semibold">Gradebook by subject</CardTitle>
                 <CardDescription>{{ academic?.total_records ?? 0 }} mark records</CardDescription>
               </div>
-              <Button variant="outline" size="sm" as-child>
+              <Button v-if="canOpenGradebook" variant="outline" size="sm" as-child>
                 <RouterLink to="/academics/grades">
                   <BookOpen class="mr-2 h-4 w-4" aria-hidden="true" />
                   Gradebook
@@ -248,7 +254,7 @@ function onPeriodChange(value: unknown) {
               title="No gradebook data"
               description="Enter marks in the gradebook to see subject averages here."
             >
-              <Button as-child class="mt-2" variant="outline">
+              <Button v-if="canOpenGradebook" as-child class="mt-2" variant="outline">
                 <RouterLink to="/academics/grades">Open gradebook</RouterLink>
               </Button>
             </EmptyState>
@@ -262,7 +268,7 @@ function onPeriodChange(value: unknown) {
                 <CardTitle class="text-base font-semibold">Exams by subject</CardTitle>
                 <CardDescription>{{ examAnalytics?.total_records ?? 0 }} exam results</CardDescription>
               </div>
-              <Button variant="outline" size="sm" as-child>
+              <Button v-if="canOpenExams" variant="outline" size="sm" as-child>
                 <RouterLink to="/academics/exams">
                   <FileText class="mr-2 h-4 w-4" aria-hidden="true" />
                   Examinations
@@ -289,7 +295,7 @@ function onPeriodChange(value: unknown) {
               title="No exam results yet"
               description="Schedule exams and enter marks to track performance by subject."
             >
-              <Button as-child class="mt-2" variant="outline">
+              <Button v-if="canOpenExams" as-child class="mt-2" variant="outline">
                 <RouterLink to="/academics/exams">View examinations</RouterLink>
               </Button>
             </EmptyState>

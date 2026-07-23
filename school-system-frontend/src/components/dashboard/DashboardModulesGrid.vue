@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { RouterLink } from 'vue-router'
+import { RouterLink, useRouter } from 'vue-router'
 import * as icons from '@lucide/vue'
 import { ArrowUpRight, Search } from '@lucide/vue'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent } from '@/components/ui/card'
 import { useAuth } from '@/composables/useAuth'
-import { canAccessNavItem } from '@/lib/permissions'
+import { canShowDashboardItem } from '@/lib/dashboard-access'
 import type { DashboardModuleGroup } from '@/lib/dashboard-modules'
 import DashboardSection from '@/components/dashboard/DashboardSection.vue'
 
@@ -16,7 +16,10 @@ const props = withDefaults(
     groups: DashboardModuleGroup[]
     title?: string
     description?: string
-    /** Skip capability checks (e.g. parent/platform modules) */
+    /**
+     * Portal modules (parent/student/platform) may omit capability.
+     * Staff dashboards must never use this — unauthorized items stay hidden.
+     */
     skipPermissionFilter?: boolean
   }>(),
   {
@@ -27,6 +30,7 @@ const props = withDefaults(
 )
 
 const { user } = useAuth()
+const router = useRouter()
 const search = ref('')
 
 function resolveIcon(name: string) {
@@ -40,7 +44,17 @@ const visibleGroups = computed(() => {
     .map((group) => ({
       ...group,
       modules: group.modules.filter((module) => {
-        if (!props.skipPermissionFilter && !canAccessNavItem(user.value, module.capability)) {
+        if (
+          !canShowDashboardItem(
+            user.value,
+            {
+              href: module.href,
+              capability: module.capability,
+              allowWithoutCapability: props.skipPermissionFilter,
+            },
+            router,
+          )
+        ) {
           return false
         }
         if (!query) return true

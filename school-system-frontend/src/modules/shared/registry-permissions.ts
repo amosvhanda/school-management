@@ -22,8 +22,8 @@ const STAFF: Cap = 'isStaff'
 const modulePermissionRegistry: Record<string, ModulePermissionConfig> = {
   students: { create: STUDENTS, edit: STUDENTS, delete: ADMIN },
   teachers: { create: ADMIN, edit: ADMIN, delete: ADMIN },
-  guardians: { create: STUDENTS, edit: STUDENTS, delete: ADMIN },
-  enrollment: { create: STUDENTS, edit: STUDENTS, delete: ADMIN },
+  guardians: { create: ADMIN, edit: ADMIN, delete: ADMIN },
+  enrollment: { create: ADMIN, edit: ADMIN, delete: ADMIN },
   'admin-users': { create: ADMIN, edit: ADMIN, delete: ADMIN },
   'admin-roles': { create: ADMIN, edit: ADMIN, delete: ADMIN },
   settings: { create: ADMIN, edit: ADMIN, delete: ADMIN },
@@ -38,7 +38,8 @@ const modulePermissionRegistry: Record<string, ModulePermissionConfig> = {
   'ops-events': { create: ADMIN, edit: ADMIN, delete: ADMIN },
   'ops-school-trips': { create: ADMIN, edit: ADMIN, delete: ADMIN },
   compliance: { create: ADMIN, edit: ADMIN, delete: ADMIN },
-  'compliance-incidents': { create: STAFF, edit: STAFF, delete: ADMIN },
+  'compliance-incidents': { create: ADMIN, edit: ADMIN, delete: ADMIN },
+  'compliance-consent': { create: ADMIN, edit: ADMIN, delete: ADMIN },
 }
 
 function inferPermissions(listKey: string): ModulePermissionConfig {
@@ -74,8 +75,11 @@ function inferPermissions(listKey: string): ModulePermissionConfig {
   if (listKey.startsWith('enterprise-exams')) {
     return { create: EXAMS, edit: EXAMS, delete: ADMIN }
   }
-  if (listKey.startsWith('hr-discipline') || listKey.startsWith('compliance-consent')) {
+  if (listKey.startsWith('hr-discipline')) {
     return { create: STUDENTS, edit: STUDENTS, delete: ADMIN }
+  }
+  if (listKey.startsWith('compliance-consent')) {
+    return { create: ADMIN, edit: ADMIN, delete: ADMIN }
   }
   if (listKey.startsWith('platform-')) {
     return { create: 'isSuperAdmin', edit: 'isSuperAdmin', delete: 'isSuperAdmin' }

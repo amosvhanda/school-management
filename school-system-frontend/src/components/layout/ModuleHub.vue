@@ -38,7 +38,10 @@ const visibleTabs = computed(() =>
   props.tabs.filter((tab) => canAccessNavItem(user.value, tab.capability)),
 )
 
+const hasAccess = computed(() => visibleTabs.value.length > 0)
+
 const activeTabId = computed(() => {
+  if (!hasAccess.value) return ''
   const raw = String(Array.isArray(route.query.tab) ? route.query.tab[0] : route.query.tab ?? '')
   if (raw && visibleTabs.value.some((tab) => tab.id === raw)) return raw
   return visibleTabs.value[0]?.id ?? props.defaultTab
@@ -100,7 +103,14 @@ watch(
       <slot name="actions" />
     </template>
 
-    <div class="space-y-6">
+    <div v-if="!hasAccess" class="rounded-2xl border border-border/60 bg-muted/20 px-6 py-12 text-center" role="alert">
+      <p class="text-sm font-medium text-foreground">You do not have access to this section.</p>
+      <p class="mt-2 text-sm text-muted-foreground">
+        Ask an administrator if you need permission for this area.
+      </p>
+    </div>
+
+    <div v-else class="space-y-6">
       <section class="overflow-x-auto rounded-2xl border border-border/60 bg-muted/30 p-2">
         <nav class="flex min-w-max items-center gap-2" :aria-label="ariaLabel">
           <button

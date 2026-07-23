@@ -17,6 +17,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { formatMoney, formatPaymentMethod } from '@/lib/finance-constants'
+import { useRouteAccess } from '@/composables/useRouteAccess'
 import type {
   AgingReport,
   FeeCollectionPoint,
@@ -37,6 +38,10 @@ const props = defineProps<{
 }>()
 
 const currency = computed(() => String(props.summary?.currency ?? 'USD'))
+
+const { canOpen } = useRouteAccess()
+const canOpenReports = computed(() => canOpen('/finance/reports'))
+const canOpenInvoices = computed(() => canOpen('/finance/invoices'))
 
 const invoiceStatusRows = computed(() => {
   const byStatus = props.financial?.by_status ?? {}
@@ -231,7 +236,7 @@ function statusVariant(status: string): 'default' | 'secondary' | 'destructive' 
                 />
               </li>
             </ul>
-            <Button variant="outline" size="sm" class="mt-4" as-child>
+            <Button v-if="canOpenReports" variant="outline" size="sm" class="mt-4" as-child>
               <RouterLink to="/finance/reports">
                 Full aging report
                 <ArrowRight class="ml-1 h-3.5 w-3.5" aria-hidden="true" />
@@ -338,7 +343,7 @@ function statusVariant(status: string): 'default' | 'secondary' | 'destructive' 
               </TableBody>
             </Table>
           </div>
-          <Button variant="outline" size="sm" class="mt-4" as-child>
+          <Button v-if="canOpenInvoices" variant="outline" size="sm" class="mt-4" as-child>
             <RouterLink to="/finance/invoices">
               Manage invoices
               <ArrowRight class="ml-1 h-3.5 w-3.5" aria-hidden="true" />

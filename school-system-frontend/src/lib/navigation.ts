@@ -20,7 +20,7 @@ export const staffNavigation: NavGroup[] = [
     label: 'Academics',
     items: [
       { title: 'Analytics', href: '/academics/analytics', icon: 'BarChart3', capability: ['canManageTeachers', 'canManageStudents', 'canEnterExamResults'] },
-      { title: 'Gradebook', href: '/academics/grades', icon: 'NotebookPen', capability: 'canManageExaminations' },
+      { title: 'Gradebook', href: '/academics/grades', icon: 'NotebookPen', capability: ['canManageExaminations', 'canEnterExamResults'] },
       { title: 'Attendance', href: '/academics/attendance', icon: 'ClipboardCheck', capability: 'canManageStudents' },
       { title: 'Exams', href: '/academics/exams', icon: 'FileText', capability: ['canManageExaminations', 'canEnterExamResults'] },
       { title: 'Timetable', href: '/academics/timetable', icon: 'CalendarDays', capability: 'canManageTeachers' },
@@ -95,6 +95,7 @@ export const teacherNavigation: NavGroup[] = [
       { title: 'Gradebook', href: '/academics/grades', icon: 'NotebookPen', capability: ['canManageExaminations', 'canEnterExamResults'], roles: ['teacher'] },
       { title: 'Exams', href: '/academics/exams', icon: 'FileText', capability: ['canManageExaminations', 'canEnterExamResults'], roles: ['teacher'] },
       { title: 'People', href: '/people', icon: 'Users', capability: 'canManageStudents', roles: ['teacher'] },
+      { title: 'Discipline', href: '/hr?tab=discipline', icon: 'ShieldAlert', capability: 'canManageStudents', roles: ['teacher'] },
     ],
   },
   {
@@ -117,6 +118,8 @@ export const financeNavigation: NavGroup[] = [
     items: [
       { title: 'Dashboard', href: '/', icon: 'LayoutDashboard', roles: ['finance'] },
       { title: 'Finance', href: '/finance', icon: 'Wallet', capability: 'canManageFinance', roles: ['finance'] },
+      { title: 'Communications', href: '/communications', icon: 'Megaphone', capability: 'isStaff', roles: ['finance'] },
+      { title: 'Audit trail', href: '/hr?tab=audit', icon: 'ScrollText', capability: 'canViewAuditLogs', roles: ['finance'] },
     ],
   },
   {
@@ -149,14 +152,7 @@ export const examinationOfficerNavigation: NavGroup[] = [
         title: 'Academics analytics',
         href: '/academics/analytics',
         icon: 'BarChart3',
-        capability: ['canManageTeachers', 'canManageStudents', 'canManageExaminations'],
-        roles: ['examination_officer'],
-      },
-      {
-        title: 'Reports',
-        href: '/reports',
-        icon: 'FileBarChart',
-        capability: 'canManageTeachers',
+        capability: ['canManageExaminations', 'canEnterExamResults'],
         roles: ['examination_officer'],
       },
     ],
@@ -165,10 +161,8 @@ export const examinationOfficerNavigation: NavGroup[] = [
     label: 'Examinations',
     items: [
       { title: 'Exams', href: '/academics/exams', icon: 'FileText', capability: 'canManageExaminations', roles: ['examination_officer'] },
-      { title: 'Gradebook', href: '/academics/grades', icon: 'BookOpen', capability: 'canManageExaminations', roles: ['examination_officer'] },
+      { title: 'Gradebook', href: '/academics/grades', icon: 'BookOpen', capability: ['canManageExaminations', 'canEnterExamResults'], roles: ['examination_officer'] },
       { title: 'Class tests', href: '/academics/tests', icon: 'NotebookPen', capability: 'canManageExaminations', roles: ['examination_officer'] },
-      { title: 'Attendance', href: '/academics/attendance', icon: 'ClipboardCheck', capability: 'canManageStudents', roles: ['examination_officer'] },
-      { title: 'People', href: '/people?tab=students', icon: 'GraduationCap', capability: 'canManageStudents', roles: ['examination_officer'] },
     ],
   },
   {

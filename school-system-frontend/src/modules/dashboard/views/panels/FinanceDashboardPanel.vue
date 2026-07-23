@@ -3,6 +3,7 @@ import { computed, onMounted } from 'vue'
 import { Activity, Banknote, DollarSign, Wallet } from '@lucide/vue'
 import DashboardHero from '@/components/dashboard/DashboardHero.vue'
 import RoleQuickActions from '@/components/dashboard/RoleQuickActions.vue'
+import DashboardModulesGrid from '@/components/dashboard/DashboardModulesGrid.vue'
 import DashboardSkeleton from '@/components/dashboard/DashboardSkeleton.vue'
 import MetricBand from '@/components/dashboard/MetricBand.vue'
 import type { MetricCard } from '@/components/dashboard/MetricBand.vue'
@@ -11,7 +12,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { useAuth } from '@/composables/useAuth'
 import { useStaffDashboard } from '@/composables/useStaffDashboard'
 import { lazy } from '@/lib/lazy'
-import { getRoleDashboardMeta } from '@/lib/role-dashboard'
+import { getDashboardModuleGroupsForVariant, getRoleDashboardMeta } from '@/lib/role-dashboard'
 
 const PayrollPanel = lazy(() => import('@/components/dashboard/PayrollPanel.vue'))
 const MonthlyStatsChart = lazy(() => import('@/components/dashboard/MonthlyStatsChart.vue'))
@@ -33,7 +34,8 @@ const overviewCards = computed<MetricCard[]>(() => [
     icon: DollarSign,
     accent: 'danger' as const,
     trend: kpis.value?.paymentsGrowth ?? 0,
-    href: '/finance/invoices',
+    href: '/finance?tab=invoices',
+    capability: 'canManageFinance',
   },
   {
     title: 'Revenue today',
@@ -42,7 +44,8 @@ const overviewCards = computed<MetricCard[]>(() => [
     icon: Activity,
     accent: 'success' as const,
     trend: kpis.value?.revenueChange ?? 0,
-    href: '/finance/payments',
+    href: '/finance?tab=payments',
+    capability: 'canManageFinance',
   },
   {
     title: 'Monthly transactions',
@@ -50,7 +53,8 @@ const overviewCards = computed<MetricCard[]>(() => [
     subtitle: 'Ledger entries this month',
     icon: Wallet,
     trend: kpis.value?.activityChange ?? 0,
-    href: '/finance/transactions',
+    href: '/finance?tab=transactions',
+    capability: 'canManageFinance',
   },
   {
     title: 'Payroll pending',
@@ -58,7 +62,8 @@ const overviewCards = computed<MetricCard[]>(() => [
     subtitle: 'Outstanding staff payroll',
     icon: Banknote,
     accent: 'warning' as const,
-    href: '/finance/payroll',
+    href: '/finance?tab=payroll',
+    capability: 'canManageFinance',
   },
 ])
 
@@ -98,6 +103,12 @@ onMounted(refresh)
       />
 
       <RoleQuickActions variant="finance" />
+
+      <DashboardModulesGrid
+        :groups="getDashboardModuleGroupsForVariant('finance')"
+        title="Finance modules"
+        description="Collections, payroll, and reporting for your profile"
+      />
 
       <section class="space-y-4" aria-labelledby="finance-work-title">
         <div>

@@ -1,4 +1,12 @@
-import type { UserRole } from '@/types/auth'
+import type { AuthUser, UserRole } from '@/types/auth'
+import type { DashboardModuleGroup } from '@/lib/dashboard-modules'
+import {
+  ACCOUNTS_DASHBOARD_MODULE_GROUPS,
+  EXAM_OFFICER_DASHBOARD_MODULE_GROUPS,
+  FINANCE_DASHBOARD_MODULE_GROUPS,
+  STAFF_DASHBOARD_MODULE_GROUPS,
+  TEACHER_DASHBOARD_MODULE_GROUPS,
+} from '@/lib/dashboard-modules'
 
 export type StaffDashboardVariant =
   | 'admin'
@@ -60,4 +68,23 @@ const META: Record<StaffDashboardVariant, Omit<RoleDashboardMeta, 'variant'>> = 
 export function getRoleDashboardMeta(role: UserRole | null | undefined): RoleDashboardMeta {
   const variant = getStaffDashboardVariant(role)
   return { variant, ...META[variant] }
+}
+
+/** Module shortcuts for each staff home — filtered further by capability in the grid. */
+export function getDashboardModuleGroupsForVariant(
+  variant: StaffDashboardVariant,
+  _user?: AuthUser | null,
+): DashboardModuleGroup[] {
+  switch (variant) {
+    case 'teacher':
+      return TEACHER_DASHBOARD_MODULE_GROUPS
+    case 'finance':
+      return FINANCE_DASHBOARD_MODULE_GROUPS
+    case 'accounts':
+      return ACCOUNTS_DASHBOARD_MODULE_GROUPS
+    case 'examination_officer':
+      return EXAM_OFFICER_DASHBOARD_MODULE_GROUPS
+    default:
+      return STAFF_DASHBOARD_MODULE_GROUPS
+  }
 }

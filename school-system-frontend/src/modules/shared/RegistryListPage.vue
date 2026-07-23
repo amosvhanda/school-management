@@ -4,10 +4,10 @@ import { useRoute } from 'vue-router'
 import { useAuth } from '@/composables/useAuth'
 import ListPage from './ListPage.vue'
 import CrudListPage from './CrudListPage.vue'
-import { listPageRegistry } from './registry'
-import { moduleCrudRegistry } from './registry-crud'
-import { resolveCrudAccess } from './registry-permissions'
-import { moduleActionsRegistry, moduleToolbarActionsRegistry } from './registry-actions'
+import { listPageRegistry } from './registry.ts'
+import { moduleCrudRegistry } from './registry-crud.ts'
+import { resolveCrudAccess } from './registry-permissions.ts'
+import { moduleActionsRegistry, moduleToolbarActionsRegistry } from './registry-actions.ts'
 
 const route = useRoute()
 const { user } = useAuth()
