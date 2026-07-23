@@ -20,7 +20,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import NotificationsPanel from '@/components/app/NotificationsPanel.vue'
@@ -112,6 +112,7 @@ const initials = computed(() =>
             :aria-label="`Account menu for ${displayName}`"
           >
             <Avatar class="size-7">
+              <AvatarImage v-if="user?.avatar_url" :src="user.avatar_url" :alt="displayName" />
               <AvatarFallback class="text-xs font-semibold">{{ initials }}</AvatarFallback>
             </Avatar>
             <span class="hidden max-w-[120px] truncate text-sm font-medium xl:inline text-foreground">

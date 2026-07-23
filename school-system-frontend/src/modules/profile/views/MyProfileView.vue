@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { KeyRound, Save, ShieldCheck, UserCog } from '@lucide/vue'
+import { Camera, KeyRound, Save, ShieldCheck, UserCog } from '@lucide/vue'
 import PageShell from '@/components/layout/PageShell.vue'
 import PageLoader from '@/components/feedback/PageLoader.vue'
 import ErrorState from '@/components/feedback/ErrorState.vue'
 import DatePicker from '@/components/forms/DatePicker.vue'
-import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -23,7 +23,7 @@ import { toast } from 'vue-sonner'
 import { useAuth } from '@/composables/useAuth'
 import { getErrorMessage } from '@/lib/api-response'
 import { formatDate } from '@/lib/format'
-import { profileApi } from '@/services/api.service'
+import { profileApi, uploadsApi } from '@/services/api.service'
 
 interface ProfileData {
   id: number
@@ -44,6 +44,7 @@ interface ProfileData {
   employmentStatus?: string
   subjects?: string[]
   classes?: string[]
+  avatarUrl?: string
 }
 
 const GENDER_OPTIONS = [
@@ -61,6 +62,8 @@ const error = ref<string | null>(null)
 const profile = ref<ProfileData | null>(null)
 const savingProfile = ref(false)
 const changingPassword = ref(false)
+const uploadingAvatar = ref(false)
+const avatarInput = ref<HTMLInputElement | null>(null)
 
 const todayIso = new Date().toISOString().slice(0, 10)
 
@@ -157,6 +160,41 @@ async function saveProfile() {
   }
 }
 
+function pickAvatar() {
+  avatarInput.value?.click()
+}
+
+async function onAvatarSelected(event: Event) {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  if (!file) return
+
+  if (!file.type.startsWith('image/')) {
+    toast.warning('Invalid file', { description: 'Please choose an image file.' })
+    input.value = ''
+    return
+  }
+  if (file.size > 5 * 1024 * 1024) {
+    toast.warning('File too large', { description: 'Choose an image under 5 MB.' })
+    input.value = ''
+    return
+  }
+
+  uploadingAvatar.value = true
+  try {
+    const uploaded = await uploadsApi.upload(file, 'avatars')
+    const updated = (await profileApi.update({ avatarUrl: uploaded.url })) as ProfileData
+    hydrate(updated)
+    await fetchMe()
+    toast.success('Photo updated')
+  } catch (err) {
+    toast.error('Could not upload photo', { description: getErrorMessage(err) })
+  } finally {
+    uploadingAvatar.value = false
+    input.value = ''
+  }
+}
+
 async function changePassword() {
   if (!passwordForm.old_password || !passwordForm.new_password) {
     toast.warning('Missing fields', { description: 'Fill in all password fields.' })
@@ -201,12 +239,35 @@ onMounted(loadProfile)
       <aside class="space-y-6">
         <Card class="border-border/70 shadow-sm">
           <CardContent class="flex flex-col items-center gap-4 px-6 py-8 text-center">
-            <Avatar class="size-20">
-              <AvatarFallback class="text-xl font-semibold">{{ initials }}</AvatarFallback>
-            </Avatar>
+            <div class="relative">
+              <Avatar class="size-20">
+                <AvatarImage v-if="profile.avatarUrl" :src="profile.avatarUrl" :alt="profile.fullName" />
+                <AvatarFallback class="text-xl font-semibold">{{ initials }}</AvatarFallback>
+              </Avatar>
+              <button
+                type="button"
+                class="absolute -right-1 -bottom-1 flex size-8 items-center justify-center rounded-full border border-border bg-background text-muted-foreground shadow-sm transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60"
+                :disabled="uploadingAvatar"
+                :aria-busy="uploadingAvatar"
+                aria-label="Change profile photo"
+                @click="pickAvatar"
+              >
+                <Camera class="size-4" aria-hidden="true" />
+              </button>
+              <input
+                ref="avatarInput"
+                type="file"
+                accept="image/*"
+                class="sr-only"
+                @change="onAvatarSelected"
+              />
+            </div>
             <div class="space-y-1">
               <p class="text-lg font-semibold text-foreground">{{ profile.fullName }}</p>
               <Badge variant="secondary" class="capitalize">{{ roleLabel }}</Badge>
+              <p v-if="uploadingAvatar" class="text-xs text-muted-foreground" aria-live="polite">
+                Uploading photo…
+              </p>
             </div>
             <dl class="w-full space-y-2 pt-2 text-left text-sm">
               <div v-if="profile.employeeId" class="flex justify-between gap-2">

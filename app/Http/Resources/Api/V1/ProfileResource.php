@@ -29,6 +29,7 @@ class ProfileResource extends JsonResource
             'school_id' => $this->school_id,
             'dateOfBirth' => $this->date_of_birth?->format('Y-m-d') ?? '',
             'gender' => $this->gender ? ucfirst($this->gender) : '',
+            'avatarUrl' => $this->avatar_url ?? '',
         ];
 
         if ($role === UserRole::Student) {

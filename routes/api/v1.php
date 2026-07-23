@@ -9,6 +9,7 @@ use App\Http\Controllers\Api\V1\AssistantController;
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\LicenseController;
 use App\Http\Controllers\Api\V1\ProfileController;
+use App\Http\Controllers\Api\V1\UploadController;
 use App\Http\Controllers\Api\V1\SchoolController;
 use App\Http\Controllers\Api\V1\SettingsController;
 use App\Http\Controllers\AssetController;
@@ -134,6 +135,9 @@ Route::middleware(['auth:sanctum', 'school.isolated', 'school.licensed'])->group
     Route::get('/user/profile', [ProfileController::class, 'show']);
     Route::put('/user/profile', [ProfileController::class, 'update']);
     Route::post('/user/change-password', [AuthController::class, 'changePassword']);
+
+    // Generic staff file upload (resources, homework, avatars, report cards).
+    Route::post('/uploads', [UploadController::class, 'store']);
 
     // School
     Route::get('/school', [SchoolController::class, 'show']);

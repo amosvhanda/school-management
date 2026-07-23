@@ -23,6 +23,7 @@ class UpdateProfileRequest extends ApiFormRequest
             'address' => ['sometimes', 'nullable', 'string', 'max:500'],
             'dateOfBirth' => ['sometimes', 'nullable', 'date'],
             'gender' => ['sometimes', 'nullable', 'string', Rule::in(['male', 'female', 'other', 'not specified'])],
+            'avatarUrl' => ['sometimes', 'nullable', 'string', 'max:2048'],
         ];
     }
 }

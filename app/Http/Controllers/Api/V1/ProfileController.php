@@ -31,6 +31,10 @@ class ProfileController extends Controller
             $user->date_of_birth = $request->dateOfBirth;
         }
 
+        if ($request->has('avatarUrl')) {
+            $user->avatar_url = $request->input('avatarUrl') ?: null;
+        }
+
         $user->save();
 
         return $this->success(

@@ -28,6 +28,7 @@ export interface AuthUser {
   email: string
   phone?: string | null
   role: UserRole
+  avatar_url?: string | null
   status?: string
   school_id?: number | null
   student_id?: number | null

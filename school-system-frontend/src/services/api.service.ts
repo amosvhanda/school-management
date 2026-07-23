@@ -44,6 +44,26 @@ export const profileApi = {
     postRecord(e.auth.changePassword, payload),
 }
 
+export interface UploadedFileMeta {
+  path: string
+  url: string
+  name: string
+  mime: string | null
+  size: number
+}
+
+export const uploadsApi = {
+  upload: async (file: File, directory?: string) => {
+    const form = new FormData()
+    form.append('file', file)
+    if (directory) form.append('directory', directory)
+    const { data } = await api.post(e.uploads, form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+    return unwrapOne<UploadedFileMeta>(data)
+  },
+}
+
 export const studentsApi = {
   ...crud(e.students.list, e.students.detail),
   promote: (payload: Record<string, unknown>) => postRecord(e.students.promote, payload),

@@ -37,6 +37,7 @@ class User extends Authenticatable
         'first_name',
         'last_name',
         'school_id',
+        'avatar_url',
     ];
 
     public function school(): \Illuminate\Database\Eloquent\Relations\BelongsTo

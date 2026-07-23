@@ -2,6 +2,8 @@
 
 namespace App\Providers;
 
+use App\Contracts\TeachingAssistant;
+use App\Services\Ai\StubTeachingAssistant;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\ServiceProvider;
@@ -10,7 +12,9 @@ class AppServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
-        //
+        // Teacher AI assistant. Swap the stub for a live LLM-backed driver
+        // once a provider is configured.
+        $this->app->bind(TeachingAssistant::class, StubTeachingAssistant::class);
     }
 
     public function boot(): void

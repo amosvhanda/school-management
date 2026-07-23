@@ -15,6 +15,7 @@ export const endpoints = {
     show: '/user/profile',
     update: '/user/profile',
   },
+  uploads: '/uploads',
   school: {
     show: '/school',
     update: '/school',
