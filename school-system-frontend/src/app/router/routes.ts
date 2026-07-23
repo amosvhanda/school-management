@@ -18,6 +18,23 @@ function listRoute(
   }
 }
 
+function staffHubRedirect(
+  path: string,
+  name: string | undefined,
+  hubRouteName: string,
+  tabId: string,
+  defaultTabId: string,
+  capability: string | string[],
+  extraQuery?: Record<string, string>,
+): RouteRecordRaw {
+  return {
+    path,
+    ...(name ? { name } : {}),
+    redirect: redirectToHubTab(hubRouteName, tabId, defaultTabId, extraQuery),
+    meta: { capability },
+  }
+}
+
 function staffListRoute(path: string, name: string, listKey: string, capability?: string): RouteRecordRaw {
   return listRoute(path, name, listKey, {
     capability: capability ?? 'isStaff',
@@ -92,27 +109,11 @@ export const staffRoutes: RouteRecordRaw[] = [
     component: () => import('@/modules/people/views/PeopleHubView.vue'),
     meta: { capability: ['canManageStudents', 'canManageTeachers'] },
   },
-  {
-    path: 'students',
-    name: 'students',
-    redirect: redirectToHubTab('people', 'students'),
-  },
+  staffHubRedirect('students', 'students', 'people', 'students', 'students', 'canManageStudents'),
   sectionAnalyticsRoute('people/analytics', 'people-analytics', 'people', 'canManageStudents'),
-  {
-    path: 'teachers',
-    name: 'teachers',
-    redirect: redirectToHubTab('people', 'teachers'),
-  },
-  {
-    path: 'guardians',
-    name: 'guardians',
-    redirect: redirectToHubTab('people', 'guardians'),
-  },
-  {
-    path: 'enrollment',
-    name: 'enrollment',
-    redirect: redirectToHubTab('people', 'enrollment'),
-  },
+  staffHubRedirect('teachers', 'teachers', 'people', 'teachers', 'students', 'canManageTeachers'),
+  staffHubRedirect('guardians', 'guardians', 'people', 'guardians', 'students', 'canManageTeachers'),
+  staffHubRedirect('enrollment', 'enrollment', 'people', 'enrollment', 'students', 'canManageTeachers'),
   {
     path: 'academics/classes',
     name: 'academics-setup',
@@ -225,46 +226,14 @@ export const staffRoutes: RouteRecordRaw[] = [
     meta: { capability: 'canManageFinance' },
   },
   sectionAnalyticsRoute('finance/analytics', 'finance-analytics', 'finance', 'canManageFinance'),
-  {
-    path: 'finance/cash-flow',
-    name: 'finance-cash-flow',
-    redirect: redirectToHubTab('finance', 'cash-flow'),
-  },
-  {
-    path: 'finance/reports',
-    name: 'finance-reports',
-    redirect: redirectToHubTab('finance', 'aging'),
-  },
-  {
-    path: 'finance/payments',
-    name: 'finance-payments',
-    redirect: redirectToHubTab('finance', 'payments'),
-  },
-  {
-    path: 'finance/invoices',
-    name: 'finance-invoices',
-    redirect: redirectToHubTab('finance', 'invoices'),
-  },
-  {
-    path: 'finance/fees',
-    name: 'finance-fees',
-    redirect: redirectToHubTab('finance', 'fees'),
-  },
-  {
-    path: 'finance/fee-categories',
-    name: 'finance-fee-categories',
-    redirect: redirectToHubTab('finance', 'fees'),
-  },
-  {
-    path: 'finance/transactions',
-    name: 'finance-transactions',
-    redirect: redirectToHubTab('finance', 'transactions'),
-  },
-  {
-    path: 'finance/payroll',
-    name: 'finance-payroll',
-    redirect: redirectToHubTab('finance', 'payroll'),
-  },
+  staffHubRedirect('finance/cash-flow', 'finance-cash-flow', 'finance', 'cash-flow', 'overview', 'canManageFinance'),
+  staffHubRedirect('finance/reports', 'finance-reports', 'finance', 'aging', 'overview', 'canManageFinance'),
+  staffHubRedirect('finance/payments', 'finance-payments', 'finance', 'payments', 'overview', 'canManageFinance'),
+  staffHubRedirect('finance/invoices', 'finance-invoices', 'finance', 'invoices', 'overview', 'canManageFinance'),
+  staffHubRedirect('finance/fees', 'finance-fees', 'finance', 'fees', 'overview', 'canManageFinance'),
+  staffHubRedirect('finance/fee-categories', 'finance-fee-categories', 'finance', 'fees', 'overview', 'canManageFinance'),
+  staffHubRedirect('finance/transactions', 'finance-transactions', 'finance', 'transactions', 'overview', 'canManageFinance'),
+  staffHubRedirect('finance/payroll', 'finance-payroll', 'finance', 'payroll', 'overview', 'canManageFinance'),
   {
     path: 'operations',
     name: 'operations',
@@ -285,126 +254,52 @@ export const staffRoutes: RouteRecordRaw[] = [
     'canManageTransport',
     'canManageReception',
   ]),
-  {
-    path: 'operations/inventory',
-    name: 'ops-inventory',
-    redirect: redirectToHubTab('operations', 'inventory'),
-  },
-  {
-    path: 'operations/inventory/sales',
-    name: 'ops-inventory-sales',
-    redirect: redirectToHubTab('operations', 'inventory'),
-  },
-  {
-    path: 'operations/procurement',
-    name: 'ops-procurement',
-    redirect: redirectToHubTab('finance', 'procurement'),
-  },
-  {
-    path: 'operations/procurement/vendors',
-    name: 'ops-procurement-vendors',
-    redirect: redirectToHubTab('finance', 'procurement'),
-  },
-  {
-    path: 'operations/library',
-    name: 'ops-library',
-    redirect: redirectToHubTab('operations', 'library'),
-  },
-  {
-    path: 'operations/transport',
-    name: 'ops-transport',
-    redirect: redirectToHubTab('operations', 'transport'),
-  },
-  {
-    path: 'operations/transport/drivers',
-    name: 'ops-transport-drivers',
-    redirect: redirectToHubTab('operations', 'transport'),
-  },
-  {
-    path: 'operations/transport/routes',
-    name: 'ops-transport-routes',
-    redirect: redirectToHubTab('operations', 'transport'),
-  },
-  {
-    path: 'operations/assets',
-    name: 'ops-assets',
-    redirect: redirectToHubTab('finance', 'assets'),
-  },
-  {
-    path: 'operations/hostels',
-    name: 'ops-hostels',
-    redirect: redirectToHubTab('operations', 'hostels'),
-  },
-  {
-    path: 'operations/visitors',
-    name: 'ops-visitors',
-    redirect: redirectToHubTab('operations', 'visitors'),
-  },
-  {
-    path: 'operations/health',
-    name: 'ops-health',
-    redirect: redirectToHubTab('operations', 'health'),
-  },
-  {
-    path: 'operations/events',
-    name: 'ops-events',
-    redirect: redirectToHubTab('operations', 'events'),
-  },
-  {
-    path: 'operations/school-trips',
-    name: 'ops-school-trips',
-    redirect: redirectToHubTab('operations', 'trips'),
-  },
+  staffHubRedirect('operations/inventory', 'ops-inventory', 'operations', 'inventory', 'inventory', 'canManageInventory'),
+  staffHubRedirect('operations/inventory/sales', 'ops-inventory-sales', 'operations', 'inventory', 'inventory', 'canManageInventory'),
+  staffHubRedirect('operations/procurement', 'ops-procurement', 'finance', 'procurement', 'overview', 'canManageFinance'),
+  staffHubRedirect('operations/procurement/vendors', 'ops-procurement-vendors', 'finance', 'procurement', 'overview', 'canManageFinance'),
+  staffHubRedirect('operations/library', 'ops-library', 'operations', 'library', 'inventory', 'canManageLibrary'),
+  staffHubRedirect('operations/transport', 'ops-transport', 'operations', 'transport', 'inventory', 'canManageTransport'),
+  staffHubRedirect('operations/transport/drivers', 'ops-transport-drivers', 'operations', 'transport', 'inventory', 'canManageTransport'),
+  staffHubRedirect('operations/transport/routes', 'ops-transport-routes', 'operations', 'transport', 'inventory', 'canManageTransport'),
+  staffHubRedirect('operations/assets', 'ops-assets', 'finance', 'assets', 'overview', 'canManageFinance'),
+  staffHubRedirect('operations/hostels', 'ops-hostels', 'operations', 'hostels', 'inventory', 'canManageTeachers'),
+  staffHubRedirect('operations/visitors', 'ops-visitors', 'operations', 'visitors', 'inventory', 'canManageReception'),
+  staffHubRedirect('operations/health', 'ops-health', 'operations', 'health', 'inventory', 'canManageTeachers'),
+  staffHubRedirect('operations/events', 'ops-events', 'operations', 'events', 'inventory', 'canManageTeachers'),
+  staffHubRedirect('operations/school-trips', 'ops-school-trips', 'operations', 'trips', 'inventory', 'canManageTeachers'),
   {
     path: 'communications',
     name: 'communications',
     component: () => import('@/modules/communications/views/CommunicationsHubView.vue'),
     meta: { capability: 'isStaff' },
   },
-  {
-    path: 'communications/announcements',
-    name: 'comms-announcements',
-    redirect: redirectToHubTab('communications', 'announcements', 'announcements'),
-  },
+  staffHubRedirect('communications/announcements', 'comms-announcements', 'communications', 'announcements', 'announcements', 'isStaff'),
   sectionAnalyticsRoute('communications/analytics', 'communications-analytics', 'communications', 'isStaff'),
-  {
-    path: 'communications/threads',
-    name: 'comms-threads',
-    redirect: redirectToHubTab('communications', 'messages', 'announcements'),
-  },
+  staffHubRedirect('communications/threads', 'comms-threads', 'communications', 'messages', 'announcements', 'isStaff'),
   {
     path: 'hr',
     name: 'hr',
     component: () => import('@/modules/hr/views/HrHubView.vue'),
     meta: { capability: ['canManageTeachers', 'canManageStudents', 'canViewAuditLogs'] },
   },
-  {
-    path: 'hr/leave',
-    name: 'hr-leave',
-    redirect: redirectToHubTab('hr', 'leave', 'leave'),
-  },
+  staffHubRedirect('hr/leave', 'hr-leave', 'hr', 'leave', 'leave', 'canManageTeachers'),
   sectionAnalyticsRoute('hr/analytics', 'hr-analytics', 'hr', 'canManageTeachers'),
-  {
-    path: 'hr/discipline',
-    name: 'hr-discipline',
-    redirect: redirectToHubTab('hr', 'discipline', 'leave'),
-  },
-  {
-    path: 'compliance',
-    name: 'compliance',
-    redirect: redirectToHubTab('hr', 'policies', 'leave'),
-  },
-  staffListRoute('compliance/incidents', 'compliance-incidents', 'compliance-incidents', 'canManageTeachers'),
-  staffListRoute('compliance/consent', 'compliance-consent', 'compliance-consent', 'canManageStudents'),
-  {
-    path: 'compliance/audit',
-    name: 'compliance-audit',
-    redirect: redirectToHubTab('hr', 'audit', 'leave'),
-  },
-  {
-    path: 'compliance/login-history',
-    redirect: redirectToHubTab('hr', 'audit', 'leave'),
-  },
+  staffHubRedirect('hr/discipline', 'hr-discipline', 'hr', 'discipline', 'leave', 'canManageStudents'),
+  // Policies also live under HR hub (?tab=policies); keep /compliance as a direct URL.
+  staffListRoute('compliance', 'compliance', 'compliance', 'canManageTeachers'),
+  staffHubRedirect('compliance/incidents', 'compliance-incidents', 'hr', 'incidents', 'leave', 'canManageTeachers'),
+  staffHubRedirect('compliance/consent', 'compliance-consent', 'hr', 'consent', 'leave', 'canManageTeachers'),
+  staffHubRedirect('compliance/audit', 'compliance-audit', 'hr', 'audit', 'leave', 'canViewAuditLogs'),
+  staffHubRedirect(
+    'compliance/login-history',
+    undefined,
+    'hr',
+    'audit',
+    'leave',
+    'canViewAuditLogs',
+    { auditView: 'login' },
+  ),
   {
     path: 'reports',
     name: 'reports',
@@ -417,16 +312,8 @@ export const staffRoutes: RouteRecordRaw[] = [
     component: () => import('@/modules/admin/views/AdminHubView.vue'),
     meta: { capability: 'canManageTeachers' },
   },
-  {
-    path: 'admin/users',
-    name: 'admin-users',
-    redirect: redirectToHubTab('admin', 'users', 'users'),
-  },
-  {
-    path: 'admin/roles',
-    name: 'admin-roles',
-    redirect: redirectToHubTab('admin', 'roles', 'users'),
-  },
+  staffHubRedirect('admin/users', 'admin-users', 'admin', 'users', 'users', 'canManageTeachers'),
+  staffHubRedirect('admin/roles', 'admin-roles', 'admin', 'roles', 'users', 'canManageTeachers'),
   {
     path: 'settings',
     name: 'settings',
@@ -438,6 +325,12 @@ export const staffRoutes: RouteRecordRaw[] = [
     redirect: { name: 'settings' },
   },
   staffListRoute('settings/custom-fields', 'settings-custom-fields', 'settings-custom-fields', 'canManageTeachers'),
+  {
+    path: 'profile',
+    name: 'my-profile',
+    component: () => import('@/modules/profile/views/MyProfileView.vue'),
+    meta: { capability: 'isStaff' },
+  },
   {
     path: 'assistant',
     name: 'assistant',
@@ -507,31 +400,37 @@ export const parentRoutes: RouteRecordRaw[] = [
     path: 'portal/announcements',
     name: 'portal-announcements',
     redirect: redirectToHubTab('portal-hub', 'announcements', 'messages'),
+    meta: { roles: ['parent'] },
   },
   {
     path: 'portal/messages',
     name: 'portal-messages',
     redirect: redirectToHubTab('portal-hub', 'messages', 'messages'),
+    meta: { roles: ['parent'] },
   },
   {
     path: 'portal/consent',
     name: 'portal-consent',
     redirect: redirectToHubTab('portal-hub', 'consent', 'messages'),
+    meta: { roles: ['parent'] },
   },
   {
     path: 'portal/store',
     name: 'portal-store',
     redirect: redirectToHubTab('portal-hub', 'store', 'messages'),
+    meta: { roles: ['parent'] },
   },
   {
     path: 'portal/trips',
     name: 'portal-trips',
     redirect: redirectToHubTab('portal-hub', 'trips', 'messages'),
+    meta: { roles: ['parent'] },
   },
   {
     path: 'portal/notifications',
     name: 'portal-notifications',
     redirect: redirectToHubTab('portal-hub', 'notifications', 'messages'),
+    meta: { roles: ['parent'] },
   },
 ]
 

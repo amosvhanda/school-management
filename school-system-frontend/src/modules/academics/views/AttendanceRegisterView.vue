@@ -8,8 +8,10 @@ import {
   Check,
   CheckCircle2,
   Clock,
+  Copy,
   Save,
   Search,
+  Thermometer,
   UserX,
   Users,
   X,
@@ -52,7 +54,7 @@ import { moduleEndpoints } from '@/services'
 import type { ListQueryParams } from '@/types/api'
 import type { AttendanceReport } from '@/modules/analytics/types/academics-analytics'
 
-type AttendanceStatus = 'present' | 'absent' | 'late' | 'excused'
+type AttendanceStatus = 'present' | 'absent' | 'late' | 'excused' | 'sick'
 type MarkStatus = AttendanceStatus | 'unmarked'
 type SortKey = 'name' | 'id' | 'status'
 type StatusFilter = 'all' | MarkStatus
@@ -130,6 +132,12 @@ const MARK_OPTIONS: {
     activeClass: 'border-blue-600 bg-blue-600 text-white hover:bg-blue-600/90',
   },
   {
+    value: 'sick',
+    label: 'Sick',
+    icon: Thermometer,
+    activeClass: 'border-rose-500 bg-rose-500 text-white hover:bg-rose-500/90',
+  },
+  {
     value: 'absent',
     label: 'Absent',
     icon: X,
@@ -144,7 +152,8 @@ const MARK_OPTIONS: {
 ]
 
 const route = useRoute()
-const { user } = useAuth()
+const { user, checkCapability } = useAuth()
+const canViewAudit = computed(() => checkCapability('canViewAuditLogs'))
 const loading = ref(true)
 const registerLoading = ref(false)
 const saving = ref(false)
@@ -180,8 +189,9 @@ const stats = computed(() => {
   const absent = registerRows.value.filter((r) => r.status === 'absent').length
   const late = registerRows.value.filter((r) => r.status === 'late').length
   const excused = registerRows.value.filter((r) => r.status === 'excused').length
+  const sick = registerRows.value.filter((r) => r.status === 'sick').length
   const unmarked = registerRows.value.filter((r) => r.status === 'unmarked').length
-  const marked = present + absent + late + excused
+  const marked = present + absent + late + excused + sick
   const pct = (n: number) => (total > 0 ? Math.round((n / total) * 100) : 0)
 
   return {
@@ -190,12 +200,14 @@ const stats = computed(() => {
     absent,
     late,
     excused,
+    sick,
     unmarked,
     marked,
     presentPct: pct(present),
     absentPct: pct(absent),
     latePct: pct(late),
     excusedPct: pct(excused),
+    sickPct: pct(sick),
     progressPct: pct(marked),
   }
 })
@@ -263,6 +275,8 @@ function statusBadgeVariant(status: AttendanceStatus) {
       return 'destructive' as const
     case 'late':
       return 'outline' as const
+    case 'sick':
+      return 'destructive' as const
     default:
       return 'secondary' as const
   }
@@ -464,6 +478,62 @@ function markAllPresent() {
   registerDirty.value = true
 }
 
+function markAllAbsent() {
+  for (const row of registerRows.value) {
+    row.status = 'absent'
+    row.time_in = ''
+  }
+  registerDirty.value = true
+}
+
+const copyingPrevious = ref(false)
+
+async function copyPreviousDay() {
+  if (!selectedClassId.value || !registerRows.value.length) return
+
+  const previous = new Date(registerDate.value)
+  previous.setDate(previous.getDate() - 1)
+  const previousIso = previous.toISOString().slice(0, 10)
+
+  copyingPrevious.value = true
+  try {
+    const existing = (await academicsApi.attendance.list({
+      filter: { class_id: selectedClassId.value, date: previousIso },
+      all: true,
+      include: 'student',
+    })) as AttendanceRecord[]
+
+    if (!existing.length) {
+      toast.warning('Nothing to copy', {
+        description: `No attendance was recorded on ${formatDate(previousIso)}.`,
+      })
+      return
+    }
+
+    const byStudent = new Map<number, AttendanceRecord>()
+    for (const record of existing) byStudent.set(record.student_id, record)
+
+    let applied = 0
+    for (const row of registerRows.value) {
+      const saved = byStudent.get(row.student_id)
+      if (!saved) continue
+      row.status = saved.status
+      row.time_in = parseTimeIn(saved.time_in)
+      row.remarks = saved.remarks ?? ''
+      applied += 1
+    }
+
+    registerDirty.value = true
+    toast.success('Copied previous day', {
+      description: `${applied} learner(s) copied from ${formatDate(previousIso)}. Review and save.`,
+    })
+  } catch (err) {
+    toast.error('Could not copy attendance', { description: getErrorMessage(err) })
+  } finally {
+    copyingPrevious.value = false
+  }
+}
+
 async function saveRegister() {
   if (!selectedClassId.value || !registerRows.value.length) return
 
@@ -526,8 +596,20 @@ onMounted(async () => {
     max-width="wide"
   >
     <template #actions>
+      <Button
+        variant="outline"
+        :disabled="!registerRows.length || copyingPrevious"
+        :aria-busy="copyingPrevious"
+        @click="copyPreviousDay"
+      >
+        <Copy class="mr-2 size-4" aria-hidden="true" />
+        {{ copyingPrevious ? 'Copying…' : 'Copy previous day' }}
+      </Button>
       <Button variant="outline" :disabled="!registerRows.length" @click="markAllPresent">
         Mark all present
+      </Button>
+      <Button variant="outline" :disabled="!registerRows.length" @click="markAllAbsent">
+        Mark all absent
       </Button>
       <Button
         :disabled="saving || !registerRows.length"
@@ -645,6 +727,7 @@ onMounted(async () => {
                 <SelectItem value="present">Present</SelectItem>
                 <SelectItem value="late">Late</SelectItem>
                 <SelectItem value="excused">Excused</SelectItem>
+                <SelectItem value="sick">Sick</SelectItem>
                 <SelectItem value="absent">Absent</SelectItem>
                 <SelectItem value="unmarked">Unmarked</SelectItem>
               </SelectContent>
@@ -669,7 +752,7 @@ onMounted(async () => {
 
       <section
         aria-labelledby="attendance-stats"
-        class="grid gap-4 sm:grid-cols-2 xl:grid-cols-5"
+        class="grid gap-4 sm:grid-cols-2 xl:grid-cols-6"
       >
         <h2 id="attendance-stats" class="sr-only">Attendance summary</h2>
 
@@ -728,6 +811,19 @@ onMounted(async () => {
         <Card class="border-border/70">
           <CardContent class="flex items-start justify-between gap-3 px-5 py-5">
             <div class="space-y-1">
+              <p class="text-xs font-medium tracking-wide text-muted-foreground uppercase">Sick</p>
+              <p class="text-3xl font-semibold tabular-nums">{{ stats.sick }}</p>
+              <p class="text-xs text-muted-foreground">{{ stats.sickPct }}%</p>
+            </div>
+            <div class="flex size-10 items-center justify-center rounded-xl bg-rose-500/10 text-rose-600">
+              <Thermometer class="size-5" aria-hidden="true" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card class="border-border/70">
+          <CardContent class="flex items-start justify-between gap-3 px-5 py-5">
+            <div class="space-y-1">
               <p class="text-xs font-medium tracking-wide text-muted-foreground uppercase">Total Students</p>
               <p class="text-3xl font-semibold tabular-nums">{{ stats.total }}</p>
               <p class="text-xs text-muted-foreground">{{ stats.unmarked }} unmarked</p>
@@ -759,6 +855,9 @@ onMounted(async () => {
               <span class="size-2 rounded-full bg-blue-500" aria-hidden="true" /> Excused
             </span>
             <span class="inline-flex items-center gap-1.5">
+              <span class="size-2 rounded-full bg-rose-500" aria-hidden="true" /> Sick
+            </span>
+            <span class="inline-flex items-center gap-1.5">
               <span class="size-2 rounded-full bg-destructive" aria-hidden="true" /> Absent
             </span>
           </div>
@@ -780,7 +879,7 @@ onMounted(async () => {
               {{ classAtRisk.length }}
             </Badge>
           </TabsTrigger>
-          <TabsTrigger value="audit">Audit Trail</TabsTrigger>
+          <TabsTrigger v-if="canViewAudit" value="audit">Audit Trail</TabsTrigger>
         </TabsList>
 
         <TabsContent value="mark" class="space-y-4">
@@ -825,31 +924,68 @@ onMounted(async () => {
                 <li
                   v-for="row in filteredRows"
                   :key="row.student_id"
-                  class="flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6"
+                  class="flex flex-col gap-3 px-4 py-4 sm:px-6"
                 >
-                  <div class="min-w-0">
-                    <p class="font-medium text-foreground">{{ row.full_name }}</p>
-                    <p class="text-xs text-muted-foreground">ID: {{ row.student_number }}</p>
-                  </div>
-                  <div
-                    class="flex flex-wrap gap-2"
-                    role="group"
-                    :aria-label="`Attendance for ${row.full_name}`"
-                  >
-                    <Button
-                      v-for="opt in MARK_OPTIONS"
-                      :key="opt.value"
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      :class="markButtonClass(opt, row.status === opt.value)"
-                      :aria-pressed="row.status === opt.value"
-                      :aria-label="`${opt.label} for ${row.full_name}`"
-                      @click="setStatus(row, opt.value)"
+                  <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div class="min-w-0">
+                      <p class="font-medium text-foreground">{{ row.full_name }}</p>
+                      <p class="text-xs text-muted-foreground">ID: {{ row.student_number }}</p>
+                    </div>
+                    <div
+                      class="flex flex-wrap gap-2"
+                      role="group"
+                      :aria-label="`Attendance for ${row.full_name}`"
                     >
-                      <component :is="opt.icon" class="size-3.5" aria-hidden="true" />
-                      {{ opt.label }}
-                    </Button>
+                      <Button
+                        v-for="opt in MARK_OPTIONS"
+                        :key="opt.value"
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        :class="markButtonClass(opt, row.status === opt.value)"
+                        :aria-pressed="row.status === opt.value"
+                        :aria-label="`${opt.label} for ${row.full_name}`"
+                        @click="setStatus(row, opt.value)"
+                      >
+                        <component :is="opt.icon" class="size-3.5" aria-hidden="true" />
+                        {{ opt.label }}
+                      </Button>
+                    </div>
+                  </div>
+
+                  <div
+                    v-if="row.status !== 'unmarked' && row.status !== 'present'"
+                    class="grid gap-3 sm:grid-cols-[10rem_1fr]"
+                  >
+                    <div v-if="row.status === 'late'" class="space-y-1.5">
+                      <Label :for="`time-${row.student_id}`" class="text-xs text-muted-foreground">
+                        Arrival time
+                      </Label>
+                      <Input
+                        :id="`time-${row.student_id}`"
+                        v-model="row.time_in"
+                        type="time"
+                        class="h-9"
+                        @update:model-value="registerDirty = true"
+                      />
+                    </div>
+                    <div class="space-y-1.5" :class="row.status === 'late' ? '' : 'sm:col-span-2'">
+                      <Label :for="`remarks-${row.student_id}`" class="text-xs text-muted-foreground">
+                        {{ row.status === 'late' ? 'Reason for lateness' : 'Reason / comment' }}
+                      </Label>
+                      <Input
+                        :id="`remarks-${row.student_id}`"
+                        v-model="row.remarks"
+                        type="text"
+                        class="h-9"
+                        :placeholder="
+                          row.status === 'absent'
+                            ? 'Reason for absence (optional)'
+                            : 'Add a comment (optional)'
+                        "
+                        @update:model-value="registerDirty = true"
+                      />
+                    </div>
                   </div>
                 </li>
               </ul>
@@ -1029,7 +1165,7 @@ onMounted(async () => {
           </Card>
         </TabsContent>
 
-        <TabsContent value="audit">
+        <TabsContent v-if="canViewAudit" value="audit">
           <Card class="border-border/70 shadow-sm">
             <CardHeader>
               <CardTitle class="text-base">Attendance audit trail</CardTitle>

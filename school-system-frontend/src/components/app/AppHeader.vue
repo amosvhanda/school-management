@@ -29,8 +29,10 @@ import { useAuth } from '@/composables/useAuth'
 import { useBreadcrumbs } from '@/composables/useBreadcrumbs'
 
 const router = useRouter()
-const { displayName, user, logout } = useAuth()
+const { displayName, user, logout, canAccess } = useAuth()
 const { items } = useBreadcrumbs()
+
+const canViewProfile = computed(() => canAccess('isStaff'))
 
 const pageTitle = computed(() => items.value.at(-1)?.title ?? 'Dashboard')
 
@@ -125,6 +127,7 @@ const initials = computed(() =>
             </div>
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
+          <DropdownMenuItem v-if="canViewProfile" class="text-sm cursor-pointer" @click="router.push('/profile')">My profile</DropdownMenuItem>
           <DropdownMenuItem class="text-sm cursor-pointer" @click="router.push('/settings')">Settings</DropdownMenuItem>
           <DropdownMenuItem class="text-sm cursor-pointer text-destructive focus:text-destructive" @click="handleLogout">Sign out</DropdownMenuItem>
         </DropdownMenuContent>

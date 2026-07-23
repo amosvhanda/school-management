@@ -37,6 +37,13 @@ export const schoolApi = {
   publicConfig: () => fetchOne(e.settings.config),
 }
 
+export const profileApi = {
+  show: () => fetchOne(e.profile.show),
+  update: (payload: Record<string, unknown>) => updateRecord(e.profile.update, payload),
+  changePassword: (payload: Record<string, unknown>) =>
+    postRecord(e.auth.changePassword, payload),
+}
+
 export const studentsApi = {
   ...crud(e.students.list, e.students.detail),
   promote: (payload: Record<string, unknown>) => postRecord(e.students.promote, payload),
