@@ -82,7 +82,7 @@ class AttendanceController extends Controller
             'overwrite' => 'nullable|boolean',
             'records' => 'required|array',
             'records.*.student_id' => 'required|exists:students,id',
-            'records.*.status' => 'required|string|in:present,absent,late,excused',
+            'records.*.status' => 'required|string|in:present,absent,late,excused,sick',
             'records.*.remarks' => 'nullable|string',
             'records.*.time' => 'nullable|string',
         ]);

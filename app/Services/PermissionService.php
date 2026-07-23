@@ -165,8 +165,11 @@ class PermissionService
     {
         return match ($role) {
             UserRole::Admin, UserRole::SchoolAdmin => $this->allSlugs(),
+            // Must mirror the seeded teacher role (RoleSeeder ids 5,10,12,15,19,22).
+            // Intentionally excludes 'academics.manage' — it maps to canManageTeachers
+            // and would grant school-wide setup access on the override/fallback path.
             UserRole::Teacher => [
-                'reports.view', 'dashboard.view', 'students.manage', 'academics.manage',
+                'reports.view', 'dashboard.view', 'students.manage',
                 'attendance.manage', 'exams.enter_results', 'communications.manage',
             ],
             UserRole::Finance => [

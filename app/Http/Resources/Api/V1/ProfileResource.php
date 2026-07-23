@@ -5,6 +5,7 @@ namespace App\Http\Resources\Api\V1;
 use App\Enums\UserRole;
 use App\Models\Student;
 use App\Models\Teacher;
+use App\Models\TeacherAssignment;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -47,7 +48,28 @@ class ProfileResource extends JsonResource
             if ($teacher) {
                 $data['employeeId'] = $teacher->employee_id;
                 $data['department'] = $teacher->department;
-                $data['subjects'] = $teacher->subject ? [$teacher->subject] : [];
+                $data['qualification'] = $teacher->qualification;
+                $data['employmentType'] = $teacher->employment_type;
+                $data['joiningDate'] = $teacher->joining_date?->format('Y-m-d');
+                $data['employmentStatus'] = $teacher->status;
+
+                $assignments = TeacherAssignment::query()
+                    ->where('teacher_id', $teacher->id)
+                    ->with(['classModel:id,name', 'subject:id,name'])
+                    ->get();
+
+                $subjects = $assignments->pluck('subject.name')->filter()->unique()->values();
+                if ($subjects->isEmpty() && $teacher->subject) {
+                    $subjects = collect([$teacher->subject]);
+                }
+
+                $data['subjects'] = $subjects->all();
+                $data['classes'] = $assignments
+                    ->pluck('classModel.name')
+                    ->filter()
+                    ->unique()
+                    ->values()
+                    ->all();
             }
         }
 
