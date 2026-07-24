@@ -15,15 +15,55 @@ export interface DashboardModuleGroup {
 
 export const TEACHER_DASHBOARD_MODULE_GROUPS: DashboardModuleGroup[] = [
   {
-    label: 'Teaching',
+    label: 'Teaching workspace',
     modules: [
       {
-        title: 'My timetable',
-        description: 'Lessons you teach this week',
-        href: '/academics/my-timetable',
-        icon: 'CalendarDays',
+        title: 'Open workspace',
+        description: 'Classes, lessons, homework, LMS, leave, and AI tools',
+        href: '/teaching',
+        icon: 'BookOpen',
         capability: 'isStaff',
       },
+      {
+        title: 'My classes',
+        description: 'Students and learner history for your groups',
+        href: '/teaching?tab=classes',
+        icon: 'Users',
+        capability: 'isStaff',
+      },
+      {
+        title: 'Lesson plans',
+        description: 'Create, submit, and track lesson plans',
+        href: '/teaching?tab=lessons',
+        icon: 'NotebookPen',
+        capability: 'isStaff',
+      },
+      {
+        title: 'Homework',
+        description: 'Submissions, grading, and returns',
+        href: '/teaching?tab=homework',
+        icon: 'FileText',
+        capability: 'isStaff',
+      },
+      {
+        title: 'Behaviour & support',
+        description: 'Points, interventions, and support plans',
+        href: '/teaching?tab=behaviour',
+        icon: 'ShieldAlert',
+        capability: 'canManageStudents',
+      },
+      {
+        title: 'AI teaching tools',
+        description: 'Generate plans, quizzes, and comments',
+        href: '/teaching?tab=ai',
+        icon: 'Bot',
+        capability: 'isStaff',
+      },
+    ],
+  },
+  {
+    label: 'Daily tools',
+    modules: [
       {
         title: 'Attendance register',
         description: 'Mark and review class attendance',
@@ -46,48 +86,17 @@ export const TEACHER_DASHBOARD_MODULE_GROUPS: DashboardModuleGroup[] = [
         capability: ['canManageExaminations', 'canEnterExamResults'],
       },
       {
-        title: 'Academics analytics',
-        description: 'Track attendance and performance trends',
-        href: '/academics/analytics',
-        icon: 'BarChart3',
-        capability: ['canManageStudents', 'canEnterExamResults'],
+        title: 'My timetable',
+        description: 'Lessons you teach this week',
+        href: '/academics/my-timetable',
+        icon: 'CalendarDays',
+        capability: 'isStaff',
       },
-    ],
-  },
-  {
-    label: 'Learners',
-    modules: [
-      {
-        title: 'People',
-        description: 'Students and guardians you work with',
-        href: '/people?tab=students',
-        icon: 'Users',
-        capability: 'canManageStudents',
-      },
-      {
-        title: 'Discipline',
-        description: 'Student conduct records',
-        href: '/hr?tab=discipline',
-        icon: 'ShieldAlert',
-        capability: 'canManageStudents',
-      },
-    ],
-  },
-  {
-    label: 'Communication',
-    modules: [
       {
         title: 'Communications',
         description: 'Messages and school announcements',
         href: '/communications',
         icon: 'Megaphone',
-        capability: 'isStaff',
-      },
-      {
-        title: 'Assistant',
-        description: 'Use the AI assistant for teaching tasks',
-        href: '/assistant',
-        icon: 'Bot',
         capability: 'isStaff',
       },
     ],

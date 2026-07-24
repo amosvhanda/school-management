@@ -2,31 +2,47 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\TeacherAssignment;
+use App\Models\ClassModel;
+use App\Models\GradeLevel;
 use App\Models\Teacher;
-use Illuminate\Http\Request;
+use App\Models\TeacherAssignment;
+use App\Services\PermissionService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 class TeacherAssignmentController extends Controller
 {
     /**
-     * Get all teacher assignments for the school
+     * Get teacher assignments for the school.
+     * Admins manage all; teachers may only list their own assignments.
      */
     public function index(Request $request): JsonResponse
     {
-        $this->authorizeModuleAccess(
-            $request,
-            capabilities: ['canManageTeachers'],
-            permissionSlugs: ['academics.manage', 'hr.manage'],
-        );
+        $user = $request->user();
+        $schoolId = $user->school_id;
+        $service = app(PermissionService::class);
+        $canManage = $service->hasCapability($user, 'canManageTeachers')
+            || $service->hasPermission($user, 'academics.manage')
+            || $service->hasPermission($user, 'hr.manage');
 
-        $schoolId = $request->user()->school_id;
-        
+        $ownTeacherId = $user->teacher?->id;
+        $requestedTeacherId = $request->filled('teacher_id') ? (int) $request->teacher_id : null;
+
+        if (! $canManage) {
+            abort_unless($ownTeacherId, 403, 'Teacher profile not linked to this account.');
+            abort_unless(
+                $requestedTeacherId === null || $requestedTeacherId === (int) $ownTeacherId,
+                403,
+                'You can only view your own teaching assignments.'
+            );
+            $requestedTeacherId = (int) $ownTeacherId;
+        }
+
         $query = TeacherAssignment::where('school_id', $schoolId)
             ->with(['teacher', 'gradeLevel', 'classModel', 'subject']);
 
-        if ($request->has('teacher_id')) {
-            $query->where('teacher_id', $request->teacher_id);
+        if ($requestedTeacherId) {
+            $query->where('teacher_id', $requestedTeacherId);
         }
 
         if ($request->has('class_id')) {
@@ -71,14 +87,14 @@ class TeacherAssignmentController extends Controller
             ->findOrFail($validated['teacher_id']);
 
         // Validate grade level belongs to school
-        if (!empty($validated['grade_level_id'])) {
-            \App\Models\GradeLevel::where('school_id', $schoolId)
+        if (! empty($validated['grade_level_id'])) {
+            GradeLevel::where('school_id', $schoolId)
                 ->findOrFail($validated['grade_level_id']);
         }
 
         // Validate class belongs to school
-        if (!empty($validated['class_id'])) {
-            \App\Models\ClassModel::where('school_id', $schoolId)
+        if (! empty($validated['class_id'])) {
+            ClassModel::where('school_id', $schoolId)
                 ->findOrFail($validated['class_id']);
         }
 
@@ -127,7 +143,7 @@ class TeacherAssignmentController extends Controller
         ]);
 
         // Validate teacher belongs to school if provided
-        if (!empty($validated['teacher_id'])) {
+        if (! empty($validated['teacher_id'])) {
             Teacher::where('school_id', $schoolId)
                 ->findOrFail($validated['teacher_id']);
         }

@@ -15,7 +15,6 @@ import {
   MessageSquare,
   NotebookPen,
   Receipt,
-  ShieldAlert,
   UserPlus,
   Wallet,
 } from '@lucide/vue'
@@ -66,6 +65,14 @@ const allActions: QuickAction[] = [
     variants: ['admin', 'teacher'],
   },
   {
+    label: 'Teaching workspace',
+    description: 'Lessons, homework, and class tools',
+    href: '/teaching',
+    icon: NotebookPen,
+    capability: 'isStaff',
+    variants: ['teacher'],
+  },
+  {
     label: 'Timetable',
     description: 'Class schedule',
     href: '/academics/timetable',
@@ -82,19 +89,11 @@ const allActions: QuickAction[] = [
     variants: ['teacher'],
   },
   {
-    label: 'People',
-    description: 'Learner records',
-    href: '/people?tab=students',
-    icon: GraduationCap,
-    capability: 'canManageStudents',
-    variants: ['teacher'],
-  },
-  {
-    label: 'Discipline',
-    description: 'Student conduct',
-    href: '/hr?tab=discipline',
-    icon: ShieldAlert,
-    capability: 'canManageStudents',
+    label: 'Homework',
+    description: 'Submissions and grading',
+    href: '/teaching?tab=homework',
+    icon: NotebookPen,
+    capability: 'isStaff',
     variants: ['teacher'],
   },
   {

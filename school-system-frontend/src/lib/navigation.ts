@@ -20,7 +20,6 @@ export const staffNavigation: NavGroup[] = [
     label: 'Academics',
     items: [
       { title: 'Analytics', href: '/academics/analytics', icon: 'BarChart3', capability: ['canManageTeachers', 'canManageStudents', 'canEnterExamResults'] },
-      { title: 'Teaching workspace', href: '/teaching', icon: 'BookOpen', capability: 'isStaff' },
       { title: 'Gradebook', href: '/academics/grades', icon: 'NotebookPen', capability: ['canManageExaminations', 'canEnterExamResults'] },
       { title: 'Attendance', href: '/academics/attendance', icon: 'ClipboardCheck', capability: 'canManageStudents' },
       { title: 'Exams', href: '/academics/exams', icon: 'FileText', capability: ['canManageExaminations', 'canEnterExamResults'] },
@@ -79,38 +78,25 @@ export const teacherNavigation: NavGroup[] = [
     label: 'Overview',
     items: [
       { title: 'Dashboard', href: '/', icon: 'LayoutDashboard', roles: ['teacher'] },
-      {
-        title: 'Academics analytics',
-        href: '/academics/analytics',
-        icon: 'BarChart3',
-        capability: ['canManageTeachers', 'canManageStudents', 'canEnterExamResults'],
-        roles: ['teacher'],
-      },
       { title: 'My profile', href: '/profile', icon: 'UserCog', capability: 'isStaff', roles: ['teacher'] },
     ],
   },
   {
     label: 'Teaching',
     items: [
+      // Hub for lessons, classes, resources, LMS, leave, AI, etc.
       { title: 'Teaching workspace', href: '/teaching', icon: 'BookOpen', capability: 'isStaff', roles: ['teacher'] },
-      { title: 'My timetable', href: '/academics/my-timetable', icon: 'CalendarDays', roles: ['teacher'] },
+      // High-frequency daily tools (also linked from the dashboard)
       { title: 'Attendance', href: '/academics/attendance', icon: 'ClipboardCheck', capability: 'canManageStudents', roles: ['teacher'] },
       { title: 'Gradebook', href: '/academics/grades', icon: 'NotebookPen', capability: ['canManageExaminations', 'canEnterExamResults'], roles: ['teacher'] },
       { title: 'Exams', href: '/academics/exams', icon: 'FileText', capability: ['canManageExaminations', 'canEnterExamResults'], roles: ['teacher'] },
-      { title: 'People', href: '/people', icon: 'Users', capability: 'canManageStudents', roles: ['teacher'] },
-      { title: 'Discipline', href: '/hr?tab=discipline', icon: 'ShieldAlert', capability: 'canManageStudents', roles: ['teacher'] },
+      { title: 'My timetable', href: '/academics/my-timetable', icon: 'CalendarDays', roles: ['teacher'] },
     ],
   },
   {
     label: 'Communications',
     items: [
       { title: 'Communications', href: '/communications', icon: 'Megaphone', capability: 'isStaff', roles: ['teacher'] },
-    ],
-  },
-  {
-    label: 'Tools',
-    items: [
-      { title: 'Assistant', href: '/assistant', icon: 'Bot', capability: 'isStaff', roles: ['teacher'] },
     ],
   },
 ]

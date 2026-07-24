@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import { Plus, Search, SlidersHorizontal } from '@lucide/vue'
+import { useRoute } from 'vue-router'
 import PageLoader from '@/components/feedback/PageLoader.vue'
 import ErrorState from '@/components/feedback/ErrorState.vue'
 import PageShell from '@/components/layout/PageShell.vue'
@@ -59,6 +60,7 @@ interface GradeRow {
 
 const { toast } = useToast()
 const authStore = useAuthStore()
+const route = useRoute()
 
 const classes = ref<ClassOption[]>([])
 const subjects = ref<SubjectOption[]>([])
@@ -125,7 +127,10 @@ async function loadClasses() {
     subjects.value = subjectRows
     terms.value = termRows
 
-    if (classes.value.length && !selectedClass.value) {
+    const preferredClassId = route.query.class_id ? String(route.query.class_id) : ''
+    if (preferredClassId && classes.value.some((c) => String(c.id) === preferredClassId)) {
+      selectedClass.value = preferredClassId
+    } else if (classes.value.length && !selectedClass.value) {
       selectedClass.value = String(classes.value[0].id)
     }
   } catch (err) {

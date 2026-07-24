@@ -19,6 +19,13 @@ export interface ModuleHubTab {
   title: string
   description: string
   icon: Component
+  /** Optional group label for sidebar / grouped navigation. */
+  group?: string
+  /**
+   * Sidebar weight for dense hubs (e.g. Teaching).
+   * Secondary items sit under a collapsed "More" section.
+   */
+  priority?: 'primary' | 'secondary'
   /** Capability required to see this tab (optional). */
   capability?: NavCapability | NavCapability[]
   /** Single registry CRUD section. */
@@ -29,6 +36,30 @@ export interface ModuleHubTab {
   component?: () => Promise<Component | { default: Component }>
   /** Inline panel rendered by the hub (e.g. overview). */
   panel?: 'finance-overview' | 'people-overview' | 'operations-overview'
+}
+
+export interface ModuleHubTabGroup {
+  label: string
+  tabs: ModuleHubTab[]
+}
+
+/** Preserve first-seen group order; ungrouped tabs fall under a blank label. */
+export function groupModuleHubTabs(tabs: ModuleHubTab[]): ModuleHubTabGroup[] {
+  const groups: ModuleHubTabGroup[] = []
+  const indexByLabel = new Map<string, number>()
+
+  for (const tab of tabs) {
+    const label = tab.group?.trim() || ''
+    const existing = indexByLabel.get(label)
+    if (existing === undefined) {
+      indexByLabel.set(label, groups.length)
+      groups.push({ label, tabs: [tab] })
+    } else {
+      groups[existing].tabs.push(tab)
+    }
+  }
+
+  return groups
 }
 
 export function sectionsForHubTab(tab: ModuleHubTab | undefined): ModuleHubSection[] {

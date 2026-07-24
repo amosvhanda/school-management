@@ -151,9 +151,9 @@ const overviewCards = computed<MetricCard[]>(() => [
   {
     title: 'My Classes',
     value: classCards.value.length,
-    subtitle: 'Assigned teaching groups',
+    subtitle: 'Open in Teaching workspace',
     icon: BookOpen,
-    href: '/academics/my-timetable',
+    href: '/teaching?tab=classes',
     capability: 'isStaff',
   },
   {
@@ -161,7 +161,7 @@ const overviewCards = computed<MetricCard[]>(() => [
     value: totalStudents.value,
     subtitle: 'Across your classes',
     icon: Users,
-    href: '/people?tab=students',
+    href: '/teaching?tab=classes',
     capability: 'canManageStudents',
   },
   {
@@ -202,6 +202,13 @@ const quickActions = computed(() => {
       capability: 'canManageStudents' as const,
     },
     {
+      label: 'Teaching workspace',
+      href: '/teaching',
+      icon: BookOpen,
+      primary: false,
+      capability: 'isStaff' as const,
+    },
+    {
       label: 'Enter Marks',
       href: '/academics/grades',
       icon: NotebookPen,
@@ -209,16 +216,9 @@ const quickActions = computed(() => {
       capability: 'canEnterExamResults' as const,
     },
     {
-      label: 'Exams',
-      href: '/academics/exams',
+      label: 'Homework',
+      href: '/teaching?tab=homework',
       icon: GraduationCap,
-      primary: false,
-      capability: 'canEnterExamResults' as const,
-    },
-    {
-      label: 'Teaching workspace',
-      href: '/teaching',
-      icon: BookOpen,
       primary: false,
       capability: 'isStaff' as const,
     },
@@ -239,12 +239,8 @@ const quickActions = computed(() => {
   )
 })
 
-const canOpenPeople = computed(() =>
-  canShowDashboardItem(
-    user.value,
-    { href: '/people?tab=students', capability: ['canManageStudents', 'canManageTeachers'] },
-    router,
-  ),
+const canOpenClasses = computed(() =>
+  canShowDashboardItem(user.value, { href: '/teaching?tab=classes', capability: 'isStaff' }, router),
 )
 
 const canTakeAttendance = computed(() =>
@@ -351,7 +347,7 @@ async function load() {
       teacherId
         ? (academicsApi.teacherAssignments.list({
             teacher_id: teacherId,
-          }) as Promise<AssignmentRow[]>)
+          }) as Promise<AssignmentRow[]>).catch(() => [] as AssignmentRow[])
         : Promise.resolve([] as AssignmentRow[]),
       api.get(endpoints.timetable.list).then((r) => unwrapList<TimetableSlot>(r.data)).catch(() => [] as TimetableSlot[]),
       teacherId
@@ -474,7 +470,7 @@ async function load() {
           ? `${a.submissions_count}/${a.total_students ?? '—'}`
           : '—',
         totalMarks: (a.total_marks as number | string | null | undefined) ?? (a.max_score as number | string | null | undefined) ?? '—',
-        href: '/academics/assignments',
+        href: '/teaching?tab=homework',
       })
     }
     for (const t of testList.slice(0, 10)) {
@@ -488,7 +484,7 @@ async function load() {
           ? `${t.results_count}/${t.total_students ?? '—'}`
           : '—',
         totalMarks: (t.total_marks as number | string | null | undefined) ?? (t.max_score as number | string | null | undefined) ?? '—',
-        href: '/academics/tests',
+        href: '/academics/exams',
       })
     }
     pendingGrades.value = work.filter((w) => w.type === 'test').length
@@ -525,7 +521,7 @@ onMounted(load)
     <template v-else>
       <MetricBand
         title="Teaching overview"
-        description="Your classes, learners, and today’s teaching load"
+        description="Your daily load — open Teaching workspace for lessons, homework, resources, and more"
         :cards="overviewCards"
       />
 
@@ -552,8 +548,13 @@ onMounted(load)
           </CardContent>
         </Card>
         <Card class="border-border/70 shadow-sm">
-          <CardHeader>
-            <CardTitle class="text-base">Upcoming examinations</CardTitle>
+          <CardHeader class="flex flex-row items-start justify-between gap-3">
+            <div>
+              <CardTitle class="text-base">Upcoming examinations</CardTitle>
+            </div>
+            <Button v-if="canOpenExams" variant="outline" size="sm" as-child>
+              <RouterLink to="/academics/exams">Exams</RouterLink>
+            </Button>
           </CardHeader>
           <CardContent class="space-y-2 text-sm">
             <p v-if="!(portalExtras.upcoming_exams || []).length" class="text-muted-foreground">No upcoming exams.</p>
@@ -566,11 +567,24 @@ onMounted(load)
         <Card class="border-border/70 shadow-sm">
           <CardHeader>
             <CardTitle class="text-base">Teaching workload</CardTitle>
+            <CardDescription>Continue in Teaching workspace.</CardDescription>
           </CardHeader>
           <CardContent class="space-y-2 text-sm">
-            <p>Draft lesson plans: {{ portalExtras.workload?.lesson_plans_draft ?? 0 }}</p>
-            <p>Open assignments: {{ portalExtras.workload?.assignments_open ?? 0 }}</p>
-            <p>Submissions to grade: {{ portalExtras.workload?.submissions_to_grade ?? 0 }}</p>
+            <p>
+              <RouterLink class="text-primary underline-offset-4 hover:underline" to="/teaching?tab=lessons">
+                Draft lesson plans: {{ portalExtras.workload?.lesson_plans_draft ?? 0 }}
+              </RouterLink>
+            </p>
+            <p>
+              <RouterLink class="text-primary underline-offset-4 hover:underline" to="/teaching?tab=homework">
+                Open assignments: {{ portalExtras.workload?.assignments_open ?? 0 }}
+              </RouterLink>
+            </p>
+            <p>
+              <RouterLink class="text-primary underline-offset-4 hover:underline" to="/teaching?tab=homework">
+                Submissions to grade: {{ portalExtras.workload?.submissions_to_grade ?? 0 }}
+              </RouterLink>
+            </p>
             <Button size="sm" as-child class="mt-2">
               <RouterLink to="/teaching">Open teaching workspace</RouterLink>
             </Button>
@@ -580,9 +594,14 @@ onMounted(load)
 
       <section class="grid gap-6 lg:grid-cols-2" aria-label="Classes and lessons">
         <Card class="border-border/70 shadow-sm">
-          <CardHeader>
-            <CardTitle class="text-base">My Classes</CardTitle>
-            <CardDescription>Classes you teach — open the register or class list.</CardDescription>
+          <CardHeader class="flex flex-row items-start justify-between gap-3">
+            <div>
+              <CardTitle class="text-base">My Classes</CardTitle>
+              <CardDescription>Classes you teach — open the workspace or mark the register.</CardDescription>
+            </div>
+            <Button v-if="canOpenClasses" variant="outline" size="sm" as-child>
+              <RouterLink to="/teaching?tab=classes">All classes</RouterLink>
+            </Button>
           </CardHeader>
           <CardContent class="space-y-3">
             <p v-if="!classCards.length" class="py-6 text-center text-sm text-muted-foreground">
@@ -602,11 +621,11 @@ onMounted(load)
                   Next lesson {{ cls.nextLesson }}
                 </p>
               </div>
-              <div v-if="canOpenPeople || canTakeAttendance" class="flex shrink-0 gap-2">
-                <Button v-if="canOpenPeople" variant="outline" size="sm" as-child>
-                  <RouterLink :to="`/people?tab=students&class_id=${cls.classId}`" :aria-label="`View ${cls.className}`">
+              <div v-if="canOpenClasses || canTakeAttendance" class="flex shrink-0 gap-2">
+                <Button v-if="canOpenClasses" variant="outline" size="sm" as-child>
+                  <RouterLink :to="`/teaching?tab=classes`" :aria-label="`Open ${cls.className} in Teaching workspace`">
                     <Eye class="mr-1.5 size-3.5" aria-hidden="true" />
-                    View
+                    Open
                   </RouterLink>
                 </Button>
                 <Button v-if="canTakeAttendance" size="sm" as-child>
@@ -694,8 +713,8 @@ onMounted(load)
 
       <DashboardModulesGrid
         :groups="getDashboardModuleGroupsForVariant('teacher')"
-        title="Your teaching modules"
-        description="Only the areas available for your teacher profile"
+        title="Where to go next"
+        description="Teaching workspace for planning and classwork — daily tools for register, marks, and timetable"
       />
 
       <Card class="overflow-hidden border-border/70 shadow-sm">
@@ -759,6 +778,9 @@ onMounted(load)
             <CardDescription>Work set for your classes.</CardDescription>
           </div>
           <div v-if="canOpenGradebook || canOpenExams" class="flex flex-wrap gap-2">
+            <Button variant="outline" as-child>
+              <RouterLink to="/teaching?tab=homework">Open homework</RouterLink>
+            </Button>
             <Button v-if="canOpenGradebook" variant="outline" as-child>
               <RouterLink to="/academics/grades">Open gradebook</RouterLink>
             </Button>

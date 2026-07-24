@@ -5,9 +5,10 @@ import { TEACHING_HUB_DEFAULT_TAB, TEACHING_HUB_TABS } from '@/modules/teaching/
 
 <template>
   <ModuleHub
-    title="Teaching workspace"
-    description="Classes, lessons, resources, assessment, leave, and AI tools for your teaching load."
+    title="Teaching"
+    description="Pick a class and get to work. Attendance and gradebook stay in the main sidebar when you need them."
     route-name="teaching"
+    nav-layout="sidebar"
     :tabs="TEACHING_HUB_TABS"
     :default-tab="TEACHING_HUB_DEFAULT_TAB"
     aria-label="Teaching sections"
