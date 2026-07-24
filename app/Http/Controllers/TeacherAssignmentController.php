@@ -4,14 +4,21 @@ namespace App\Http\Controllers;
 
 use App\Models\ClassModel;
 use App\Models\GradeLevel;
+use App\Models\Subject;
 use App\Models\Teacher;
 use App\Models\TeacherAssignment;
 use App\Services\PermissionService;
+use App\Services\TeacherResolutionService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 
 class TeacherAssignmentController extends Controller
 {
+    public function __construct(
+        private TeacherResolutionService $teacherResolution,
+    ) {}
+
     /**
      * Get teacher assignments for the school.
      * Admins manage all; teachers may only list their own assignments.
@@ -25,7 +32,7 @@ class TeacherAssignmentController extends Controller
             || $service->hasPermission($user, 'academics.manage')
             || $service->hasPermission($user, 'hr.manage');
 
-        $ownTeacherId = $user->teacher?->id;
+        $ownTeacherId = $this->teacherResolution->resolveForUser($user)?->id;
         $requestedTeacherId = $request->filled('teacher_id') ? (int) $request->teacher_id : null;
 
         if (! $canManage) {
@@ -82,21 +89,8 @@ class TeacherAssignmentController extends Controller
             'is_active' => ['nullable', 'boolean'],
         ]);
 
-        // Validate teacher belongs to school
-        $teacher = Teacher::where('school_id', $schoolId)
-            ->findOrFail($validated['teacher_id']);
-
-        // Validate grade level belongs to school
-        if (! empty($validated['grade_level_id'])) {
-            GradeLevel::where('school_id', $schoolId)
-                ->findOrFail($validated['grade_level_id']);
-        }
-
-        // Validate class belongs to school
-        if (! empty($validated['class_id'])) {
-            ClassModel::where('school_id', $schoolId)
-                ->findOrFail($validated['class_id']);
-        }
+        $this->assertSchoolScopedRelations($schoolId, $validated);
+        $this->assertMeaningfulAssignment($validated);
 
         if ($this->activeAssignmentExists($schoolId, $validated)) {
             return response()->json([
@@ -113,6 +107,8 @@ class TeacherAssignmentController extends Controller
             'assigned_at' => $validated['assigned_at'] ?? now(),
             'is_active' => $validated['is_active'] ?? true,
         ]);
+
+        $this->syncHomeroomIfNeeded($assignment);
 
         return response()->json($assignment->load(['teacher', 'gradeLevel', 'classModel', 'subject']), 201);
     }
@@ -142,15 +138,12 @@ class TeacherAssignmentController extends Controller
             'is_active' => ['sometimes', 'boolean'],
         ]);
 
-        // Validate teacher belongs to school if provided
-        if (! empty($validated['teacher_id'])) {
-            Teacher::where('school_id', $schoolId)
-                ->findOrFail($validated['teacher_id']);
-        }
-
         $candidate = array_merge($assignment->only([
-            'teacher_id', 'class_id', 'subject_id', 'is_active',
+            'teacher_id', 'class_id', 'subject_id', 'grade_level_id', 'role', 'is_active',
         ]), $validated);
+
+        $this->assertSchoolScopedRelations($schoolId, $candidate);
+        $this->assertMeaningfulAssignment($candidate);
 
         if (($candidate['is_active'] ?? true)
             && $this->activeAssignmentExists($schoolId, $candidate, excludeId: $assignment->id)) {
@@ -163,6 +156,7 @@ class TeacherAssignmentController extends Controller
         }
 
         $assignment->update($validated);
+        $this->syncHomeroomIfNeeded($assignment->fresh());
 
         return response()->json($assignment->load(['teacher', 'gradeLevel', 'classModel', 'subject']));
     }
@@ -184,6 +178,65 @@ class TeacherAssignmentController extends Controller
         $assignment->delete();
 
         return response()->json(['message' => 'Teacher assignment deleted successfully']);
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    private function assertSchoolScopedRelations(int $schoolId, array $data): void
+    {
+        if (! empty($data['teacher_id'])) {
+            Teacher::where('school_id', $schoolId)->findOrFail($data['teacher_id']);
+        }
+
+        if (! empty($data['grade_level_id'])) {
+            GradeLevel::where('school_id', $schoolId)->findOrFail($data['grade_level_id']);
+        }
+
+        if (! empty($data['class_id'])) {
+            ClassModel::where('school_id', $schoolId)->findOrFail($data['class_id']);
+        }
+
+        if (! empty($data['subject_id'])) {
+            Subject::where('school_id', $schoolId)->findOrFail($data['subject_id']);
+        }
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    private function assertMeaningfulAssignment(array $data): void
+    {
+        $hasClass = ! empty($data['class_id']);
+        $hasSubject = ! empty($data['subject_id']);
+        $hasGrade = ! empty($data['grade_level_id']);
+
+        if ($hasClass || $hasSubject || $hasGrade) {
+            return;
+        }
+
+        throw ValidationException::withMessages([
+            'class_id' => ['Assign a class, subject, or grade level so the relationship is usable.'],
+        ]);
+    }
+
+    private function syncHomeroomIfNeeded(?TeacherAssignment $assignment): void
+    {
+        if (! $assignment || ! $assignment->class_id || ! $assignment->is_active) {
+            return;
+        }
+
+        $role = strtolower((string) ($assignment->role ?? ''));
+        if (! in_array($role, ['class_teacher', 'homeroom', 'form_teacher'], true)) {
+            return;
+        }
+
+        // Only set when the class has no homeroom teacher yet.
+        ClassModel::query()
+            ->where('id', $assignment->class_id)
+            ->where('school_id', $assignment->school_id)
+            ->whereNull('teacher_id')
+            ->update(['teacher_id' => $assignment->teacher_id]);
     }
 
     /**

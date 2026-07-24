@@ -6,12 +6,12 @@ use App\Enums\UserRole;
 use App\Models\Guardian;
 use App\Models\School;
 use App\Models\Student;
-use App\Models\Teacher;
 use App\Models\User;
 use App\Services\AuditService;
 use App\Services\LicenseService;
 use App\Services\ParentAccessService;
 use App\Services\PermissionService;
+use App\Services\TeacherResolutionService;
 use Illuminate\Auth\Events\Lockout;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -26,6 +26,7 @@ class SecureAuthenticationService
         private AuditService $auditService,
         private LicenseService $licenseService,
         private PermissionService $permissionService,
+        private TeacherResolutionService $teacherResolution,
     ) {}
 
     /**
@@ -102,7 +103,7 @@ class SecureAuthenticationService
         }
 
         if ($user->role === UserRole::Teacher) {
-            $context['teacher_id'] = Teacher::query()->where('user_id', $user->id)->value('id');
+            $context['teacher_id'] = $this->teacherResolution->resolveForUser($user)?->id;
         }
 
         if ($user->role === UserRole::Parent) {

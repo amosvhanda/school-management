@@ -4,8 +4,8 @@ namespace App\Http\Resources\Api\V1;
 
 use App\Enums\UserRole;
 use App\Models\Student;
-use App\Models\Teacher;
 use App\Models\TeacherAssignment;
+use App\Services\TeacherResolutionService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -42,10 +42,7 @@ class ProfileResource extends JsonResource
         }
 
         if ($role === UserRole::Teacher) {
-            $teacher = Teacher::query()
-                ->where('user_id', $this->id)
-                ->orWhere('email', $this->email)
-                ->first();
+            $teacher = app(TeacherResolutionService::class)->resolveForUser($this->resource);
             if ($teacher) {
                 $data['employeeId'] = $teacher->employee_id;
                 $data['department'] = $teacher->department;
@@ -56,6 +53,8 @@ class ProfileResource extends JsonResource
 
                 $assignments = TeacherAssignment::query()
                     ->where('teacher_id', $teacher->id)
+                    ->where('is_active', true)
+                    ->whereNotNull('class_id')
                     ->with(['classModel:id,name', 'subject:id,name'])
                     ->get();
 

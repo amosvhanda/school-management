@@ -9,7 +9,6 @@ use App\Models\AssignmentSubmission;
 use App\Models\Attendance;
 use App\Models\AttendanceSession;
 use App\Models\BehaviorPoint;
-use App\Models\ClassModel;
 use App\Models\ClassParticipationRecord;
 use App\Models\ClassSubstitution;
 use App\Models\DisciplinaryRecord;
@@ -30,6 +29,7 @@ use App\Models\Timetable;
 use App\Models\TimetableChangeRequest;
 use App\Services\Export\ExportService;
 use App\Services\PermissionService;
+use App\Services\TeacherResolutionService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
@@ -39,6 +39,7 @@ class TeacherPortalController extends Controller
     public function __construct(
         private TeachingAssistant $assistant,
         private ExportService $exports,
+        private TeacherResolutionService $teachers,
     ) {}
 
     protected function requireTeacher(Request $request, array $capabilities = ['isStaff']): Teacher
@@ -48,16 +49,7 @@ class TeacherPortalController extends Controller
 
         $this->authorizeModuleAccess($request, capabilities: $capabilities);
 
-        $teacher = $user->teacher;
-        if (! $teacher && $user->email) {
-            $teacher = Teacher::query()
-                ->when($user->school_id, fn ($q) => $q->where('school_id', $user->school_id))
-                ->where(function ($q) use ($user) {
-                    $q->where('user_id', $user->id)->orWhere('email', $user->email);
-                })
-                ->first();
-        }
-
+        $teacher = $this->teachers->resolveForUser($user);
         abort_unless($teacher, 403, 'Teacher profile not linked to this account.');
 
         return $teacher;
@@ -75,13 +67,7 @@ class TeacherPortalController extends Controller
         $schoolId = $this->schoolId($request);
         $today = now()->toDateString();
 
-        $classIds = TeacherAssignment::query()
-            ->where('teacher_id', $teacher->id)
-            ->where('is_active', true)
-            ->pluck('class_id')
-            ->filter()
-            ->unique()
-            ->values();
+        $classIds = $this->teachers->assignedClassIds($teacher);
 
         $pendingAttendance = $classIds->filter(function ($classId) use ($schoolId, $today) {
             return ! Attendance::query()
@@ -141,11 +127,13 @@ class TeacherPortalController extends Controller
         $assignments = TeacherAssignment::query()
             ->where('teacher_id', $teacher->id)
             ->where('is_active', true)
+            ->whereNotNull('class_id')
             ->with(['classModel:id,name,teacher_id', 'subject:id,name'])
             ->get();
 
         $classes = $assignments->groupBy('class_id')->map(function ($rows, $classId) use ($schoolId) {
             $first = $rows->first();
+            $classId = (int) $classId;
             $students = Student::query()
                 ->where('school_id', $schoolId)
                 ->where('class_id', $classId)
@@ -153,8 +141,8 @@ class TeacherPortalController extends Controller
                 ->get(['id', 'full_name', 'student_number', 'status', 'class_id']);
 
             return [
-                'class_id' => (int) $classId,
-                'class_name' => $first->classModel?->name,
+                'class_id' => $classId,
+                'class_name' => $first->classModel?->name ?? 'Unnamed class',
                 'subjects' => $rows->pluck('subject.name')->filter()->unique()->values(),
                 'student_count' => $students->count(),
                 'students' => $students,
@@ -218,6 +206,9 @@ class TeacherPortalController extends Controller
             'period' => ['nullable', 'string', 'max:50'],
         ]);
         $this->assertTeacherOwnsClass($teacher, (int) $data['class_id']);
+        if (! empty($data['subject_id'])) {
+            $this->assertTeacherOwnsSubject($teacher, $data['subject_id'], (int) $data['class_id']);
+        }
 
         $session = AttendanceSession::query()->updateOrCreate(
             [
@@ -253,6 +244,9 @@ class TeacherPortalController extends Controller
             'period' => ['nullable', 'string', 'max:50'],
         ]);
         $this->assertTeacherOwnsClass($teacher, (int) $data['class_id']);
+        if (! empty($data['subject_id'])) {
+            $this->assertTeacherOwnsSubject($teacher, $data['subject_id'], (int) $data['class_id']);
+        }
 
         $session = AttendanceSession::query()->updateOrCreate(
             [
@@ -487,6 +481,17 @@ class TeacherPortalController extends Controller
             unset($data['copy_from_id']);
         }
 
+        if (! empty($data['class_id'])) {
+            $this->assertTeacherOwnsClass($teacher, $data['class_id']);
+        }
+        if (! empty($data['subject_id'])) {
+            $this->assertTeacherOwnsSubject(
+                $teacher,
+                $data['subject_id'],
+                ! empty($data['class_id']) ? (int) $data['class_id'] : null,
+            );
+        }
+
         $plan = LessonPlan::create([
             'school_id' => $this->schoolId($request),
             'teacher_id' => $teacher->id,
@@ -554,6 +559,15 @@ class TeacherPortalController extends Controller
             'status' => ['nullable', Rule::in(['planned', 'in_progress', 'completed'])],
             'coverage_percent' => ['nullable', 'integer', 'min:0', 'max:100'],
         ]);
+
+        if (! empty($data['class_id'])) {
+            $this->assertTeacherOwnsClass($teacher, $data['class_id']);
+        }
+        $this->assertTeacherOwnsSubject(
+            $teacher,
+            $data['subject_id'],
+            ! empty($data['class_id']) ? (int) $data['class_id'] : null,
+        );
 
         $topic = SyllabusTopic::create([
             'school_id' => $this->schoolId($request),
@@ -1205,49 +1219,16 @@ class TeacherPortalController extends Controller
 
     protected function teacherClassIds(Teacher $teacher)
     {
-        return TeacherAssignment::query()
-            ->where('teacher_id', $teacher->id)
-            ->where('is_active', true)
-            ->pluck('class_id')
-            ->filter()
-            ->unique()
-            ->values();
+        return $this->teachers->assignedClassIds($teacher);
     }
 
     protected function assertTeacherOwnsClass(Teacher $teacher, mixed $classId): void
     {
-        abort_unless($classId, 403, 'Class not assigned.');
+        $this->teachers->assertOwnsClass($teacher, $classId);
+    }
 
-        $classId = (int) $classId;
-
-        $ownsAssignment = TeacherAssignment::query()
-            ->where('teacher_id', $teacher->id)
-            ->where('class_id', $classId)
-            ->where('is_active', true)
-            ->exists();
-
-        if ($ownsAssignment) {
-            return;
-        }
-
-        // Class teacher of record (homeroom) also has access.
-        $isClassTeacher = ClassModel::query()
-            ->where('id', $classId)
-            ->where('teacher_id', $teacher->id)
-            ->exists();
-
-        if ($isClassTeacher) {
-            return;
-        }
-
-        // Active cover / substitution for today.
-        $hasCover = ClassSubstitution::query()
-            ->where('substitute_teacher_id', $teacher->id)
-            ->where('class_id', $classId)
-            ->whereDate('date', now()->toDateString())
-            ->whereIn('status', ['accepted', 'assigned', 'pending'])
-            ->exists();
-
-        abort_unless($hasCover, 403, 'You are not assigned to this class.');
+    protected function assertTeacherOwnsSubject(Teacher $teacher, mixed $subjectId, ?int $classId = null): void
+    {
+        $this->teachers->assertOwnsSubject($teacher, $subjectId, $classId);
     }
 }

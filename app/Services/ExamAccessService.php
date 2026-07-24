@@ -9,12 +9,14 @@ use App\Models\Teacher;
 use App\Models\TeacherAssignment;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Collection;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 
 class ExamAccessService
 {
     public function __construct(
         private PermissionService $permissions,
+        private TeacherResolutionService $teacherResolution,
     ) {}
 
     public function teacherFor(User $user): ?Teacher
@@ -23,9 +25,7 @@ class ExamAccessService
             return null;
         }
 
-        return $user->relationLoaded('teacher')
-            ? $user->teacher
-            : Teacher::query()->where('user_id', $user->id)->first();
+        return $this->teacherResolution->resolveForUser($user);
     }
 
     public function canManageExams(User $user): bool
@@ -107,7 +107,7 @@ class ExamAccessService
     }
 
     /**
-     * @return \Illuminate\Support\Collection<int, int>
+     * @return Collection<int, int>
      */
     private function assignedSubjectIds(Teacher $teacher)
     {
