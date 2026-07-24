@@ -7,7 +7,6 @@ import {
   ClipboardCheck,
   Eye,
   GraduationCap,
-  MessageSquare,
   NotebookPen,
   Pencil,
   Users,
@@ -34,8 +33,7 @@ import { getErrorMessage, unwrapList } from '@/lib/api-response'
 import { formatDate, formatTime } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { canShowDashboardItem } from '@/lib/dashboard-access'
-import { getDashboardModuleGroupsForVariant, getRoleDashboardMeta } from '@/lib/role-dashboard'
-import DashboardModulesGrid from '@/components/dashboard/DashboardModulesGrid.vue'
+import { getRoleDashboardMeta } from '@/lib/role-dashboard'
 import { useRouter } from 'vue-router'
 import { academicsApi, teachersApi, teacherPortalApi } from '@/services/api.service'
 import { fetchList } from '@/services/dashboard.service'
@@ -151,7 +149,7 @@ const overviewCards = computed<MetricCard[]>(() => [
   {
     title: 'My Classes',
     value: classCards.value.length,
-    subtitle: 'Open in Teaching workspace',
+    subtitle: 'Open in Teaching',
     icon: BookOpen,
     href: '/teaching?tab=classes',
     capability: 'isStaff',
@@ -195,39 +193,25 @@ const overviewCards = computed<MetricCard[]>(() => [
 const quickActions = computed(() => {
   const actions = [
     {
-      label: 'Take Attendance',
+      label: 'Take attendance',
       href: '/academics/attendance',
       icon: ClipboardCheck,
       primary: true,
       capability: 'canManageStudents' as const,
     },
     {
-      label: 'Teaching workspace',
+      label: 'Open Teaching',
       href: '/teaching',
       icon: BookOpen,
       primary: false,
       capability: 'isStaff' as const,
     },
     {
-      label: 'Enter Marks',
+      label: 'Enter marks',
       href: '/academics/grades',
       icon: NotebookPen,
       primary: false,
       capability: 'canEnterExamResults' as const,
-    },
-    {
-      label: 'Homework',
-      href: '/teaching?tab=homework',
-      icon: GraduationCap,
-      primary: false,
-      capability: 'isStaff' as const,
-    },
-    {
-      label: 'Message Class',
-      href: '/communications?tab=messages',
-      icon: MessageSquare,
-      primary: false,
-      capability: 'isStaff' as const,
     },
   ]
   return actions.filter((action) =>
@@ -515,15 +499,42 @@ onMounted(load)
       @refresh="refresh"
     />
 
-    <PageLoader v-if="loading" label="Loading your teaching workspace…" />
+    <PageLoader v-if="loading" label="Loading your dashboard…" />
     <ErrorState v-else-if="error" :description="error" @retry="refresh" />
 
     <template v-else>
       <MetricBand
-        title="Teaching overview"
-        description="Your daily load — open Teaching workspace for lessons, homework, resources, and more"
+        title="Today at a glance"
+        description="Classes, register, and marks that need attention"
         :cards="overviewCards"
       />
+
+      <section v-if="quickActions.length" aria-labelledby="teacher-quick-actions">
+        <h2 id="teacher-quick-actions" class="mb-3 text-sm font-medium text-muted-foreground">
+          Start here
+        </h2>
+        <div class="grid gap-3 sm:grid-cols-3">
+          <RouterLink
+            v-for="action in quickActions"
+            :key="action.label"
+            :to="action.href"
+            :class="cn(
+              'flex flex-col items-start gap-3 rounded-xl border px-4 py-4 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+              action.primary
+                ? 'border-foreground bg-foreground text-background hover:bg-foreground/90'
+                : 'border-border/70 bg-card text-foreground hover:bg-muted/40',
+            )"
+          >
+            <component
+              :is="action.icon"
+              class="size-5"
+              :class="action.primary ? 'text-background' : 'text-muted-foreground'"
+              aria-hidden="true"
+            />
+            <span class="text-sm font-semibold">{{ action.label }}</span>
+          </RouterLink>
+        </div>
+      </section>
 
       <section
         v-if="portalExtras"
@@ -567,7 +578,7 @@ onMounted(load)
         <Card class="border-border/70 shadow-sm">
           <CardHeader>
             <CardTitle class="text-base">Teaching workload</CardTitle>
-            <CardDescription>Continue in Teaching workspace.</CardDescription>
+            <CardDescription>Plans and homework waiting on you.</CardDescription>
           </CardHeader>
           <CardContent class="space-y-2 text-sm">
             <p>
@@ -586,7 +597,7 @@ onMounted(load)
               </RouterLink>
             </p>
             <Button size="sm" as-child class="mt-2">
-              <RouterLink to="/teaching">Open teaching workspace</RouterLink>
+              <RouterLink to="/teaching">Open Teaching</RouterLink>
             </Button>
           </CardContent>
         </Card>
@@ -597,7 +608,7 @@ onMounted(load)
           <CardHeader class="flex flex-row items-start justify-between gap-3">
             <div>
               <CardTitle class="text-base">My Classes</CardTitle>
-              <CardDescription>Classes you teach — open the workspace or mark the register.</CardDescription>
+              <CardDescription>Classes you teach — open Teaching or mark the register.</CardDescription>
             </div>
             <Button v-if="canOpenClasses" variant="outline" size="sm" as-child>
               <RouterLink to="/teaching?tab=classes">All classes</RouterLink>
@@ -623,7 +634,7 @@ onMounted(load)
               </div>
               <div v-if="canOpenClasses || canTakeAttendance" class="flex shrink-0 gap-2">
                 <Button v-if="canOpenClasses" variant="outline" size="sm" as-child>
-                  <RouterLink :to="`/teaching?tab=classes`" :aria-label="`Open ${cls.className} in Teaching workspace`">
+                  <RouterLink :to="`/teaching?tab=classes`" :aria-label="`Open ${cls.className} in Teaching`">
                     <Eye class="mr-1.5 size-3.5" aria-hidden="true" />
                     Open
                   </RouterLink>
@@ -683,39 +694,6 @@ onMounted(load)
           </CardContent>
         </Card>
       </section>
-
-      <section v-if="quickActions.length" aria-labelledby="teacher-quick-actions">
-        <h2 id="teacher-quick-actions" class="mb-3 text-sm font-medium text-muted-foreground">
-          Quick Actions
-        </h2>
-        <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <RouterLink
-            v-for="action in quickActions"
-            :key="action.label"
-            :to="action.href"
-            :class="cn(
-              'flex flex-col items-start gap-3 rounded-xl border px-4 py-4 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-              action.primary
-                ? 'border-foreground bg-foreground text-background hover:bg-foreground/90'
-                : 'border-border/70 bg-card text-foreground hover:bg-muted/40',
-            )"
-          >
-            <component
-              :is="action.icon"
-              class="size-5"
-              :class="action.primary ? 'text-background' : 'text-muted-foreground'"
-              aria-hidden="true"
-            />
-            <span class="text-sm font-semibold">{{ action.label }}</span>
-          </RouterLink>
-        </div>
-      </section>
-
-      <DashboardModulesGrid
-        :groups="getDashboardModuleGroupsForVariant('teacher')"
-        title="Where to go next"
-        description="Teaching workspace for planning and classwork — daily tools for register, marks, and timetable"
-      />
 
       <Card class="overflow-hidden border-border/70 shadow-sm">
         <CardHeader class="flex flex-row items-center justify-between gap-3 border-b border-border/60">

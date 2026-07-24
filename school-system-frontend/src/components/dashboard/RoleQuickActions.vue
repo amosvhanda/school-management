@@ -65,8 +65,8 @@ const allActions: QuickAction[] = [
     variants: ['admin', 'teacher'],
   },
   {
-    label: 'Teaching workspace',
-    description: 'Lessons, homework, and class tools',
+    label: 'Teaching',
+    description: 'Classes, lessons, and homework',
     href: '/teaching',
     icon: NotebookPen,
     capability: 'isStaff',
@@ -89,20 +89,12 @@ const allActions: QuickAction[] = [
     variants: ['teacher'],
   },
   {
-    label: 'Homework',
-    description: 'Submissions and grading',
-    href: '/teaching?tab=homework',
-    icon: NotebookPen,
-    capability: 'isStaff',
-    variants: ['teacher'],
-  },
-  {
     label: 'Messages',
     description: 'Parent & staff threads',
     href: '/communications?tab=messages',
     icon: MessageSquare,
     capability: 'isStaff',
-    variants: ['teacher', 'accounts', 'finance'],
+    variants: ['accounts', 'finance'],
   },
   {
     label: 'Gradebook',
@@ -111,14 +103,6 @@ const allActions: QuickAction[] = [
     icon: BookOpen,
     capability: ['canManageExaminations', 'canEnterExamResults'],
     variants: ['admin', 'examination_officer', 'teacher'],
-  },
-  {
-    label: 'Enter exam results',
-    description: 'Marks for your subjects',
-    href: '/academics/exams',
-    icon: FileText,
-    capability: 'canEnterExamResults',
-    variants: ['teacher'],
   },
   {
     label: 'Examinations',

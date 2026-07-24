@@ -45,7 +45,7 @@ const META: Record<StaffDashboardVariant, Omit<RoleDashboardMeta, 'variant'>> = 
   },
   teacher: {
     label: 'Teacher',
-    subtitle: 'Daily overview of your classes — open Teaching workspace for lessons, homework, and more.',
+    subtitle: 'Today’s classes, register, and marks — use Teaching for plans and homework.',
     pageTitle: 'Teacher dashboard',
   },
   finance: {

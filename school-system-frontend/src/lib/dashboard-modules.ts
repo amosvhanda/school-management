@@ -15,58 +15,18 @@ export interface DashboardModuleGroup {
 
 export const TEACHER_DASHBOARD_MODULE_GROUPS: DashboardModuleGroup[] = [
   {
-    label: 'Teaching workspace',
+    label: 'Start here',
     modules: [
       {
-        title: 'Open workspace',
-        description: 'Classes, lessons, homework, LMS, leave, and AI tools',
+        title: 'Teaching',
+        description: 'Classes, lessons, homework, and more',
         href: '/teaching',
         icon: 'BookOpen',
         capability: 'isStaff',
       },
       {
-        title: 'My classes',
-        description: 'Students and learner history for your groups',
-        href: '/teaching?tab=classes',
-        icon: 'Users',
-        capability: 'isStaff',
-      },
-      {
-        title: 'Lesson plans',
-        description: 'Create, submit, and track lesson plans',
-        href: '/teaching?tab=lessons',
-        icon: 'NotebookPen',
-        capability: 'isStaff',
-      },
-      {
-        title: 'Homework',
-        description: 'Submissions, grading, and returns',
-        href: '/teaching?tab=homework',
-        icon: 'FileText',
-        capability: 'isStaff',
-      },
-      {
-        title: 'Behaviour & support',
-        description: 'Points, interventions, and support plans',
-        href: '/teaching?tab=behaviour',
-        icon: 'ShieldAlert',
-        capability: 'canManageStudents',
-      },
-      {
-        title: 'AI teaching tools',
-        description: 'Generate plans, quizzes, and comments',
-        href: '/teaching?tab=ai',
-        icon: 'Bot',
-        capability: 'isStaff',
-      },
-    ],
-  },
-  {
-    label: 'Daily tools',
-    modules: [
-      {
-        title: 'Attendance register',
-        description: 'Mark and review class attendance',
+        title: 'Attendance',
+        description: 'Mark today’s register',
         href: '/academics/attendance',
         icon: 'ClipboardCheck',
         capability: 'canManageStudents',
@@ -79,24 +39,10 @@ export const TEACHER_DASHBOARD_MODULE_GROUPS: DashboardModuleGroup[] = [
         capability: ['canManageExaminations', 'canEnterExamResults'],
       },
       {
-        title: 'Exams',
-        description: 'Enter marks and review exam outcomes',
-        href: '/academics/exams',
-        icon: 'FileText',
-        capability: ['canManageExaminations', 'canEnterExamResults'],
-      },
-      {
         title: 'My timetable',
         description: 'Lessons you teach this week',
         href: '/academics/my-timetable',
         icon: 'CalendarDays',
-        capability: 'isStaff',
-      },
-      {
-        title: 'Communications',
-        description: 'Messages and school announcements',
-        href: '/communications',
-        icon: 'Megaphone',
         capability: 'isStaff',
       },
     ],

@@ -82,11 +82,9 @@ export const teacherNavigation: NavGroup[] = [
     ],
   },
   {
-    label: 'Teaching',
+    label: 'Classroom',
     items: [
-      // Hub for lessons, classes, resources, LMS, leave, AI, etc.
-      { title: 'Teaching workspace', href: '/teaching', icon: 'BookOpen', capability: 'isStaff', roles: ['teacher'] },
-      // High-frequency daily tools (also linked from the dashboard)
+      { title: 'Teaching', href: '/teaching', icon: 'BookOpen', capability: 'isStaff', roles: ['teacher'] },
       { title: 'Attendance', href: '/academics/attendance', icon: 'ClipboardCheck', capability: 'canManageStudents', roles: ['teacher'] },
       { title: 'Gradebook', href: '/academics/grades', icon: 'NotebookPen', capability: ['canManageExaminations', 'canEnterExamResults'], roles: ['teacher'] },
       { title: 'Exams', href: '/academics/exams', icon: 'FileText', capability: ['canManageExaminations', 'canEnterExamResults'], roles: ['teacher'] },
@@ -94,9 +92,9 @@ export const teacherNavigation: NavGroup[] = [
     ],
   },
   {
-    label: 'Communications',
+    label: 'Messages',
     items: [
-      { title: 'Communications', href: '/communications', icon: 'Megaphone', capability: 'isStaff', roles: ['teacher'] },
+      { title: 'Inbox', href: '/communications', icon: 'Megaphone', capability: 'isStaff', roles: ['teacher'] },
     ],
   },
 ]

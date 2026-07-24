@@ -6,7 +6,7 @@ import { TEACHING_HUB_DEFAULT_TAB, TEACHING_HUB_TABS } from '@/modules/teaching/
 <template>
   <ModuleHub
     title="Teaching"
-    description="Pick a class and get to work. Attendance and gradebook stay in the main sidebar when you need them."
+    description="Pick a class, then mark, teach, or set work. Register and gradebook stay in the sidebar."
     route-name="teaching"
     nav-layout="sidebar"
     :tabs="TEACHING_HUB_TABS"
