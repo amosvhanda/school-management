@@ -9,6 +9,7 @@ use App\Models\AssignmentSubmission;
 use App\Models\Attendance;
 use App\Models\AttendanceSession;
 use App\Models\BehaviorPoint;
+use App\Models\ClassModel;
 use App\Models\ClassParticipationRecord;
 use App\Models\ClassSubstitution;
 use App\Models\DisciplinaryRecord;
@@ -40,12 +41,12 @@ class TeacherPortalController extends Controller
         private ExportService $exports,
     ) {}
 
-    protected function requireTeacher(Request $request): Teacher
+    protected function requireTeacher(Request $request, array $capabilities = ['isStaff']): Teacher
     {
         $user = $request->user();
         abort_unless($user, 401);
 
-        $this->authorizeModuleAccess($request, capabilities: ['isStaff']);
+        $this->authorizeModuleAccess($request, capabilities: $capabilities);
 
         $teacher = $user->teacher;
         if (! $teacher && $user->email) {
@@ -209,7 +210,7 @@ class TeacherPortalController extends Controller
 
     public function submitAttendance(Request $request)
     {
-        $teacher = $this->requireTeacher($request);
+        $teacher = $this->requireTeacher($request, ['canManageStudents']);
         $data = $request->validate([
             'class_id' => ['required', 'integer'],
             'date' => ['required', 'date'],
@@ -244,7 +245,7 @@ class TeacherPortalController extends Controller
 
     public function lockAttendance(Request $request)
     {
-        $teacher = $this->requireTeacher($request);
+        $teacher = $this->requireTeacher($request, ['canManageStudents']);
         $data = $request->validate([
             'class_id' => ['required', 'integer'],
             'date' => ['required', 'date'],
@@ -284,7 +285,7 @@ class TeacherPortalController extends Controller
 
     public function attendanceReports(Request $request)
     {
-        $teacher = $this->requireTeacher($request);
+        $teacher = $this->requireTeacher($request, ['canManageStudents']);
         $data = $request->validate([
             'class_id' => ['required', 'integer'],
             'from' => ['nullable', 'date'],
@@ -424,7 +425,7 @@ class TeacherPortalController extends Controller
 
         $events = SchoolEvent::query()
             ->where('school_id', $schoolId)
-            ->orderBy('start_date')
+            ->orderBy('starts_at')
             ->limit(100)
             ->get();
 
@@ -652,7 +653,7 @@ class TeacherPortalController extends Controller
 
     public function gradeSubmission(Request $request, int $id)
     {
-        $teacher = $this->requireTeacher($request);
+        $teacher = $this->requireTeacher($request, ['canEnterExamResults']);
         $sub = AssignmentSubmission::query()
             ->whereHas('assignment', fn ($q) => $q->where('teacher_id', $teacher->id))
             ->findOrFail($id);
@@ -765,7 +766,7 @@ class TeacherPortalController extends Controller
 
     public function storeReportCard(Request $request)
     {
-        $teacher = $this->requireTeacher($request);
+        $teacher = $this->requireTeacher($request, ['canEnterExamResults']);
         $data = $request->validate([
             'student_id' => ['required', 'integer'],
             'class_id' => ['nullable', 'integer'],
@@ -778,6 +779,9 @@ class TeacherPortalController extends Controller
             'status' => ['nullable', Rule::in(['draft', 'submitted'])],
         ]);
 
+        $student = Student::query()->where('school_id', $this->schoolId($request))->findOrFail($data['student_id']);
+        $this->assertTeacherOwnsClass($teacher, $data['class_id'] ?? $student->class_id);
+
         $row = ReportCardNarrative::query()->updateOrCreate(
             [
                 'teacher_id' => $teacher->id,
@@ -786,7 +790,7 @@ class TeacherPortalController extends Controller
             ],
             [
                 'school_id' => $this->schoolId($request),
-                'class_id' => $data['class_id'] ?? null,
+                'class_id' => $data['class_id'] ?? $student->class_id,
                 'academic_comment' => $data['academic_comment'] ?? null,
                 'behaviour_comment' => $data['behaviour_comment'] ?? null,
                 'recommendations' => $data['recommendations'] ?? null,
@@ -804,7 +808,7 @@ class TeacherPortalController extends Controller
 
     public function behaviourPoints(Request $request)
     {
-        $teacher = $this->requireTeacher($request);
+        $teacher = $this->requireTeacher($request, ['canManageStudents']);
         $classIds = $this->teacherClassIds($teacher);
 
         $q = BehaviorPoint::query()
@@ -822,7 +826,7 @@ class TeacherPortalController extends Controller
 
     public function storeBehaviourPoint(Request $request)
     {
-        $teacher = $this->requireTeacher($request);
+        $teacher = $this->requireTeacher($request, ['canManageStudents']);
         $data = $request->validate([
             'student_id' => ['required', 'integer'],
             'points' => ['required', 'integer'],
@@ -849,7 +853,7 @@ class TeacherPortalController extends Controller
 
     public function interventions(Request $request)
     {
-        $teacher = $this->requireTeacher($request);
+        $teacher = $this->requireTeacher($request, ['canManageStudents']);
         $classIds = $this->teacherClassIds($teacher);
 
         return $this->success(
@@ -865,7 +869,7 @@ class TeacherPortalController extends Controller
 
     public function storeIntervention(Request $request)
     {
-        $teacher = $this->requireTeacher($request);
+        $teacher = $this->requireTeacher($request, ['canManageStudents']);
         $data = $request->validate([
             'student_id' => ['required', 'integer'],
             'intervention_type' => ['required', 'string', 'max:100'],
@@ -910,7 +914,7 @@ class TeacherPortalController extends Controller
 
     public function storeParticipation(Request $request)
     {
-        $teacher = $this->requireTeacher($request);
+        $teacher = $this->requireTeacher($request, ['canEnterExamResults']);
         $data = $request->validate([
             'student_id' => ['required', 'integer'],
             'class_id' => ['nullable', 'integer'],
@@ -919,6 +923,9 @@ class TeacherPortalController extends Controller
             'score' => ['required', 'integer', 'min:1', 'max:5'],
             'notes' => ['nullable', 'string'],
         ]);
+
+        $student = Student::query()->where('school_id', $this->schoolId($request))->findOrFail($data['student_id']);
+        $this->assertTeacherOwnsClass($teacher, $data['class_id'] ?? $student->class_id);
 
         $row = ClassParticipationRecord::create([
             'school_id' => $this->schoolId($request),
@@ -1127,6 +1134,13 @@ class TeacherPortalController extends Controller
     public function export(Request $request)
     {
         $teacher = $this->requireTeacher($request);
+        $permissions = app(PermissionService::class);
+        abort_unless(
+            $permissions->hasPermission($request->user(), 'reports.view')
+                || $permissions->hasPermission($request->user(), 'reports.generate'),
+            403,
+            'You do not have permission to export reports.'
+        );
         $data = $request->validate([
             'type' => ['required', Rule::in([
                 'attendance', 'marksheet', 'class_list', 'assignments', 'exams', 'progress', 'lesson_plans',
@@ -1203,11 +1217,37 @@ class TeacherPortalController extends Controller
     protected function assertTeacherOwnsClass(Teacher $teacher, mixed $classId): void
     {
         abort_unless($classId, 403, 'Class not assigned.');
-        $owns = TeacherAssignment::query()
+
+        $classId = (int) $classId;
+
+        $ownsAssignment = TeacherAssignment::query()
             ->where('teacher_id', $teacher->id)
             ->where('class_id', $classId)
             ->where('is_active', true)
             ->exists();
-        abort_unless($owns, 403, 'You are not assigned to this class.');
+
+        if ($ownsAssignment) {
+            return;
+        }
+
+        // Class teacher of record (homeroom) also has access.
+        $isClassTeacher = ClassModel::query()
+            ->where('id', $classId)
+            ->where('teacher_id', $teacher->id)
+            ->exists();
+
+        if ($isClassTeacher) {
+            return;
+        }
+
+        // Active cover / substitution for today.
+        $hasCover = ClassSubstitution::query()
+            ->where('substitute_teacher_id', $teacher->id)
+            ->where('class_id', $classId)
+            ->whereDate('date', now()->toDateString())
+            ->whereIn('status', ['accepted', 'assigned', 'pending'])
+            ->exists();
+
+        abort_unless($hasCover, 403, 'You are not assigned to this class.');
     }
 }

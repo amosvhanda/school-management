@@ -48,6 +48,7 @@ class DemoDataSeeder extends Seeder
             PlatformFeaturesSeeder::class,
             WorkflowSeeder::class,
             StudentPortalSeeder::class,
+            TeacherPortalSeeder::class,
         ]);
     }
 }

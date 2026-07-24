@@ -36,7 +36,20 @@ trait ResolvesDemoSchoolContext
 
     protected function demoTeacher(School $school): ?Teacher
     {
-        return Teacher::query()->where('school_id', $school->id)->first();
+        $user = $this->demoTeacherUser($school);
+        if ($user) {
+            $linked = Teacher::query()
+                ->where('school_id', $school->id)
+                ->where(function ($q) use ($user) {
+                    $q->where('user_id', $user->id)->orWhere('email', $user->email);
+                })
+                ->first();
+            if ($linked) {
+                return $linked;
+            }
+        }
+
+        return Teacher::query()->where('school_id', $school->id)->orderBy('id')->first();
     }
 
     protected function demoTeacherUser(School $school): ?User

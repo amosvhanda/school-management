@@ -9,7 +9,15 @@ class RoleSeeder extends Seeder
 {
     public function run(): void
     {
-        $allPermissionIds = collect(config('permissions', []))
+        $catalog = collect(config('permissions', []));
+        $allPermissionIds = $catalog->pluck('id')->filter()->values()->all();
+
+        $teacherSlugs = config('teacher_permissions.slugs', [
+            'reports.view', 'dashboard.view', 'students.manage',
+            'attendance.manage', 'communications.manage', 'exams.enter_results',
+        ]);
+        $teacherPermissionIds = $catalog
+            ->whereIn('slug', $teacherSlugs)
             ->pluck('id')
             ->filter()
             ->values()
@@ -25,9 +33,9 @@ class RoleSeeder extends Seeder
             [
                 'name' => 'Teacher',
                 'slug' => 'teacher',
-                'description' => 'Teaching staff — attendance, marks, and class tools. Add library/transport etc. via extra permissions on the user or role.',
-                // No academics.manage (14): that unlocks school-wide setup / canManageTeachers.
-                'permission_ids' => [5, 10, 12, 15, 19, 22],
+                'description' => 'Teaching staff — assigned classes only. See config/teacher_permissions.php and docs/teacher-permissions.md. Add library/transport etc. via user overrides.',
+                // Never includes academics.manage (canManageTeachers) or exams.manage.
+                'permission_ids' => $teacherPermissionIds,
             ],
             [
                 'name' => 'Parent',

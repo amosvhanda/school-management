@@ -54,10 +54,13 @@ class UserSeeder extends Seeder
             ]
         );
 
+        // Demo role logins are created here so TeacherSeeder can link teacher@school.co.zw.
+        $this->call(DemoUserSeeder::class);
+
         // Admin per school (school-specific emails)
         foreach ($schools as $school) {
             User::updateOrCreate(
-                ['email' => 'admin@' . strtolower($school->code) . '.school.co.zw'],
+                ['email' => 'admin@'.strtolower($school->code).'.school.co.zw'],
                 [
                     'name' => 'Administrator',
                     'password' => static::$adminPassword,

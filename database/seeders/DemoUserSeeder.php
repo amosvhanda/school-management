@@ -48,6 +48,9 @@ class DemoUserSeeder extends Seeder
                 'last_name' => 'Moyo',
                 'phone' => ZimbabweData::phone(),
                 'school_id' => $primary->id,
+                'status' => 'active',
+                // Rely on RoleSeeder teacher permissions — do not override with empty/stale ids.
+                'permission_ids' => null,
             ]
         );
 

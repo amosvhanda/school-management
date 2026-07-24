@@ -11,6 +11,7 @@ use App\Models\Student;
 use App\Models\TeacherAssignment;
 use App\Services\AttendanceNotificationService;
 use App\Services\Domain\SchoolDomainRules;
+use App\Services\PermissionService;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -37,9 +38,32 @@ class AttendanceController extends Controller
         );
 
         $schoolId = $request->user()?->school_id;
+        $user = $request->user();
 
         $base = Attendance::query()
             ->when($schoolId, fn ($q) => $q->where('school_id', $schoolId));
+
+        // Teachers only see attendance for classes they are assigned to (or class teacher of).
+        if ($user?->isTeacher() && ! app(PermissionService::class)->hasCapability($user, 'canManageTeachers')) {
+            $teacherId = $user->teacher?->id;
+            if (! $teacherId) {
+                return response()->json(['message' => 'Teacher account not linked to staff record', 'data' => []], 200);
+            }
+
+            $assignedClassIds = TeacherAssignment::query()
+                ->when($schoolId, fn ($q) => $q->where('school_id', $schoolId))
+                ->where('teacher_id', $teacherId)
+                ->where('is_active', true)
+                ->pluck('class_id');
+
+            $homeroomIds = ClassModel::query()
+                ->when($schoolId, fn ($q) => $q->where('school_id', $schoolId))
+                ->where('teacher_id', $teacherId)
+                ->pluck('id');
+
+            $classIds = $assignedClassIds->merge($homeroomIds)->filter()->unique()->values();
+            $base->whereIn('class_id', $classIds->isEmpty() ? [0] : $classIds->all());
+        }
 
         return $this->paginateResource($request, Attendance::class, AttendanceResource::class, [
             'base' => $base,

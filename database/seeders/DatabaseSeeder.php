@@ -119,6 +119,9 @@ class DatabaseSeeder extends Seeder
 
             // 31. Test Results (depends on Tests, Students, Subjects)
             TestResultSeeder::class,
+
+            // 32. Teacher portal demo data (assignments, lessons, LMS, leave, etc.)
+            TeacherPortalSeeder::class,
         ]);
 
         if (app()->environment(['local', 'testing']) || filter_var(env('SEED_DEMO_DATA', false), FILTER_VALIDATE_BOOL)) {
