@@ -16,9 +16,14 @@ class SubjectFactory extends Factory
      */
     public function definition(): array
     {
+        // Keep names unique per school (unique index on school_id + name).
+        // A fixed subject list collides when a test creates 2+ subjects.
         return [
-            'name' => fake()->randomElement(['Mathematics', 'English', 'Science', 'History', 'Geography', 'Physics', 'Chemistry', 'Biology']),
-            'code' => strtoupper(fake()->lexify('???')),
+            'name' => fake()->randomElement([
+                'Mathematics', 'English', 'Science', 'History',
+                'Geography', 'Physics', 'Chemistry', 'Biology',
+            ]).' '.fake()->unique()->bothify('##??'),
+            'code' => strtoupper(fake()->unique()->lexify('???')),
             'school_id' => \App\Models\School::factory(),
         ];
     }
