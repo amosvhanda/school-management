@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { HTMLAttributes } from 'vue'
 import { Card, CardContent } from '@/components/ui/card'
+import { brandName, brandPanel } from '@/lib/brand'
 import { cn } from '@/lib/utils'
 
 defineProps<{
@@ -34,19 +35,19 @@ defineProps<{
               background-size: 28px 28px;
             "
           />
-          <div class="relative space-y-3 text-white">
-            <p class="text-xs font-semibold tracking-[0.18em] text-white/70 uppercase">
-              {{ brandEyebrow ?? 'For Zimbabwe schools' }}
+          <div class="relative space-y-4 text-white">
+            <p class="text-xs font-semibold tracking-[0.18em] text-white/80 uppercase">
+              {{ brandEyebrow ?? brandPanel.eyebrow }}
             </p>
-            <h2 class="font-heading max-w-[14ch] text-3xl font-semibold leading-tight tracking-tight">
-              {{ brandTitle ?? 'Run academics, fees, and families in one place' }}
+            <p class="font-heading text-4xl font-semibold leading-none tracking-tight">
+              {{ brandName }}
+            </p>
+            <h2 class="max-w-[18ch] text-lg font-medium leading-snug text-white/90">
+              {{ brandTitle ?? brandPanel.title }}
             </h2>
           </div>
-          <p class="relative max-w-sm text-sm leading-relaxed text-white/75">
-            {{
-              brandBody
-                ?? 'Attendance, invoices, gradebook, and parent access — designed for day-to-day school operations.'
-            }}
+          <p class="relative max-w-sm text-sm leading-relaxed text-white/80">
+            {{ brandBody ?? brandPanel.body }}
           </p>
         </aside>
       </CardContent>

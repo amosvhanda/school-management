@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input'
 import { FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import AuthFormShell from '@/components/auth/AuthFormShell.vue'
+import { brandName, brandTagline } from '@/lib/brand'
 import {
   formButtonClass,
   formFieldsAnimateOptions,
@@ -71,8 +72,11 @@ const onSubmit = handleSubmit(async (values) => {
             <GraduationCap class="size-5" />
           </div>
           <div class="space-y-1.5">
-            <p class="text-[11px] font-semibold tracking-[0.16em] text-primary uppercase">
-              School ERP
+            <p class="font-heading text-lg font-semibold tracking-tight text-primary">
+              {{ brandName }}
+            </p>
+            <p class="text-xs text-muted-foreground">
+              {{ brandTagline }}
             </p>
             <h1 class="font-heading text-2xl font-semibold tracking-tight md:text-[1.75rem]">
               Reset your password

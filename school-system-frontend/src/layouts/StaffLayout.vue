@@ -9,6 +9,7 @@ import {
   staffNavigation,
   teacherNavigation,
 } from '@/lib/navigation'
+import { brandName } from '@/lib/brand'
 import { useAuth } from '@/composables/useAuth'
 
 const { user } = useAuth()
@@ -34,7 +35,7 @@ const navigation = computed(() => {
 <template>
   <DashboardShell
     :navigation="navigation"
-    title="School ERP"
+    :title="brandName"
     show-license-banner
   />
 </template>

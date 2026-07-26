@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { useRoute } from 'vue-router'
+import { RouterLink, useRoute } from 'vue-router'
 import {
+  BarChart3,
   ClipboardCheck,
   Download,
   FileSpreadsheet,
@@ -15,11 +16,9 @@ import { studentPortalApi, studentsApi } from '@/services/api.service'
 import { getErrorMessage } from '@/lib/api-response'
 import { formatDate } from '@/lib/format'
 import { formatMoney } from '@/lib/finance-constants'
-import { STUDENT_DASHBOARD_MODULE_GROUPS } from '@/lib/dashboard-modules'
 import DashboardHero from '@/components/dashboard/DashboardHero.vue'
 import MetricBand from '@/components/dashboard/MetricBand.vue'
 import type { MetricCard } from '@/components/dashboard/MetricBand.vue'
-import DashboardModulesGrid from '@/components/dashboard/DashboardModulesGrid.vue'
 import EmptyState from '@/components/feedback/EmptyState.vue'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Alert, AlertDescription } from '@/components/ui/alert'
@@ -33,6 +32,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { cn } from '@/lib/utils'
 
 const route = useRoute()
 const { user } = useAuth()
@@ -132,54 +132,153 @@ const pendingInvoices = computed(() =>
   invoiceRows.value.filter((row) => String(row.status ?? '').toLowerCase() !== 'paid').length,
 )
 
+const hasPerformanceData = computed(() =>
+  performanceRows.value.some((row) => row.score != null),
+)
+
+const hasAttendanceData = computed(() =>
+  Boolean(attendanceSummary.value) && attendanceBreakdown.value.counted > 0,
+)
+
 const overviewCards = computed<MetricCard[]>(() => [
   {
     title: 'Average score',
-    value: `${averageScore.value.toFixed(1)}%`,
-    subtitle: 'Across recorded assessments',
-    icon: TrendingUp,
+    value: hasPerformanceData.value ? `${averageScore.value.toFixed(1)}%` : '—',
+    subtitle: hasPerformanceData.value
+      ? 'Across recorded assessments'
+      : 'No assessments recorded yet',
+    icon: hasPerformanceData.value ? TrendingUp : BarChart3,
+    empty: !hasPerformanceData.value,
     href: '/student/performance',
   },
   {
     title: 'Attendance rate',
-    value: `${attendanceRate.value.toFixed(1)}%`,
-    subtitle: 'Current attendance summary',
+    value: hasAttendanceData.value ? `${attendanceRate.value.toFixed(1)}%` : '—',
+    subtitle: hasAttendanceData.value
+      ? 'Current attendance summary'
+      : 'No attendance marked yet',
     icon: ClipboardCheck,
-    accent: attendanceRate.value < 80 ? 'warning' : 'success',
+    accent: hasAttendanceData.value && attendanceRate.value < 80 ? 'warning' : 'success',
+    empty: !hasAttendanceData.value,
     href: '/student/attendance',
   },
   {
     title: 'Outstanding balance',
-    value: formatMoney(totalOutstanding.value),
-    subtitle: 'Total unpaid amount',
+    value: invoiceRows.value.length || totalOutstanding.value > 0
+      ? formatMoney(totalOutstanding.value)
+      : '—',
+    subtitle: invoiceRows.value.length
+      ? 'Total unpaid amount'
+      : 'No invoices issued yet',
     icon: Receipt,
     accent: totalOutstanding.value > 0 ? 'danger' : undefined,
+    empty: !invoiceRows.value.length && totalOutstanding.value <= 0,
     href: '/student/fees',
   },
   {
     title: 'Pending invoices',
-    value: pendingInvoices.value,
-    subtitle: 'Unpaid or partial invoices',
+    value: invoiceRows.value.length ? pendingInvoices.value : '—',
+    subtitle: invoiceRows.value.length
+      ? 'Unpaid or partial invoices'
+      : 'Nothing awaiting payment',
     icon: FileText,
     accent: pendingInvoices.value > 0 ? 'warning' : undefined,
+    empty: !invoiceRows.value.length,
     href: '/student/fees',
   },
 ])
 
-const profileView = computed(() => {
+type ProfileField = { label: string; value: string; empty: boolean; hint?: string }
+
+const profileFields = computed<ProfileField[]>(() => {
   const profile = studentProfile.value ?? {}
   const guardianFirst = String(profile.guardian_first_name ?? '').trim()
   const guardianLast = String(profile.guardian_last_name ?? '').trim()
   const guardianName = `${guardianFirst} ${guardianLast}`.trim()
 
-  return {
-    studentNumber: String(profile.student_number ?? 'Not assigned'),
-    className: String(profile.class ?? 'Not assigned'),
-    dateOfBirth: formatDate(profile.date_of_birth, 'Not on file'),
-    guardian: guardianName || 'Not available',
-    phone: String(profile.phone ?? '—'),
-    email: String(profile.email ?? user.value?.email ?? '—'),
+  function field(
+    label: string,
+    raw: string,
+    emptyValues: string[],
+    hint: string,
+  ): ProfileField {
+    const value = raw.trim()
+    const empty = !value || emptyValues.includes(value)
+    return {
+      label,
+      value: empty ? hint : value,
+      empty,
+      hint: empty ? hint : undefined,
+    }
   }
+
+  return [
+    field('Student number', String(profile.student_number ?? ''), ['Not assigned'], 'Not assigned yet — ask the office'),
+    field('Current class', String(profile.class ?? ''), ['Not assigned'], 'Class not assigned yet'),
+    field(
+      'Date of birth',
+      formatDate(profile.date_of_birth, ''),
+      ['', '—', 'Not on file'],
+      'Not on file — ask the office to update',
+    ),
+    field(
+      'Guardian',
+      guardianName,
+      ['', 'Not available'],
+      'No guardian linked yet',
+    ),
+    field(
+      'Contact phone',
+      String(profile.phone ?? ''),
+      ['', '—'],
+      'No phone on file',
+    ),
+    field(
+      'Contact email',
+      String(profile.email ?? user.value?.email ?? ''),
+      ['', '—'],
+      'No email on file',
+    ),
+  ]
+})
+
+const attentionItems = computed(() => {
+  const items: Array<{ title: string; detail: string; href: string }> = []
+
+  if (totalOutstanding.value > 0) {
+    items.push({
+      title: 'Outstanding fees',
+      detail: `${formatMoney(totalOutstanding.value)} still due`,
+      href: '/student/fees',
+    })
+  }
+
+  if (pendingInvoices.value > 0 && totalOutstanding.value <= 0) {
+    items.push({
+      title: 'Pending invoices',
+      detail: `${pendingInvoices.value} invoice${pendingInvoices.value === 1 ? '' : 's'} need attention`,
+      href: '/student/fees',
+    })
+  }
+
+  if (hasAttendanceData.value && attendanceRate.value < 80) {
+    items.push({
+      title: 'Attendance below 80%',
+      detail: `Current rate ${attendanceRate.value.toFixed(1)}%`,
+      href: '/student/attendance',
+    })
+  }
+
+  const upcomingExam = examRows.value.find((row) => !row.result && row.exam_date)
+  if (upcomingExam) {
+    items.push({
+      title: 'Upcoming exam',
+      detail: `${String(upcomingExam.name ?? 'Exam')} · ${formatDate(upcomingExam.exam_date)}`,
+      href: '/student/exams',
+    })
+  }
+
+  return items.slice(0, 3)
 })
 
 function asRecord(value: unknown): Record<string, unknown> | null {
@@ -425,43 +524,63 @@ onMounted(loadStudentPortal)
         </div>
         <Card class="border-border/70">
           <CardContent class="p-0">
-            <dl class="grid gap-0 sm:grid-cols-2 lg:grid-cols-3">
-              <div class="space-y-1 border-b border-border/60 px-5 py-4 sm:border-r lg:border-b">
-                <dt class="text-xs font-medium tracking-wide text-muted-foreground uppercase">Student number</dt>
-                <dd class="text-sm font-semibold text-foreground">{{ profileView.studentNumber }}</dd>
-              </div>
-              <div class="space-y-1 border-b border-border/60 px-5 py-4 lg:border-r">
-                <dt class="text-xs font-medium tracking-wide text-muted-foreground uppercase">Current class</dt>
-                <dd class="text-sm font-semibold text-foreground">{{ profileView.className }}</dd>
-              </div>
-              <div class="space-y-1 border-b border-border/60 px-5 py-4 sm:border-r lg:border-r-0">
-                <dt class="text-xs font-medium tracking-wide text-muted-foreground uppercase">Date of birth</dt>
-                <dd class="text-sm font-semibold text-foreground">{{ profileView.dateOfBirth }}</dd>
-              </div>
-              <div class="space-y-1 border-b border-border/60 px-5 py-4 lg:border-b-0 lg:border-r">
-                <dt class="text-xs font-medium tracking-wide text-muted-foreground uppercase">Guardian</dt>
-                <dd class="text-sm font-semibold text-foreground">{{ profileView.guardian }}</dd>
-              </div>
-              <div class="space-y-1 border-b border-border/60 px-5 py-4 sm:border-r sm:border-b-0 lg:border-b-0">
-                <dt class="text-xs font-medium tracking-wide text-muted-foreground uppercase">Contact phone</dt>
-                <dd class="text-sm font-semibold text-foreground">{{ profileView.phone }}</dd>
-              </div>
-              <div class="space-y-1 px-5 py-4">
-                <dt class="text-xs font-medium tracking-wide text-muted-foreground uppercase">Contact email</dt>
-                <dd class="text-sm font-semibold text-foreground break-all">{{ profileView.email }}</dd>
+            <dl class="grid sm:grid-cols-2 lg:grid-cols-3">
+              <div
+                v-for="field in profileFields"
+                :key="field.label"
+                class="space-y-1 border-b border-border/60 px-5 py-4 sm:border-r sm:odd:[&:nth-last-child(-n+2)]:border-b-0 lg:border-b lg:[&:nth-child(3n)]:border-r-0 lg:[&:nth-child(n+4)]:border-b-0"
+              >
+                <dt class="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+                  {{ field.label }}
+                </dt>
+                <dd
+                  :class="cn(
+                    'text-sm',
+                    field.empty
+                      ? 'font-normal italic text-muted-foreground'
+                      : 'font-semibold text-foreground',
+                    field.label === 'Contact email' ? 'break-all' : '',
+                  )"
+                >
+                  {{ field.value }}
+                </dd>
               </div>
             </dl>
           </CardContent>
         </Card>
       </section>
 
-      <DashboardModulesGrid
-        :groups="STUDENT_DASHBOARD_MODULE_GROUPS"
-        title="Quick actions"
-        description="Open timetable, performance, attendance, exams, or fees"
-        skip-permission-filter
-        :show-search="false"
-      />
+      <section class="space-y-3" aria-labelledby="student-next-title">
+        <div>
+          <h2 id="student-next-title" class="text-base font-semibold tracking-tight md:text-lg">
+            Needs attention
+          </h2>
+          <p class="text-sm text-muted-foreground">
+            Only items that need a follow-up — everything else stays in the sidebar.
+          </p>
+        </div>
+        <ul v-if="attentionItems.length" class="space-y-2" role="list">
+          <li v-for="item in attentionItems" :key="item.href + item.title">
+            <RouterLink
+              :to="item.href"
+              class="flex items-start justify-between gap-4 rounded-xl border border-border/70 bg-card px-4 py-3 transition-colors hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <span class="min-w-0">
+                <span class="block text-sm font-medium text-foreground">{{ item.title }}</span>
+                <span class="block text-xs text-muted-foreground">{{ item.detail }}</span>
+              </span>
+              <span class="shrink-0 text-xs font-medium text-primary">Open</span>
+            </RouterLink>
+          </li>
+        </ul>
+        <p
+          v-else
+          class="rounded-xl border border-dashed border-border/70 px-4 py-6 text-sm text-muted-foreground"
+          role="status"
+        >
+          You’re all caught up. Use the sidebar for timetable, performance, attendance, exams, and fees.
+        </p>
+      </section>
     </template>
 
     <Card v-if="section === 'performance'" class="border-border/70">

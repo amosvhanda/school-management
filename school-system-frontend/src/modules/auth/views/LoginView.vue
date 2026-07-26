@@ -13,12 +13,14 @@ import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import AuthFormShell from '@/components/auth/AuthFormShell.vue'
+import PasswordInput from '@/components/forms/PasswordInput.vue'
 import { useFormApiSubmit } from '@/composables/useFormApiSubmit'
 import { useAuth } from '@/composables/useAuth'
 import { useToast } from '@/composables/useToast'
 import { resolvePostLoginRedirect } from '@/app/router/guards'
 import { isStaffDashboardRole } from '@/lib/permissions'
 import { DEMO_ACCOUNTS, type DemoAccount } from '@/lib/demo-accounts'
+import { brandName, brandTagline } from '@/lib/brand'
 import {
   formButtonClass,
   formFieldsAnimateOptions,
@@ -156,8 +158,11 @@ async function quickSignIn(account: DemoAccount) {
             <GraduationCap class="size-5" />
           </div>
           <div class="space-y-1.5">
-            <p class="text-[11px] font-semibold tracking-[0.16em] text-primary uppercase">
-              School ERP
+            <p class="font-heading text-lg font-semibold tracking-tight text-primary">
+              {{ brandName }}
+            </p>
+            <p class="text-xs text-muted-foreground">
+              {{ brandTagline }}
             </p>
             <h1 class="font-heading text-2xl font-semibold tracking-tight md:text-[1.75rem]">
               Welcome back
@@ -199,26 +204,26 @@ async function quickSignIn(account: DemoAccount) {
                 <FormLabel :class="formLabelClass">Password</FormLabel>
                 <RouterLink
                   to="/forgot-password"
-                  class="text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
+                  class="rounded-sm text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
                   Forgot your password?
                 </RouterLink>
               </div>
               <FormControl>
-                <div class="relative w-full">
-                  <Lock
-                    class="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground"
-                    aria-hidden="true"
-                  />
-                  <Input
-                    v-bind="componentField"
-                    type="password"
-                    autocomplete="current-password"
-                    placeholder="Enter your password"
-                    :disabled="isSubmitting"
-                    :class="cn(formInputClass, 'pl-9')"
-                  />
-                </div>
+                <PasswordInput
+                  v-bind="componentField"
+                  autocomplete="current-password"
+                  placeholder="Enter your password"
+                  :disabled="isSubmitting"
+                  :class="cn(formInputClass, 'pl-9')"
+                >
+                  <template #leading>
+                    <Lock
+                      class="pointer-events-none absolute top-1/2 left-2.5 z-[1] size-4 -translate-y-1/2 text-muted-foreground"
+                      aria-hidden="true"
+                    />
+                  </template>
+                </PasswordInput>
               </FormControl>
               <FormMessage />
             </FormItem>

@@ -17,6 +17,7 @@ export interface MetricCard {
   icon?: Component
   accent?: 'default' | 'success' | 'warning' | 'danger'
   href?: string
+  empty?: boolean
   /** Staff linked KPIs should set this; portals can use MetricBand skipPermissionFilter instead. */
   capability?: NavCapability | NavCapability[]
 }

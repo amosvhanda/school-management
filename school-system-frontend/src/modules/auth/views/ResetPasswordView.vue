@@ -10,6 +10,8 @@ import { Input } from '@/components/ui/input'
 import { FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import AuthFormShell from '@/components/auth/AuthFormShell.vue'
+import PasswordInput from '@/components/forms/PasswordInput.vue'
+import { brandName, brandTagline } from '@/lib/brand'
 import {
   formButtonClass,
   formFieldsAnimateOptions,
@@ -98,8 +100,11 @@ const onSubmit = handleSubmit(async (values) => {
             <GraduationCap class="size-5" />
           </div>
           <div class="space-y-1.5">
-            <p class="text-[11px] font-semibold tracking-[0.16em] text-primary uppercase">
-              School ERP
+            <p class="font-heading text-lg font-semibold tracking-tight text-primary">
+              {{ brandName }}
+            </p>
+            <p class="text-xs text-muted-foreground">
+              {{ brandTagline }}
             </p>
             <h1 class="font-heading text-2xl font-semibold tracking-tight md:text-[1.75rem]">
               Choose a new password
@@ -155,19 +160,19 @@ const onSubmit = handleSubmit(async (values) => {
             <FormItem>
               <FormLabel :class="formLabelClass">New password</FormLabel>
               <FormControl>
-                <div class="relative w-full">
-                  <Lock
-                    class="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground"
-                    aria-hidden="true"
-                  />
-                  <Input
-                    v-bind="componentField"
-                    type="password"
-                    autocomplete="new-password"
-                    :disabled="isSubmitting"
-                    :class="cn(formInputClass, 'pl-9')"
-                  />
-                </div>
+                <PasswordInput
+                  v-bind="componentField"
+                  autocomplete="new-password"
+                  :disabled="isSubmitting"
+                  :class="cn(formInputClass, 'pl-9')"
+                >
+                  <template #leading>
+                    <Lock
+                      class="pointer-events-none absolute top-1/2 left-2.5 z-[1] size-4 -translate-y-1/2 text-muted-foreground"
+                      aria-hidden="true"
+                    />
+                  </template>
+                </PasswordInput>
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -177,19 +182,19 @@ const onSubmit = handleSubmit(async (values) => {
             <FormItem>
               <FormLabel :class="formLabelClass">Confirm password</FormLabel>
               <FormControl>
-                <div class="relative w-full">
-                  <Lock
-                    class="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground"
-                    aria-hidden="true"
-                  />
-                  <Input
-                    v-bind="componentField"
-                    type="password"
-                    autocomplete="new-password"
-                    :disabled="isSubmitting"
-                    :class="cn(formInputClass, 'pl-9')"
-                  />
-                </div>
+                <PasswordInput
+                  v-bind="componentField"
+                  autocomplete="new-password"
+                  :disabled="isSubmitting"
+                  :class="cn(formInputClass, 'pl-9')"
+                >
+                  <template #leading>
+                    <Lock
+                      class="pointer-events-none absolute top-1/2 left-2.5 z-[1] size-4 -translate-y-1/2 text-muted-foreground"
+                      aria-hidden="true"
+                    />
+                  </template>
+                </PasswordInput>
               </FormControl>
               <FormMessage />
             </FormItem>
