@@ -48,12 +48,17 @@ const attendanceSummary = ref<Record<string, unknown> | null>(null)
 const performanceRows = ref<Array<Record<string, unknown>>>([])
 const examRows = ref<Array<Record<string, unknown>>>([])
 const invoiceRows = ref<Array<Record<string, unknown>>>([])
+const assignmentRows = ref<Array<Record<string, unknown>>>([])
+const announcementRows = ref<Array<Record<string, unknown>>>([])
+const expandedAnnouncementId = ref<number | string | null>(null)
 
 const section = computed(() => {
   if (route.path === '/student/performance') return 'performance'
   if (route.path === '/student/attendance') return 'attendance'
   if (route.path === '/student/exams') return 'exams'
   if (route.path === '/student/fees') return 'fees'
+  if (route.path === '/student/assignments') return 'assignments'
+  if (route.path === '/student/announcements') return 'announcements'
   return 'dashboard'
 })
 
@@ -67,6 +72,10 @@ const pageTitle = computed(() => {
       return 'My exams'
     case 'fees':
       return 'My fees'
+    case 'assignments':
+      return 'My assignments'
+    case 'announcements':
+      return 'Announcements'
     default:
       return 'Student dashboard'
   }
@@ -82,6 +91,10 @@ const pageDescription = computed(() => {
       return 'Published examination timetable and results.'
     case 'fees':
       return 'Invoices and outstanding balances.'
+    case 'assignments':
+      return 'Homework and classwork set by your teachers.'
+    case 'announcements':
+      return 'School notices for students.'
     default:
       return 'Your school records at a glance.'
   }
@@ -278,8 +291,86 @@ const attentionItems = computed(() => {
     })
   }
 
+  const urgentAssignment = assignmentRows.value.find((row) => {
+    const due = parseDateOnly(row.due_date)
+    if (!due) return false
+    const days = daysUntil(due)
+    return days <= 7
+  })
+  if (urgentAssignment) {
+    const due = parseDateOnly(urgentAssignment.due_date)
+    const days = due ? daysUntil(due) : null
+    items.push({
+      title: days != null && days < 0 ? 'Overdue assignment' : 'Assignment due soon',
+      detail: `${String(urgentAssignment.title ?? 'Assignment')}${due ? ` · ${formatDate(urgentAssignment.due_date)}` : ''}`,
+      href: '/student/assignments',
+    })
+  }
+
+  const recentAnnouncement = announcementRows.value.find((row) => {
+    const when = parseDateOnly(row.date ?? row.created_at)
+    if (!when) return false
+    return daysUntil(when) >= -7 && daysUntil(when) <= 0
+  })
+  if (recentAnnouncement) {
+    items.push({
+      title: 'New announcement',
+      detail: String(recentAnnouncement.title ?? 'School notice'),
+      href: '/student/announcements',
+    })
+  }
+
   return items.slice(0, 3)
 })
+
+function parseDateOnly(value: unknown): Date | null {
+  const raw = String(value ?? '').trim()
+  if (!raw) return null
+  const dateOnly = raw.match(/^(\d{4})-(\d{2})-(\d{2})/)
+  if (dateOnly) {
+    const date = new Date(Number(dateOnly[1]), Number(dateOnly[2]) - 1, Number(dateOnly[3]))
+    return Number.isNaN(date.getTime()) ? null : date
+  }
+  const parsed = new Date(raw)
+  return Number.isNaN(parsed.getTime()) ? null : parsed
+}
+
+function daysUntil(date: Date): number {
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const target = new Date(date)
+  target.setHours(0, 0, 0, 0)
+  return Math.round((target.getTime() - today.getTime()) / 86_400_000)
+}
+
+function assignmentDueLabel(row: Record<string, unknown>): string {
+  const due = parseDateOnly(row.due_date)
+  if (!due) return 'No due date'
+  const days = daysUntil(due)
+  if (days < 0) return `Overdue · ${formatDate(row.due_date)}`
+  if (days === 0) return `Due today · ${formatDate(row.due_date)}`
+  if (days <= 7) return `Due in ${days} day${days === 1 ? '' : 's'} · ${formatDate(row.due_date)}`
+  return formatDate(row.due_date)
+}
+
+function assignmentDueTone(row: Record<string, unknown>): 'danger' | 'warning' | 'neutral' {
+  const due = parseDateOnly(row.due_date)
+  if (!due) return 'neutral'
+  const days = daysUntil(due)
+  if (days < 0) return 'danger'
+  if (days <= 7) return 'warning'
+  return 'neutral'
+}
+
+function announcementTypeLabel(type: unknown): string {
+  const value = String(type ?? 'general').trim()
+  if (!value) return 'General'
+  return value.charAt(0).toUpperCase() + value.slice(1)
+}
+
+function toggleAnnouncement(id: number | string) {
+  expandedAnnouncementId.value = expandedAnnouncementId.value === id ? null : id
+}
 
 function asRecord(value: unknown): Record<string, unknown> | null {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null
@@ -358,10 +449,20 @@ async function loadStudentPortal() {
       invoiceRows.value = asRecordArray(portal.open_invoices)
     }
 
-    const [gradesPayload, feesPayload, attendancePayload] = await Promise.allSettled([
+    if (Array.isArray(portal?.assignments)) {
+      assignmentRows.value = asRecordArray(portal.assignments)
+    }
+
+    if (Array.isArray(portal?.announcements)) {
+      announcementRows.value = asRecordArray(portal.announcements)
+    }
+
+    const [gradesPayload, feesPayload, attendancePayload, assignmentsPayload, announcementsPayload] = await Promise.allSettled([
       studentPortalApi.grades(),
       studentPortalApi.fees(),
       studentPortalApi.attendance(),
+      studentPortalApi.assignments(),
+      studentPortalApi.announcements(),
     ])
 
     if (gradesPayload.status === 'fulfilled') {
@@ -411,6 +512,14 @@ async function loadStudentPortal() {
           attendance_rate: total ? ((present + late) / total) * 100 : 0,
         }
       }
+    }
+
+    if (assignmentsPayload.status === 'fulfilled') {
+      assignmentRows.value = asRecordArray(assignmentsPayload.value)
+    }
+
+    if (announcementsPayload.status === 'fulfilled') {
+      announcementRows.value = asRecordArray(announcementsPayload.value)
     }
 
     if (!studentProfile.value) {
@@ -578,7 +687,7 @@ onMounted(loadStudentPortal)
           class="rounded-xl border border-dashed border-border/70 px-4 py-6 text-sm text-muted-foreground"
           role="status"
         >
-          You’re all caught up. Use the sidebar for timetable, performance, attendance, exams, and fees.
+          You’re all caught up. Use the sidebar for timetable, performance, attendance, exams, assignments, and fees.
         </p>
       </section>
     </template>
@@ -718,5 +827,108 @@ onMounted(loadStudentPortal)
         <EmptyState v-else variant="embedded" title="No invoices" description="Fee invoices will appear here when the school issues them." />
       </CardContent>
     </Card>
+
+    <Card v-if="section === 'assignments'" class="border-border/70">
+      <CardHeader>
+        <CardTitle>Assignments</CardTitle>
+        <CardDescription>Open homework and classwork from your teachers</CardDescription>
+      </CardHeader>
+      <CardContent class="overflow-x-auto p-0">
+        <div v-if="loading" class="p-6 text-sm text-muted-foreground" role="status">Loading assignments…</div>
+        <Table v-else-if="assignmentRows.length">
+          <TableHeader>
+            <TableRow>
+              <TableHead>Title</TableHead>
+              <TableHead>Subject</TableHead>
+              <TableHead>Due</TableHead>
+              <TableHead>Marks</TableHead>
+              <TableHead>Status</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            <TableRow v-for="row in assignmentRows" :key="String(row.id ?? row.title)">
+              <TableCell class="font-medium">{{ row.title ?? 'Assignment' }}</TableCell>
+              <TableCell>{{ row.subject ?? '—' }}</TableCell>
+              <TableCell>
+                <span
+                  :class="cn(
+                    'text-sm',
+                    assignmentDueTone(row) === 'danger' && 'font-medium text-destructive',
+                    assignmentDueTone(row) === 'warning' && 'font-medium text-chart-3',
+                  )"
+                >
+                  {{ assignmentDueLabel(row) }}
+                </span>
+              </TableCell>
+              <TableCell class="tabular-nums">{{ row.total_marks ?? '—' }}</TableCell>
+              <TableCell class="capitalize">
+                <Badge variant="outline">{{ row.status ?? 'open' }}</Badge>
+              </TableCell>
+            </TableRow>
+          </TableBody>
+        </Table>
+        <EmptyState
+          v-else
+          variant="embedded"
+          title="No open assignments"
+          description="Homework will appear here when teachers set work for your class."
+        />
+      </CardContent>
+    </Card>
+
+    <section v-if="section === 'announcements'" class="space-y-4" aria-labelledby="student-announcements-title">
+      <div class="sr-only">
+        <h2 id="student-announcements-title">Announcements</h2>
+      </div>
+      <div v-if="loading" class="rounded-xl border border-border/70 p-6 text-sm text-muted-foreground" role="status">
+        Loading announcements…
+      </div>
+      <ul v-else-if="announcementRows.length" class="space-y-3" role="list">
+        <li v-for="row in announcementRows" :key="String(row.id ?? row.title)">
+          <Card class="border-border/70">
+            <CardHeader class="space-y-3 pb-3">
+              <div class="flex flex-wrap items-start justify-between gap-3">
+                <div class="min-w-0 space-y-1">
+                  <CardTitle class="text-base">{{ row.title ?? 'Announcement' }}</CardTitle>
+                  <CardDescription>
+                    {{ formatDate(row.date ?? row.created_at) }}
+                    <span aria-hidden="true"> · </span>
+                    {{ announcementTypeLabel(row.type) }}
+                  </CardDescription>
+                </div>
+                <Badge variant="secondary">{{ announcementTypeLabel(row.type) }}</Badge>
+              </div>
+            </CardHeader>
+            <CardContent class="space-y-3 pt-0">
+              <p
+                :class="cn(
+                  'text-sm leading-relaxed text-foreground',
+                  expandedAnnouncementId === row.id ? 'whitespace-pre-wrap' : 'line-clamp-3',
+                )"
+              >
+                {{ row.message || 'No message provided.' }}
+              </p>
+              <Button
+                v-if="String(row.message ?? '').length > 160"
+                type="button"
+                variant="ghost"
+                size="sm"
+                class="h-8 px-2"
+                @click="toggleAnnouncement(row.id as number | string)"
+              >
+                {{ expandedAnnouncementId === row.id ? 'Show less' : 'Read more' }}
+              </Button>
+            </CardContent>
+          </Card>
+        </li>
+      </ul>
+      <Card v-else class="border-border/70">
+        <EmptyState
+          variant="embedded"
+          title="No announcements yet"
+          description="School notices for students will show up here."
+        />
+      </Card>
+    </section>
   </div>
 </template>
