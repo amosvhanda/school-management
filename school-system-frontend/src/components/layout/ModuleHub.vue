@@ -69,6 +69,8 @@ const secondaryTabs = computed(() =>
   visibleTabs.value.filter((tab) => tab.priority === 'secondary'),
 )
 
+const secondaryGroups = computed(() => groupModuleHubTabs(secondaryTabs.value))
+
 const usePriorityNav = computed(
   () => useSidebarNav.value && secondaryTabs.value.length > 0,
 )
@@ -180,10 +182,13 @@ watch(
                   {{ tab.title }}
                 </SelectItem>
               </SelectGroup>
-              <SelectGroup>
-                <SelectLabel>More tools</SelectLabel>
+              <SelectGroup
+                v-for="group in secondaryGroups"
+                :key="group.label || 'more'"
+              >
+                <SelectLabel>{{ group.label || 'More' }}</SelectLabel>
                 <SelectItem
-                  v-for="tab in secondaryTabs"
+                  v-for="tab in group.tabs"
                   :key="tab.id"
                   :value="tab.id"
                 >
@@ -240,29 +245,41 @@ watch(
                 class="cursor-pointer list-none rounded-xl px-2.5 py-2 text-xs font-semibold tracking-wide text-muted-foreground uppercase transition-colors hover:bg-background/70 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden"
               >
                 <span class="flex items-center justify-between gap-2">
-                  More tools
+                  More
                   <span class="text-[10px] font-medium normal-case tracking-normal text-muted-foreground/80">
                     {{ secondaryTabs.length }}
                   </span>
                 </span>
               </summary>
-              <div class="mt-1 space-y-1 border-t border-border/50 pt-2">
-                <button
-                  v-for="tab in secondaryTabs"
-                  :key="tab.id"
-                  type="button"
-                  :class="cn(
-                    'flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-                    activeTabId === tab.id
-                      ? 'bg-background text-foreground shadow-sm'
-                      : 'text-muted-foreground hover:bg-background/70 hover:text-foreground',
-                  )"
-                  :aria-current="activeTabId === tab.id ? 'page' : undefined"
-                  @click="selectTab(tab.id)"
+              <div class="mt-1 space-y-3 border-t border-border/50 pt-2">
+                <div
+                  v-for="group in secondaryGroups"
+                  :key="group.label || 'more'"
+                  class="space-y-1"
                 >
-                  <component :is="tab.icon" class="size-4 shrink-0" aria-hidden="true" />
-                  <span class="truncate">{{ tab.title }}</span>
-                </button>
+                  <p
+                    v-if="group.label"
+                    class="px-2.5 pt-0.5 text-[10px] font-semibold tracking-wide text-muted-foreground/80 uppercase"
+                  >
+                    {{ group.label }}
+                  </p>
+                  <button
+                    v-for="tab in group.tabs"
+                    :key="tab.id"
+                    type="button"
+                    :class="cn(
+                      'flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                      activeTabId === tab.id
+                        ? 'bg-background text-foreground shadow-sm'
+                        : 'text-muted-foreground hover:bg-background/70 hover:text-foreground',
+                    )"
+                    :aria-current="activeTabId === tab.id ? 'page' : undefined"
+                    @click="selectTab(tab.id)"
+                  >
+                    <component :is="tab.icon" class="size-4 shrink-0" aria-hidden="true" />
+                    <span class="truncate">{{ tab.title }}</span>
+                  </button>
+                </div>
               </div>
             </details>
           </template>
