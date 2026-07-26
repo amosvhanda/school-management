@@ -573,7 +573,11 @@ export const termColumns: ColumnDef<Record<string, unknown>>[] = [
 export const threadColumns = defaultColumns(['subject', 'status', 'created_at'])
 export const leaveColumns: ColumnDef<Record<string, unknown>>[] = [
   textColumn('Staff', 'teacher_name'),
-  textColumn('Type', 'type'),
+  {
+    id: 'type',
+    header: 'Type',
+    cell: ({ row }) => String(row.original.leave_type_name ?? row.original.type ?? '—'),
+  },
   dateColumn('Start', 'start_date'),
   dateColumn('End', 'end_date'),
   textColumn('Days', 'days'),

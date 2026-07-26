@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\FeeGroup;
 use App\Models\FeeStructure;
 use App\Models\Invoice;
 use App\Models\Payment;
@@ -13,7 +14,10 @@ use InvalidArgumentException;
 
 class FinancialLedgerService
 {
-    public function __construct(private ParentNotificationService $parentNotifications) {}
+    public function __construct(
+        private ParentNotificationService $parentNotifications,
+        private FeeDiscountService $feeDiscounts,
+    ) {}
 
     public function schoolCurrency(int $schoolId): string
     {
@@ -218,18 +222,45 @@ class FinancialLedgerService
         ?int $feeStructureId = null,
         ?\DateTimeInterface $dueDate = null,
         ?int $createdBy = null,
+        bool $applyDiscounts = true,
+        ?int $feeGroupId = null,
+        ?int $feeCategoryId = null,
     ): Invoice {
         $currency = $student->currency ?: $this->schoolCurrency($student->school_id);
+        $structure = $feeStructureId
+            ? FeeStructure::query()->where('school_id', $student->school_id)->find($feeStructureId)
+            : null;
+
+        $categoryId = $feeCategoryId ?? $this->feeDiscounts->feeCategoryIdFromStructure($structure);
+        $originalAmount = round(max(0, $amount), 2);
+        $discountAmount = 0.0;
+        $discountId = null;
+        $finalAmount = $originalAmount;
+        $finalDescription = $description;
+
+        if ($applyDiscounts && $originalAmount > 0) {
+            $applied = $this->feeDiscounts->applyBestDiscount($student, $originalAmount, $categoryId, $dueDate);
+            $finalAmount = $applied['amount'];
+            $discountAmount = $applied['discount_amount'];
+            $discountId = $applied['discount']?->id;
+            if ($applied['discount'] && $discountAmount > 0) {
+                $finalDescription = trim($description.' (discount: '.$applied['discount']->name.')');
+            }
+        }
 
         $invoice = Invoice::create([
             'school_id' => $student->school_id,
             'student_id' => $student->id,
             'fee_structure_id' => $feeStructureId,
+            'fee_discount_id' => $discountId,
+            'fee_group_id' => $feeGroupId,
             'invoice_number' => $this->generateInvoiceNumber($student->school_id),
-            'description' => $description,
-            'amount' => $amount,
+            'description' => $finalDescription,
+            'amount' => $finalAmount,
+            'original_amount' => $originalAmount,
+            'discount_amount' => $discountAmount,
             'amount_paid' => 0,
-            'balance' => $amount,
+            'balance' => $finalAmount,
             'currency' => $currency,
             'due_date' => $dueDate ?? now()->addMonth(),
             'status' => 'pending',
@@ -238,6 +269,77 @@ class FinancialLedgerService
         $this->postInvoiceDebit($invoice, $createdBy);
 
         return $invoice;
+    }
+
+    /**
+     * Invoice all fee structures in a fee group that match the student's class.
+     *
+     * @return Collection<int, Invoice>
+     */
+    public function applyFeeGroup(
+        Student $student,
+        FeeGroup $group,
+        ?\DateTimeInterface $dueDate = null,
+        ?int $createdBy = null,
+        bool $applyDiscounts = true,
+        bool $combine = false,
+    ): Collection {
+        $categoryIds = $group->categories()->pluck('fee_categories.id');
+        if ($categoryIds->isEmpty()) {
+            return collect();
+        }
+
+        $classId = $student->class_id;
+        $structures = FeeStructure::query()
+            ->where('school_id', $student->school_id)
+            ->whereIn('fee_category_id', $categoryIds)
+            ->where(function ($q) use ($classId) {
+                if ($classId) {
+                    $q->where('class_id', $classId)->orWhereNull('class_id');
+                } else {
+                    $q->whereNull('class_id');
+                }
+            })
+            ->orderBy('category')
+            ->get();
+
+        if ($structures->isEmpty()) {
+            return collect();
+        }
+
+        if ($combine) {
+            $total = (float) $structures->sum('amount');
+            $labels = $structures->pluck('category')->filter()->unique()->implode(', ');
+            $invoice = $this->createInvoice(
+                student: $student,
+                amount: $total,
+                description: "Fee group {$group->name}".($labels ? ": {$labels}" : ''),
+                feeStructureId: null,
+                dueDate: $dueDate,
+                createdBy: $createdBy,
+                applyDiscounts: $applyDiscounts,
+                feeGroupId: $group->id,
+            );
+
+            return collect([$invoice]);
+        }
+
+        $invoices = collect();
+        foreach ($structures as $fee) {
+            $invoices->push($this->createInvoice(
+                student: $student,
+                amount: (float) $fee->amount,
+                description: "{$group->name}: {$fee->category}",
+                feeStructureId: $fee->id,
+                dueDate: $dueDate,
+                createdBy: $createdBy,
+                applyDiscounts: $applyDiscounts,
+                feeGroupId: $group->id,
+                feeCategoryId: $fee->fee_category_id ? (int) $fee->fee_category_id : null,
+            ));
+        }
+
+        return $invoices;
     }
 
     /**
@@ -276,6 +378,8 @@ class FinancialLedgerService
                 description: "{$contextLabel}: {$fee->category}",
                 feeStructureId: $fee->id,
                 createdBy: $createdBy,
+                applyDiscounts: true,
+                feeCategoryId: $fee->fee_category_id ? (int) $fee->fee_category_id : null,
             ));
         }
 

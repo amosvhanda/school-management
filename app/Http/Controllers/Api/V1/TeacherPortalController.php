@@ -1018,12 +1018,31 @@ class TeacherPortalController extends Controller
     {
         $teacher = $this->requireTeacher($request);
         $data = $request->validate([
-            'type' => ['required', Rule::in(['annual', 'sick', 'maternity', 'unpaid', 'other'])],
+            'leave_type_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('leave_types', 'id')->where(fn ($q) => $q->where('school_id', $this->schoolId($request))->where('is_active', true)),
+            ],
+            'type' => ['nullable', 'string', 'max:100'],
             'start_date' => ['required', 'date'],
             'end_date' => ['required', 'date', 'after_or_equal:start_date'],
             'reason' => ['nullable', 'string', 'max:2000'],
             'request_replacement' => ['nullable', 'boolean'],
         ]);
+
+        if (empty($data['leave_type_id']) && empty($data['type'])) {
+            return response()->json([
+                'message' => 'Validation failed',
+                'errors' => ['type' => ['Select a leave type.']],
+            ], 422);
+        }
+
+        $leaveType = null;
+        if (! empty($data['leave_type_id'])) {
+            $leaveType = \App\Models\LeaveType::query()
+                ->where('school_id', $this->schoolId($request))
+                ->findOrFail($data['leave_type_id']);
+        }
 
         $start = $request->date('start_date');
         $end = $request->date('end_date');
@@ -1032,8 +1051,9 @@ class TeacherPortalController extends Controller
         $leave = LeaveRequest::create([
             'school_id' => $this->schoolId($request),
             'teacher_id' => $teacher->id,
+            'leave_type_id' => $leaveType?->id,
             'requested_by' => $request->user()->id,
-            'type' => $data['type'],
+            'type' => $leaveType?->code ?: ($leaveType?->name ?: $data['type']),
             'start_date' => $start,
             'end_date' => $end,
             'days' => $days,

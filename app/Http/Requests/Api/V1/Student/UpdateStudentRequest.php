@@ -41,6 +41,7 @@ class UpdateStudentRequest extends ApiFormRequest
             'class' => ['sometimes', 'string'],
             'class_id' => ['nullable', 'integer', 'exists:classes,id'],
             'grade_level_id' => ['nullable', 'integer', 'exists:grade_levels,id'],
+            'student_category_id' => ['nullable', 'integer', 'exists:student_categories,id'],
             'dateOfBirth' => ['nullable', 'date'],
             'gender' => ['nullable', 'string', 'in:male,female,other'],
             'phone' => ZimbabweMobileNumber::optional(),

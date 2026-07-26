@@ -11,7 +11,7 @@ class Certificate extends Model
     use BelongsToSchool;
 
     protected $fillable = [
-        'school_id', 'student_id', 'certificate_type', 'title',
+        'school_id', 'certificate_template_id', 'student_id', 'certificate_type', 'title',
         'verification_code', 'content_html', 'metadata',
         'issued_by', 'issued_at', 'revoked_at',
     ];
@@ -28,6 +28,11 @@ class Certificate extends Model
     public function student(): BelongsTo
     {
         return $this->belongsTo(Student::class);
+    }
+
+    public function template(): BelongsTo
+    {
+        return $this->belongsTo(CertificateTemplate::class, 'certificate_template_id');
     }
 
     public function school(): BelongsTo

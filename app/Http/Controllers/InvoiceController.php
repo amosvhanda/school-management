@@ -98,13 +98,19 @@ class InvoiceController extends Controller
                 'required',
                 Rule::exists('students', 'id')->where('school_id', $schoolId),
             ],
-            'description' => ['required', 'string', 'max:500'],
-            'amount' => ['required', 'numeric', 'min:0.01'],
+            'description' => ['required_without:fee_group_id', 'nullable', 'string', 'max:500'],
+            'amount' => ['required_without:fee_group_id', 'nullable', 'numeric', 'min:0.01'],
             'due_date' => ['required', 'date'],
             'fee_structure_id' => [
                 'nullable',
                 Rule::exists('fee_structures', 'id')->where('school_id', $schoolId),
             ],
+            'fee_group_id' => [
+                'nullable',
+                Rule::exists('fee_groups', 'id')->where('school_id', $schoolId),
+            ],
+            'apply_discounts' => ['nullable', 'boolean'],
+            'combine_group' => ['nullable', 'boolean'],
         ]);
 
         if ($validator->fails()) {
@@ -114,20 +120,81 @@ class InvoiceController extends Controller
             ], 422);
         }
 
+        if (! $request->filled('fee_group_id') && ! $request->filled('amount')) {
+            return response()->json([
+                'message' => 'Validation failed',
+                'errors' => ['amount' => ['Enter an amount or select a fee group.']],
+            ], 422);
+        }
+
         $student = Student::where('school_id', $schoolId)->findOrFail($request->student_id);
+        $dueDate = new \DateTimeImmutable($request->due_date);
+        $applyDiscounts = $request->boolean('apply_discounts', true);
+
+        if ($request->filled('fee_group_id')) {
+            $group = \App\Models\FeeGroup::query()
+                ->where('school_id', $schoolId)
+                ->with('categories:id')
+                ->findOrFail((int) $request->fee_group_id);
+
+            $invoices = $this->ledgerService->applyFeeGroup(
+                student: $student,
+                group: $group,
+                dueDate: $dueDate,
+                createdBy: $request->user()->id,
+                applyDiscounts: $applyDiscounts,
+                combine: $request->boolean('combine_group', false),
+            );
+
+            if ($invoices->isEmpty()) {
+                return response()->json([
+                    'message' => 'No fee structures found for this student\'s class in the selected fee group.',
+                ], 422);
+            }
+
+            foreach ($invoices as $invoice) {
+                $this->sendInvoiceNotification($invoice, $student);
+            }
+
+            $first = $invoices->first()->load(['student', 'school', 'feeDiscount', 'feeGroup']);
+
+            return response()->json([
+                'message' => $invoices->count() === 1
+                    ? 'Invoice created successfully'
+                    : "{$invoices->count()} invoices created from fee group",
+                'data' => new InvoiceResource($first),
+                'meta' => [
+                    'created_count' => $invoices->count(),
+                    'invoice_ids' => $invoices->pluck('id'),
+                ],
+            ], 201);
+        }
+
+        $amount = (float) $request->amount;
+        $description = (string) $request->description;
+        $feeStructureId = $request->fee_structure_id ? (int) $request->fee_structure_id : null;
+
+        if ($feeStructureId && ! $request->filled('amount')) {
+            $structure = \App\Models\FeeStructure::query()
+                ->where('school_id', $schoolId)
+                ->findOrFail($feeStructureId);
+            $amount = (float) $structure->amount;
+            $description = $description !== '' ? $description : (string) $structure->category;
+        }
 
         $invoice = $this->ledgerService->createInvoice(
             student: $student,
-            amount: (float) $request->amount,
-            description: $request->description,
-            feeStructureId: $request->fee_structure_id ? (int) $request->fee_structure_id : null,
-            dueDate: new \DateTimeImmutable($request->due_date),
+            amount: $amount,
+            description: $description !== '' ? $description : 'Invoice',
+            feeStructureId: $feeStructureId,
+            dueDate: $dueDate,
             createdBy: $request->user()->id,
+            applyDiscounts: $applyDiscounts,
         );
 
         $this->sendInvoiceNotification($invoice, $student);
 
-        return (new InvoiceResource($invoice->load(['student', 'school'])))
+        return (new InvoiceResource($invoice->load(['student', 'school', 'feeDiscount', 'feeGroup'])))
             ->additional(['message' => 'Invoice created successfully'])
             ->response()
             ->setStatusCode(201);

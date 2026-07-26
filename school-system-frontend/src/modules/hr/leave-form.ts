@@ -1,11 +1,13 @@
 import { z } from 'zod'
 import type { FormFieldSchema } from '@/components/forms/useFormBuilder'
 import { formSection, mergeFormSections } from '@/lib/form-standards'
+import { leaveTypeRelation } from '@/lib/form-relations'
 import {
   isValidIsoDate,
 } from '@/lib/validation'
 import { moduleEndpoints } from '@/services'
 
+/** Legacy hardcoded types — kept for display fallback on older leave rows. */
 export const LEAVE_TYPES = [
   { label: 'Annual leave', value: 'annual' },
   { label: 'Sick leave', value: 'sick' },
@@ -22,7 +24,8 @@ export const LEAVE_STATUS_OPTIONS = [
   { label: 'Rejected', value: 'rejected' },
 ] as const
 
-export function leaveTypeLabel(type?: string | null): string {
+export function leaveTypeLabel(type?: string | null, leaveTypeName?: string | null): string {
+  if (leaveTypeName) return leaveTypeName
   return LEAVE_TYPES.find((o) => o.value === type)?.label ?? String(type ?? '—')
 }
 
@@ -33,9 +36,7 @@ export function leaveStatusLabel(status?: string | null): string {
 export const leaveFormSchema = z
   .object({
     teacher_id: z.string().min(1, 'Select a staff member'),
-    type: z.enum(['annual', 'sick', 'maternity', 'unpaid', 'other'], {
-      required_error: 'Select leave type',
-    }),
+    leave_type_id: z.string().min(1, 'Select leave type'),
     start_date: z
       .string()
       .min(1, 'Start date is required')
@@ -72,11 +73,12 @@ export const leaveFormFields: FormFieldSchema[] = mergeFormSections(
       },
     },
     {
-      name: 'type',
+      name: 'leave_type_id',
       label: 'Leave type',
-      type: 'select',
+      type: 'relation',
       required: true,
-      options: [...LEAVE_TYPES],
+      placeholder: 'Select leave type',
+      relation: leaveTypeRelation(),
       colSpan: 1,
     },
     {
@@ -110,6 +112,8 @@ export interface LeaveRequestRow {
   employee_id?: string
   department?: string
   type?: string
+  leave_type_id?: number
+  leave_type_name?: string
   start_date?: string
   end_date?: string
   days?: number
@@ -127,7 +131,7 @@ export interface LeaveRequestRow {
 export function mapLeaveFormToPayload(values: Record<string, unknown>): Record<string, unknown> {
   const payload: Record<string, unknown> = {
     teacher_id: Number(values.teacher_id),
-    type: values.type,
+    leave_type_id: Number(values.leave_type_id),
     start_date: values.start_date,
     end_date: values.end_date,
   }

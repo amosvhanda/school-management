@@ -20,6 +20,12 @@ class TeacherResource extends JsonResource
             'address' => $this->address,
             'subject' => $this->subject,
             'department' => $this->department,
+            'designation_id' => $this->designation_id,
+            'designation' => $this->whenLoaded('designation', fn () => $this->designation ? [
+                'id' => $this->designation->id,
+                'name' => $this->designation->name,
+                'code' => $this->designation->code,
+            ] : null),
             'qualification' => $this->qualification,
             'joining_date' => $this->joining_date?->format('Y-m-d'),
             'status' => $this->status,

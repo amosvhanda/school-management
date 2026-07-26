@@ -33,10 +33,21 @@ export const OPERATIONS_HUB_TABS: ModuleHubTab[] = [
   {
     id: 'library',
     title: 'Library',
-    description: 'Books, loans, and library inventory.',
+    description: 'Books, members, loans, and library inventory.',
     icon: Library,
     capability: 'canManageLibrary',
-    listKey: 'ops-library',
+    sections: [
+      {
+        listKey: 'ops-library',
+        title: 'Books',
+        description: 'Catalogue and copy records.',
+      },
+      {
+        listKey: 'ops-library-members',
+        title: 'Members',
+        description: 'Registered borrowers — students, staff, and external.',
+      },
+    ],
   },
   {
     id: 'transport',

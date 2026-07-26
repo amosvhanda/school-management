@@ -43,6 +43,7 @@ class Student extends Model
         'stream_id',
         'house_id',
         'school_id',
+        'student_category_id',
         'grade_level_id',
         'guardian_first_name',
         'guardian_last_name',
@@ -91,6 +92,11 @@ class Student extends Model
     public function school(): BelongsTo
     {
         return $this->belongsTo(School::class);
+    }
+
+    public function studentCategory(): BelongsTo
+    {
+        return $this->belongsTo(StudentCategory::class);
     }
 
     public function classModel(): BelongsTo

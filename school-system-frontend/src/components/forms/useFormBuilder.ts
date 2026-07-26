@@ -53,6 +53,7 @@ export type FormFieldType =
   | 'time'
   | 'phone'
   | 'relation'
+  | 'multirelation'
   | 'guardian-section'
 
 export interface FormFieldSchema {

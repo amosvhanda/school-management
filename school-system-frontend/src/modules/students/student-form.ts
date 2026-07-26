@@ -2,7 +2,7 @@ import { z } from 'zod'
 import { moduleEndpoints } from '@/services'
 import type { FormFieldSchema } from '@/components/forms/useFormBuilder'
 import { formSection, genderOptions, mergeFormSections } from '@/lib/form-standards'
-import { classRelation, gradeLevelRelation } from '@/lib/form-relations'
+import { classRelation, gradeLevelRelation, studentCategoryRelation } from '@/lib/form-relations'
 import { guardianRelationshipOptions } from '@/modules/guardians/guardian-form'
 import {
   dateOfBirthSchema,
@@ -21,6 +21,7 @@ export const studentFormSchema = z
     surname: z.string().trim().min(1, 'Surname is required').max(255),
     class_id: z.string().min(1, 'Class is required'),
     grade_level_id: z.string().optional().or(z.literal('')),
+    student_category_id: z.string().optional().or(z.literal('')),
     dateOfBirth: dateOfBirthSchema,
     gender: z.enum(['male', 'female', 'other'], {
       required_error: 'Please select gender',
@@ -119,6 +120,13 @@ export const studentFormFields: FormFieldSchema[] = mergeFormSections(
       type: 'relation',
       placeholder: 'Select grade level',
       relation: gradeLevelRelation(),
+    },
+    {
+      name: 'student_category_id',
+      label: 'Student category',
+      type: 'relation',
+      placeholder: 'Select category',
+      relation: studentCategoryRelation({ fallbackRowKey: 'student_category' }),
     },
   ]),
   formSection('Contact information', [

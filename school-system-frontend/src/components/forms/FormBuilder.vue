@@ -32,6 +32,7 @@ import {
 } from '@/lib/form-standards'
 import type { FormFieldSchema } from '@/components/forms/useFormBuilder'
 import RelationSelect from './RelationSelect.vue'
+import MultiRelationSelect from './MultiRelationSelect.vue'
 import GuardianLinkSection from './GuardianLinkSection.vue'
 import DatePicker from './DatePicker.vue'
 
@@ -85,7 +86,7 @@ const gridClass = computed(() => formGridClass(props.columns))
 // Determines column spacing rules dynamically across layout tiers
 function colClass(field: FormFieldSchema) {
   if (props.columns === 1) return ''
-  if (field.type === 'guardian-section') {
+  if (field.type === 'guardian-section' || field.type === 'multirelation') {
     return props.columns === 3 ? 'sm:col-span-2 lg:col-span-3' : 'sm:col-span-2'
   }
   if (field.colSpan === 2) {
@@ -153,8 +154,15 @@ function colClass(field: FormFieldSchema) {
                   @update:model-value="componentField['onUpdate:modelValue']"
                 />
 
+                <MultiRelationSelect
+                  v-else-if="field.type === 'multirelation' && field.relation"
+                  :field="field"
+                  :model-value="componentField.modelValue"
+                  @update:model-value="componentField['onUpdate:modelValue']"
+                />
+
                 <p
-                  v-else-if="field.type === 'relation'"
+                  v-else-if="field.type === 'relation' || field.type === 'multirelation'"
                   class="text-sm text-muted-foreground italic"
                   role="status"
                 >

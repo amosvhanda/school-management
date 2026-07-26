@@ -246,3 +246,23 @@ export const schoolTripEnrollPromptForm: ActionPromptForm = {
   }),
 }
 
+export const certificateIssuePromptForm: ActionPromptForm = {
+  title: 'Issue certificate',
+  description: 'Generate a certificate for a student from this template. Placeholders {{student_name}}, {{school_name}}, and {{date}} are filled automatically.',
+  saveLabel: 'Issue',
+  size: 'md',
+  fields: [
+    {
+      name: 'student_id',
+      label: 'Student',
+      type: 'relation',
+      required: true,
+      colSpan: 2,
+      relation: { endpoint: endpoints.students.list },
+    },
+  ],
+  schema: z.object({
+    student_id: z.coerce.number().min(1, 'Select a student'),
+  }),
+}
+

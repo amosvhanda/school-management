@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import type { FormFieldSchema } from '@/components/forms/useFormBuilder'
-import { departmentRelation, subjectRelation } from '@/lib/form-relations'
+import { departmentRelation, designationRelation, subjectRelation } from '@/lib/form-relations'
 import { formSection, mergeFormSections } from '@/lib/form-standards'
 import { PAYROLL_PAYMENT_METHOD_OPTIONS, SCHOOL_CURRENCY_OPTIONS } from '@/lib/finance-constants'
 import {
@@ -35,6 +35,7 @@ export const teacherFormSchema = z
     address: z.string().trim().optional().or(z.literal('')),
     subject_id: z.string().optional().or(z.literal('')),
     department_id: z.string().optional().or(z.literal('')),
+    designation_id: z.string().optional().or(z.literal('')),
     qualification: z.string().trim().optional().or(z.literal('')),
     joiningDate: z
       .string()
@@ -120,6 +121,14 @@ export const teacherFormFields: FormFieldSchema[] = mergeFormSections(
       type: 'relation',
       placeholder: 'Select department',
       relation: departmentRelation(),
+    },
+    {
+      name: 'designation_id',
+      label: 'Designation',
+      type: 'relation',
+      placeholder: 'Select job title',
+      relation: designationRelation(),
+      description: 'Job title from HR designations (Head Teacher, Teacher, Clerk…).',
     },
     {
       name: 'qualification',

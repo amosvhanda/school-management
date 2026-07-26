@@ -1,6 +1,6 @@
 import { api } from '@/lib/api'
 import { unwrapOne } from '@/lib/api-response'
-import type { ApiResponse } from '@/types/api'
+import type { ApiResponse, LicenseStatus } from '@/types/api'
 import type { AuthUser, LoginResponse } from '@/types/auth'
 import { endpoints } from './endpoints'
 
@@ -54,7 +54,7 @@ export async function activateLicense(licenseKey: string) {
 
 export async function fetchLicenseStatus() {
   const { data } = await api.get(endpoints.license.status)
-  return unwrapOne<Record<string, unknown>>(data)
+  return unwrapOne<LicenseStatus>(data)
 }
 
 export async function forgotPassword(payload: { email: string }) {

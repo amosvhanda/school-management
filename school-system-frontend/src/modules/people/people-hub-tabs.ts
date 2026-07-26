@@ -1,4 +1,4 @@
-import { ClipboardList, GraduationCap, UserCheck, Users } from '@lucide/vue'
+import { ClipboardList, GraduationCap, Tags, UserCheck, Users } from '@lucide/vue'
 import type { ModuleHubTab } from '@/lib/module-hub'
 
 export const PEOPLE_HUB_TABS: ModuleHubTab[] = [
@@ -9,6 +9,14 @@ export const PEOPLE_HUB_TABS: ModuleHubTab[] = [
     icon: GraduationCap,
     capability: 'canManageStudents',
     listKey: 'students',
+  },
+  {
+    id: 'student-categories',
+    title: 'Categories',
+    description: 'Student groupings for fees and reporting.',
+    icon: Tags,
+    capability: 'canManageStudents',
+    listKey: 'people-student-categories',
   },
   {
     id: 'teachers',

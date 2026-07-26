@@ -49,6 +49,8 @@ export const SECTION_HUBS: Record<SectionKey, SectionHubDefinition> = {
     quickLinks: [
       { title: 'Attendance register', description: 'Mark daily class attendance', href: '/academics/attendance', icon: 'ClipboardCheck', capability: ['canManageStudents', 'canManageTeachers'] },
       { title: 'Exams', description: 'Enter marks and review results', href: '/academics/exams', icon: 'FileText', capability: ['canManageExaminations', 'canEnterExamResults'] },
+      { title: 'Exam schedule', description: 'Timetable slots by class and subject', href: '/academics/exam-schedules', icon: 'CalendarClock', capability: 'canManageExaminations' },
+      { title: 'Certificates', description: 'Templates and issued certificates', href: '/academics/certificates', icon: 'Award', capability: 'canManageTeachers' },
       { title: 'Gradebook', description: 'Enter and review marks', href: '/academics/grades', icon: 'NotebookPen', capability: ['canManageTeachers', 'canEnterExamResults'] },
       { title: 'School Setup', description: 'Classes, grades, subjects, rooms, and terms', href: '/settings', icon: 'Settings', capability: 'canManageTeachers' },
       { title: 'Grade levels', description: 'Form / Grade year levels', href: '/settings?tab=grade-levels', icon: 'Layers', capability: 'canManageTeachers' },
@@ -81,7 +83,9 @@ export const SECTION_HUBS: Record<SectionKey, SectionHubDefinition> = {
     analyticsPath: '/hr/analytics',
     capability: 'canManageTeachers',
     quickLinks: [
+      { title: 'Employees', description: 'Non-teaching staff records', href: '/hr?tab=employees', icon: 'Users', capability: 'canManageTeachers' },
       { title: 'Leave requests', description: 'Staff leave queue', href: '/hr?tab=leave', icon: 'Palmtree', capability: 'canManageTeachers' },
+      { title: 'Staff attendance', description: 'Daily teacher and employee register', href: '/hr?tab=staff-attendance', icon: 'ClipboardCheck', capability: 'canManageTeachers' },
       { title: 'Discipline', description: 'Student conduct records', href: '/hr?tab=discipline', icon: 'ShieldAlert', capability: 'canManageStudents' },
       { title: 'Policies', description: 'Compliance policies', href: '/compliance', icon: 'Scale', capability: 'canManageTeachers' },
       { title: 'Incidents', description: 'Compliance incidents', href: '/hr?tab=incidents', icon: 'AlertTriangle', capability: 'canManageTeachers' },

@@ -13,6 +13,7 @@ use App\Models\Setting;
 use App\Models\Student;
 use App\Models\StudentDocument;
 use App\Services\Domain\SchoolDomainRules;
+use App\Services\FinancialLedgerService;
 use App\Services\ParentAccessService;
 use App\Services\StudentAdmissionService;
 use App\Services\StudentPromotionService;
@@ -30,6 +31,7 @@ class StudentController extends Controller
         private ParentAccessService $parentAccess,
         private SchoolDomainRules $domainRules,
         private StudentAdmissionService $admissionService,
+        private FinancialLedgerService $ledgerService,
     ) {}
 
     public function index(Request $request)
@@ -623,9 +625,12 @@ HTML;
         $student = $query->findOrFail($student);
 
         $validator = Validator::make($request->all(), [
-            'amount' => 'required|numeric|min:0',
-            'description' => 'required|string',
+            'amount' => 'required_without:fee_group_id|nullable|numeric|min:0.01',
+            'description' => 'required_without:fee_group_id|nullable|string',
             'dueDate' => 'required|date',
+            'fee_structure_id' => 'nullable|integer|exists:fee_structures,id',
+            'fee_group_id' => 'nullable|integer|exists:fee_groups,id',
+            'apply_discounts' => 'nullable|boolean',
         ]);
 
         if ($validator->fails()) {
@@ -635,25 +640,43 @@ HTML;
             ], 422);
         }
 
-        $schoolId = $user?->school_id ?? $student->school_id;
-        $currency = $student->school?->currency ?? 'USD';
-        if (! in_array($currency, ['USD', 'ZWG'], true)) {
-            $currency = 'USD';
+        $dueDate = new \DateTimeImmutable($request->dueDate);
+        $applyDiscounts = $request->boolean('apply_discounts', true);
+
+        if ($request->filled('fee_group_id')) {
+            $group = \App\Models\FeeGroup::query()
+                ->where('school_id', $student->school_id)
+                ->findOrFail((int) $request->fee_group_id);
+            $invoices = $this->ledgerService->applyFeeGroup(
+                student: $student,
+                group: $group,
+                dueDate: $dueDate,
+                createdBy: $user?->id,
+                applyDiscounts: $applyDiscounts,
+            );
+
+            if ($invoices->isEmpty()) {
+                return response()->json([
+                    'message' => 'No fee structures found for this student\'s class in the selected fee group.',
+                ], 422);
+            }
+
+            return response()->json([
+                'data' => $invoices->first(),
+                'meta' => ['created_count' => $invoices->count()],
+                'message' => 'Invoice created successfully',
+            ], 201);
         }
 
-        // Create invoice using Invoice model
-        $invoice = Invoice::create([
-            'student_id' => $student->id,
-            'school_id' => $schoolId,
-            'invoice_number' => 'INV-'.date('Y').'-'.str_pad(Invoice::where('school_id', $schoolId)->count() + 1, 5, '0', STR_PAD_LEFT),
-            'amount' => $request->amount,
-            'amount_paid' => 0,
-            'balance' => $request->amount,
-            'description' => $request->description,
-            'due_date' => $request->dueDate,
-            'status' => 'pending',
-            'currency' => $currency,
-        ]);
+        $invoice = $this->ledgerService->createInvoice(
+            student: $student,
+            amount: (float) $request->amount,
+            description: (string) $request->description,
+            feeStructureId: $request->fee_structure_id ? (int) $request->fee_structure_id : null,
+            dueDate: $dueDate,
+            createdBy: $user?->id,
+            applyDiscounts: $applyDiscounts,
+        );
 
         return response()->json([
             'data' => $invoice,
@@ -697,9 +720,13 @@ HTML;
         );
         $validator = Validator::make($request->all(), [
             'studentIds' => 'required|array',
-            'description' => 'required|string',
+            'description' => 'required_without:fee_group_id|nullable|string',
             'dueDate' => 'required|date',
-            'amount' => 'required|numeric|min:0',
+            'amount' => 'required_without:fee_group_id|nullable|numeric|min:0.01',
+            'fee_structure_id' => 'nullable|integer|exists:fee_structures,id',
+            'feeStructureId' => 'nullable|integer|exists:fee_structures,id',
+            'fee_group_id' => 'nullable|integer|exists:fee_groups,id',
+            'apply_discounts' => 'nullable|boolean',
         ]);
 
         if ($validator->fails()) {
@@ -711,30 +738,45 @@ HTML;
 
         $user = $request->user();
         $schoolId = $user?->school_id;
-        $currency = $user?->school?->currency ?? 'USD';
-        if (! in_array($currency, ['USD', 'ZWG'], true)) {
-            $currency = 'USD';
-        }
+        $dueDate = new \DateTimeImmutable($request->dueDate);
+        $applyDiscounts = $request->boolean('apply_discounts', true);
+        $feeStructureId = $request->input('fee_structure_id', $request->input('feeStructureId'));
+        $feeGroupId = $request->input('fee_group_id');
 
         $created = 0;
         foreach ($request->studentIds as $studentId) {
             $student = Student::when($schoolId, fn ($q) => $q->where('school_id', $schoolId))->find($studentId);
-            if ($student) {
-                $studentSchoolId = $schoolId ?? $student->school_id;
-                Invoice::create([
-                    'student_id' => $student->id,
-                    'school_id' => $studentSchoolId,
-                    'invoice_number' => 'INV-'.date('Y').'-'.str_pad(Invoice::where('school_id', $studentSchoolId)->count() + 1, 5, '0', STR_PAD_LEFT),
-                    'amount' => $request->amount,
-                    'amount_paid' => 0,
-                    'balance' => $request->amount,
-                    'description' => $request->description,
-                    'due_date' => $request->dueDate,
-                    'status' => 'pending',
-                    'currency' => $currency,
-                ]);
-                $created++;
+            if (! $student) {
+                continue;
             }
+
+            if ($feeGroupId) {
+                $group = \App\Models\FeeGroup::query()
+                    ->where('school_id', $student->school_id)
+                    ->find((int) $feeGroupId);
+                if (! $group) {
+                    continue;
+                }
+                $created += $this->ledgerService->applyFeeGroup(
+                    student: $student,
+                    group: $group,
+                    dueDate: $dueDate,
+                    createdBy: $user?->id,
+                    applyDiscounts: $applyDiscounts,
+                )->count();
+                continue;
+            }
+
+            $this->ledgerService->createInvoice(
+                student: $student,
+                amount: (float) $request->amount,
+                description: (string) $request->description,
+                feeStructureId: $feeStructureId ? (int) $feeStructureId : null,
+                dueDate: $dueDate,
+                createdBy: $user?->id,
+                applyDiscounts: $applyDiscounts,
+            );
+            $created++;
         }
 
         return response()->json([

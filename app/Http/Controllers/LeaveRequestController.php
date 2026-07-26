@@ -3,10 +3,12 @@
 namespace App\Http\Controllers;
 
 use App\Models\LeaveRequest;
+use App\Models\LeaveType;
 use App\Models\Teacher;
 use App\Services\AuditService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\Rule;
 
 class LeaveRequestController extends Controller
 {
@@ -37,7 +39,12 @@ class LeaveRequestController extends Controller
         $schoolId = $request->user()?->school_id;
 
         $query = LeaveRequest::query()
-            ->with(['teacher:id,name,employee_id,department', 'requester:id,name', 'reviewer:id,name'])
+            ->with([
+                'teacher:id,name,employee_id,department',
+                'leaveType:id,name,code',
+                'requester:id,name',
+                'reviewer:id,name',
+            ])
             ->when($schoolId, fn ($q) => $q->where('school_id', $schoolId));
 
         if ($request->filled('status') && $request->status !== 'all') {
@@ -67,6 +74,8 @@ class LeaveRequestController extends Controller
             'employee_id' => $leave->teacher?->employee_id,
             'department' => $leave->teacher?->department,
             'type' => $leave->type,
+            'leave_type_id' => $leave->leave_type_id,
+            'leave_type_name' => $leave->leaveType?->name,
             'start_date' => $leave->start_date?->toDateString(),
             'end_date' => $leave->end_date?->toDateString(),
             'days' => $leave->days,
@@ -88,9 +97,16 @@ class LeaveRequestController extends Controller
     public function store(Request $request)
     {
         $this->authorizeLeaveAccess($request, manage: false);
+        $schoolId = $request->user()->school_id;
+
         $validator = Validator::make($request->all(), [
             'teacher_id' => 'required|exists:teachers,id',
-            'type' => 'required|string|in:annual,sick,maternity,unpaid,other',
+            'leave_type_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('leave_types', 'id')->where(fn ($q) => $q->where('school_id', $schoolId)->where('is_active', true)),
+            ],
+            'type' => 'nullable|string|max:100',
             'start_date' => 'required|date',
             'end_date' => 'required|date|after_or_equal:start_date',
             'reason' => 'nullable|string|max:2000',
@@ -100,8 +116,23 @@ class LeaveRequestController extends Controller
             return response()->json(['message' => 'Validation failed', 'errors' => $validator->errors()], 422);
         }
 
-        $schoolId = $request->user()->school_id;
+        if (! $request->filled('leave_type_id') && ! $request->filled('type')) {
+            return response()->json([
+                'message' => 'Validation failed',
+                'errors' => ['leave_type_id' => ['Select a leave type.']],
+            ], 422);
+        }
+
         $teacher = Teacher::query()->where('school_id', $schoolId)->findOrFail($request->teacher_id);
+
+        $leaveType = null;
+        if ($request->filled('leave_type_id')) {
+            $leaveType = LeaveType::query()
+                ->where('school_id', $schoolId)
+                ->findOrFail($request->leave_type_id);
+        }
+
+        $type = $leaveType?->code ?: ($leaveType?->name ?: $request->type);
 
         $start = $request->date('start_date');
         $end = $request->date('end_date');
@@ -110,8 +141,9 @@ class LeaveRequestController extends Controller
         $leave = LeaveRequest::create([
             'school_id' => $schoolId,
             'teacher_id' => $teacher->id,
+            'leave_type_id' => $leaveType?->id,
             'requested_by' => $request->user()->id,
-            'type' => $request->type,
+            'type' => $type,
             'start_date' => $start,
             'end_date' => $end,
             'days' => $days,

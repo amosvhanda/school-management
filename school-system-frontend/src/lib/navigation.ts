@@ -23,6 +23,8 @@ export const staffNavigation: NavGroup[] = [
       { title: 'Gradebook', href: '/academics/grades', icon: 'NotebookPen', capability: ['canManageExaminations', 'canEnterExamResults'] },
       { title: 'Attendance', href: '/academics/attendance', icon: 'ClipboardCheck', capability: 'canManageStudents' },
       { title: 'Exams', href: '/academics/exams', icon: 'FileText', capability: ['canManageExaminations', 'canEnterExamResults'] },
+      { title: 'Exam schedule', href: '/academics/exam-schedules', icon: 'CalendarClock', capability: 'canManageExaminations' },
+      { title: 'Certificates', href: '/academics/certificates', icon: 'Award', capability: 'canManageTeachers' },
       { title: 'Timetable', href: '/academics/timetable', icon: 'CalendarDays', capability: 'canManageTeachers' },
     ],
   },
@@ -148,6 +150,7 @@ export const examinationOfficerNavigation: NavGroup[] = [
     label: 'Examinations',
     items: [
       { title: 'Exams', href: '/academics/exams', icon: 'FileText', capability: 'canManageExaminations', roles: ['examination_officer'] },
+      { title: 'Exam schedule', href: '/academics/exam-schedules', icon: 'CalendarClock', capability: 'canManageExaminations', roles: ['examination_officer'] },
       { title: 'Gradebook', href: '/academics/grades', icon: 'BookOpen', capability: ['canManageExaminations', 'canEnterExamResults'], roles: ['examination_officer'] },
       { title: 'Class tests', href: '/academics/tests', icon: 'NotebookPen', capability: 'canManageExaminations', roles: ['examination_officer'] },
     ],

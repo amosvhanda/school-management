@@ -87,6 +87,7 @@ class StudentController extends Controller
             'stream_id' => $request->input('stream_id'),
             'house_id' => $request->input('house_id'),
             'grade_level_id' => $request->grade_level_id,
+            'student_category_id' => $request->input('student_category_id'),
             'date_of_birth' => $request->dateOfBirth,
             'gender' => $request->gender,
             'phone' => $request->phone,
@@ -146,7 +147,7 @@ class StudentController extends Controller
             $student->full_name = trim($student->first_name.' '.$student->last_name);
         }
 
-        $student->fill($request->only(['class', 'class_id', 'grade_level_id', 'phone', 'email', 'address', 'suburb', 'status']));
+        $student->fill($request->only(['class', 'class_id', 'grade_level_id', 'student_category_id', 'phone', 'email', 'address', 'suburb', 'status']));
 
         if ($request->has('dateOfBirth')) {
             $student->date_of_birth = $request->dateOfBirth;

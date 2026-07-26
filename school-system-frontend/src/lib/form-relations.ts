@@ -104,6 +104,51 @@ export function feeCategoryRelation(overrides?: Partial<RelationFieldConfig>): R
   }
 }
 
+export function studentCategoryRelation(overrides?: Partial<RelationFieldConfig>): RelationFieldConfig {
+  return {
+    endpoint: moduleEndpoints.studentCategories,
+    createRoute: schoolSetupHref('student-categories', { create: true }),
+    moduleLabel: 'student category',
+    ...overrides,
+  }
+}
+
+export function leaveTypeRelation(overrides?: Partial<RelationFieldConfig>): RelationFieldConfig {
+  return {
+    endpoint: moduleEndpoints.leaveTypes,
+    createRoute: '/hr?tab=leave-types&create=1',
+    moduleLabel: 'leave type',
+    ...overrides,
+  }
+}
+
+export function designationRelation(overrides?: Partial<RelationFieldConfig>): RelationFieldConfig {
+  return {
+    endpoint: moduleEndpoints.designations,
+    createRoute: schoolSetupHref('designations', { create: true }),
+    moduleLabel: 'designation',
+    ...overrides,
+  }
+}
+
+export function feeGroupRelation(overrides?: Partial<RelationFieldConfig>): RelationFieldConfig {
+  return {
+    endpoint: moduleEndpoints.feeGroups,
+    createRoute: schoolSetupHref('fees', { create: true }),
+    moduleLabel: 'fee group',
+    ...overrides,
+  }
+}
+
+export function feeStructureRelation(overrides?: Partial<RelationFieldConfig>): RelationFieldConfig {
+  return {
+    endpoint: moduleEndpoints.feeStructures,
+    createRoute: schoolSetupHref('fees', { create: true }),
+    moduleLabel: 'fee structure',
+    ...overrides,
+  }
+}
+
 export function payrollTeacherRelation(overrides?: Partial<RelationFieldConfig>): RelationFieldConfig {
   return {
     endpoint: endpoints.payroll.teachers,

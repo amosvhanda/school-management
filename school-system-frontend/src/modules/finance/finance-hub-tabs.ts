@@ -1,6 +1,7 @@
 import {
   ArrowLeftRight,
   Banknote,
+  BookOpen,
   CreditCard,
   HardDrive,
   LineChart,
@@ -37,7 +38,7 @@ export const FINANCE_HUB_TABS: ModuleHubTab[] = [
   {
     id: 'fees',
     title: 'Fees',
-    description: 'Fee categories and class fee structures.',
+    description: 'Fee categories, groups, discounts, and class structures.',
     icon: Tags,
     sections: [
       {
@@ -46,9 +47,37 @@ export const FINANCE_HUB_TABS: ModuleHubTab[] = [
         description: 'Group fee types used on invoices and structures.',
       },
       {
+        listKey: 'finance-fee-groups',
+        title: 'Fee groups',
+        description: 'Bundle categories for packaging on invoices.',
+      },
+      {
+        listKey: 'finance-fee-discounts',
+        title: 'Fee discounts',
+        description: 'Percent or fixed discounts by category.',
+      },
+      {
         listKey: 'finance-fees',
         title: 'Fee structures',
         description: 'Configure amounts by class and term.',
+      },
+    ],
+  },
+  {
+    id: 'accounting',
+    title: 'Accounting',
+    description: 'Income and expense heads for the school ledger.',
+    icon: BookOpen,
+    sections: [
+      {
+        listKey: 'finance-income-heads',
+        title: 'Income heads',
+        description: 'Labels for money coming in.',
+      },
+      {
+        listKey: 'finance-expense-heads',
+        title: 'Expense heads',
+        description: 'Labels for money going out.',
       },
     ],
   },

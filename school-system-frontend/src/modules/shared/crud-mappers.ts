@@ -217,6 +217,16 @@ export function mapRowToFormValues(
     }
   }
 
+  if (listKey === 'finance-fee-groups') {
+    const categories = row.categories
+    if (Array.isArray(categories)) {
+      values.fee_category_ids = categories
+        .map((c) => String((c as Record<string, unknown>).id ?? ''))
+        .filter(Boolean)
+        .join(', ')
+    }
+  }
+
   return values
 }
 
@@ -285,6 +295,12 @@ function mapStudentPayload(
     delete payload.grade_level_id
   }
 
+  if (payload.student_category_id) {
+    payload.student_category_id = Number(payload.student_category_id)
+  } else {
+    delete payload.student_category_id
+  }
+
   if (payload.dateOfBirth === '') delete payload.dateOfBirth
   delete payload.date_of_birth
 
@@ -324,12 +340,23 @@ export function mapFormToPayload(
   }
 
   if (listKey === 'finance-invoices') {
-    return {
+    const payload: Record<string, unknown> = {
       student_id: values.student_id ? Number(values.student_id) : undefined,
-      description: values.description,
-      amount: values.amount,
       due_date: values.due_date,
+      apply_discounts: values.apply_discounts !== false,
+      combine_group: values.combine_group === true,
     }
+    if (values.fee_group_id) {
+      payload.fee_group_id = Number(values.fee_group_id)
+      if (values.description) payload.description = values.description
+    } else {
+      payload.description = values.description
+      payload.amount = values.amount
+      if (values.fee_structure_id) {
+        payload.fee_structure_id = Number(values.fee_structure_id)
+      }
+    }
+    return payload
   }
 
   if (listKey === 'guardians') {
@@ -402,6 +429,143 @@ export function mapFormToPayload(
       description: values.description || null,
       is_active: values.is_active !== false,
       ...(values.order != null && values.order !== '' ? { order: Number(values.order) } : {}),
+    }
+  }
+
+  if (listKey === 'finance-fee-groups') {
+    const idsRaw = String(values.fee_category_ids ?? '').trim()
+    const feeCategoryIds = idsRaw
+      ? idsRaw.split(/[\s,]+/).map((id) => Number(id)).filter((id) => Number.isFinite(id) && id > 0)
+      : []
+    return {
+      name: values.name,
+      description: values.description || null,
+      is_active: values.is_active !== false,
+      ...(values.order != null && values.order !== '' ? { order: Number(values.order) } : {}),
+      fee_category_ids: feeCategoryIds,
+    }
+  }
+
+  if (listKey === 'finance-fee-discounts') {
+    return {
+      name: values.name,
+      discount_type: values.discount_type,
+      value: values.value,
+      fee_category_id: values.fee_category_id ? Number(values.fee_category_id) : null,
+      student_category_id: values.student_category_id ? Number(values.student_category_id) : null,
+      starts_on: values.starts_on || null,
+      ends_on: values.ends_on || null,
+      is_active: values.is_active !== false,
+    }
+  }
+
+  if (listKey === 'finance-income-heads' || listKey === 'finance-expense-heads') {
+    return {
+      name: values.name,
+      code: values.code || null,
+      description: values.description || null,
+      is_active: values.is_active !== false,
+    }
+  }
+
+  if (listKey === 'hr-leave-types') {
+    return {
+      name: values.name,
+      code: values.code || null,
+      default_days: values.default_days != null && values.default_days !== '' ? Number(values.default_days) : null,
+      is_paid: values.is_paid === true,
+      is_active: values.is_active !== false,
+      description: values.description || null,
+    }
+  }
+
+  if (listKey === 'hr-designations' || listKey === 'people-student-categories') {
+    return {
+      name: values.name,
+      code: values.code || null,
+      description: values.description || null,
+      is_active: values.is_active !== false,
+      ...(listKey === 'people-student-categories'
+        && values.order != null
+        && values.order !== ''
+        ? { order: Number(values.order) }
+        : {}),
+    }
+  }
+
+  if (listKey === 'hr-employees') {
+    return {
+      first_name: values.first_name,
+      last_name: values.last_name,
+      employee_number: values.employee_number || null,
+      email: values.email || null,
+      phone: values.phone || null,
+      designation_id: values.designation_id ? Number(values.designation_id) : null,
+      department_id: values.department_id ? Number(values.department_id) : null,
+      employment_type: values.employment_type || null,
+      status: values.status || 'active',
+      joining_date: values.joining_date || null,
+      ...(values.base_salary != null && values.base_salary !== ''
+        ? { base_salary: Number(values.base_salary) }
+        : {}),
+    }
+  }
+
+  if (listKey === 'academics-certificate-templates') {
+    return {
+      name: values.name,
+      certificate_type: values.certificate_type,
+      title: values.title,
+      body_html: values.body_html,
+      is_active: values.is_active !== false,
+    }
+  }
+
+  if (listKey === 'academics-exam-schedules') {
+    return {
+      exam_id: values.exam_id ? Number(values.exam_id) : undefined,
+      class_id: values.class_id ? Number(values.class_id) : undefined,
+      subject_id: values.subject_id ? Number(values.subject_id) : undefined,
+      room_id: values.room_id ? Number(values.room_id) : null,
+      starts_at: values.starts_at,
+      ends_at: values.ends_at || null,
+      ...(values.duration_minutes != null && values.duration_minutes !== ''
+        ? { duration_minutes: Number(values.duration_minutes) }
+        : {}),
+      invigilator: values.invigilator || null,
+      notes: values.notes || null,
+    }
+  }
+
+  if (listKey === 'ops-library-members') {
+    return {
+      member_type: values.member_type,
+      member_number: values.member_number || null,
+      name: values.name,
+      email: values.email || null,
+      phone: values.phone || null,
+      status: values.status || 'active',
+      joined_on: values.joined_on || null,
+      notes: values.notes || null,
+    }
+  }
+
+  if (listKey === 'settings-currencies') {
+    return {
+      code: String(values.code ?? '').trim().toUpperCase(),
+      name: values.name,
+      symbol: values.symbol || null,
+      is_default: values.is_default === true,
+      is_active: values.is_active !== false,
+    }
+  }
+
+  if (listKey === 'settings-languages') {
+    return {
+      code: String(values.code ?? '').trim().toLowerCase(),
+      name: values.name,
+      is_default: values.is_default === true,
+      is_active: values.is_active !== false,
     }
   }
 
@@ -583,6 +747,12 @@ function mapTeacherPayload(values: Record<string, unknown>): Record<string, unkn
   }
   delete payload.department_id
 
+  if (payload.designation_id) {
+    payload.designation_id = Number(payload.designation_id)
+  } else {
+    delete payload.designation_id
+  }
+
   const allowancesTotal = Number(payload.allowances_total ?? NaN)
   const deductionsTotal = Number(payload.deductions_total ?? NaN)
   const hadAllowances = Object.prototype.hasOwnProperty.call(payload, 'allowances_total')
@@ -646,12 +816,17 @@ export const backendCrudSupport: Record<string, { create: boolean; update: boole
   'finance-invoices': { create: true, update: true, delete: false },
   'finance-fees': { create: true, update: true, delete: true },
   'finance-fee-categories': { create: true, update: true, delete: true },
+  'finance-fee-groups': { create: true, update: true, delete: true },
+  'finance-fee-discounts': { create: true, update: true, delete: true },
+  'finance-income-heads': { create: true, update: true, delete: true },
+  'finance-expense-heads': { create: true, update: true, delete: true },
   'finance-payroll': { create: false, update: true, delete: false },
   'ops-inventory': { create: true, update: true, delete: false },
   'ops-inventory-sales': { create: true, update: false, delete: false },
   'ops-procurement': { create: true, update: false, delete: false },
   'ops-procurement-vendors': { create: true, update: true, delete: false },
   'ops-library': { create: true, update: true, delete: false },
+  'ops-library-members': { create: true, update: true, delete: true },
   'ops-transport': { create: true, update: true, delete: false },
   'ops-transport-drivers': { create: true, update: true, delete: false },
   'ops-transport-routes': { create: true, update: true, delete: false },
@@ -662,6 +837,14 @@ export const backendCrudSupport: Record<string, { create: boolean; update: boole
   'ops-events': { create: true, update: true, delete: false },
   'comms-announcements': { create: true, update: true, delete: true },
   'hr-leave': { create: true, update: false, delete: false },
+  'hr-leave-types': { create: true, update: true, delete: true },
+  'hr-designations': { create: true, update: true, delete: true },
+  'hr-employees': { create: true, update: true, delete: true },
+  'people-student-categories': { create: true, update: true, delete: true },
+  'academics-exam-schedules': { create: true, update: true, delete: true },
+  'academics-certificate-templates': { create: true, update: true, delete: true },
+  'academics-school-certificates': { create: false, update: false, delete: false },
+  'settings-currencies': { create: true, update: true, delete: true },
   'hr-discipline': { create: true, update: true, delete: false },
   compliance: { create: true, update: true, delete: false },
   'compliance-incidents': { create: true, update: true, delete: false },

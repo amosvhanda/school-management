@@ -15,8 +15,18 @@ export interface ApiErrorResponse {
 export interface LicenseStatus {
   status: string
   message?: string
+  plan?: string | null
   expires_at?: string | null
+  days_remaining?: number | null
+  grace_ends_at?: string | null
   grace_days_remaining?: number
+  enforcement?: boolean
+  active_key?: {
+    id: number
+    plan_type: string
+    activated_at?: string | null
+    expires_at?: string | null
+  } | null
 }
 
 export interface Paginator<T> {

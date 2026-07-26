@@ -33,6 +33,11 @@ class StudentResource extends JsonResource
                 'id' => $this->gradeLevel?->id,
                 'name' => $this->gradeLevel?->name,
             ]),
+            'student_category_id' => $this->student_category_id,
+            'student_category' => $this->whenLoaded('studentCategory', fn () => [
+                'id' => $this->studentCategory?->id,
+                'name' => $this->studentCategory?->name,
+            ]),
             'status' => $this->status,
             'balance' => $this->balance,
             'currency' => $this->currency,

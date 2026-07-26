@@ -1,7 +1,34 @@
-import { FileCheck, Palmtree, Scale, ScrollText, ShieldAlert, TriangleAlert } from '@lucide/vue'
+import {
+  BadgeCheck,
+  ClipboardCheck,
+  FileCheck,
+  IdCard,
+  Palmtree,
+  Scale,
+  ScrollText,
+  ShieldAlert,
+  TriangleAlert,
+  Users,
+} from '@lucide/vue'
 import type { ModuleHubTab } from '@/lib/module-hub'
 
 export const HR_HUB_TABS: ModuleHubTab[] = [
+  {
+    id: 'employees',
+    title: 'Employees',
+    description: 'Non-teaching staff records and employment details.',
+    icon: Users,
+    capability: 'canManageTeachers',
+    listKey: 'hr-employees',
+  },
+  {
+    id: 'designations',
+    title: 'Designations',
+    description: 'Job titles used across teaching and support staff.',
+    icon: IdCard,
+    capability: 'canManageTeachers',
+    listKey: 'hr-designations',
+  },
   {
     id: 'leave',
     title: 'Leave',
@@ -9,6 +36,22 @@ export const HR_HUB_TABS: ModuleHubTab[] = [
     icon: Palmtree,
     capability: 'canManageTeachers',
     component: () => import('@/modules/hr/views/LeaveRequestsView.vue'),
+  },
+  {
+    id: 'leave-types',
+    title: 'Leave types',
+    description: 'Paid and unpaid leave categories with day allowances.',
+    icon: BadgeCheck,
+    capability: 'canManageTeachers',
+    listKey: 'hr-leave-types',
+  },
+  {
+    id: 'staff-attendance',
+    title: 'Staff attendance',
+    description: 'Daily attendance for teachers and employees.',
+    icon: ClipboardCheck,
+    capability: 'canManageTeachers',
+    component: () => import('@/modules/hr/views/StaffAttendanceView.vue'),
   },
   {
     id: 'discipline',
@@ -53,4 +96,4 @@ export const HR_HUB_TABS: ModuleHubTab[] = [
   },
 ]
 
-export const HR_HUB_DEFAULT_TAB = 'leave'
+export const HR_HUB_DEFAULT_TAB = 'employees'

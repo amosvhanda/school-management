@@ -128,7 +128,7 @@ const columns: ColumnDef<LeaveRequestRow>[] = [
   {
     id: 'type',
     header: 'Type',
-    cell: ({ row }) => leaveTypeLabel(row.original.type),
+    cell: ({ row }) => leaveTypeLabel(row.original.type, row.original.leave_type_name),
   },
   {
     id: 'dates',
@@ -396,7 +396,7 @@ onMounted(async () => {
       <SheetContent class="w-full overflow-y-auto sm:max-w-lg">
         <SheetHeader v-if="detailRow">
           <SheetTitle>
-            Leave · {{ detailRow.teacher_name || 'Staff' }} · {{ leaveTypeLabel(detailRow.type) }}
+            Leave · {{ detailRow.teacher_name || 'Staff' }} · {{ leaveTypeLabel(detailRow.type, detailRow.leave_type_name) }}
           </SheetTitle>
           <SheetDescription>
             {{ formatDate(detailRow.start_date) }} – {{ formatDate(detailRow.end_date) }}

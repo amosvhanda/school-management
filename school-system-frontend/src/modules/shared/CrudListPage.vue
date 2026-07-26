@@ -43,6 +43,7 @@ import {
   postRecord,
   updateRecord,
 } from '@/services/dashboard.service'
+import { api } from '@/lib/api'
 import PaymentReceiptSheet from '@/modules/finance/components/PaymentReceiptSheet.vue'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -383,6 +384,32 @@ async function runAction(action: RowActionConfig, row: Record<string, unknown>) 
       receiptOpen.value = false
     } finally {
       receiptLoading.value = false
+    }
+    return
+  }
+
+  if (action.downloadBlob) {
+    const key = `${action.label}-${String(id)}`
+    actionLoading.value = key
+    try {
+      const { data } = await api.get(action.path(id as string | number), { responseType: 'blob' })
+      const blob = data instanceof Blob ? data : new Blob([data], { type: 'text/html' })
+      const filename =
+        action.downloadFilename?.(row) ?? `download_${String(id)}.html`
+      const url = URL.createObjectURL(blob)
+      const anchor = document.createElement('a')
+      anchor.href = url
+      anchor.download = filename
+      anchor.rel = 'noopener'
+      document.body.appendChild(anchor)
+      anchor.click()
+      anchor.remove()
+      URL.revokeObjectURL(url)
+      toast.success(action.successMessage ?? 'Download started')
+    } catch (err) {
+      toast.error(`${action.label} failed`, getErrorMessage(err))
+    } finally {
+      actionLoading.value = null
     }
     return
   }

@@ -188,6 +188,7 @@ export const studentsApi = {
     return data as Blob
   },
   guardians: (id: number | string) => fetchList(e.students.guardians(id)),
+  categories: crud(e.studentCategories.list, e.studentCategories.detail),
 }
 
 export const academicStructureApi = {
@@ -288,6 +289,13 @@ export const academicsApi = {
     recordResults: (id: number | string, payload: Record<string, unknown>) =>
       postRecord(e.exams.recordResults(id), payload),
   },
+  examSchedules: crud(e.examSchedules.list, e.examSchedules.detail),
+  certificateTemplates: {
+    ...crud(e.certificateTemplates.list, e.certificateTemplates.detail),
+    issue: (id: number | string, payload: Record<string, unknown>) =>
+      postRecord(e.certificateTemplates.issue(id), payload),
+  },
+  schoolCertificates: crud(e.schoolCertificates.list, e.schoolCertificates.detail),
   attendance: {
     list: (params?: ListQueryParams) => fetchList(e.attendance.list, params),
     record: (payload: Record<string, unknown>) => createRecord(e.attendance.list, payload),
@@ -351,6 +359,12 @@ export const financeApi = {
   },
   feeStructures: crud(e.feeStructures.list, e.feeStructures.detail),
   feeCategories: crud(e.feeCategories.list, e.feeCategories.detail),
+  feeGroups: crud(e.feeGroups.list, e.feeGroups.detail),
+  feeDiscounts: crud(e.feeDiscounts.list, e.feeDiscounts.detail),
+  incomeHeads: crud(e.incomeHeads.list, e.incomeHeads.detail),
+  expenseHeads: crud(e.expenseHeads.list, e.expenseHeads.detail),
+  schoolCurrencies: crud(e.schoolCurrencies.list, e.schoolCurrencies.detail),
+  schoolLanguages: crud(e.schoolLanguages.list, e.schoolLanguages.detail),
   payroll: {
     list: (params?: ListQueryParams) => fetchList(e.payroll.list, params),
     teachers: () => fetchList(e.payroll.teachers),
@@ -427,6 +441,7 @@ export const operationsApi = {
       list: (params?: ListQueryParams) => fetchList(e.library.books, params),
       create: (payload: Record<string, unknown>) => createRecord(e.library.books, payload),
     },
+    members: crud(e.libraryMembers.list, e.libraryMembers.detail),
     borrow: (payload: Record<string, unknown>) => postRecord(e.library.borrow, payload),
     returnBook: (id: number | string, payload?: Record<string, unknown>) =>
       postRecord(e.library.return(id), payload ?? {}),
@@ -457,6 +472,15 @@ export const hrApi = {
       postRecord(e.leaveRequests.approve(id), payload ?? {}),
     reject: (id: number | string, payload?: Record<string, unknown>) =>
       postRecord(e.leaveRequests.reject(id), payload ?? {}),
+  },
+  leaveTypes: crud(e.leaveTypes.list, e.leaveTypes.detail),
+  designations: crud(e.designations.list, e.designations.detail),
+  employees: crud(e.employees.list, e.employees.detail),
+  staffAttendance: {
+    list: (params?: ListQueryParams) => fetchList(e.staffAttendance.list, params),
+    roster: (params?: ListQueryParams) => fetchOne(e.staffAttendance.roster, params),
+    summary: (params?: ListQueryParams) => fetchOne(e.staffAttendance.summary, params),
+    store: (payload: Record<string, unknown>) => createRecord(e.staffAttendance.store, payload),
   },
   discipline: {
     list: (params?: ListQueryParams) => fetchList(e.discipline.list, params),

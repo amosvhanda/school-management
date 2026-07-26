@@ -6,6 +6,7 @@ import {
   payrollProcessPromptForm,
   receiveGoodsPromptForm,
   schoolTripEnrollPromptForm,
+  certificateIssuePromptForm,
   spendDisbursePromptForm,
 } from '@/modules/shared/action-prompt-forms'
 
@@ -23,6 +24,9 @@ export interface RowActionConfig {
   successMessage?: string
   /** Opens payment receipt sheet instead of calling API directly */
   openReceipt?: boolean
+  /** Download response as a file blob (e.g. HTML certificate) */
+  downloadBlob?: boolean
+  downloadFilename?: (row: Record<string, unknown>) => string
   /** Prompt for reason before destructive API action */
   confirmReason?: boolean
   /** Opens a validated FormSheet before calling the API */
@@ -186,6 +190,30 @@ export const moduleActionsRegistry: Record<string, RowActionConfig[]> = {
         && row.open_for_registration !== 0,
       promptForm: schoolTripEnrollPromptForm,
       successMessage: 'Student enrolled for the trip',
+    },
+  ],
+  'academics-certificate-templates': [
+    {
+      label: 'Issue certificate',
+      method: 'post',
+      path: (id) => endpoints.certificateTemplates.issue(id),
+      when: (row) => row.is_active !== false && row.is_active !== 0,
+      promptForm: certificateIssuePromptForm,
+      successMessage: 'Certificate issued',
+    },
+  ],
+  'academics-school-certificates': [
+    {
+      label: 'Download',
+      method: 'post',
+      path: (id) => endpoints.schoolCertificates.download(id),
+      variant: 'outline',
+      downloadBlob: true,
+      downloadFilename: (row) => {
+        const code = String(row.verification_code ?? row.id ?? 'certificate')
+        return `certificate_${code}.html`
+      },
+      successMessage: 'Certificate downloaded',
     },
   ],
   'ops-assets': [

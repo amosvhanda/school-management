@@ -271,6 +271,70 @@ export const endpoints = {
     list: '/fee-categories',
     detail: (id: number | string) => `/fee-categories/${id}`,
   },
+  feeGroups: {
+    list: '/fee-groups',
+    detail: (id: number | string) => `/fee-groups/${id}`,
+  },
+  feeDiscounts: {
+    list: '/fee-discounts',
+    detail: (id: number | string) => `/fee-discounts/${id}`,
+  },
+  incomeHeads: {
+    list: '/income-heads',
+    detail: (id: number | string) => `/income-heads/${id}`,
+  },
+  expenseHeads: {
+    list: '/expense-heads',
+    detail: (id: number | string) => `/expense-heads/${id}`,
+  },
+  leaveTypes: {
+    list: '/leave-types',
+    detail: (id: number | string) => `/leave-types/${id}`,
+  },
+  designations: {
+    list: '/designations',
+    detail: (id: number | string) => `/designations/${id}`,
+  },
+  employees: {
+    list: '/employees',
+    detail: (id: number | string) => `/employees/${id}`,
+  },
+  staffAttendance: {
+    list: '/staff-attendance',
+    roster: '/staff-attendance/roster',
+    summary: '/staff-attendance/summary',
+    store: '/staff-attendance',
+  },
+  studentCategories: {
+    list: '/student-categories',
+    detail: (id: number | string) => `/student-categories/${id}`,
+  },
+  certificateTemplates: {
+    list: '/certificate-templates',
+    detail: (id: number | string) => `/certificate-templates/${id}`,
+    issue: (id: number | string) => `/certificate-templates/${id}/issue`,
+  },
+  schoolCertificates: {
+    list: '/school-certificates',
+    detail: (id: number | string) => `/school-certificates/${id}`,
+    download: (id: number | string) => `/school-certificates/${id}/download`,
+  },
+  examSchedules: {
+    list: '/exam-schedules',
+    detail: (id: number | string) => `/exam-schedules/${id}`,
+  },
+  libraryMembers: {
+    list: '/library/members',
+    detail: (id: number | string) => `/library/members/${id}`,
+  },
+  schoolCurrencies: {
+    list: '/school-currencies',
+    detail: (id: number | string) => `/school-currencies/${id}`,
+  },
+  schoolLanguages: {
+    list: '/school-languages',
+    detail: (id: number | string) => `/school-languages/${id}`,
+  },
   payroll: {
     list: '/payroll',
     teachers: '/payroll/teachers',
