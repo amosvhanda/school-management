@@ -28,10 +28,10 @@ use App\Models\TeachingResource;
 use App\Models\Timetable;
 use App\Models\TimetableChangeRequest;
 use App\Services\Export\ExportService;
+use App\Services\Domain\SchoolDomainRules;
 use App\Services\PermissionService;
 use App\Services\TeacherResolutionService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 
 class TeacherPortalController extends Controller
@@ -137,6 +137,10 @@ class TeacherPortalController extends Controller
             $students = Student::query()
                 ->where('school_id', $schoolId)
                 ->where('class_id', $classId)
+                ->where(function ($q) {
+                    $q->whereNull('status')
+                        ->orWhereNotIn('status', SchoolDomainRules::inactiveStudentStatuses());
+                })
                 ->orderBy('full_name')
                 ->get(['id', 'full_name', 'student_number', 'status', 'class_id']);
 
@@ -264,15 +268,20 @@ class TeacherPortalController extends Controller
             ]
         );
 
-        Attendance::query()
+        $attendanceQuery = Attendance::query()
             ->where('school_id', $this->schoolId($request))
             ->where('class_id', $data['class_id'])
-            ->whereDate('date', $data['date'])
-            ->update([
-                'submitted_at' => DB::raw('COALESCE(submitted_at, NOW())'),
-                'locked_at' => now(),
-                'locked_by' => $request->user()->id,
-            ]);
+            ->whereDate('date', $data['date']);
+
+        // Set submitted_at only when missing (avoid MySQL-only NOW() for SQLite).
+        (clone $attendanceQuery)
+            ->whereNull('submitted_at')
+            ->update(['submitted_at' => now()]);
+
+        $attendanceQuery->update([
+            'locked_at' => now(),
+            'locked_by' => $request->user()->id,
+        ]);
 
         return $this->success($session, 'Attendance locked');
     }
@@ -1176,11 +1185,100 @@ class TeacherPortalController extends Controller
             ], Assignment::where('teacher_id', $teacher->id)->latest()->limit(200)->get()
                 ->map(fn ($a) => [$a->title, $a->due_date?->toDateString(), $a->total_marks, $a->status])->all()),
             'exams' => $this->exportOrJson($request, $format, 'exams', [
-                'Name', 'Date', 'Status',
+                'Name', 'Date', 'Published',
             ], Exam::where('school_id', $schoolId)->orderByDesc('exam_date')->limit(200)->get()
-                ->map(fn ($e) => [$e->name, $e->exam_date, $e->status])->all()),
+                ->map(fn ($e) => [$e->name, $e->exam_date?->toDateString(), $e->is_published ? 'yes' : 'no'])->all()),
+            'attendance' => $this->exportTeacherAttendance($request, $teacher, $data['class_id'] ?? null, $format),
+            'marksheet' => $this->exportTeacherMarksheet($request, $teacher, $data['class_id'] ?? null, $format),
+            'progress' => $this->exportTeacherProgress($request, $teacher, $data['class_id'] ?? null, $format),
             default => $this->exportClassList($request, $teacher, $data['class_id'] ?? null, $format),
         };
+    }
+
+    protected function exportTeacherAttendance(Request $request, Teacher $teacher, ?int $classId, string $format)
+    {
+        $classIds = $classId
+            ? tap(collect([(int) $classId]), fn ($ids) => $this->assertTeacherOwnsClass($teacher, $classId))
+            : $this->teacherClassIds($teacher);
+
+        $rows = Attendance::query()
+            ->where('school_id', $this->schoolId($request))
+            ->whereIn('class_id', $classIds->isEmpty() ? [0] : $classIds->all())
+            ->with(['student:id,full_name,student_number', 'classModel:id,name'])
+            ->orderByDesc('date')
+            ->limit(500)
+            ->get()
+            ->map(fn ($a) => [
+                $a->date?->toDateString() ?? $a->date,
+                $a->classModel?->name,
+                $a->student?->full_name,
+                $a->student?->student_number,
+                $a->status,
+                $a->remarks,
+            ])
+            ->all();
+
+        return $this->exportOrJson($request, $format, 'attendance', [
+            'Date', 'Class', 'Student', 'Student number', 'Status', 'Remarks',
+        ], $rows);
+    }
+
+    protected function exportTeacherMarksheet(Request $request, Teacher $teacher, ?int $classId, string $format)
+    {
+        $classIds = $classId
+            ? tap(collect([(int) $classId]), fn ($ids) => $this->assertTeacherOwnsClass($teacher, $classId))
+            : $this->teacherClassIds($teacher);
+
+        $rows = \App\Models\Grade::query()
+            ->whereIn('class_id', $classIds->isEmpty() ? [0] : $classIds->all())
+            ->when($teacher->school_id, fn ($q) => $q->where('school_id', $teacher->school_id))
+            ->with('student:id,full_name,student_number')
+            ->orderByDesc('updated_at')
+            ->limit(500)
+            ->get()
+            ->map(fn ($g) => [
+                $g->student?->full_name,
+                $g->student?->student_number,
+                $g->subject,
+                $g->score,
+                $g->total,
+                $g->grade,
+                $g->term,
+                $g->year,
+            ])
+            ->all();
+
+        return $this->exportOrJson($request, $format, 'marksheet', [
+            'Student', 'Student number', 'Subject', 'Score', 'Total', 'Grade', 'Term', 'Year',
+        ], $rows);
+    }
+
+    protected function exportTeacherProgress(Request $request, Teacher $teacher, ?int $classId, string $format)
+    {
+        $classIds = $classId
+            ? tap(collect([(int) $classId]), fn ($ids) => $this->assertTeacherOwnsClass($teacher, $classId))
+            : $this->teacherClassIds($teacher);
+
+        $rows = SyllabusTopic::query()
+            ->where('teacher_id', $teacher->id)
+            ->when($classId, fn ($q) => $q->where('class_id', $classId))
+            ->when(! $classId && $classIds->isNotEmpty(), fn ($q) => $q->whereIn('class_id', $classIds->all()))
+            ->orderBy('title')
+            ->limit(500)
+            ->get()
+            ->map(fn ($t) => [
+                $t->title,
+                $t->chapter,
+                $t->status,
+                $t->coverage_percent,
+                $t->class_id,
+                $t->subject_id,
+            ])
+            ->all();
+
+        return $this->exportOrJson($request, $format, 'progress', [
+            'Topic', 'Chapter', 'Status', 'Coverage %', 'Class ID', 'Subject ID',
+        ], $rows);
     }
 
     protected function exportClassList(Request $request, Teacher $teacher, ?int $classId, string $format)

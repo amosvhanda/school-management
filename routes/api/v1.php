@@ -12,6 +12,7 @@ use App\Http\Controllers\Api\V1\ProfileController;
 use App\Http\Controllers\Api\V1\SchoolController;
 use App\Http\Controllers\Api\V1\SettingsController;
 use App\Http\Controllers\Api\V1\TeacherPortalController;
+use App\Http\Controllers\Api\V1\StudentPortalController;
 use App\Http\Controllers\Api\V1\UploadController;
 use App\Http\Controllers\AssetController;
 use App\Http\Controllers\AssignmentController;
@@ -428,6 +429,18 @@ Route::middleware(['auth:sanctum', 'school.isolated', 'school.licensed'])->group
 
     // People & enrollment
     Route::get('/parents/{id}/children', [ParentController::class, 'children']);
+
+    // Student portal (scoped to the authenticated linked student).
+    Route::prefix('student-portal')->group(function () {
+        Route::get('/dashboard', [StudentPortalController::class, 'dashboard']);
+        Route::get('/me', [StudentPortalController::class, 'me']);
+        Route::get('/attendance', [StudentPortalController::class, 'attendance']);
+        Route::get('/grades', [StudentPortalController::class, 'grades']);
+        Route::get('/fees', [StudentPortalController::class, 'fees']);
+        Route::get('/timetable', [StudentPortalController::class, 'timetable']);
+        Route::get('/assignments', [StudentPortalController::class, 'assignments']);
+        Route::get('/announcements', [StudentPortalController::class, 'announcements']);
+    });
 
     // Parent / guardian portal
     Route::prefix('parent/portal')->group(function () {

@@ -293,6 +293,11 @@ class StudentController extends Controller
 
     public function uploadDocuments(Request $request, $student)
     {
+        $this->authorizeModuleAccess(
+            $request,
+            capabilities: ['canManageStudents', 'canManageTeachers'],
+            permissionSlugs: ['students.manage'],
+        );
         $user = $request->user();
         $query = Student::query();
 
@@ -602,6 +607,11 @@ HTML;
 
     public function createInvoice(Request $request, $student)
     {
+        $this->authorizeModuleAccess(
+            $request,
+            capabilities: ['canManageStudents', 'canManageTeachers'],
+            permissionSlugs: ['students.manage'],
+        );
         $user = $request->user();
         $query = Student::query();
 
@@ -653,6 +663,11 @@ HTML;
 
     public function promote(Request $request)
     {
+        $this->authorizeModuleAccess(
+            $request,
+            capabilities: ['canManageStudents', 'canManageTeachers'],
+            permissionSlugs: ['students.manage'],
+        );
         $schoolId = $request->user()->school_id;
         $academicYear = $request->input('academic_year', Setting::get('academic.academicYear', (string) now()->year));
         $nextAcademicYear = $request->input('next_academic_year', (string) ((int) $academicYear + 1));
@@ -675,6 +690,11 @@ HTML;
 
     public function bulkInvoices(Request $request)
     {
+        $this->authorizeModuleAccess(
+            $request,
+            capabilities: ['canManageStudents', 'canManageTeachers'],
+            permissionSlugs: ['students.manage'],
+        );
         $validator = Validator::make($request->all(), [
             'studentIds' => 'required|array',
             'description' => 'required|string',
@@ -725,6 +745,11 @@ HTML;
 
     public function bulkStatus(Request $request)
     {
+        $this->authorizeModuleAccess(
+            $request,
+            capabilities: ['canManageStudents', 'canManageTeachers'],
+            permissionSlugs: ['students.manage'],
+        );
         $validator = Validator::make($request->all(), [
             'studentIds' => 'required|array',
             'status' => 'required|string|in:active,inactive,suspended,graduated',
@@ -748,6 +773,11 @@ HTML;
 
     public function bulkPromote(Request $request)
     {
+        $this->authorizeModuleAccess(
+            $request,
+            capabilities: ['canManageStudents', 'canManageTeachers'],
+            permissionSlugs: ['students.manage'],
+        );
         $validator = Validator::make($request->all(), [
             'studentIds' => 'required|array',
             'academic_year' => 'nullable|string',

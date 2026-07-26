@@ -3,14 +3,15 @@
 namespace App\Services\Auth;
 
 use App\Enums\UserRole;
-use App\Models\Guardian;
 use App\Models\School;
 use App\Models\Student;
 use App\Models\User;
 use App\Services\AuditService;
+use App\Services\GuardianResolutionService;
 use App\Services\LicenseService;
 use App\Services\ParentAccessService;
 use App\Services\PermissionService;
+use App\Services\StudentResolutionService;
 use App\Services\TeacherResolutionService;
 use Illuminate\Auth\Events\Lockout;
 use Illuminate\Http\Request;
@@ -27,6 +28,8 @@ class SecureAuthenticationService
         private LicenseService $licenseService,
         private PermissionService $permissionService,
         private TeacherResolutionService $teacherResolution,
+        private StudentResolutionService $studentResolution,
+        private GuardianResolutionService $guardianResolution,
     ) {}
 
     /**
@@ -93,10 +96,10 @@ class SecureAuthenticationService
         ];
 
         if ($user->role === UserRole::Student) {
-            $student = Student::query()
-                ->with('classModel:id,name')
-                ->where('user_id', $user->id)
-                ->first();
+            $student = $this->studentResolution->resolveForUser($user);
+            if ($student) {
+                $student->loadMissing('classModel:id,name');
+            }
             $context['student_id'] = $student?->id;
             $context['class_id'] = $student?->class_id;
             $context['class_name'] = $student?->classModel?->name ?? $student?->class;
@@ -107,7 +110,7 @@ class SecureAuthenticationService
         }
 
         if ($user->role === UserRole::Parent) {
-            $context['guardian_id'] = Guardian::where('user_id', $user->id)->value('id');
+            $context['guardian_id'] = $this->guardianResolution->resolveForUser($user)?->id;
             $context['children'] = Student::query()
                 ->whereIn('id', $this->parentAccess->accessibleStudentIds($user))
                 ->where('status', 'active')

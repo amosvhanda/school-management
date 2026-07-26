@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use App\Contracts\TeachingAssistant;
 use App\Services\Ai\StubTeachingAssistant;
+use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\ServiceProvider;
@@ -30,5 +31,13 @@ class AppServiceProvider extends ServiceProvider
         if ($this->app->isProduction()) {
             DB::prohibitDestructiveCommands();
         }
+
+        ResetPassword::createUrlUsing(function (object $user, string $token) {
+            $frontend = (string) env('FRONTEND_URL', 'http://localhost:5173');
+            $base = rtrim(explode(',', $frontend)[0] ?? 'http://localhost:5173', '/');
+            $email = urlencode((string) ($user->email ?? ''));
+
+            return "{$base}/reset-password?token={$token}&email={$email}";
+        });
     }
 }

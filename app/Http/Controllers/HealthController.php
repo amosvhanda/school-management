@@ -9,8 +9,18 @@ use Illuminate\Http\Request;
 
 class HealthController extends Controller
 {
+    private function authorizeHealthAccess(Request $request): void
+    {
+        $this->authorizeModuleAccess(
+            $request,
+            capabilities: ['canManageStudents', 'canManageTeachers'],
+            permissionSlugs: ['students.manage'],
+        );
+    }
+
     public function profile(Request $request, int $studentId)
     {
+        $this->authorizeHealthAccess($request);
         $schoolId = $request->user()->school_id;
 
         // Ensure student actually belongs to this school context
@@ -27,6 +37,7 @@ class HealthController extends Controller
 
     public function updateProfile(Request $request, int $studentId)
     {
+        $this->authorizeHealthAccess($request);
         $schoolId = $request->user()->school_id;
         Student::where('school_id', $schoolId)->findOrFail($studentId);
 
@@ -48,6 +59,7 @@ class HealthController extends Controller
 
     public function visits(Request $request)
     {
+        $this->authorizeHealthAccess($request);
         $visits = ClinicVisit::where('school_id', $request->user()->school_id)
             ->with('student:id,full_name,student_number')
             ->orderByDesc('visit_date')
@@ -59,6 +71,7 @@ class HealthController extends Controller
 
     public function recordVisit(Request $request)
     {
+        $this->authorizeHealthAccess($request);
         $schoolId = $request->user()->school_id;
 
         $data = $request->validate([
@@ -83,6 +96,7 @@ class HealthController extends Controller
 
     public function updateVisit(Request $request, int $id)
     {
+        $this->authorizeHealthAccess($request);
         $schoolId = $request->user()->school_id;
         $visit = ClinicVisit::where('school_id', $schoolId)->findOrFail($id);
 

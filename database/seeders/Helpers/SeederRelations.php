@@ -180,6 +180,14 @@ final class SeederRelations
             email: 'parent@school.co.zw',
         );
 
+        Guardian::query()
+            ->where('school_id', $school->id)
+            ->where('email', 'parent@school.co.zw')
+            ->update([
+                'user_id' => $parentUser->id,
+                'phone' => $parentUser->phone,
+            ]);
+
         DB::table('parent_student')->updateOrInsert(
             [
                 'parent_id' => $parentUser->id,

@@ -172,10 +172,49 @@ class AttendanceController extends Controller
         $normalizedClassId = is_numeric($classId) ? (int) $classId : null;
         $allowOverwrite = $request->boolean('overwrite', true);
         $domainRules = app(SchoolDomainRules::class);
+        $studentIds = collect($request->records)->pluck('student_id')->map(fn ($id) => (int) $id)->all();
+        $studentsById = Student::query()
+            ->where('school_id', $schoolId)
+            ->whereIn('id', $studentIds)
+            ->get()
+            ->keyBy('id');
+
+        if ($studentsById->count() !== count($studentIds)) {
+            return response()->json([
+                'message' => 'One or more students could not be found for this school.',
+                'errors' => ['student_id' => ['Invalid student selected for attendance.']],
+            ], 422);
+        }
+
+        $skippedInactive = [];
+        $recordsToSave = [];
 
         foreach ($request->records as $record) {
-            $student = Student::where('school_id', $schoolId)
-                ->findOrFail($record['student_id']);
+            $student = $studentsById->get((int) $record['student_id']);
+            $status = strtolower((string) ($student->status ?? 'active'));
+
+            if (in_array($status, SchoolDomainRules::inactiveStudentStatuses(), true)) {
+                $name = trim((string) ($student->full_name ?: $student->student_number)) ?: ('#'.$student->id);
+                $skippedInactive[] = "{$name} ({$status})";
+
+                continue;
+            }
+
+            $recordsToSave[] = $record;
+        }
+
+        if ($recordsToSave === []) {
+            throw DomainException::make(
+                'student_inactive',
+                'No active learners to save on this register.',
+                ['student' => $skippedInactive !== []
+                    ? ['Inactive learners were skipped: '.implode(', ', $skippedInactive).'.']
+                    : ['All selected learners have inactive accounts.']],
+            );
+        }
+
+        foreach ($recordsToSave as $record) {
+            $student = $studentsById->get((int) $record['student_id']);
             $domainRules->assertStudentActive($student);
             if ($class) {
                 if ($student->class_id && (int) $student->class_id !== (int) $class->id) {
@@ -234,7 +273,10 @@ class AttendanceController extends Controller
 
         return response()->json([
             'data' => $attendanceRecords,
-            'message' => 'Attendance recorded successfully',
+            'message' => $skippedInactive === []
+                ? 'Attendance recorded successfully'
+                : 'Attendance saved for active learners. Skipped inactive: '.implode(', ', $skippedInactive).'.',
+            'skipped_inactive' => $skippedInactive,
         ], 201);
     }
 

@@ -163,10 +163,16 @@ export const examinationOfficerNavigation: NavGroup[] = [
 
 export const parentNavigation: NavGroup[] = [
   {
-    label: 'Portal',
+    label: 'Overview',
     items: [
       { title: 'Home', href: '/portal', icon: 'Home', capability: 'isParent', roles: ['parent'] },
-      { title: 'My Children', href: '/portal/children', icon: 'Users', capability: 'isParent', roles: ['parent'] },
+      { title: 'My profile', href: '/profile', icon: 'UserCog', capability: 'isParent', roles: ['parent'] },
+    ],
+  },
+  {
+    label: 'Family',
+    items: [
+      { title: 'My children', href: '/portal/children', icon: 'Users', capability: 'isParent', roles: ['parent'] },
       { title: 'School life', href: '/portal/hub', icon: 'Layers', capability: 'isParent', roles: ['parent'] },
     ],
   },
@@ -174,9 +180,15 @@ export const parentNavigation: NavGroup[] = [
 
 export const studentNavigation: NavGroup[] = [
   {
-    label: 'Student portal',
+    label: 'Overview',
     items: [
       { title: 'Dashboard', href: '/student', icon: 'Home', roles: ['student'] },
+      { title: 'My profile', href: '/profile', icon: 'UserCog', roles: ['student'] },
+    ],
+  },
+  {
+    label: 'My school',
+    items: [
       { title: 'Timetable', href: '/student/timetable', icon: 'CalendarDays', roles: ['student'] },
       { title: 'Performance', href: '/student/performance', icon: 'BarChart3', roles: ['student'] },
       { title: 'Attendance', href: '/student/attendance', icon: 'ClipboardCheck', roles: ['student'] },

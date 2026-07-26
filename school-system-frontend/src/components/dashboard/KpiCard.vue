@@ -26,8 +26,8 @@ const linkTo = computed(() => (props.href && canOpen(props.href) ? props.href : 
 
 const accentClasses = {
   default: 'bg-primary/10 text-primary',
-  success: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400',
-  warning: 'bg-amber-500/10 text-amber-600 dark:text-amber-400',
+  success: 'bg-chart-2/15 text-chart-2',
+  warning: 'bg-chart-3/15 text-chart-3',
   danger: 'bg-destructive/10 text-destructive',
 }
 </script>

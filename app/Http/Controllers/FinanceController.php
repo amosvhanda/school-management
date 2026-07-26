@@ -16,6 +16,15 @@ use Illuminate\Http\Request;
 
 class FinanceController extends Controller
 {
+    private function authorizeFinanceAccess(Request $request): void
+    {
+        $this->authorizeModuleAccess(
+            $request,
+            capabilities: ['canManageFinance'],
+            permissionSlugs: ['finance.manage', 'transactions.view'],
+        );
+    }
+
     public function __construct(
         private AuditService $auditService,
         private FinancialLedgerService $ledgerService,
@@ -24,6 +33,7 @@ class FinanceController extends Controller
 
     public function summary(Request $request)
     {
+        $this->authorizeFinanceAccess($request);
         $schoolId = $request->user()?->school_id;
         $school = $schoolId ? School::find($schoolId) : null;
         $currency = strtoupper($request->get('currency', $school?->getDefaultCurrency() ?? 'USD'));
@@ -100,6 +110,7 @@ class FinanceController extends Controller
 
     public function outstandingBalances(Request $request)
     {
+        $this->authorizeFinanceAccess($request);
         $schoolId = $request->user()?->school_id;
 
         $query = Student::query()
@@ -157,6 +168,7 @@ class FinanceController extends Controller
      */
     public function aging(Request $request)
     {
+        $this->authorizeFinanceAccess($request);
         $schoolId = $request->user()?->school_id;
         $today = now()->startOfDay();
 
@@ -249,6 +261,7 @@ class FinanceController extends Controller
 
     public function reconciliation(Request $request)
     {
+        $this->authorizeFinanceAccess($request);
         $schoolId = $request->user()?->school_id;
         $period = $request->input('period', 'daily');
         [$from, $to] = $this->resolvePeriodRange($period, $request);
@@ -318,6 +331,7 @@ class FinanceController extends Controller
 
     public function periodReport(Request $request, string $period)
     {
+        $this->authorizeFinanceAccess($request);
         $request->merge(['period' => $period]);
 
         return $this->reconciliation($request);
@@ -328,6 +342,7 @@ class FinanceController extends Controller
      */
     public function cashFlow(Request $request)
     {
+        $this->authorizeFinanceAccess($request);
         $schoolId = $request->user()?->school_id;
         $school = $schoolId ? School::find($schoolId) : null;
         $currency = strtoupper($request->get('currency', $school?->getDefaultCurrency() ?? 'USD'));

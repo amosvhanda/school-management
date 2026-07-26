@@ -3,8 +3,8 @@
 namespace App\Http\Resources\Api\V1;
 
 use App\Enums\UserRole;
-use App\Models\Student;
 use App\Models\TeacherAssignment;
+use App\Services\StudentResolutionService;
 use App\Services\TeacherResolutionService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -33,10 +33,10 @@ class ProfileResource extends JsonResource
         ];
 
         if ($role === UserRole::Student) {
-            $student = Student::query()->where('user_id', $this->id)->first();
+            $student = app(StudentResolutionService::class)->resolveForUser($this->resource);
             if ($student) {
                 $data['studentId'] = $student->student_number;
-                $data['class'] = $student->class;
+                $data['class'] = $student->classModel?->name ?? $student->class;
                 $data['school'] = $student->school;
             }
         }

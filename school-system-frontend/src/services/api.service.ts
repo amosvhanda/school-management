@@ -12,6 +12,12 @@ import {
   updateRecord,
 } from './dashboard.service'
 import { endpoints as e } from './endpoints'
+import { forgotPassword, resetPassword } from './auth.service'
+
+export const authApi = {
+  forgotPassword,
+  resetPassword,
+}
 
 function crud(base: string, detail = (id: number | string) => `${base}/${id}`) {
   return {
@@ -133,6 +139,17 @@ export const teacherPortalApi = {
     ).toString()
     return `${e.teacherPortal.export}?${qs}`
   },
+}
+
+export const studentPortalApi = {
+  dashboard: () => fetchOne(e.studentPortal.dashboard),
+  me: () => fetchOne(e.studentPortal.me),
+  attendance: () => fetchOne(e.studentPortal.attendance),
+  grades: () => fetchOne(e.studentPortal.grades),
+  fees: () => fetchOne(e.studentPortal.fees),
+  timetable: () => fetchOne(e.studentPortal.timetable),
+  assignments: () => fetchOne(e.studentPortal.assignments),
+  announcements: () => fetchOne(e.studentPortal.announcements),
 }
 
 export const studentsApi = {

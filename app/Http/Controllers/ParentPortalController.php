@@ -21,6 +21,7 @@ use App\Models\SchoolTripEnrollment;
 use App\Models\Student;
 use App\Models\Transaction;
 use App\Models\User;
+use App\Services\GuardianResolutionService;
 use App\Services\InventoryService;
 use App\Services\ParentAccessService;
 use App\Services\SchoolTripService;
@@ -33,6 +34,7 @@ class ParentPortalController extends Controller
 {
     public function __construct(
         private ParentAccessService $parentAccess,
+        private GuardianResolutionService $guardians,
         private InventoryService $inventoryService,
         private SchoolTripService $tripService,
     ) {}
@@ -676,6 +678,9 @@ class ParentPortalController extends Controller
         if (! $this->parentAccess->isParent($user)) {
             throw new AccessDeniedHttpException('Parent portal access is restricted to parent accounts.');
         }
+
+        // Resolve + persist guardian link (email/phone fallback). Portal still works via parent_student alone.
+        $this->guardians->resolveForUser($user);
 
         return $user;
     }

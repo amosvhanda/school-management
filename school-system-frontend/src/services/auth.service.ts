@@ -56,3 +56,18 @@ export async function fetchLicenseStatus() {
   const { data } = await api.get(endpoints.license.status)
   return unwrapOne<Record<string, unknown>>(data)
 }
+
+export async function forgotPassword(payload: { email: string }) {
+  const { data } = await api.post(endpoints.auth.forgotPassword, payload)
+  return data
+}
+
+export async function resetPassword(payload: {
+  email: string
+  password: string
+  password_confirmation: string
+  token: string
+}) {
+  const { data } = await api.post(endpoints.auth.resetPassword, payload)
+  return data
+}

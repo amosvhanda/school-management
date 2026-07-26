@@ -356,10 +356,14 @@ async function saveTimetable() {
   }
   saving.value = true
   try {
-    // Slot edits already persist via create/update; Save confirms the workspace state.
-    toast.success('Timetable saved', {
-      description: `${slots.value.length} lesson(s) on the weekly grid for ${selectedClass.value?.name ?? 'this class'}.`,
+    // Slot create/update/delete already persist immediately; refresh confirms server state.
+    await loadGrid()
+    editMode.value = false
+    toast.success('Timetable confirmed', {
+      description: `${slots.value.length} lesson(s) synced for ${selectedClass.value?.name ?? 'this class'}.`,
     })
+  } catch (err) {
+    toast.error('Could not confirm timetable', { description: getErrorMessage(err) })
   } finally {
     saving.value = false
   }

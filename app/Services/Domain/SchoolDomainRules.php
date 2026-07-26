@@ -24,12 +24,23 @@ class SchoolDomainRules
         $status = strtolower((string) ($student->status ?? 'active'));
 
         if (in_array($status, ['inactive', 'withdrawn', 'transferred', 'expelled', 'graduated'], true)) {
+            $name = trim((string) ($student->full_name ?: $student->student_number)) ?: ('#'.$student->id);
             throw DomainException::make(
                 'student_inactive',
-                'Student account is not active.',
-                ['student' => ["Student account is already {$status}."]],
+                "{$name}'s account is not active.",
+                ['student' => ["{$name}'s account is already {$status}."]],
             );
         }
+    }
+
+    /**
+     * Statuses that should not appear on day-to-day class registers.
+     *
+     * @return list<string>
+     */
+    public static function inactiveStudentStatuses(): array
+    {
+        return ['inactive', 'withdrawn', 'transferred', 'expelled', 'graduated'];
     }
 
     public function assertAdmissionNumberAvailable(int $schoolId, string $studentNumber, ?int $ignoreStudentId = null): void

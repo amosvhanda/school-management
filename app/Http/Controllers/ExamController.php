@@ -30,11 +30,31 @@ class ExamController extends Controller
         private ExamAccessService $examAccess,
     ) {}
 
+    private function authorizeExamAccess(Request $request, bool $manage = false): void
+    {
+        if ($manage) {
+            $this->authorizeModuleAccess(
+                $request,
+                capabilities: ['canManageExaminations', 'canEnterExamResults'],
+                permissionSlugs: ['exams.manage', 'exams.enter_results'],
+            );
+
+            return;
+        }
+
+        $this->authorizeModuleAccess(
+            $request,
+            capabilities: ['canManageExaminations', 'canEnterExamResults', 'isStaff'],
+            permissionSlugs: ['exams.manage', 'exams.enter_results'],
+        );
+    }
+
     /**
      * Get all exams for the school
      */
     public function index(Request $request)
     {
+        $this->authorizeExamAccess($request, manage: false);
         $user = $request->user();
         $schoolId = $user->school_id;
 
@@ -66,6 +86,7 @@ class ExamController extends Controller
      */
     public function show(Request $request, $id)
     {
+        $this->authorizeExamAccess($request, manage: false);
         $user = $request->user();
         $schoolId = $user->school_id;
 
@@ -95,6 +116,7 @@ class ExamController extends Controller
      */
     public function store(Request $request)
     {
+        $this->authorizeExamAccess($request, manage: true);
         $user = $request->user();
         $this->examAccess->assertCanManageExams($user);
         $schoolId = $user->school_id;
@@ -165,6 +187,7 @@ class ExamController extends Controller
      */
     public function update(Request $request, $id)
     {
+        $this->authorizeExamAccess($request, manage: true);
         $user = $request->user();
         $this->examAccess->assertCanManageExams($user);
         $schoolId = $user->school_id;
@@ -236,6 +259,7 @@ class ExamController extends Controller
      */
     public function destroy(Request $request, $id)
     {
+        $this->authorizeExamAccess($request, manage: true);
         $user = $request->user();
         $this->examAccess->assertCanManageExams($user);
         $schoolId = $user->school_id;
@@ -258,6 +282,7 @@ class ExamController extends Controller
      */
     public function recordResults(Request $request, $id)
     {
+        $this->authorizeExamAccess($request, manage: false);
         $user = $request->user();
         $schoolId = $user->school_id;
 
@@ -324,6 +349,7 @@ class ExamController extends Controller
 
     public function approveResults(Request $request, $id)
     {
+        $this->authorizeExamAccess($request, manage: true);
         $user = $request->user();
         $this->examAccess->assertCanManageExams($user);
         $exam = Exam::where('school_id', $user->school_id)->findOrFail($id);
@@ -356,6 +382,7 @@ class ExamController extends Controller
 
     public function publish(Request $request, $id)
     {
+        $this->authorizeExamAccess($request, manage: true);
         $user = $request->user();
         $this->examAccess->assertCanManageExams($user);
         $exam = Exam::where('school_id', $user->school_id)->findOrFail($id);
@@ -389,6 +416,7 @@ class ExamController extends Controller
 
     public function analytics(Request $request)
     {
+        $this->authorizeExamAccess($request, manage: false);
         $schoolId = $request->user()?->school_id;
 
         $query = ExamResult::query()

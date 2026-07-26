@@ -17,12 +17,22 @@ use Illuminate\Validation\Rule;
 
 class PayrollController extends Controller
 {
+    private function authorizePayrollAccess(Request $request): void
+    {
+        $this->authorizeModuleAccess(
+            $request,
+            capabilities: ['canManageFinance', 'canManageTeachers'],
+            permissionSlugs: ['finance.manage', 'hr.manage'],
+        );
+    }
+
     /**
      * List payroll records with optional filters: month, year, status.
      * Returns payroll with teacher details, allowances, and deductions breakdown.
      */
     public function index(Request $request)
     {
+        $this->authorizePayrollAccess($request);
         $schoolId = $request->user()?->school_id;
         $query = Payroll::with(['teacher', 'transactions'])
             ->when($schoolId, fn ($q) => $q->where('school_id', $schoolId));
@@ -51,6 +61,7 @@ class PayrollController extends Controller
      */
     public function getTeachers(Request $request)
     {
+        $this->authorizePayrollAccess($request);
         $schoolId = $request->user()?->school_id;
 
         $teachers = Teacher::where('status', 'active')
@@ -79,6 +90,7 @@ class PayrollController extends Controller
      */
     public function generate(Request $request)
     {
+        $this->authorizePayrollAccess($request);
         $schoolId = $request->user()?->school_id;
 
         $teacherRule = Rule::exists('teachers', 'id');
@@ -254,6 +266,7 @@ class PayrollController extends Controller
      */
     public function update(Request $request, $id)
     {
+        $this->authorizePayrollAccess($request);
         $validator = Validator::make($request->all(), [
             'base_salary' => 'nullable|numeric|min:0',
             'allowances' => 'nullable|array',
@@ -322,6 +335,7 @@ class PayrollController extends Controller
      */
     public function process(Request $request, $id)
     {
+        $this->authorizePayrollAccess($request);
         $validator = Validator::make($request->all(), [
             'payment_method' => 'required|string|in:bank_transfer,cash,ecocash,onemoney,zipit,swipe',
             'payment_reference' => 'nullable|string|max:255',
@@ -424,6 +438,7 @@ class PayrollController extends Controller
      */
     public function payslip($id)
     {
+        $this->authorizePayrollAccess(request());
         $schoolId = request()->user()?->school_id;
         $payroll = Payroll::with(['teacher', 'school'])
             ->when($schoolId, fn ($q) => $q->where('school_id', $schoolId))
@@ -439,6 +454,7 @@ class PayrollController extends Controller
      */
     public function summary(Request $request)
     {
+        $this->authorizePayrollAccess($request);
         $schoolId = $request->user()?->school_id;
         $baseQuery = Payroll::query()
             ->when($schoolId, fn ($q) => $q->where('school_id', $schoolId));
@@ -478,6 +494,7 @@ class PayrollController extends Controller
      */
     public function teacherHistory(Request $request, $teacherId)
     {
+        $this->authorizePayrollAccess($request);
         $schoolId = $request->user()?->school_id;
 
         $teacher = Teacher::when($schoolId, fn ($q) => $q->where('school_id', $schoolId))
@@ -500,6 +517,7 @@ class PayrollController extends Controller
      */
     public function trends(Request $request)
     {
+        $this->authorizePayrollAccess($request);
         $months = (int) $request->get('months', 6);
         $schoolId = $request->user()?->school_id;
 
@@ -531,6 +549,7 @@ class PayrollController extends Controller
      */
     public function departmentSummary(Request $request)
     {
+        $this->authorizePayrollAccess($request);
         $schoolId = $request->user()?->school_id;
         $month = (int) $request->get('month', now()->month);
         $year = (int) $request->get('year', now()->year);

@@ -12,6 +12,11 @@ use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 class ParentAccessService
 {
+    public function __construct(
+        private GuardianResolutionService $guardians,
+        private StudentResolutionService $students,
+    ) {}
+
     public function isParent(User $user): bool
     {
         return $user->role === UserRole::Parent;
@@ -31,13 +36,16 @@ class ParentAccessService
             return collect();
         }
 
+        // Ensure guardian.user_id is linked (email/phone fallback) before collecting children.
+        $this->guardians->resolveForUser($user);
+
         $fromPivot = $user->students()
             ->when($user->school_id, fn ($q) => $q->where('students.school_id', $user->school_id))
             ->pluck('students.id');
 
         $fromGuardian = Guardian::query()
             ->where('user_id', $user->id)
-            ->where('school_id', $user->school_id)
+            ->when($user->school_id, fn ($q) => $q->where('school_id', $user->school_id))
             ->with('students:id')
             ->get()
             ->flatMap(fn (Guardian $g) => $g->students->pluck('id'));
@@ -60,9 +68,7 @@ class ParentAccessService
         }
 
         if ($user->role === UserRole::Student) {
-            $linked = (int) ($student->user_id ?? 0) === (int) $user->id
-                || (int) ($user->student_id ?? 0) === (int) $student->id;
-            if ($linked) {
+            if ($this->students->isLinkedTo($user, $student)) {
                 return $student;
             }
         }

@@ -32,6 +32,12 @@ import { useSchoolProfile } from '@/composables/useSchoolProfile'
 import { getErrorMessage, unwrapList } from '@/lib/api-response'
 import { formatDate, formatTime } from '@/lib/format'
 import { cn } from '@/lib/utils'
+import {
+  assignmentTypeTone,
+  gradeLetterTone,
+  lessonStatusTone,
+  STATUS_TONE_BADGE,
+} from '@/lib/ui-status'
 import { canShowDashboardItem } from '@/lib/dashboard-access'
 import { getRoleDashboardMeta } from '@/lib/role-dashboard'
 import { useRouter } from 'vue-router'
@@ -294,20 +300,11 @@ function lessonStatus(start: string, end: string): LessonRow['status'] {
 }
 
 function gradeBadgeClass(letter?: string | null) {
-  const g = String(letter ?? '').toUpperCase()
-  if (g.startsWith('A')) return 'border-emerald-200 bg-emerald-50 text-emerald-700'
-  if (g.startsWith('B')) return 'border-sky-200 bg-sky-50 text-sky-700'
-  if (g.startsWith('C')) return 'border-amber-200 bg-amber-50 text-amber-800'
-  if (g.startsWith('D') || g.startsWith('E') || g.startsWith('U')) {
-    return 'border-destructive/30 bg-destructive/10 text-destructive'
-  }
-  return 'border-border bg-muted text-muted-foreground'
+  return STATUS_TONE_BADGE[gradeLetterTone(String(letter ?? ''))]
 }
 
 function workTypeBadge(type: WorkRow['type']) {
-  if (type === 'test') return 'border-rose-200 bg-rose-50 text-rose-700'
-  if (type === 'project') return 'border-emerald-200 bg-emerald-50 text-emerald-700'
-  return 'border-sky-200 bg-sky-50 text-sky-700'
+  return STATUS_TONE_BADGE[assignmentTypeTone(type)]
 }
 
 async function load() {
@@ -684,8 +681,7 @@ onMounted(load)
                 variant="outline"
                 :class="cn(
                   'capitalize shrink-0',
-                  lesson.status === 'completed' && 'border-emerald-200 bg-emerald-50 text-emerald-700',
-                  lesson.status === 'current' && 'border-sky-200 bg-sky-50 text-sky-700',
+                  STATUS_TONE_BADGE[lessonStatusTone(lesson.status)],
                 )"
               >
                 {{ lesson.status }}

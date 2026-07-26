@@ -12,6 +12,7 @@ import { getErrorMessage, unwrapList } from '@/lib/api-response'
 import { formatTime } from '@/lib/format'
 import { api } from '@/lib/api'
 import { endpoints } from '@/services/endpoints'
+import { studentPortalApi } from '@/services/api.service'
 
 interface TimetableSlot {
   id: number
@@ -101,6 +102,24 @@ async function load() {
   loading.value = true
   error.value = null
   try {
+    if (isStudent.value) {
+      const payload = await studentPortalApi.timetable()
+      slots.value = Array.isArray(payload)
+        ? (payload as TimetableSlot[])
+        : unwrapList<TimetableSlot>(payload)
+      scope.value = 'student'
+      return
+    }
+
+    if (isTeacher.value) {
+      // Teachers use the shared timetable index which scopes by assignment.
+      const { data } = await api.get(endpoints.timetable.list)
+      slots.value = unwrapList<TimetableSlot>(data)
+      const meta = (data as { meta?: { scope?: string } })?.meta
+      scope.value = meta?.scope ?? 'teacher'
+      return
+    }
+
     const { data } = await api.get(endpoints.timetable.list)
     slots.value = unwrapList<TimetableSlot>(data)
     const meta = (data as { meta?: { scope?: string } })?.meta

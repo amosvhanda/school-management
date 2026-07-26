@@ -143,4 +143,50 @@ class AuthApiTest extends TestCase
 
         $response->assertStatus(200);
     }
+
+    public function test_forgot_password_accepts_known_email(): void
+    {
+        $school = School::factory()->create();
+        $user = User::factory()->create([
+            'email' => 'resetme@example.com',
+            'password' => Hash::make('password'),
+            'school_id' => $school->id,
+            'role' => 'admin',
+        ]);
+
+        \Illuminate\Support\Facades\Notification::fake();
+
+        $this->postJson('/api/v1/auth/forgot-password', [
+            'email' => $user->email,
+        ])->assertOk();
+    }
+
+    public function test_forgot_password_validation_requires_email(): void
+    {
+        $this->postJson('/api/v1/auth/forgot-password', [])
+            ->assertStatus(422);
+    }
+
+    public function test_reset_password_with_valid_token(): void
+    {
+        $school = School::factory()->create();
+        $user = User::factory()->create([
+            'email' => 'resetok@example.com',
+            'password' => Hash::make('Oldpassword1'),
+            'school_id' => $school->id,
+            'role' => 'admin',
+        ]);
+
+        $token = \Illuminate\Support\Facades\Password::broker(config('fortify.passwords'))
+            ->createToken($user);
+
+        $this->postJson('/api/v1/auth/reset-password', [
+            'email' => $user->email,
+            'token' => $token,
+            'password' => 'Newpassword1',
+            'password_confirmation' => 'Newpassword1',
+        ])->assertOk();
+
+        $this->assertTrue(Hash::check('Newpassword1', $user->fresh()->password));
+    }
 }

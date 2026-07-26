@@ -166,4 +166,44 @@ class TeacherPortalApiTest extends TestCase
             'status' => 'left_early',
         ]);
     }
+
+    public function test_attendance_lock_sets_submitted_and_locked_on_sqlite(): void
+    {
+        $ctx = $this->teacherAuth();
+        $date = now()->toDateString();
+
+        $this->withHeaders($ctx['headers'])->postJson('/api/v1/attendance', [
+            'class_id' => $ctx['class']->id,
+            'date' => $date,
+            'records' => [[
+                'student_id' => $ctx['student']->id,
+                'status' => 'present',
+            ]],
+        ])->assertCreated();
+
+        $this->withHeaders($ctx['headers'])
+            ->postJson('/api/v1/teacher-portal/attendance/lock', [
+                'class_id' => $ctx['class']->id,
+                'date' => $date,
+            ])
+            ->assertOk()
+            ->assertJsonPath('message', 'Attendance locked');
+
+        $this->assertDatabaseHas('attendance', [
+            'student_id' => $ctx['student']->id,
+            'class_id' => $ctx['class']->id,
+            'locked_by' => $ctx['user']->id,
+        ]);
+
+        $this->assertNotNull(
+            \App\Models\Attendance::query()
+                ->where('student_id', $ctx['student']->id)
+                ->value('locked_at')
+        );
+        $this->assertNotNull(
+            \App\Models\Attendance::query()
+                ->where('student_id', $ctx['student']->id)
+                ->value('submitted_at')
+        );
+    }
 }

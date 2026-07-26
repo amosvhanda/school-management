@@ -23,8 +23,18 @@ class GradeController extends Controller
         $this->configService = $configService;
     }
 
+    private function authorizeGradeAccess(Request $request): void
+    {
+        $this->authorizeModuleAccess(
+            $request,
+            capabilities: ['canManageExaminations', 'canEnterExamResults', 'canManageTeachers', 'isStaff'],
+            permissionSlugs: ['exams.manage', 'exams.enter_results', 'academics.manage'],
+        );
+    }
+
     public function getByClass($classId, Request $request)
     {
+        $this->authorizeGradeAccess($request);
         $schoolId = $request->user()?->school_id;
         // Handle both class name and class ID
         $query = Grade::with(['student', 'teacher'])
@@ -69,6 +79,7 @@ class GradeController extends Controller
 
     public function getByStudent(Request $request, $studentId)
     {
+        $this->authorizeGradeAccess($request);
         $schoolId = $request->user()?->school_id;
         $grades = Grade::with(['classModel', 'teacher'])
             ->where('student_id', $studentId)
@@ -85,6 +96,7 @@ class GradeController extends Controller
 
     public function store(Request $request)
     {
+        $this->authorizeGradeAccess($request);
         $schoolId = $request->user()->school_id;
         $school = School::findOrFail($schoolId);
 
@@ -223,6 +235,7 @@ class GradeController extends Controller
 
     public function bulkUpload(Request $request)
     {
+        $this->authorizeGradeAccess($request);
         $validator = Validator::make($request->all(), [
             'file' => 'nullable|file|mimes:csv,txt',
             'grades' => 'nullable|array',
@@ -582,6 +595,7 @@ class GradeController extends Controller
 
     public function performance(Request $request, $classId)
     {
+        $this->authorizeGradeAccess($request);
         // Handle both class name and class ID
         $schoolId = $request->user()?->school_id;
         $query = Grade::with('student')

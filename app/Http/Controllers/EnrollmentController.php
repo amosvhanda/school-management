@@ -10,10 +10,20 @@ use Illuminate\Support\Facades\Validator;
 
 class EnrollmentController extends Controller
 {
+    private function authorizeEnrollmentAccess(Request $request): void
+    {
+        $this->authorizeModuleAccess(
+            $request,
+            capabilities: ['canManageStudents', 'canManageTeachers'],
+            permissionSlugs: ['students.manage', 'enrollment.manage'],
+        );
+    }
+
     public function __construct(private EnrollmentApprovalService $approvalService) {}
 
     public function index(Request $request)
     {
+        $this->authorizeEnrollmentAccess($request);
         $user = $request->user();
         $schoolId = $user?->isSuperAdmin() ? null : $user?->school_id;
 
@@ -31,6 +41,7 @@ class EnrollmentController extends Controller
 
     public function show($id)
     {
+        $this->authorizeEnrollmentAccess(request());
         $user = request()->user();
         $schoolId = $user?->isSuperAdmin() ? null : $user?->school_id;
 
@@ -46,6 +57,7 @@ class EnrollmentController extends Controller
 
     public function store(Request $request)
     {
+        $this->authorizeEnrollmentAccess($request);
         $validator = Validator::make($request->all(), [
             'first_name' => 'required|string|max:255',
             'surname' => 'required|string|max:255',
@@ -93,6 +105,7 @@ class EnrollmentController extends Controller
 
     public function approve(Request $request, $id)
     {
+        $this->authorizeEnrollmentAccess($request);
         $user = $request->user();
         $schoolId = $user?->isSuperAdmin() ? null : $user?->school_id;
 
@@ -135,6 +148,7 @@ class EnrollmentController extends Controller
 
     public function reject(Request $request, $id)
     {
+        $this->authorizeEnrollmentAccess($request);
         $user = $request->user();
         $schoolId = $user?->isSuperAdmin() ? null : $user?->school_id;
 

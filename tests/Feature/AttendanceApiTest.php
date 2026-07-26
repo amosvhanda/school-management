@@ -20,33 +20,65 @@ class AttendanceApiTest extends TestCase
         $response->assertStatus(200);
     }
 
-    public function test_create_attendance(): void
+    public function test_create_attendance_skips_inactive_students(): void
     {
         $auth = $this->createAuthenticatedUser();
         $class = ClassModel::factory()->create(['school_id' => $auth['school']->id]);
-        $student = Student::factory()->create([
+        $active = Student::factory()->create([
             'school_id' => $auth['school']->id,
             'class_id' => $class->id,
+            'status' => 'active',
+        ]);
+        $inactive = Student::factory()->create([
+            'school_id' => $auth['school']->id,
+            'class_id' => $class->id,
+            'status' => 'inactive',
         ]);
 
         $response = $this->withHeaders([
-            'Authorization' => 'Bearer ' . $auth['token'],
+            'Authorization' => 'Bearer '.$auth['token'],
         ])->postJson('/api/v1/attendance', [
             'class_id' => $class->id,
             'date' => now()->format('Y-m-d'),
             'records' => [
-                [
-                    'student_id' => $student->id,
-                    'status' => 'present',
-                ],
+                ['student_id' => $active->id, 'status' => 'present'],
+                ['student_id' => $inactive->id, 'status' => 'present'],
             ],
         ]);
 
         $response->assertStatus(201)
-            ->assertJsonStructure([
-                'data',
-                'message',
-            ]);
+            ->assertJsonPath('data.0.student_id', $active->id)
+            ->assertJsonCount(1, 'data');
+
+        $this->assertDatabaseHas('attendance', [
+            'student_id' => $active->id,
+            'status' => 'present',
+        ]);
+        $this->assertDatabaseMissing('attendance', [
+            'student_id' => $inactive->id,
+        ]);
+    }
+
+    public function test_create_attendance_rejects_all_inactive_students(): void
+    {
+        $auth = $this->createAuthenticatedUser();
+        $class = ClassModel::factory()->create(['school_id' => $auth['school']->id]);
+        $inactive = Student::factory()->create([
+            'school_id' => $auth['school']->id,
+            'class_id' => $class->id,
+            'status' => 'inactive',
+        ]);
+
+        $this->withHeaders([
+            'Authorization' => 'Bearer '.$auth['token'],
+        ])->postJson('/api/v1/attendance', [
+            'class_id' => $class->id,
+            'date' => now()->format('Y-m-d'),
+            'records' => [
+                ['student_id' => $inactive->id, 'status' => 'present'],
+            ],
+        ])->assertStatus(422)
+            ->assertJsonPath('error_code', 'student_inactive');
     }
 
     public function test_resaving_attendance_updates_existing_row(): void

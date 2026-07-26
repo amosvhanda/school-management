@@ -57,6 +57,18 @@ export const publicRoutes: RouteRecordRaw[] = [
     meta: { guest: true },
   },
   {
+    path: 'forgot-password',
+    name: 'forgot-password',
+    component: () => import('@/modules/auth/views/ForgotPasswordView.vue'),
+    meta: { guest: true },
+  },
+  {
+    path: 'reset-password',
+    name: 'reset-password',
+    component: () => import('@/modules/auth/views/ResetPasswordView.vue'),
+    meta: { guest: true },
+  },
+  {
     path: 'legal/terms',
     name: 'legal-terms',
     component: () => import('@/modules/auth/views/LegalDocumentView.vue'),
@@ -335,7 +347,7 @@ export const staffRoutes: RouteRecordRaw[] = [
     path: 'profile',
     name: 'my-profile',
     component: () => import('@/modules/profile/views/MyProfileView.vue'),
-    meta: { capability: 'isStaff' },
+    meta: { roles: ['admin', 'teacher', 'finance', 'accounts', 'examination_officer', 'parent', 'student'] },
   },
   {
     path: 'assistant',

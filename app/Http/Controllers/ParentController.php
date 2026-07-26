@@ -39,25 +39,32 @@ class ParentController extends Controller
         }
 
         $schoolId = $caller->school_id;
+        $childIds = $this->parentAccess->accessibleStudentIds($parent);
 
-        $children = $parent->students()
-            ->when($schoolId, fn ($query) => $query->where('students.school_id', $schoolId))
-            ->where('students.status', 'active')
+        $children = \App\Models\Student::query()
+            ->whereIn('id', $childIds)
+            ->when($schoolId, fn ($query) => $query->where('school_id', $schoolId))
+            ->where('status', 'active')
+            ->with('classModel:id,name')
             ->get()
-            ->map(fn ($student) => [
-                'id' => $student->id,
-                'firstName' => $student->first_name,
-                'surname' => $student->last_name,
-                'fullName' => $student->full_name,
-                'studentNumber' => $student->student_number,
-                'class' => $student->classModel?->name ?? $student->class,
-                'class_id' => $student->class_id,
-                'relationship' => $student->pivot?->relationship,
-                'is_primary' => (bool) $student->pivot?->is_primary,
-                'dateOfBirth' => $student->date_of_birth,
-                'gender' => $student->gender,
-                'profileImage' => $student->profile_image ?? null,
-            ]);
+            ->map(function ($student) use ($parent) {
+                $pivot = $parent->students()->where('students.id', $student->id)->first()?->pivot;
+
+                return [
+                    'id' => $student->id,
+                    'firstName' => $student->first_name,
+                    'surname' => $student->last_name,
+                    'fullName' => $student->full_name,
+                    'studentNumber' => $student->student_number,
+                    'class' => $student->classModel?->name ?? $student->class,
+                    'class_id' => $student->class_id,
+                    'relationship' => $pivot?->relationship,
+                    'is_primary' => (bool) ($pivot?->is_primary ?? false),
+                    'dateOfBirth' => $student->date_of_birth,
+                    'gender' => $student->gender,
+                    'profileImage' => $student->profile_image ?? null,
+                ];
+            });
 
         return response()->json(['data' => $children]);
     }

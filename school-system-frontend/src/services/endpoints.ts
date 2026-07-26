@@ -50,6 +50,16 @@ export const endpoints = {
     aiGenerate: '/teacher-portal/ai/generate',
     export: '/teacher-portal/export',
   },
+  studentPortal: {
+    dashboard: '/student-portal/dashboard',
+    me: '/student-portal/me',
+    attendance: '/student-portal/attendance',
+    grades: '/student-portal/grades',
+    fees: '/student-portal/fees',
+    timetable: '/student-portal/timetable',
+    assignments: '/student-portal/assignments',
+    announcements: '/student-portal/announcements',
+  },
   school: {
     show: '/school',
     update: '/school',

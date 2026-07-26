@@ -10,10 +10,30 @@ use Illuminate\Support\Facades\Validator;
 
 class LeaveRequestController extends Controller
 {
+    private function authorizeLeaveAccess(Request $request, bool $manage = false): void
+    {
+        if ($manage) {
+            $this->authorizeModuleAccess(
+                $request,
+                capabilities: ['canManageTeachers'],
+                permissionSlugs: ['hr.manage'],
+            );
+
+            return;
+        }
+
+        $this->authorizeModuleAccess(
+            $request,
+            capabilities: ['canManageTeachers', 'isStaff'],
+            permissionSlugs: ['hr.manage'],
+        );
+    }
+
     public function __construct(private AuditService $auditService) {}
 
     public function index(Request $request)
     {
+        $this->authorizeLeaveAccess($request, manage: false);
         $schoolId = $request->user()?->school_id;
 
         $query = LeaveRequest::query()
@@ -67,6 +87,7 @@ class LeaveRequestController extends Controller
 
     public function store(Request $request)
     {
+        $this->authorizeLeaveAccess($request, manage: false);
         $validator = Validator::make($request->all(), [
             'teacher_id' => 'required|exists:teachers,id',
             'type' => 'required|string|in:annual,sick,maternity,unpaid,other',
@@ -106,11 +127,13 @@ class LeaveRequestController extends Controller
 
     public function approve(Request $request, $id)
     {
+        $this->authorizeLeaveAccess($request, manage: true);
         return $this->review($request, (int) $id, 'approved');
     }
 
     public function reject(Request $request, $id)
     {
+        $this->authorizeLeaveAccess($request, manage: true);
         return $this->review($request, (int) $id, 'rejected');
     }
 
