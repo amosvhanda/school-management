@@ -21,11 +21,14 @@ const props = withDefaults(
      * Staff dashboards must never use this — unauthorized items stay hidden.
      */
     skipPermissionFilter?: boolean
+    /** Hide the module search field (useful for short portal action lists). */
+    showSearch?: boolean
   }>(),
   {
     title: 'All modules',
     description: 'Every area of the system you can access',
     skipPermissionFilter: false,
+    showSearch: true,
   },
 )
 
@@ -80,7 +83,7 @@ const totalModules = computed(() =>
         :title="title"
         :description="description"
       />
-      <div class="w-full max-w-xs space-y-2">
+      <div v-if="showSearch" class="w-full max-w-xs space-y-2">
         <Label for="module-search" class="sr-only">Search modules</Label>
         <div class="relative">
           <Search

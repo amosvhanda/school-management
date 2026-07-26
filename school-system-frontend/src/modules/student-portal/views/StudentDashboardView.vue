@@ -5,13 +5,13 @@ import {
   ClipboardCheck,
   Download,
   FileSpreadsheet,
-  GraduationCap,
+  FileText,
   Receipt,
   TrendingUp,
 } from '@lucide/vue'
 import { useAuth } from '@/composables/useAuth'
 import { useToast } from '@/composables/useToast'
-import { academicsApi, studentsApi } from '@/services/api.service'
+import { studentPortalApi, studentsApi } from '@/services/api.service'
 import { getErrorMessage } from '@/lib/api-response'
 import { formatDate } from '@/lib/format'
 import { formatMoney } from '@/lib/finance-constants'
@@ -160,7 +160,7 @@ const overviewCards = computed<MetricCard[]>(() => [
     title: 'Pending invoices',
     value: pendingInvoices.value,
     subtitle: 'Unpaid or partial invoices',
-    icon: GraduationCap,
+    icon: FileText,
     accent: pendingInvoices.value > 0 ? 'warning' : undefined,
     href: '/student/fees',
   },
@@ -228,45 +228,101 @@ async function downloadResults(format: 'html' | 'csv') {
 }
 
 async function loadStudentPortal() {
-  if (!studentId.value) {
-    error.value = 'Student profile is not linked to this account yet. Please contact the school office.'
-    return
-  }
-
   loading.value = true
   error.value = null
 
-  const [profile, attendance, grades, exams, invoices] = await Promise.allSettled([
-    studentsApi.get(studentId.value),
-    academicsApi.attendance.studentSummary(studentId.value),
-    academicsApi.grades.byStudent(studentId.value),
-    studentsApi.exams(studentId.value),
-    studentsApi.invoices(studentId.value),
-  ])
+  try {
+    // Prefer portal endpoints (no client-supplied student id; resolves link server-side).
+    const portal = asRecord(await studentPortalApi.dashboard())
+    const me = asRecord(portal?.student) ?? asRecord(await studentPortalApi.me())
+    if (me) {
+      studentProfile.value = {
+        ...me,
+        class: me.class_name ?? me.class,
+      }
+    }
 
-  if (profile.status === 'fulfilled') {
-    studentProfile.value = asRecord(profile.value)
-  }
-  if (attendance.status === 'fulfilled') {
-    attendanceSummary.value = asRecord(attendance.value)
-  }
-  if (grades.status === 'fulfilled') {
-    performanceRows.value = asRecordArray(grades.value)
-  }
-  if (exams.status === 'fulfilled') {
-    examRows.value = asRecordArray(exams.value)
-  }
-  if (invoices.status === 'fulfilled') {
-    invoiceRows.value = asRecordArray(invoices.value)
-  }
+    const summaryFromPortal = asRecord(portal?.attendance_summary)
+    if (summaryFromPortal) {
+      attendanceSummary.value = summaryFromPortal
+    }
 
-  const failures = [profile, attendance, grades, exams, invoices].filter((r) => r.status === 'rejected').length
-  if (failures > 0 && !performanceRows.value.length && !examRows.value.length && !invoiceRows.value.length) {
-    error.value = 'Could not load student records at the moment.'
-  }
+    if (Array.isArray(portal?.upcoming_exams) && portal.upcoming_exams.length) {
+      examRows.value = asRecordArray(portal.upcoming_exams).map((row) => ({
+        ...row,
+        is_published: row.is_published ?? false,
+        result: null,
+      }))
+    }
 
-  lastUpdated.value = new Date()
-  loading.value = false
+    if (Array.isArray(portal?.open_invoices)) {
+      invoiceRows.value = asRecordArray(portal.open_invoices)
+    }
+
+    const [gradesPayload, feesPayload, attendancePayload] = await Promise.allSettled([
+      studentPortalApi.grades(),
+      studentPortalApi.fees(),
+      studentPortalApi.attendance(),
+    ])
+
+    if (gradesPayload.status === 'fulfilled') {
+      const data = asRecord(gradesPayload.value)
+      performanceRows.value = asRecordArray(data?.grades ?? gradesPayload.value)
+      const examResults = asRecordArray(data?.exam_results)
+      if (examResults.length) {
+        examRows.value = examResults.map((row) => {
+          const exam = asRecord(row.exam)
+          return {
+            ...row,
+            name: exam?.name ?? row.name,
+            exam_date: exam?.exam_date ?? row.exam_date,
+            is_published: true,
+            result: {
+              grade: row.grade,
+              percentage: row.percentage ?? row.marks,
+            },
+          }
+        })
+      }
+    }
+
+    if (feesPayload.status === 'fulfilled') {
+      const data = asRecord(feesPayload.value)
+      invoiceRows.value = asRecordArray(data?.invoices ?? feesPayload.value)
+    }
+
+    if (attendancePayload.status === 'fulfilled') {
+      const data = asRecord(attendancePayload.value)
+      const summary = asRecord(data?.summary)
+      if (summary) {
+        attendanceSummary.value = summary
+      } else if (!attendanceSummary.value) {
+        const rows = asRecordArray(data?.rows ?? attendancePayload.value)
+        const present = rows.filter((r) => r.status === 'present').length
+        const late = rows.filter((r) => r.status === 'late').length
+        const absent = rows.filter((r) => r.status === 'absent').length
+        const excused = rows.filter((r) => r.status === 'excused').length
+        const total = rows.length
+        attendanceSummary.value = {
+          present,
+          late,
+          absent,
+          excused,
+          total_days: total,
+          attendance_rate: total ? ((present + late) / total) * 100 : 0,
+        }
+      }
+    }
+
+    if (!studentProfile.value) {
+      error.value = 'Student profile is not linked to this account yet. Please contact the school office.'
+    }
+  } catch (err) {
+    error.value = getErrorMessage(err, 'Could not load student records at the moment.')
+  } finally {
+    lastUpdated.value = new Date()
+    loading.value = false
+  }
 }
 
 function refresh() {
@@ -357,70 +413,64 @@ onMounted(loadStudentPortal)
         title="My overview"
         description="Performance, attendance, and fees at a glance"
         :cards="overviewCards"
+        skip-permission-filter
       />
 
-      <section class="space-y-4" aria-labelledby="student-profile-title">
+      <section class="space-y-3" aria-labelledby="student-profile-title">
         <div>
           <h2 id="student-profile-title" class="text-base font-semibold tracking-tight md:text-lg">
             Profile
           </h2>
           <p class="text-sm text-muted-foreground">Your enrolment and contact details</p>
         </div>
-        <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          <Card class="border-border/70">
-            <CardHeader class="pb-2">
-              <CardTitle class="text-sm font-medium">Student number</CardTitle>
-            </CardHeader>
-            <CardContent class="text-lg font-semibold">{{ profileView.studentNumber }}</CardContent>
-          </Card>
-          <Card class="border-border/70">
-            <CardHeader class="pb-2">
-              <CardTitle class="text-sm font-medium">Current class</CardTitle>
-            </CardHeader>
-            <CardContent class="text-lg font-semibold">{{ profileView.className }}</CardContent>
-          </Card>
-          <Card class="border-border/70">
-            <CardHeader class="pb-2">
-              <CardTitle class="text-sm font-medium">Date of birth</CardTitle>
-            </CardHeader>
-            <CardContent class="text-lg font-semibold">{{ profileView.dateOfBirth }}</CardContent>
-          </Card>
-          <Card class="border-border/70">
-            <CardHeader class="pb-2">
-              <CardTitle class="text-sm font-medium">Guardian</CardTitle>
-            </CardHeader>
-            <CardContent class="text-lg font-semibold">{{ profileView.guardian }}</CardContent>
-          </Card>
-          <Card class="border-border/70">
-            <CardHeader class="pb-2">
-              <CardTitle class="text-sm font-medium">Contact phone</CardTitle>
-            </CardHeader>
-            <CardContent class="text-lg font-semibold">{{ profileView.phone }}</CardContent>
-          </Card>
-          <Card class="border-border/70">
-            <CardHeader class="pb-2">
-              <CardTitle class="text-sm font-medium">Contact email</CardTitle>
-            </CardHeader>
-            <CardContent class="text-lg font-semibold">{{ profileView.email }}</CardContent>
-          </Card>
-        </div>
+        <Card class="border-border/70">
+          <CardContent class="p-0">
+            <dl class="grid gap-0 sm:grid-cols-2 lg:grid-cols-3">
+              <div class="space-y-1 border-b border-border/60 px-5 py-4 sm:border-r lg:border-b">
+                <dt class="text-xs font-medium tracking-wide text-muted-foreground uppercase">Student number</dt>
+                <dd class="text-sm font-semibold text-foreground">{{ profileView.studentNumber }}</dd>
+              </div>
+              <div class="space-y-1 border-b border-border/60 px-5 py-4 lg:border-r">
+                <dt class="text-xs font-medium tracking-wide text-muted-foreground uppercase">Current class</dt>
+                <dd class="text-sm font-semibold text-foreground">{{ profileView.className }}</dd>
+              </div>
+              <div class="space-y-1 border-b border-border/60 px-5 py-4 sm:border-r lg:border-r-0">
+                <dt class="text-xs font-medium tracking-wide text-muted-foreground uppercase">Date of birth</dt>
+                <dd class="text-sm font-semibold text-foreground">{{ profileView.dateOfBirth }}</dd>
+              </div>
+              <div class="space-y-1 border-b border-border/60 px-5 py-4 lg:border-b-0 lg:border-r">
+                <dt class="text-xs font-medium tracking-wide text-muted-foreground uppercase">Guardian</dt>
+                <dd class="text-sm font-semibold text-foreground">{{ profileView.guardian }}</dd>
+              </div>
+              <div class="space-y-1 border-b border-border/60 px-5 py-4 sm:border-r sm:border-b-0 lg:border-b-0">
+                <dt class="text-xs font-medium tracking-wide text-muted-foreground uppercase">Contact phone</dt>
+                <dd class="text-sm font-semibold text-foreground">{{ profileView.phone }}</dd>
+              </div>
+              <div class="space-y-1 px-5 py-4">
+                <dt class="text-xs font-medium tracking-wide text-muted-foreground uppercase">Contact email</dt>
+                <dd class="text-sm font-semibold text-foreground break-all">{{ profileView.email }}</dd>
+              </div>
+            </dl>
+          </CardContent>
+        </Card>
       </section>
 
       <DashboardModulesGrid
         :groups="STUDENT_DASHBOARD_MODULE_GROUPS"
-        title="My modules"
-        description="Jump to performance, attendance, exams, and fees"
+        title="Quick actions"
+        description="Open timetable, performance, attendance, exams, or fees"
         skip-permission-filter
+        :show-search="false"
       />
     </template>
 
-    <Card v-if="section === 'dashboard' || section === 'performance'" class="border-border/70">
+    <Card v-if="section === 'performance'" class="border-border/70">
       <CardHeader>
         <CardTitle>Continuous assessment</CardTitle>
         <CardDescription>Subject scores by term (as recorded by teachers)</CardDescription>
       </CardHeader>
       <CardContent class="overflow-x-auto p-0">
-        <div v-if="loading" class="p-6 text-sm text-muted-foreground">Loading performance records…</div>
+        <div v-if="loading" class="p-6 text-sm text-muted-foreground" role="status">Loading performance records…</div>
         <Table v-else-if="performanceRows.length">
           <TableHeader>
             <TableRow>
@@ -451,36 +501,36 @@ onMounted(loadStudentPortal)
       </CardContent>
     </Card>
 
-    <Card v-if="section === 'dashboard' || section === 'attendance'" class="border-border/70">
+    <Card v-if="section === 'attendance'" class="border-border/70">
       <CardHeader>
         <CardTitle>Attendance</CardTitle>
         <CardDescription>Summary of your presence this term</CardDescription>
       </CardHeader>
       <CardContent>
-        <div v-if="loading" class="text-sm text-muted-foreground">Loading attendance summary…</div>
+        <div v-if="loading" class="text-sm text-muted-foreground" role="status">Loading attendance summary…</div>
         <div v-else-if="!attendanceSummary" class="text-sm text-muted-foreground">No attendance summary found.</div>
         <div v-else class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-          <div class="rounded-lg border p-3">
+          <div class="rounded-lg border border-border/70 p-3">
             <p class="text-xs text-muted-foreground">Present</p>
             <p class="text-lg font-semibold tabular-nums">{{ attendanceBreakdown.present }}</p>
           </div>
-          <div class="rounded-lg border p-3">
+          <div class="rounded-lg border border-border/70 p-3">
             <p class="text-xs text-muted-foreground">Late</p>
             <p class="text-lg font-semibold tabular-nums">{{ attendanceBreakdown.late }}</p>
           </div>
-          <div class="rounded-lg border p-3">
+          <div class="rounded-lg border border-border/70 p-3">
             <p class="text-xs text-muted-foreground">Absent</p>
             <p class="text-lg font-semibold tabular-nums">{{ attendanceBreakdown.absent }}</p>
           </div>
-          <div class="rounded-lg border p-3">
+          <div class="rounded-lg border border-border/70 p-3">
             <p class="text-xs text-muted-foreground">Excused</p>
             <p class="text-lg font-semibold tabular-nums">{{ attendanceBreakdown.excused }}</p>
           </div>
-          <div class="rounded-lg border p-3">
+          <div class="rounded-lg border border-border/70 p-3">
             <p class="text-xs text-muted-foreground">Total days</p>
             <p class="text-lg font-semibold tabular-nums">{{ attendanceBreakdown.totalDays }}</p>
           </div>
-          <div class="rounded-lg border p-3">
+          <div class="rounded-lg border border-border/70 p-3">
             <p class="text-xs text-muted-foreground">Attendance rate</p>
             <p class="text-lg font-semibold tabular-nums">{{ attendanceRate.toFixed(1) }}%</p>
           </div>
@@ -488,13 +538,13 @@ onMounted(loadStudentPortal)
       </CardContent>
     </Card>
 
-    <Card v-if="section === 'dashboard' || section === 'exams'" class="border-border/70">
+    <Card v-if="section === 'exams'" class="border-border/70">
       <CardHeader>
         <CardTitle>Examinations</CardTitle>
         <CardDescription>Published exams and your results</CardDescription>
       </CardHeader>
       <CardContent class="overflow-x-auto p-0">
-        <div v-if="loading" class="p-6 text-sm text-muted-foreground">Loading exam records…</div>
+        <div v-if="loading" class="p-6 text-sm text-muted-foreground" role="status">Loading exam records…</div>
         <Table v-else-if="examRows.length">
           <TableHeader>
             <TableRow>
@@ -519,13 +569,13 @@ onMounted(loadStudentPortal)
       </CardContent>
     </Card>
 
-    <Card v-if="section === 'dashboard' || section === 'fees'" class="border-border/70">
+    <Card v-if="section === 'fees'" class="border-border/70">
       <CardHeader>
         <CardTitle>Fees</CardTitle>
         <CardDescription>Invoice and payment status</CardDescription>
       </CardHeader>
       <CardContent class="overflow-x-auto p-0">
-        <div v-if="loading" class="p-6 text-sm text-muted-foreground">Loading fee records…</div>
+        <div v-if="loading" class="p-6 text-sm text-muted-foreground" role="status">Loading fee records…</div>
         <Table v-else-if="invoiceRows.length">
           <TableHeader>
             <TableRow>

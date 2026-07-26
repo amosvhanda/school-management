@@ -17,15 +17,25 @@ export interface MetricCard {
   icon?: Component
   accent?: 'default' | 'success' | 'warning' | 'danger'
   href?: string
-  /** Required for linked KPIs — card is hidden when the user cannot open the target. */
+  /** Staff linked KPIs should set this; portals can use MetricBand skipPermissionFilter instead. */
   capability?: NavCapability | NavCapability[]
 }
 
-const props = defineProps<{
-  title: string
-  description?: string
-  cards: MetricCard[]
-}>()
+const props = withDefaults(
+  defineProps<{
+    title: string
+    description?: string
+    cards: MetricCard[]
+    /**
+     * Portal dashboards (parent/student) omit staff capabilities on purpose.
+     * Still checks route access when href is set.
+     */
+    skipPermissionFilter?: boolean
+  }>(),
+  {
+    skipPermissionFilter: false,
+  },
+)
 
 const { user } = useAuth()
 const router = useRouter()
@@ -37,23 +47,31 @@ const visibleCards = computed(() =>
       if (card.capability == null) return true
       return canShowDashboardItem(user.value, { capability: card.capability })
     }
-    // Linked KPI: must pass capability + route access. No capability = hidden.
+    // Linked KPI: staff need capability; portals may skip via skipPermissionFilter.
     return canShowDashboardItem(
       user.value,
       {
         href: card.href,
         capability: card.capability,
+        allowWithoutCapability: props.skipPermissionFilter,
       },
       router,
     )
   }),
 )
+
+const gridClass = computed(() => {
+  const n = visibleCards.value.length
+  if (n <= 2) return 'grid gap-4 sm:grid-cols-2'
+  if (n === 4) return 'grid gap-4 sm:grid-cols-2 xl:grid-cols-4'
+  return 'grid gap-4 sm:grid-cols-2 xl:grid-cols-3'
+})
 </script>
 
 <template>
   <section v-if="visibleCards.length" class="space-y-4" :aria-label="title">
     <DashboardSection :title="title" :description="description" />
-    <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+    <div :class="gridClass">
       <KpiCard v-for="card in visibleCards" :key="card.title" v-bind="card" />
     </div>
   </section>

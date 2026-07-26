@@ -50,6 +50,14 @@ import { useAuth } from '@/composables/useAuth'
 import { getErrorMessage } from '@/lib/api-response'
 import { formatDate, formatDateTime } from '@/lib/format'
 import { cn } from '@/lib/utils'
+import { todayIsoDate } from '@/lib/validation'
+import {
+  ATTENDANCE_STATUS_TONE,
+  STATUS_TONE_DOT,
+  STATUS_TONE_ICON,
+  STATUS_TONE_SOLID,
+  type AttendanceMarkStatus,
+} from '@/lib/ui-status'
 import { academicsApi, complianceApi, reportsApi, teacherPortalApi } from '@/services/api.service'
 import { fetchAnalyticsInsights, fetchList } from '@/services/dashboard.service'
 import { moduleEndpoints } from '@/services'
@@ -113,50 +121,30 @@ const MARK_OPTIONS: {
   value: MarkStatus
   label: string
   icon: typeof Check
-  activeClass: string
 }[] = [
-  {
-    value: 'present',
-    label: 'Present',
-    icon: Check,
-    activeClass: 'border-emerald-600 bg-emerald-600 text-white hover:bg-emerald-600/90',
-  },
-  {
-    value: 'late',
-    label: 'Late',
-    icon: Clock,
-    activeClass: 'border-amber-500 bg-amber-500 text-black hover:bg-amber-500/90',
-  },
-  {
-    value: 'excused',
-    label: 'Excused',
-    icon: BookOpen,
-    activeClass: 'border-blue-600 bg-blue-600 text-white hover:bg-blue-600/90',
-  },
-  {
-    value: 'sick',
-    label: 'Sick',
-    icon: Thermometer,
-    activeClass: 'border-rose-500 bg-rose-500 text-white hover:bg-rose-500/90',
-  },
-  {
-    value: 'left_early',
-    label: 'Left early',
-    icon: DoorOpen,
-    activeClass: 'border-violet-600 bg-violet-600 text-white hover:bg-violet-600/90',
-  },
-  {
-    value: 'absent',
-    label: 'Absent',
-    icon: X,
-    activeClass: 'border-destructive bg-destructive text-destructive-foreground hover:bg-destructive/90',
-  },
-  {
-    value: 'unmarked',
-    label: 'Unmarked',
-    icon: Users,
-    activeClass: 'border-foreground bg-foreground text-background hover:bg-foreground/90',
-  },
+  { value: 'present', label: 'Present', icon: Check },
+  { value: 'late', label: 'Late', icon: Clock },
+  { value: 'excused', label: 'Excused', icon: BookOpen },
+  { value: 'sick', label: 'Sick', icon: Thermometer },
+  { value: 'left_early', label: 'Left early', icon: DoorOpen },
+  { value: 'absent', label: 'Absent', icon: X },
+  { value: 'unmarked', label: 'Unmarked', icon: Users },
+]
+
+/** Statuses teachers can set on the register (excludes unmarked). */
+const MARK_STATUS_OPTIONS = MARK_OPTIONS.filter((opt) => opt.value !== 'unmarked')
+const PRESENT_OPTION = MARK_STATUS_OPTIONS.find((opt) => opt.value === 'present')!
+const OTHER_MARK_OPTIONS = MARK_STATUS_OPTIONS.filter((opt) => opt.value !== 'present')
+
+const STATUS_FILTER_OPTIONS: { value: StatusFilter; label: string }[] = [
+  { value: 'all', label: 'All students' },
+  { value: 'present', label: 'Present' },
+  { value: 'late', label: 'Late' },
+  { value: 'excused', label: 'Excused' },
+  { value: 'sick', label: 'Sick' },
+  { value: 'left_early', label: 'Left early' },
+  { value: 'absent', label: 'Absent' },
+  { value: 'unmarked', label: 'Unmarked' },
 ]
 
 const route = useRoute()
@@ -168,9 +156,8 @@ const saving = ref(false)
 const error = ref<string | null>(null)
 const classes = ref<ClassOption[]>([])
 const selectedClassId = ref('')
-const registerDate = ref(new Date().toISOString().slice(0, 10))
-const todayIso = computed(() => new Date().toISOString().slice(0, 10))
-const sessionValue = ref('full-day')
+const registerDate = ref(todayIsoDate())
+const todayIso = computed(() => todayIsoDate())
 const sortBy = ref<SortKey>('name')
 const searchQuery = ref('')
 const statusFilter = ref<StatusFilter>('all')
@@ -228,11 +215,12 @@ const filteredRows = computed(() => {
   let rows = [...registerRows.value]
 
   if (q) {
-    rows = rows.filter(
-      (r) =>
-        r.full_name.toLowerCase().includes(q) ||
-        r.student_number.toLowerCase().includes(q),
-    )
+    rows = rows.filter((r) => {
+      const name = r.full_name.toLowerCase()
+      const number = r.student_number.toLowerCase()
+      const id = String(r.student_id)
+      return name.includes(q) || number.includes(q) || id.includes(q)
+    })
   }
 
   if (statusFilter.value !== 'all') {
@@ -252,6 +240,31 @@ const filteredRows = computed(() => {
   return rows
 })
 
+const registerFilterActive = computed(
+  () => searchQuery.value.trim().length > 0 || statusFilter.value !== 'all',
+)
+
+const statusFilterLabel = computed(
+  () => STATUS_FILTER_OPTIONS.find((opt) => opt.value === statusFilter.value)?.label ?? 'All students',
+)
+
+function clearRegisterFilters() {
+  searchQuery.value = ''
+  statusFilter.value = 'all'
+}
+
+function applyStatusFilter(status: StatusFilter) {
+  statusFilter.value = status
+}
+
+function onClassFilterChange(value: unknown) {
+  selectedClassId.value = value == null ? '' : String(value)
+}
+
+function onStatusFilterChange(value: unknown) {
+  statusFilter.value = String(value ?? 'all') as StatusFilter
+}
+
 const classAtRisk = computed(() => {
   if (!selectedClassId.value) return atRisk.value
   const classId = Number(selectedClassId.value)
@@ -270,10 +283,11 @@ function parseTimeIn(value: unknown) {
 }
 
 function markButtonClass(opt: (typeof MARK_OPTIONS)[number], active: boolean) {
+  const tone = ATTENDANCE_STATUS_TONE[opt.value as AttendanceMarkStatus]
   return cn(
     'h-9 gap-1.5 px-3 text-xs font-medium transition-colors',
     active
-      ? opt.activeClass
+      ? STATUS_TONE_SOLID[tone]
       : 'border-border bg-background text-muted-foreground hover:bg-muted/50',
   )
 }
@@ -364,7 +378,7 @@ async function loadRegister() {
   try {
     const [students, existing] = await Promise.all([
       fetchList<StudentOption>(moduleEndpoints.students, {
-        filter: { class_id: selectedClassId.value },
+        filter: { class_id: selectedClassId.value, status: 'active' },
         limit: 500,
         include: 'classModel',
       }),
@@ -481,6 +495,12 @@ function setStatus(row: RegisterRow, status: MarkStatus) {
   row.status = status
   if (status !== 'late') row.time_in = ''
   registerDirty.value = true
+}
+
+function onOtherStatusChange(row: RegisterRow, value: unknown) {
+  if (typeof value !== 'string') return
+  if (!OTHER_MARK_OPTIONS.some((opt) => opt.value === value)) return
+  setStatus(row, value as AttendanceStatus)
 }
 
 function markAllPresent() {
@@ -613,6 +633,7 @@ async function lockRegister() {
 }
 
 watch([selectedClassId, registerDate], () => {
+  clearRegisterFilters()
   void loadRegister()
 })
 
@@ -683,7 +704,7 @@ onMounted(async () => {
     <div v-else class="space-y-6">
       <div
         v-if="classAtRisk.length"
-        class="flex flex-col gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950 sm:flex-row sm:items-center sm:justify-between dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-100"
+        class="flex flex-col gap-2 rounded-xl border border-chart-3/30 bg-chart-3/10 px-4 py-3 text-sm text-foreground sm:flex-row sm:items-center sm:justify-between"
         role="status"
       >
         <div class="flex items-start gap-2">
@@ -695,7 +716,7 @@ onMounted(async () => {
         </div>
         <Button
           variant="link"
-          class="h-auto p-0 text-amber-900 underline-offset-2 dark:text-amber-100"
+          class="h-auto p-0 text-foreground underline-offset-2"
           @click="activeTab = 'analytics'"
         >
           View Analytics →
@@ -704,14 +725,17 @@ onMounted(async () => {
 
       <Card class="border-border/70 shadow-sm">
         <CardHeader class="pb-4">
-          <CardTitle class="text-base">Filters &amp; Controls</CardTitle>
-          <CardDescription>Choose the class and date for this register session.</CardDescription>
+          <CardTitle class="text-base">Filters &amp; controls</CardTitle>
+          <CardDescription>Choose the class and date for this full-day register.</CardDescription>
         </CardHeader>
         <CardContent class="space-y-4">
-          <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
             <div class="space-y-2">
-              <Label for="register-class">Select Class</Label>
-              <Select v-model="selectedClassId">
+              <Label for="register-class">Class</Label>
+              <Select
+                :model-value="selectedClassId || undefined"
+                @update:model-value="onClassFilterChange"
+              >
                 <SelectTrigger id="register-class" class="h-10">
                   <SelectValue placeholder="Select class" />
                 </SelectTrigger>
@@ -724,7 +748,7 @@ onMounted(async () => {
             </div>
 
             <div class="space-y-2">
-              <Label for="register-date">Select Date</Label>
+              <Label for="register-date">Date</Label>
               <DatePicker
                 id="register-date"
                 v-model="registerDate"
@@ -734,19 +758,7 @@ onMounted(async () => {
             </div>
 
             <div class="space-y-2">
-              <Label for="register-session">Session</Label>
-              <Select v-model="sessionValue">
-                <SelectTrigger id="register-session" class="h-10">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="full-day">Full day</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div class="space-y-2">
-              <Label for="register-sort">Sort By</Label>
+              <Label for="register-sort">Sort by</Label>
               <Select v-model="sortBy">
                 <SelectTrigger id="register-sort" class="h-10">
                   <SelectValue />
@@ -774,21 +786,38 @@ onMounted(async () => {
                 aria-label="Search students"
               />
             </div>
-            <Select v-model="statusFilter">
+            <Select :model-value="statusFilter" @update:model-value="onStatusFilterChange">
               <SelectTrigger class="h-10" aria-label="Filter by status">
-                <SelectValue placeholder="All Students" />
+                <SelectValue placeholder="All students" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Students</SelectItem>
-                <SelectItem value="present">Present</SelectItem>
-                <SelectItem value="late">Late</SelectItem>
-                <SelectItem value="excused">Excused</SelectItem>
-                <SelectItem value="sick">Sick</SelectItem>
-                <SelectItem value="left_early">Left early</SelectItem>
-                <SelectItem value="absent">Absent</SelectItem>
-                <SelectItem value="unmarked">Unmarked</SelectItem>
+                <SelectItem
+                  v-for="opt in STATUS_FILTER_OPTIONS"
+                  :key="opt.value"
+                  :value="opt.value"
+                >
+                  {{ opt.label }}
+                </SelectItem>
               </SelectContent>
             </Select>
+          </div>
+
+          <div
+            v-if="registerFilterActive"
+            class="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border/60 bg-muted/20 px-3 py-2 text-sm"
+          >
+            <p class="text-muted-foreground">
+              Showing
+              <span class="font-medium text-foreground">{{ filteredRows.length }}</span>
+              of
+              <span class="font-medium text-foreground">{{ registerRows.length }}</span>
+              active students
+              <span v-if="statusFilter !== 'all'"> · status: {{ statusFilterLabel.toLowerCase() }}</span>
+              <span v-if="searchQuery.trim()"> · search: “{{ searchQuery.trim() }}”</span>
+            </p>
+            <Button variant="ghost" size="sm" class="h-8" @click="clearRegisterFilters">
+              Clear filters
+            </Button>
           </div>
 
           <div
@@ -798,7 +827,7 @@ onMounted(async () => {
             <Badge
               v-if="registerDirty"
               variant="outline"
-              class="border-amber-500/30 bg-amber-500/5 text-amber-700"
+              class="border-chart-3/30 bg-chart-3/10 text-chart-3"
             >
               Unsaved changes
             </Badge>
@@ -813,78 +842,120 @@ onMounted(async () => {
       >
         <h2 id="attendance-stats" class="sr-only">Attendance summary</h2>
 
-        <Card class="border-border/70">
+        <Card
+          class="border-border/70 transition-colors"
+          :class="statusFilter === 'present' && 'ring-2 ring-chart-2/40'"
+        >
           <CardContent class="flex items-start justify-between gap-3 px-5 py-5">
-            <div class="space-y-1">
+            <button
+              type="button"
+              class="space-y-1 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
+              @click="applyStatusFilter(statusFilter === 'present' ? 'all' : 'present')"
+            >
               <p class="text-xs font-medium tracking-wide text-muted-foreground uppercase">Present</p>
               <p class="text-3xl font-semibold tabular-nums">{{ stats.present }}</p>
               <p class="text-xs text-muted-foreground">{{ stats.presentPct }}%</p>
-            </div>
-            <div class="flex size-10 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-600">
+            </button>
+            <div :class="cn('flex size-10 items-center justify-center rounded-xl', STATUS_TONE_ICON.success)">
               <CheckCircle2 class="size-5" aria-hidden="true" />
             </div>
           </CardContent>
         </Card>
 
-        <Card class="border-border/70">
+        <Card
+          class="border-border/70 transition-colors"
+          :class="statusFilter === 'absent' && 'ring-2 ring-destructive/30'"
+        >
           <CardContent class="flex items-start justify-between gap-3 px-5 py-5">
-            <div class="space-y-1">
+            <button
+              type="button"
+              class="space-y-1 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
+              @click="applyStatusFilter(statusFilter === 'absent' ? 'all' : 'absent')"
+            >
               <p class="text-xs font-medium tracking-wide text-muted-foreground uppercase">Absent</p>
               <p class="text-3xl font-semibold tabular-nums">{{ stats.absent }}</p>
               <p class="text-xs text-muted-foreground">{{ stats.absentPct }}%</p>
-            </div>
+            </button>
             <div class="flex size-10 items-center justify-center rounded-xl bg-destructive/10 text-destructive">
               <UserX class="size-5" aria-hidden="true" />
             </div>
           </CardContent>
         </Card>
 
-        <Card class="border-border/70">
+        <Card
+          class="border-border/70 transition-colors"
+          :class="statusFilter === 'late' && 'ring-2 ring-chart-3/40'"
+        >
           <CardContent class="flex items-start justify-between gap-3 px-5 py-5">
-            <div class="space-y-1">
+            <button
+              type="button"
+              class="space-y-1 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
+              @click="applyStatusFilter(statusFilter === 'late' ? 'all' : 'late')"
+            >
               <p class="text-xs font-medium tracking-wide text-muted-foreground uppercase">Late</p>
               <p class="text-3xl font-semibold tabular-nums">{{ stats.late }}</p>
               <p class="text-xs text-muted-foreground">{{ stats.latePct }}%</p>
-            </div>
-            <div class="flex size-10 items-center justify-center rounded-xl bg-amber-500/10 text-amber-600">
+            </button>
+            <div :class="cn('flex size-10 items-center justify-center rounded-xl', STATUS_TONE_ICON.warning)">
               <Clock class="size-5" aria-hidden="true" />
             </div>
           </CardContent>
         </Card>
 
-        <Card class="border-border/70">
+        <Card
+          class="border-border/70 transition-colors"
+          :class="statusFilter === 'excused' && 'ring-2 ring-chart-4/40'"
+        >
           <CardContent class="flex items-start justify-between gap-3 px-5 py-5">
-            <div class="space-y-1">
+            <button
+              type="button"
+              class="space-y-1 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
+              @click="applyStatusFilter(statusFilter === 'excused' ? 'all' : 'excused')"
+            >
               <p class="text-xs font-medium tracking-wide text-muted-foreground uppercase">Excused</p>
               <p class="text-3xl font-semibold tabular-nums">{{ stats.excused }}</p>
               <p class="text-xs text-muted-foreground">{{ stats.excusedPct }}%</p>
-            </div>
-            <div class="flex size-10 items-center justify-center rounded-xl bg-blue-500/10 text-blue-600">
+            </button>
+            <div :class="cn('flex size-10 items-center justify-center rounded-xl', STATUS_TONE_ICON.info)">
               <BookOpen class="size-5" aria-hidden="true" />
             </div>
           </CardContent>
         </Card>
 
-        <Card class="border-border/70">
+        <Card
+          class="border-border/70 transition-colors"
+          :class="statusFilter === 'sick' && 'ring-2 ring-destructive/30'"
+        >
           <CardContent class="flex items-start justify-between gap-3 px-5 py-5">
-            <div class="space-y-1">
+            <button
+              type="button"
+              class="space-y-1 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
+              @click="applyStatusFilter(statusFilter === 'sick' ? 'all' : 'sick')"
+            >
               <p class="text-xs font-medium tracking-wide text-muted-foreground uppercase">Sick</p>
               <p class="text-3xl font-semibold tabular-nums">{{ stats.sick }}</p>
               <p class="text-xs text-muted-foreground">{{ stats.sickPct }}%</p>
-            </div>
-            <div class="flex size-10 items-center justify-center rounded-xl bg-rose-500/10 text-rose-600">
+            </button>
+            <div :class="cn('flex size-10 items-center justify-center rounded-xl', STATUS_TONE_ICON.accent)">
               <Thermometer class="size-5" aria-hidden="true" />
             </div>
           </CardContent>
         </Card>
 
-        <Card class="border-border/70">
+        <Card
+          class="border-border/70 transition-colors"
+          :class="statusFilter === 'unmarked' && 'ring-2 ring-foreground/20'"
+        >
           <CardContent class="flex items-start justify-between gap-3 px-5 py-5">
-            <div class="space-y-1">
-              <p class="text-xs font-medium tracking-wide text-muted-foreground uppercase">Total Students</p>
-              <p class="text-3xl font-semibold tabular-nums">{{ stats.total }}</p>
-              <p class="text-xs text-muted-foreground">{{ stats.unmarked }} unmarked</p>
-            </div>
+            <button
+              type="button"
+              class="space-y-1 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
+              @click="applyStatusFilter(statusFilter === 'unmarked' ? 'all' : 'unmarked')"
+            >
+              <p class="text-xs font-medium tracking-wide text-muted-foreground uppercase">Unmarked</p>
+              <p class="text-3xl font-semibold tabular-nums">{{ stats.unmarked }}</p>
+              <p class="text-xs text-muted-foreground">Still to mark</p>
+            </button>
             <div class="flex size-10 items-center justify-center rounded-xl bg-muted text-muted-foreground">
               <Users class="size-5" aria-hidden="true" />
             </div>
@@ -903,19 +974,22 @@ onMounted(async () => {
           <Progress :model-value="stats.progressPct" class="h-2.5" />
           <div class="flex flex-wrap gap-4 text-xs text-muted-foreground">
             <span class="inline-flex items-center gap-1.5">
-              <span class="size-2 rounded-full bg-emerald-500" aria-hidden="true" /> Present
+              <span :class="cn('size-2 rounded-full', STATUS_TONE_DOT.success)" aria-hidden="true" /> Present
             </span>
             <span class="inline-flex items-center gap-1.5">
-              <span class="size-2 rounded-full bg-amber-500" aria-hidden="true" /> Late
+              <span :class="cn('size-2 rounded-full', STATUS_TONE_DOT.warning)" aria-hidden="true" /> Late
             </span>
             <span class="inline-flex items-center gap-1.5">
-              <span class="size-2 rounded-full bg-blue-500" aria-hidden="true" /> Excused
+              <span :class="cn('size-2 rounded-full', STATUS_TONE_DOT.info)" aria-hidden="true" /> Excused
             </span>
             <span class="inline-flex items-center gap-1.5">
-              <span class="size-2 rounded-full bg-rose-500" aria-hidden="true" /> Sick
+              <span :class="cn('size-2 rounded-full', STATUS_TONE_DOT.accent)" aria-hidden="true" /> Sick
             </span>
             <span class="inline-flex items-center gap-1.5">
-              <span class="size-2 rounded-full bg-destructive" aria-hidden="true" /> Absent
+              <span :class="cn('size-2 rounded-full', STATUS_TONE_DOT.info)" aria-hidden="true" /> Left early
+            </span>
+            <span class="inline-flex items-center gap-1.5">
+              <span :class="cn('size-2 rounded-full', STATUS_TONE_DOT.danger)" aria-hidden="true" /> Absent
             </span>
           </div>
         </CardContent>
@@ -953,7 +1027,9 @@ onMounted(async () => {
                     {{ formatDate(registerDate) }} · Full day
                   </CardDescription>
                 </div>
-                <Badge variant="secondary">{{ filteredRows.length }} students</Badge>
+                <Badge variant="secondary">
+                  {{ filteredRows.length }} of {{ registerRows.length }} students
+                </Badge>
               </div>
             </CardHeader>
 
@@ -989,24 +1065,67 @@ onMounted(async () => {
                       <p class="text-xs text-muted-foreground">ID: {{ row.student_number }}</p>
                     </div>
                     <div
-                      class="flex flex-wrap gap-2"
+                      class="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end"
                       role="group"
                       :aria-label="`Attendance for ${row.full_name}`"
                     >
                       <Button
-                        v-for="opt in MARK_OPTIONS"
-                        :key="opt.value"
                         type="button"
                         size="sm"
                         variant="outline"
-                        :class="markButtonClass(opt, row.status === opt.value)"
-                        :aria-pressed="row.status === opt.value"
-                        :aria-label="`${opt.label} for ${row.full_name}`"
-                        @click="setStatus(row, opt.value)"
+                        class="shrink-0"
+                        :class="markButtonClass(PRESENT_OPTION, row.status === 'present')"
+                        :aria-pressed="row.status === 'present'"
+                        :aria-label="`Present for ${row.full_name}`"
+                        @click="setStatus(row, 'present')"
                       >
-                        <component :is="opt.icon" class="size-3.5" aria-hidden="true" />
-                        {{ opt.label }}
+                        <Check class="size-3.5" aria-hidden="true" />
+                        Present
                       </Button>
+
+                      <div class="min-w-0 flex-1 md:hidden">
+                        <Select
+                          :model-value="
+                            row.status !== 'unmarked' && row.status !== 'present'
+                              ? row.status
+                              : undefined
+                          "
+                          @update:model-value="(value) => onOtherStatusChange(row, value)"
+                        >
+                          <SelectTrigger
+                            class="h-9 w-full"
+                            :aria-label="`Other status for ${row.full_name}`"
+                          >
+                            <SelectValue placeholder="Other status…" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem
+                              v-for="opt in OTHER_MARK_OPTIONS"
+                              :key="opt.value"
+                              :value="opt.value"
+                            >
+                              {{ opt.label }}
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div class="hidden flex-wrap gap-2 md:flex">
+                        <Button
+                          v-for="opt in OTHER_MARK_OPTIONS"
+                          :key="opt.value"
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          :class="markButtonClass(opt, row.status === opt.value)"
+                          :aria-pressed="row.status === opt.value"
+                          :aria-label="`${opt.label} for ${row.full_name}`"
+                          @click="setStatus(row, opt.value)"
+                        >
+                          <component :is="opt.icon" class="size-3.5" aria-hidden="true" />
+                          {{ opt.label }}
+                        </Button>
+                      </div>
                     </div>
                   </div>
 

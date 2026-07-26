@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
-import { Search } from '@lucide/vue'
 import { SidebarTrigger } from '@/components/ui/sidebar'
 import { Separator } from '@/components/ui/separator'
 import {
@@ -22,17 +21,19 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import NotificationsPanel from '@/components/app/NotificationsPanel.vue'
 import ThemeToggle from '@/components/app/ThemeToggle.vue'
 import { useAuth } from '@/composables/useAuth'
 import { useBreadcrumbs } from '@/composables/useBreadcrumbs'
 
 const router = useRouter()
-const { displayName, user, logout, canAccess } = useAuth()
+const { displayName, user, logout, canAccess, checkCapability } = useAuth()
 const { items } = useBreadcrumbs()
 
-const canViewProfile = computed(() => canAccess('isStaff'))
+const canViewProfile = computed(() =>
+  canAccess('isStaff') || canAccess('isParent') || user.value?.role === 'student',
+)
+const canManageSchoolSettings = computed(() => checkCapability('canManageTeachers'))
 
 const pageTitle = computed(() => items.value.at(-1)?.title ?? 'Dashboard')
 
@@ -79,28 +80,7 @@ const initials = computed(() =>
       </p>
     </div>
 
-    <div class="relative hidden w-full max-w-xs items-center md:flex lg:max-w-sm xl:max-w-md">
-      <Search class="pointer-events-none absolute left-2.5 size-4 text-muted-foreground" aria-hidden="true" />
-      <Input
-        type="search"
-        placeholder="Search modules…"
-        class="h-9 w-full border-border/70 bg-muted/40 pl-9 text-sm shadow-none"
-        aria-label="Search modules"
-        disabled
-      />
-    </div>
-
     <div class="flex shrink-0 items-center gap-0.5 sm:gap-1">
-      <Button
-        variant="ghost"
-        size="icon"
-        class="size-9 md:hidden"
-        aria-label="Search modules"
-        disabled
-      >
-        <Search class="size-4" aria-hidden="true" />
-      </Button>
-
       <NotificationsPanel />
       <ThemeToggle />
 
@@ -129,7 +109,13 @@ const initials = computed(() =>
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
           <DropdownMenuItem v-if="canViewProfile" class="text-sm cursor-pointer" @click="router.push('/profile')">My profile</DropdownMenuItem>
-          <DropdownMenuItem class="text-sm cursor-pointer" @click="router.push('/settings')">Settings</DropdownMenuItem>
+          <DropdownMenuItem
+            v-if="canManageSchoolSettings"
+            class="text-sm cursor-pointer"
+            @click="router.push('/settings')"
+          >
+            School setup
+          </DropdownMenuItem>
           <DropdownMenuItem class="text-sm cursor-pointer text-destructive focus:text-destructive" @click="handleLogout">Sign out</DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>

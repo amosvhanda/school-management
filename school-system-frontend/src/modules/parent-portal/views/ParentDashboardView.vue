@@ -345,12 +345,14 @@ onMounted(load)
         title="Family overview"
         description="Quick counts across your linked children"
         :cards="overviewCards"
+        skip-permission-filter
       />
 
       <MetricBand
         title="Needs attention"
         description="Absences, messages, consents, and school notices"
         :cards="activityCards"
+        skip-permission-filter
       />
 
       <DashboardModulesGrid
