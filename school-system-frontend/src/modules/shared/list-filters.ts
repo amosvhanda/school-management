@@ -492,6 +492,21 @@ export const moduleListMetaRegistry: Record<string, ListPageMeta> = {
       },
     ],
   },
+  'ops-library-loans': {
+    filterMode: 'server',
+    filters: [
+      {
+        key: 'status',
+        label: 'Status',
+        type: 'select',
+        placeholder: 'Any status',
+        options: [
+          { label: 'Borrowed', value: 'borrowed' },
+          { label: 'Returned', value: 'returned' },
+        ],
+      },
+    ],
+  },
   'ops-events': {
     filterMode: 'server',
     filters: [

@@ -28,4 +28,9 @@ class LibraryLoan extends Model
     {
         return $this->belongsTo(Student::class);
     }
+
+    public function member(): BelongsTo
+    {
+        return $this->belongsTo(LibraryMember::class, 'library_member_id');
+    }
 }

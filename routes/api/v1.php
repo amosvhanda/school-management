@@ -122,6 +122,7 @@ Route::post('/schools/register', [SchoolController::class, 'register'])
     ->middleware('throttle:registration');
 
 Route::get('/platform/certificates/verify/{code}', [PlatformDocumentController::class, 'verifyCertificate']);
+Route::get('/certificates/verify/{code}', [SchoolCertificateController::class, 'verify']);
 Route::get('/auth/platform-terms', [AuthController::class, 'platformTerms']);
 Route::get('/auth/privacy-policy', [AuthController::class, 'privacyPolicy']);
 Route::post('/integrations/token', [ExternalIntegrationController::class, 'token'])
@@ -561,6 +562,7 @@ Route::middleware(['auth:sanctum', 'school.isolated', 'school.licensed'])->group
     Route::post('/certificate-templates/{id}/issue', [CertificateTemplateController::class, 'issue']);
     Route::get('/school-certificates', [SchoolCertificateController::class, 'index']);
     Route::get('/school-certificates/{id}/download', [SchoolCertificateController::class, 'download']);
+    Route::post('/school-certificates/{id}/revoke', [SchoolCertificateController::class, 'revoke']);
     Route::get('/school-certificates/{id}', [SchoolCertificateController::class, 'show']);
     Route::get('/school-currencies', [SchoolCurrencyController::class, 'index']);
     Route::get('/school-currencies/{id}', [SchoolCurrencyController::class, 'show']);
@@ -627,6 +629,7 @@ Route::middleware(['auth:sanctum', 'school.isolated', 'school.licensed'])->group
     Route::get('/library/books', [LibraryController::class, 'books']);
     Route::post('/library/books', [LibraryController::class, 'storeBook']);
     Route::put('/library/books/{id}', [LibraryController::class, 'updateBook']);
+    Route::get('/library/loans', [LibraryController::class, 'loans']);
     Route::post('/library/loans', [LibraryController::class, 'borrow']);
     Route::post('/library/loans/{id}/return', [LibraryController::class, 'returnBook']);
     Route::get('/library/members', [LibraryMemberController::class, 'index']);

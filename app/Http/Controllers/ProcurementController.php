@@ -160,12 +160,18 @@ class ProcurementController extends Controller
      */
     public function disburse(Request $request, int $id)
     {
+        $schoolId = (int) $request->user()->school_id;
+        $expenseHeadRule = Rule::exists('expense_heads', 'id')
+            ->where('school_id', $schoolId)
+            ->where('is_active', true);
+
         $validator = Validator::make($request->all(), [
             'payment_method' => 'required|string|in:bank_transfer,cash,ecocash,onemoney,zipit,swipe,cheque',
             'payment_reference' => 'nullable|string|max:255',
             'amount_paid' => 'nullable|numeric|min:0.01',
             'vendor_id' => 'nullable|exists:vendors,id',
             'paid_at' => 'nullable|date',
+            'expense_head_id' => ['nullable', 'integer', $expenseHeadRule],
         ]);
 
         if ($validator->fails()) {
@@ -193,8 +199,9 @@ class ProcurementController extends Controller
         }
 
         $currency = $this->ledger->schoolCurrency((int) $user->school_id);
+        $expenseHeadId = $request->filled('expense_head_id') ? (int) $request->expense_head_id : null;
 
-        $result = DB::transaction(function () use ($request, $user, $requisition, $amount, $currency) {
+        $result = DB::transaction(function () use ($request, $user, $requisition, $amount, $currency, $expenseHeadId) {
             if ($request->filled('vendor_id')) {
                 $requisition->vendor_id = $request->vendor_id;
             }
@@ -209,6 +216,7 @@ class ProcurementController extends Controller
                 reference: $request->payment_reference ?? "SPEND-{$requisition->id}",
                 createdBy: $user->id,
                 notes: "requisition_id:{$requisition->id}; spend_type:{$requisition->spend_type}",
+                expenseHeadId: $expenseHeadId,
             );
 
             $requisition->update([

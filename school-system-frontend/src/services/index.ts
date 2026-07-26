@@ -61,7 +61,7 @@ export const moduleEndpoints = {
   procurementRequisitions: e.procurement.requisitions,
   procurementVendors: e.procurement.vendors,
   libraryBooks: e.library.books,
-  libraryLoans: e.library.borrow,
+  libraryLoans: e.library.loans,
   transportVehicles: e.transport.vehicles,
   transportDrivers: e.transport.drivers,
   transportRoutes: e.transport.routes,

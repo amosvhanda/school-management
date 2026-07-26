@@ -47,6 +47,11 @@ export const OPERATIONS_HUB_TABS: ModuleHubTab[] = [
         title: 'Members',
         description: 'Registered borrowers — students, staff, and external.',
       },
+      {
+        listKey: 'ops-library-loans',
+        title: 'Loans',
+        description: 'Active and returned loans.',
+      },
     ],
   },
   {

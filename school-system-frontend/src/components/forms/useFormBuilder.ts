@@ -50,6 +50,7 @@ export type FormFieldType =
   | 'select'
   | 'checkbox'
   | 'date'
+  | 'datetime-local'
   | 'time'
   | 'phone'
   | 'relation'

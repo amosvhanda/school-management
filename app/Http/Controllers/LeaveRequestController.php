@@ -6,6 +6,7 @@ use App\Models\LeaveRequest;
 use App\Models\LeaveType;
 use App\Models\Teacher;
 use App\Services\AuditService;
+use App\Services\TeacherLeaveStatusService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
@@ -31,7 +32,10 @@ class LeaveRequestController extends Controller
         );
     }
 
-    public function __construct(private AuditService $auditService) {}
+    public function __construct(
+        private AuditService $auditService,
+        private TeacherLeaveStatusService $leaveStatusService,
+    ) {}
 
     public function index(Request $request)
     {
@@ -100,7 +104,10 @@ class LeaveRequestController extends Controller
         $schoolId = $request->user()->school_id;
 
         $validator = Validator::make($request->all(), [
-            'teacher_id' => 'required|exists:teachers,id',
+            'teacher_id' => [
+                'required',
+                Rule::exists('teachers', 'id')->where(fn ($q) => $q->where('school_id', $schoolId)),
+            ],
             'leave_type_id' => [
                 'nullable',
                 'integer',
@@ -202,11 +209,8 @@ class LeaveRequestController extends Controller
 
         $teacherName = $leave->teacher?->name ?? 'Staff member';
 
-        if ($status === 'approved' && $leave->teacher) {
-            $today = now()->startOfDay();
-            if ($leave->start_date <= $today && $leave->end_date >= $today) {
-                $leave->teacher->update(['status' => 'on_leave']);
-            }
+        if ($leave->teacher_id) {
+            $this->leaveStatusService->syncTeacher((int) $leave->teacher_id);
         }
 
         $this->auditService->log(

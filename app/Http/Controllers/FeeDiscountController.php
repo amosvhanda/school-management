@@ -62,7 +62,10 @@ class FeeDiscountController extends Controller
 
     protected function updateRules(Request $request, int $schoolId, int $id): array
     {
-        $discountType = $request->input('discount_type');
+        $existing = FeeDiscount::query()
+            ->where('school_id', $schoolId)
+            ->find($id);
+        $discountType = $request->input('discount_type', $existing?->discount_type);
 
         return [
             'name' => ['sometimes', 'string', 'max:255'],

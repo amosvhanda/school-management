@@ -1655,16 +1655,14 @@ export const moduleCrudRegistry: Record<string, ModuleCrudConfig> = {
       {
         name: 'starts_at',
         label: 'Starts at',
-        type: 'text',
+        type: 'datetime-local',
         required: true,
-        placeholder: '2026-07-26 09:00',
-        description: 'Date and time (YYYY-MM-DD HH:MM).',
+        description: 'Exam start date and time.',
       },
       {
         name: 'ends_at',
         label: 'Ends at',
-        type: 'text',
-        placeholder: '2026-07-26 11:00',
+        type: 'datetime-local',
       },
       { name: 'duration_minutes', label: 'Duration (minutes)', type: 'number' },
       { name: 'invigilator', label: 'Invigilator', type: 'text' },
@@ -1732,16 +1730,31 @@ export const moduleCrudRegistry: Record<string, ModuleCrudConfig> = {
       notes: z.string().optional(),
     }),
   ),
+  'ops-library-loans': crud([], z.object({}), {
+    canCreate: false,
+    canEdit: false,
+    canDelete: false,
+  }),
   'settings-currencies': crud(
     [
       { name: 'code', label: 'Code', type: 'text', required: true, placeholder: 'USD' },
       { name: 'name', label: 'Name', type: 'text', required: true, placeholder: 'US Dollar' },
       { name: 'symbol', label: 'Symbol', type: 'text', placeholder: '$' },
-      { name: 'is_default', label: 'Default currency', type: 'checkbox' },
+      {
+        name: 'is_default',
+        label: 'Default currency',
+        type: 'checkbox',
+        description: 'Billing currency must be USD or ZWG.',
+      },
       { name: 'is_active', label: 'Active', type: 'checkbox' },
     ],
     z.object({
-      code: z.string().min(1, 'Code is required').max(3),
+      code: z
+        .string()
+        .min(1, 'Code is required')
+        .max(3)
+        .transform((v) => v.trim().toUpperCase())
+        .refine((v) => v === 'USD' || v === 'ZWG', 'Code must be USD or ZWG'),
       name: z.string().min(1, 'Name is required'),
       symbol: z.string().optional(),
       is_default: z.boolean().optional(),

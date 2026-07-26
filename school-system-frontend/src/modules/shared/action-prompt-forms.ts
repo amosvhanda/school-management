@@ -2,7 +2,9 @@ import { z } from 'zod'
 import type { FormFieldSchema } from '@/components/forms/useFormBuilder'
 import { PAYROLL_PAYMENT_METHOD_OPTIONS } from '@/lib/finance-constants'
 import type { FormSheetSize } from '@/lib/form-standards'
+import { expenseHeadRelation } from '@/lib/form-relations'
 import { endpoints } from '@/services/endpoints'
+import { moduleEndpoints } from '@/services'
 
 export interface ActionPromptForm {
   title: string
@@ -173,6 +175,14 @@ export const spendDisbursePromptForm: ActionPromptForm = {
       label: 'Payment date',
       type: 'date',
     },
+    {
+      name: 'expense_head_id',
+      label: 'Expense head',
+      type: 'relation',
+      description: 'Optional ledger classification for this expense.',
+      colSpan: 2,
+      relation: expenseHeadRelation(),
+    },
   ],
   schema: z.object({
     payment_method: z.enum([
@@ -187,6 +197,7 @@ export const spendDisbursePromptForm: ActionPromptForm = {
     amount_paid: z.coerce.number().positive('Enter an amount greater than zero'),
     payment_reference: z.string().optional(),
     paid_at: z.string().optional(),
+    expense_head_id: z.coerce.number().optional(),
   }),
   defaults: (row) => ({
     payment_method: 'bank_transfer',
@@ -194,6 +205,42 @@ export const spendDisbursePromptForm: ActionPromptForm = {
     paid_at: new Date().toISOString().slice(0, 10),
     payment_reference: '',
   }),
+}
+
+export const libraryBorrowPromptForm: ActionPromptForm = {
+  title: 'Lend book',
+  description: 'Issue this book to a registered library member. Due date must be in the future.',
+  saveLabel: 'Lend book',
+  size: 'md',
+  fields: [
+    {
+      name: 'library_member_id',
+      label: 'Library member',
+      type: 'relation',
+      required: true,
+      colSpan: 2,
+      relation: {
+        endpoint: moduleEndpoints.libraryMembers,
+        moduleLabel: 'library member',
+        params: { all: true, status: 'active' },
+      },
+    },
+    {
+      name: 'due_at',
+      label: 'Due date',
+      type: 'date',
+      required: true,
+    },
+  ],
+  schema: z.object({
+    library_member_id: z.coerce.number().min(1, 'Select a library member'),
+    due_at: z.string().min(1, 'Due date is required'),
+  }),
+  defaults: () => {
+    const due = new Date()
+    due.setDate(due.getDate() + 14)
+    return { due_at: due.toISOString().slice(0, 10) }
+  },
 }
 
 export const receiveGoodsPromptForm: ActionPromptForm = {

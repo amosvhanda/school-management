@@ -5,9 +5,11 @@ namespace App\Http\Controllers;
 use App\Http\Controllers\Concerns\ManagesSchoolResourceCrud;
 use App\Models\ExamSchedule;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class ExamScheduleController extends Controller
 {
@@ -88,11 +90,40 @@ class ExamScheduleController extends Controller
                 Rule::exists('rooms', 'id')->where(fn ($q) => $q->where('school_id', $schoolId)),
             ],
             'starts_at' => ['sometimes', 'date'],
-            'ends_at' => ['nullable', 'date', 'after_or_equal:starts_at'],
+            'ends_at' => ['nullable', 'date'],
             'duration_minutes' => ['nullable', 'integer', 'min:1'],
             'invigilator' => ['nullable', 'string', 'max:255'],
             'notes' => ['nullable', 'string'],
         ];
+    }
+
+    protected function wrapMutationsInTransaction(): bool
+    {
+        return true;
+    }
+
+    protected function afterStore(Request $request, Model $record): void
+    {
+        $this->assertEndsAfterStarts($record);
+    }
+
+    protected function afterUpdate(Request $request, Model $record): void
+    {
+        $this->assertEndsAfterStarts($record);
+    }
+
+    protected function assertEndsAfterStarts(Model $record): void
+    {
+        /** @var ExamSchedule $record */
+        if (! $record->ends_at || ! $record->starts_at) {
+            return;
+        }
+
+        if ($record->ends_at->lt($record->starts_at)) {
+            throw ValidationException::withMessages([
+                'ends_at' => ['End must be on or after the start time.'],
+            ]);
+        }
     }
 
     public function index(Request $request): JsonResponse

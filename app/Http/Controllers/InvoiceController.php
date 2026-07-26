@@ -111,7 +111,7 @@ class InvoiceController extends Controller
             ],
             'fee_group_id' => [
                 'nullable',
-                Rule::exists('fee_groups', 'id')->where('school_id', $schoolId),
+                Rule::exists('fee_groups', 'id')->where('school_id', $schoolId)->where('is_active', true),
             ],
             'apply_discounts' => ['nullable', 'boolean'],
             'combine_group' => ['nullable', 'boolean'],
@@ -138,6 +138,7 @@ class InvoiceController extends Controller
         if ($request->filled('fee_group_id')) {
             $group = \App\Models\FeeGroup::query()
                 ->where('school_id', $schoolId)
+                ->where('is_active', true)
                 ->with('categories:id')
                 ->findOrFail((int) $request->fee_group_id);
 

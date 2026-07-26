@@ -36,7 +36,7 @@ class LibraryMemberController extends Controller
     {
         return [
             'member_type' => ['required', 'in:student,teacher,employee,external'],
-            'member_id' => ['nullable', 'integer'],
+            'member_id' => $this->memberIdRules($request, $schoolId),
             'member_number' => [
                 'nullable',
                 'string',
@@ -56,7 +56,7 @@ class LibraryMemberController extends Controller
     {
         return [
             'member_type' => ['sometimes', 'in:student,teacher,employee,external'],
-            'member_id' => ['nullable', 'integer'],
+            'member_id' => $this->memberIdRules($request, $schoolId, updating: true),
             'member_number' => [
                 'nullable',
                 'string',
@@ -69,6 +69,45 @@ class LibraryMemberController extends Controller
             'status' => ['nullable', 'string', 'max:50'],
             'joined_on' => ['nullable', 'date'],
             'notes' => ['nullable', 'string'],
+        ];
+    }
+
+    /**
+     * @return list<mixed>
+     */
+    protected function memberIdRules(Request $request, int $schoolId, bool $updating = false): array
+    {
+        $type = $request->input('member_type');
+        if ($updating && ! $request->filled('member_type') && $request->route('id')) {
+            $existing = LibraryMember::query()
+                ->where('school_id', $schoolId)
+                ->find($request->route('id'));
+            $type = $existing?->member_type;
+        }
+
+        $table = match ($type) {
+            'student' => 'students',
+            'teacher' => 'teachers',
+            'employee' => 'employees',
+            default => null,
+        };
+
+        if ($table === null) {
+            return [
+                'nullable',
+                'integer',
+                function (string $attribute, mixed $value, \Closure $fail): void {
+                    if ($value !== null && $value !== '') {
+                        $fail('External members cannot link to a school record.');
+                    }
+                },
+            ];
+        }
+
+        return [
+            'required',
+            'integer',
+            Rule::exists($table, 'id')->where(fn ($q) => $q->where('school_id', $schoolId)),
         ];
     }
 

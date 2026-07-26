@@ -4,8 +4,12 @@ namespace App\Http\Controllers;
 
 use App\Models\LibraryBook;
 use App\Models\LibraryLoan;
+use App\Models\LibraryMember;
 use App\Models\Student;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class LibraryController extends Controller
 {
@@ -78,32 +82,115 @@ class LibraryController extends Controller
         return response()->json(['data' => $book->fresh(), 'message' => 'Book updated']);
     }
 
+    public function loans(Request $request)
+    {
+        $this->authorizeLibrary($request);
+
+        $schoolId = $request->user()->school_id;
+
+        $query = LibraryLoan::query()
+            ->with([
+                'book:id,title,isbn,school_id',
+                'student:id,first_name,last_name',
+                'member:id,name,member_number,member_type,status',
+            ])
+            ->whereHas('book', fn ($q) => $q->where('school_id', $schoolId));
+
+        if ($request->filled('status') && $request->status !== 'all') {
+            $query->where('status', $request->string('status'));
+        }
+
+        if ($request->filled('book_id')) {
+            $query->where('book_id', (int) $request->book_id);
+        }
+
+        return response()->json([
+            'data' => $query->orderByDesc('borrowed_at')->orderByDesc('id')->get(),
+        ]);
+    }
+
     public function borrow(Request $request)
     {
         $this->authorizeLibrary($request);
 
+        $schoolId = (int) $request->user()->school_id;
+
         $data = $request->validate([
-            'book_id' => 'required|exists:library_books,id',
-            'student_id' => 'required|exists:students,id',
+            'book_id' => [
+                'required',
+                'integer',
+                Rule::exists('library_books', 'id')->where('school_id', $schoolId),
+            ],
+            'library_member_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('library_members', 'id')->where(function ($q) use ($schoolId) {
+                    $q->where('school_id', $schoolId)->where('status', 'active');
+                }),
+            ],
+            'student_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('students', 'id')->where('school_id', $schoolId),
+            ],
             'due_at' => 'required|date|after:today',
         ]);
 
-        $book = LibraryBook::where('school_id', $request->user()->school_id)->findOrFail($data['book_id']);
-        $student = Student::where('school_id', $request->user()->school_id)->findOrFail($data['student_id']);
-
-        if ($book->available_copies < 1) {
-            return response()->json(['message' => 'No copies available'], 422);
+        if (empty($data['library_member_id']) && empty($data['student_id'])) {
+            throw ValidationException::withMessages([
+                'library_member_id' => ['Select a library member or a student.'],
+            ]);
         }
 
-        $loan = LibraryLoan::create([
-            'book_id' => $book->id,
-            'student_id' => $student->id,
-            'borrowed_at' => now(),
-            'due_at' => $data['due_at'],
-            'status' => 'borrowed',
-        ]);
+        $loan = DB::transaction(function () use ($data, $schoolId) {
+            $book = LibraryBook::query()
+                ->where('school_id', $schoolId)
+                ->whereKey($data['book_id'])
+                ->lockForUpdate()
+                ->firstOrFail();
 
-        $book->decrement('available_copies');
+            if ($book->available_copies < 1) {
+                throw ValidationException::withMessages([
+                    'book_id' => ['No copies available'],
+                ]);
+            }
+
+            $memberId = isset($data['library_member_id']) ? (int) $data['library_member_id'] : null;
+            $studentId = isset($data['student_id']) ? (int) $data['student_id'] : null;
+
+            if ($memberId) {
+                $member = LibraryMember::query()
+                    ->where('school_id', $schoolId)
+                    ->where('status', 'active')
+                    ->findOrFail($memberId);
+
+                if ($member->member_type === 'student' && $member->member_id) {
+                    $studentId = (int) $member->member_id;
+                    Student::query()
+                        ->where('school_id', $schoolId)
+                        ->whereKey($studentId)
+                        ->firstOrFail();
+                }
+            } elseif ($studentId) {
+                Student::query()
+                    ->where('school_id', $schoolId)
+                    ->whereKey($studentId)
+                    ->firstOrFail();
+            }
+
+            $loan = LibraryLoan::create([
+                'book_id' => $book->id,
+                'library_member_id' => $memberId,
+                'student_id' => $studentId,
+                'borrowed_at' => now(),
+                'due_at' => $data['due_at'],
+                'status' => 'borrowed',
+            ]);
+
+            $book->decrement('available_copies');
+
+            return $loan->load(['book', 'student', 'member']);
+        });
 
         return response()->json(['data' => $loan], 201);
     }
@@ -112,23 +199,42 @@ class LibraryController extends Controller
     {
         $this->authorizeLibrary($request);
 
-        $loan = LibraryLoan::with('book')->findOrFail($loanId);
-        $book = LibraryBook::where('school_id', $request->user()->school_id)->findOrFail($loan->book_id);
+        $schoolId = (int) $request->user()->school_id;
 
-        if ($loan->status !== 'borrowed') {
-            return response()->json([
-                'message' => 'This loan has already been returned.',
-            ], 422);
-        }
+        $result = DB::transaction(function () use ($loanId, $schoolId) {
+            $loan = LibraryLoan::query()
+                ->whereKey($loanId)
+                ->whereHas('book', fn ($q) => $q->where('school_id', $schoolId))
+                ->lockForUpdate()
+                ->firstOrFail();
 
-        $fine = 0;
-        if (now()->gt($loan->due_at)) {
-            $fine = now()->diffInDays($loan->due_at) * 1.0;
-        }
+            $book = LibraryBook::query()
+                ->where('school_id', $schoolId)
+                ->whereKey($loan->book_id)
+                ->lockForUpdate()
+                ->firstOrFail();
 
-        $loan->update(['returned_at' => now(), 'status' => 'returned', 'fine_amount' => $fine]);
-        $book->increment('available_copies');
+            if ($loan->status !== 'borrowed') {
+                throw ValidationException::withMessages([
+                    'loan' => ['This loan has already been returned.'],
+                ]);
+            }
 
-        return response()->json(['data' => $loan->fresh(), 'fine' => $fine]);
+            $fine = 0;
+            if (now()->gt($loan->due_at)) {
+                $fine = now()->diffInDays($loan->due_at) * 1.0;
+            }
+
+            $loan->update([
+                'returned_at' => now(),
+                'status' => 'returned',
+                'fine_amount' => $fine,
+            ]);
+            $book->increment('available_copies');
+
+            return ['loan' => $loan->fresh(['book', 'student', 'member']), 'fine' => $fine];
+        });
+
+        return response()->json(['data' => $result['loan'], 'fine' => $result['fine']]);
     }
 }

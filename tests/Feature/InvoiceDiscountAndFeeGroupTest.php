@@ -129,6 +129,95 @@ class InvoiceDiscountAndFeeGroupTest extends TestCase
         ]);
     }
 
+    public function test_fee_group_prefers_class_structure_over_school_wide(): void
+    {
+        ['school' => $school] = $this->actingFinanceAdmin();
+
+        $class = \App\Models\ClassModel::factory()->create(['school_id' => $school->id]);
+        $student = Student::factory()->create([
+            'school_id' => $school->id,
+            'class_id' => $class->id,
+            'class' => $class->name,
+            'currency' => 'USD',
+            'balance' => 0,
+        ]);
+
+        $feeCategory = FeeCategory::create([
+            'school_id' => $school->id,
+            'name' => 'Tuition',
+            'is_active' => true,
+        ]);
+
+        FeeStructure::create([
+            'school_id' => $school->id,
+            'class_id' => null,
+            'class_name' => 'All classes',
+            'fee_category_id' => $feeCategory->id,
+            'category' => 'Tuition',
+            'amount' => 200,
+            'currency' => 'USD',
+        ]);
+
+        FeeStructure::create([
+            'school_id' => $school->id,
+            'class_id' => $class->id,
+            'class_name' => $class->name,
+            'fee_category_id' => $feeCategory->id,
+            'category' => 'Tuition',
+            'amount' => 120,
+            'currency' => 'USD',
+        ]);
+
+        $group = FeeGroup::create([
+            'school_id' => $school->id,
+            'name' => 'Tuition pack',
+            'is_active' => true,
+        ]);
+        $group->categories()->sync([$feeCategory->id]);
+
+        $this->postJson('/api/v1/invoices', [
+            'student_id' => $student->id,
+            'fee_group_id' => $group->id,
+            'due_date' => now()->addMonth()->toDateString(),
+            'combine_group' => true,
+            'apply_discounts' => false,
+        ])->assertCreated()
+            ->assertJsonPath('meta.created_count', 1)
+            ->assertJsonPath('data.amount', '120.00');
+
+        $this->assertDatabaseCount('invoices', 1);
+        $this->assertEquals(120.0, (float) $student->fresh()->balance);
+    }
+
+    public function test_rejects_cross_school_fee_structure_on_student_invoice(): void
+    {
+        ['school' => $school] = $this->actingFinanceAdmin();
+        $otherSchool = School::factory()->create();
+
+        $student = Student::factory()->create([
+            'school_id' => $school->id,
+            'currency' => 'USD',
+            'balance' => 0,
+        ]);
+
+        $foreignStructure = FeeStructure::create([
+            'school_id' => $otherSchool->id,
+            'class_id' => null,
+            'class_name' => 'All classes',
+            'category' => 'Foreign',
+            'amount' => 99,
+            'currency' => 'USD',
+        ]);
+
+        $this->postJson('/api/v1/students/'.$student->id.'/invoices', [
+            'amount' => 50,
+            'description' => 'Should fail',
+            'dueDate' => now()->addMonth()->toDateString(),
+            'fee_structure_id' => $foreignStructure->id,
+            'apply_discounts' => false,
+        ])->assertStatus(422);
+    }
+
     public function test_student_invoice_supports_fee_group_and_payment_income_head(): void
     {
         ['school' => $school, 'user' => $user] = $this->actingFinanceAdmin();

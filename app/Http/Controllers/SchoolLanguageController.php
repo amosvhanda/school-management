@@ -19,12 +19,12 @@ class SchoolLanguageController extends Controller
 
     protected function manageCapabilities(): array
     {
-        return ['canManageTeachers'];
+        return ['canManageFinance'];
     }
 
     protected function managePermissionSlugs(): array
     {
-        return ['settings.manage'];
+        return ['settings.manage', 'finance.manage'];
     }
 
     protected function resourceLabel(): string

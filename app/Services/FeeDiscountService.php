@@ -75,10 +75,12 @@ class FeeDiscountService
     public function calculateReduction(float $amount, FeeDiscount $discount): float
     {
         if ($discount->discount_type === 'percent') {
-            return round($amount * ((float) $discount->value / 100), 2);
+            $percent = min(100, max(0, (float) $discount->value));
+
+            return min($amount, round($amount * ($percent / 100), 2));
         }
 
-        return min($amount, round((float) $discount->value, 2));
+        return min($amount, round(max(0, (float) $discount->value), 2));
     }
 
     public function feeCategoryIdFromStructure(?FeeStructure $structure): ?int

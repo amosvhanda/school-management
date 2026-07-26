@@ -24,17 +24,29 @@ class SchoolCurrencyController extends Controller
 
     protected function manageCapabilities(): array
     {
-        return ['canManageTeachers', 'canManageFinance'];
+        return ['canManageFinance'];
     }
 
     protected function managePermissionSlugs(): array
     {
-        return ['settings.manage'];
+        return ['settings.manage', 'finance.manage'];
     }
 
     protected function resourceLabel(): string
     {
         return 'School currency';
+    }
+
+    protected function wrapMutationsInTransaction(): bool
+    {
+        return true;
+    }
+
+    protected function prepareMutationRequest(Request $request): void
+    {
+        if ($request->filled('code')) {
+            $request->merge(['code' => strtoupper(trim((string) $request->input('code')))]);
+        }
     }
 
     protected function storeRules(Request $request, int $schoolId): array
@@ -44,6 +56,7 @@ class SchoolCurrencyController extends Controller
                 'required',
                 'string',
                 'size:3',
+                Rule::in(['USD', 'ZWG']),
                 Rule::unique('school_currencies')->where(fn ($q) => $q->where('school_id', $schoolId)),
             ],
             'name' => ['required', 'string', 'max:255'],
@@ -60,6 +73,7 @@ class SchoolCurrencyController extends Controller
                 'sometimes',
                 'string',
                 'size:3',
+                Rule::in(['USD', 'ZWG']),
                 Rule::unique('school_currencies')->where(fn ($q) => $q->where('school_id', $schoolId))->ignore($id),
             ],
             'name' => ['sometimes', 'string', 'max:255'],
@@ -110,11 +124,7 @@ class SchoolCurrencyController extends Controller
         $code = strtoupper((string) $record->code);
 
         try {
-            if ($school->validateCurrency($code)) {
-                $this->schoolConfig->setSchoolCurrency($school, $code);
-            } else {
-                $school->update(['currency_default' => $code]);
-            }
+            $this->schoolConfig->setSchoolCurrency($school, $code);
         } catch (ValidationException $e) {
             throw ValidationException::withMessages([
                 'is_default' => $e->errors()['currency'] ?? ['Unable to set this currency as the school default.'],

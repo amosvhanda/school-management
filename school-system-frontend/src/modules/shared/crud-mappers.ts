@@ -127,6 +127,10 @@ function coerceFieldValue(field: FormFieldSchema, raw: unknown): unknown {
     return iso || String(raw).trim().slice(0, 10)
   }
 
+  if (field.type === 'datetime-local') {
+    return toDatetimeLocalValue(raw)
+  }
+
   return raw
 }
 
@@ -237,6 +241,30 @@ function sumMoneyMap(value: unknown): number | '' {
     return Number.isFinite(n) ? sum + n : sum
   }, 0)
   return total > 0 ? total : ''
+}
+
+/** Convert datetime-local (YYYY-MM-DDTHH:mm) or ISO to API-friendly datetime. */
+function toApiDateTime(value: unknown): string | undefined {
+  if (value == null || value === '') return undefined
+  const raw = String(value).trim()
+  if (!raw) return undefined
+  const normalized = raw.includes('T') ? raw.replace('T', ' ') : raw
+  if (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/.test(normalized)) {
+    return `${normalized}:00`
+  }
+  if (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}/.test(normalized)) {
+    return normalized.slice(0, 19)
+  }
+  return normalized
+}
+
+/** Convert API datetime/ISO to datetime-local input value. */
+function toDatetimeLocalValue(value: unknown): string {
+  if (value == null || value === '') return ''
+  const raw = String(value).trim()
+  if (!raw) return ''
+  const normalized = raw.includes('T') ? raw : raw.replace(' ', 'T')
+  return normalized.slice(0, 16)
 }
 
 function mapStudentPayload(
@@ -529,8 +557,8 @@ export function mapFormToPayload(
       class_id: values.class_id ? Number(values.class_id) : undefined,
       subject_id: values.subject_id ? Number(values.subject_id) : undefined,
       room_id: values.room_id ? Number(values.room_id) : null,
-      starts_at: values.starts_at,
-      ends_at: values.ends_at || null,
+      starts_at: toApiDateTime(values.starts_at),
+      ends_at: values.ends_at ? toApiDateTime(values.ends_at) : null,
       ...(values.duration_minutes != null && values.duration_minutes !== ''
         ? { duration_minutes: Number(values.duration_minutes) }
         : {}),
@@ -830,6 +858,7 @@ export const backendCrudSupport: Record<string, { create: boolean; update: boole
   'ops-procurement-vendors': { create: true, update: true, delete: false },
   'ops-library': { create: true, update: true, delete: false },
   'ops-library-members': { create: true, update: true, delete: true },
+  'ops-library-loans': { create: false, update: false, delete: false },
   'ops-transport': { create: true, update: true, delete: false },
   'ops-transport-drivers': { create: true, update: true, delete: false },
   'ops-transport-routes': { create: true, update: true, delete: false },

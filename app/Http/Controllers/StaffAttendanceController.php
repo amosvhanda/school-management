@@ -160,12 +160,13 @@ class StaffAttendanceController extends Controller
         $teachers = Teacher::query()
             ->where('school_id', $schoolId)
             ->where(function (Builder $q) {
-                $q->whereNull('status')->orWhere('status', 'active');
+                $q->whereNull('status')->orWhereIn('status', ['active', 'on_leave']);
             })
             ->orderBy('name')
             ->get(['id', 'name', 'employee_id', 'email', 'department', 'status'])
             ->map(function (Teacher $teacher) use ($existing) {
                 $attendance = $existing->get('teacher:'.$teacher->id);
+                $defaultStatus = $teacher->status === 'on_leave' ? 'on_leave' : null;
 
                 return [
                     'staff_type' => 'teacher',
@@ -174,7 +175,8 @@ class StaffAttendanceController extends Controller
                     'employee_number' => $teacher->employee_id,
                     'email' => $teacher->email,
                     'department' => $teacher->department,
-                    'status' => $attendance?->status,
+                    'employment_status' => $teacher->status,
+                    'status' => $attendance?->status ?? $defaultStatus,
                     'remarks' => $attendance?->remarks,
                     'attendance_id' => $attendance?->id,
                 ];
@@ -183,13 +185,14 @@ class StaffAttendanceController extends Controller
         $employees = Employee::query()
             ->where('school_id', $schoolId)
             ->where(function ($q) {
-                $q->whereNull('status')->orWhere('status', 'active');
+                $q->whereNull('status')->orWhereIn('status', ['active', 'on_leave']);
             })
             ->with('designation:id,name')
             ->orderBy('name')
             ->get(['id', 'name', 'employee_number', 'email', 'designation_id', 'status'])
             ->map(function (Employee $employee) use ($existing) {
                 $attendance = $existing->get('employee:'.$employee->id);
+                $defaultStatus = $employee->status === 'on_leave' ? 'on_leave' : null;
 
                 return [
                     'staff_type' => 'employee',
@@ -198,7 +201,8 @@ class StaffAttendanceController extends Controller
                     'employee_number' => $employee->employee_number,
                     'email' => $employee->email,
                     'designation' => $employee->designation?->name,
-                    'status' => $attendance?->status,
+                    'employment_status' => $employee->status,
+                    'status' => $attendance?->status ?? $defaultStatus,
                     'remarks' => $attendance?->remarks,
                     'attendance_id' => $attendance?->id,
                 ];

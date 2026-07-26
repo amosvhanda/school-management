@@ -89,7 +89,7 @@ class PaymentController extends Controller
 
         $incomeHeadRule = Rule::exists('income_heads', 'id');
         if ($schoolId) {
-            $incomeHeadRule = $incomeHeadRule->where('school_id', $schoolId);
+            $incomeHeadRule = $incomeHeadRule->where('school_id', $schoolId)->where('is_active', true);
         }
 
         $validator = Validator::make($request->all(), [

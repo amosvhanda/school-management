@@ -318,6 +318,8 @@ export const endpoints = {
     list: '/school-certificates',
     detail: (id: number | string) => `/school-certificates/${id}`,
     download: (id: number | string) => `/school-certificates/${id}/download`,
+    revoke: (id: number | string) => `/school-certificates/${id}/revoke`,
+    verify: (code: string) => `/certificates/verify/${encodeURIComponent(code)}`,
   },
   examSchedules: {
     list: '/exam-schedules',
@@ -381,6 +383,7 @@ export const endpoints = {
   },
   library: {
     books: '/library/books',
+    loans: '/library/loans',
     borrow: '/library/loans',
     return: (id: number | string) => `/library/loans/${id}/return`,
   },

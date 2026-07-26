@@ -97,6 +97,53 @@ class SpendRequestApiTest extends TestCase
         $this->assertNotNull(PurchaseRequisition::find($requisitionId)?->transaction_id);
     }
 
+    public function test_disburse_persists_expense_head(): void
+    {
+        $auth = $this->createAuthenticatedUser('admin');
+
+        $head = \App\Models\ExpenseHead::create([
+            'school_id' => $auth['school']->id,
+            'name' => 'Office supplies',
+            'code' => 'OFF',
+            'is_active' => true,
+        ]);
+
+        $create = $this->withHeaders([
+            'Authorization' => 'Bearer '.$auth['token'],
+        ])->postJson('/api/v1/procurement/requisitions', [
+            'title' => 'Paper',
+            'spend_type' => 'procurement',
+            'submit' => true,
+            'items' => [
+                ['description' => 'A4 paper', 'quantity' => 1, 'unit_cost' => 25],
+            ],
+        ])->assertCreated();
+
+        $requisitionId = $create->json('data.id');
+        $instanceId = $create->json('data.workflow_instance_id');
+        $workflows = app(WorkflowService::class);
+        $instance = WorkflowInstance::with('definition.steps')->findOrFail($instanceId);
+        $maxStep = (int) $instance->definition->steps()->max('step_order');
+
+        for ($i = 0; $i < $maxStep; $i++) {
+            $workflows->approve($instance->fresh(['definition.steps']), $auth['user']);
+        }
+
+        $this->withHeaders([
+            'Authorization' => 'Bearer '.$auth['token'],
+        ])->postJson("/api/v1/procurement/requisitions/{$requisitionId}/disburse", [
+            'payment_method' => 'cash',
+            'amount_paid' => 25,
+            'expense_head_id' => $head->id,
+        ])->assertOk();
+
+        $this->assertDatabaseHas('transactions', [
+            'type' => 'expense',
+            'debit' => 25,
+            'expense_head_id' => $head->id,
+        ]);
+    }
+
     public function test_goods_receipt_requires_approval_or_payment(): void
     {
         $auth = $this->createAuthenticatedUser();

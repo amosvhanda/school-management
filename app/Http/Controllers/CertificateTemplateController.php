@@ -65,6 +65,12 @@ class CertificateTemplateController extends Controller
         $schoolId = (int) $request->user()->school_id;
         $template = $this->schoolQuery($request)->findOrFail($id);
 
+        if (! $template->is_active) {
+            return response()->json([
+                'message' => 'This certificate template is inactive.',
+            ], 422);
+        }
+
         $validator = Validator::make($request->all(), [
             'student_id' => [
                 'required',
@@ -92,9 +98,9 @@ class CertificateTemplateController extends Controller
         $body = str_replace(
             ['{{student_name}}', '{{date}}', '{{school_name}}'],
             [
-                (string) $student->full_name,
-                $dateLabel,
-                (string) ($school?->name ?? ''),
+                e((string) $student->full_name),
+                e($dateLabel),
+                e((string) ($school?->name ?? '')),
             ],
             (string) $template->body_html,
         );

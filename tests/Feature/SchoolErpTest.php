@@ -115,6 +115,44 @@ class SchoolErpTest extends TestCase
         $this->assertSame(2, $book->fresh()->available_copies);
     }
 
+    public function test_library_borrow_via_member(): void
+    {
+        $auth = $this->createAuthenticatedUser();
+        $student = \App\Models\Student::factory()->create(['school_id' => $auth['school']->id]);
+        $member = \App\Models\LibraryMember::create([
+            'school_id' => $auth['school']->id,
+            'member_type' => 'student',
+            'member_id' => $student->id,
+            'member_number' => 'LIB-100',
+            'name' => trim($student->first_name.' '.$student->last_name),
+            'status' => 'active',
+            'joined_on' => now()->toDateString(),
+        ]);
+
+        $book = LibraryBook::create([
+            'school_id' => $auth['school']->id,
+            'title' => 'Science Grade 7',
+            'total_copies' => 1,
+            'available_copies' => 1,
+        ]);
+
+        $borrow = $this->withHeaders(['Authorization' => 'Bearer '.$auth['token']])
+            ->postJson('/api/v1/library/loans', [
+                'book_id' => $book->id,
+                'library_member_id' => $member->id,
+                'due_at' => now()->addDays(7)->toDateString(),
+            ]);
+
+        $borrow->assertCreated()
+            ->assertJsonPath('data.library_member_id', $member->id)
+            ->assertJsonPath('data.student_id', $student->id);
+
+        $this->withHeaders(['Authorization' => 'Bearer '.$auth['token']])
+            ->getJson('/api/v1/library/loans?status=borrowed')
+            ->assertOk()
+            ->assertJsonCount(1, 'data');
+    }
+
     public function test_visitor_check_in_and_out(): void
     {
         $auth = $this->createAuthenticatedUser();

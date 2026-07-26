@@ -79,4 +79,55 @@ class StaffAttendanceSummaryAndCertificateDownloadTest extends TestCase
         $this->assertStringContainsString($student->full_name, $response->getContent());
         $this->assertStringContainsString('attachment', (string) $response->headers->get('Content-Disposition'));
     }
+
+    public function test_certificate_verify_and_revoke(): void
+    {
+        ['school' => $school, 'user' => $user] = $this->actingAdmin();
+        $student = Student::factory()->create(['school_id' => $school->id]);
+
+        $certificate = Certificate::create([
+            'school_id' => $school->id,
+            'student_id' => $student->id,
+            'certificate_type' => 'character',
+            'title' => 'Certificate of Character',
+            'verification_code' => 'VERIFY-CODE-1',
+            'content_html' => '<p>Valid</p>',
+            'issued_by' => $user->id,
+            'issued_at' => now(),
+        ]);
+
+        $this->getJson('/api/v1/certificates/verify/VERIFY-CODE-1')
+            ->assertOk()
+            ->assertJsonPath('data.valid', true)
+            ->assertJsonPath('data.verification_code', 'VERIFY-CODE-1');
+
+        $revoked = $this->postJson('/api/v1/school-certificates/'.$certificate->id.'/revoke')
+            ->assertOk()
+            ->json('data');
+
+        $this->assertNotEmpty($revoked['revoked_at']);
+
+        $this->getJson('/api/v1/certificates/verify/VERIFY-CODE-1')
+            ->assertNotFound();
+
+        $this->getJson('/api/v1/school-certificates/'.$certificate->id.'/download')
+            ->assertStatus(422);
+    }
+
+    public function test_staff_roster_includes_teachers_on_leave(): void
+    {
+        ['school' => $school] = $this->actingAdmin();
+        $teacher = Teacher::factory()->create([
+            'school_id' => $school->id,
+            'status' => 'on_leave',
+        ]);
+
+        $roster = $this->getJson('/api/v1/staff-attendance/roster?date='.now()->toDateString())
+            ->assertOk()
+            ->json('data');
+
+        $match = collect($roster['teachers'])->firstWhere('staff_id', $teacher->id);
+        $this->assertNotNull($match);
+        $this->assertSame('on_leave', $match['status']);
+    }
 }

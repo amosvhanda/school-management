@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 
@@ -120,62 +121,72 @@ trait ManagesSchoolResourceCrud
     public function store(Request $request): JsonResponse
     {
         $this->authorizeManage($request);
+        $this->prepareMutationRequest($request);
         $schoolId = (int) $request->user()->school_id;
 
-        $validator = Validator::make($request->all(), $this->storeRules($request, $schoolId));
-        if ($validator->fails()) {
+        $run = function () use ($request, $schoolId) {
+            $validator = Validator::make($request->all(), $this->storeRules($request, $schoolId));
+            if ($validator->fails()) {
+                return response()->json([
+                    'message' => 'Validation failed',
+                    'errors' => $validator->errors(),
+                ], 422);
+            }
+
+            /** @var class-string<Model> $model */
+            $model = $this->resourceModel();
+            $instance = new $model;
+            $payload = $validator->validated();
+            $payload['school_id'] = $schoolId;
+
+            if (array_key_exists('is_active', $payload) === false && $instance->isFillable('is_active')) {
+                $payload['is_active'] = true;
+            }
+
+            $record = $model::create(collect($payload)->only($instance->getFillable())->all());
+            $this->afterStore($request, $record);
+
             return response()->json([
-                'message' => 'Validation failed',
-                'errors' => $validator->errors(),
-            ], 422);
-        }
+                'message' => $this->resourceLabel().' created successfully',
+                'data' => $record->fresh(),
+            ], 201);
+        };
 
-        /** @var class-string<Model> $model */
-        $model = $this->resourceModel();
-        $instance = new $model;
-        $payload = $validator->validated();
-        $payload['school_id'] = $schoolId;
-
-        if (array_key_exists('is_active', $payload) === false && $instance->isFillable('is_active')) {
-            $payload['is_active'] = true;
-        }
-
-        $record = $model::create(collect($payload)->only($instance->getFillable())->all());
-        $this->afterStore($request, $record);
-
-        return response()->json([
-            'message' => $this->resourceLabel().' created successfully',
-            'data' => $record->fresh(),
-        ], 201);
+        return $this->wrapMutationsInTransaction() ? DB::transaction($run) : $run();
     }
 
     public function update(Request $request, int $id): JsonResponse
     {
         $this->authorizeManage($request);
+        $this->prepareMutationRequest($request);
         $schoolId = (int) $request->user()->school_id;
         $record = $this->schoolQuery($request)->findOrFail($id);
 
-        $validator = Validator::make($request->all(), $this->updateRules($request, $schoolId, $id));
-        if ($validator->fails()) {
+        $run = function () use ($request, $schoolId, $id, $record) {
+            $validator = Validator::make($request->all(), $this->updateRules($request, $schoolId, $id));
+            if ($validator->fails()) {
+                return response()->json([
+                    'message' => 'Validation failed',
+                    'errors' => $validator->errors(),
+                ], 422);
+            }
+
+            $payload = $validator->validated();
+            $fillable = $this->fillableFromRequest();
+            if ($fillable !== []) {
+                $payload = collect($payload)->only($fillable)->all();
+            }
+
+            $record->update($payload);
+            $this->afterUpdate($request, $record);
+
             return response()->json([
-                'message' => 'Validation failed',
-                'errors' => $validator->errors(),
-            ], 422);
-        }
+                'message' => $this->resourceLabel().' updated successfully',
+                'data' => $record->fresh(),
+            ]);
+        };
 
-        $payload = $validator->validated();
-        $fillable = $this->fillableFromRequest();
-        if ($fillable !== []) {
-            $payload = collect($payload)->only($fillable)->all();
-        }
-
-        $record->update($payload);
-        $this->afterUpdate($request, $record);
-
-        return response()->json([
-            'message' => $this->resourceLabel().' updated successfully',
-            'data' => $record->fresh(),
-        ]);
+        return $this->wrapMutationsInTransaction() ? DB::transaction($run) : $run();
     }
 
     public function destroy(Request $request, int $id): JsonResponse
@@ -197,6 +208,13 @@ trait ManagesSchoolResourceCrud
     protected function afterStore(Request $request, Model $record): void {}
 
     protected function afterUpdate(Request $request, Model $record): void {}
+
+    protected function prepareMutationRequest(Request $request): void {}
+
+    protected function wrapMutationsInTransaction(): bool
+    {
+        return false;
+    }
 
     protected function preventDestroy(Model $record): ?JsonResponse
     {

@@ -388,6 +388,21 @@ async function runAction(action: RowActionConfig, row: Record<string, unknown>) 
     return
   }
 
+  if (action.copyText) {
+    const text = action.copyText(row)
+    if (!text) {
+      toast.error(`${action.label} failed`, 'Nothing to copy')
+      return
+    }
+    try {
+      await navigator.clipboard.writeText(text)
+      toast.success(action.successMessage ?? 'Copied to clipboard')
+    } catch {
+      toast.error(`${action.label} failed`, 'Clipboard access was denied')
+    }
+    return
+  }
+
   if (action.downloadBlob) {
     const key = `${action.label}-${String(id)}`
     actionLoading.value = key

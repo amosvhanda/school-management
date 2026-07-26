@@ -22,6 +22,7 @@ use Illuminate\Http\Response;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\Rule;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class StudentController extends Controller
@@ -611,8 +612,8 @@ HTML;
     {
         $this->authorizeModuleAccess(
             $request,
-            capabilities: ['canManageStudents', 'canManageTeachers'],
-            permissionSlugs: ['students.manage'],
+            capabilities: ['canManageFinance'],
+            permissionSlugs: ['finance.manage'],
         );
         $user = $request->user();
         $query = Student::query();
@@ -623,13 +624,22 @@ HTML;
         }
 
         $student = $query->findOrFail($student);
+        $schoolId = (int) $student->school_id;
 
         $validator = Validator::make($request->all(), [
             'amount' => 'required_without:fee_group_id|nullable|numeric|min:0.01',
             'description' => 'required_without:fee_group_id|nullable|string',
             'dueDate' => 'required|date',
-            'fee_structure_id' => 'nullable|integer|exists:fee_structures,id',
-            'fee_group_id' => 'nullable|integer|exists:fee_groups,id',
+            'fee_structure_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('fee_structures', 'id')->where(fn ($q) => $q->where('school_id', $schoolId)),
+            ],
+            'fee_group_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('fee_groups', 'id')->where(fn ($q) => $q->where('school_id', $schoolId)->where('is_active', true)),
+            ],
             'apply_discounts' => 'nullable|boolean',
             'combine_group' => 'nullable|boolean',
         ]);
@@ -646,7 +656,8 @@ HTML;
 
         if ($request->filled('fee_group_id')) {
             $group = \App\Models\FeeGroup::query()
-                ->where('school_id', $student->school_id)
+                ->where('school_id', $schoolId)
+                ->where('is_active', true)
                 ->findOrFail((int) $request->fee_group_id);
             $invoices = $this->ledgerService->applyFeeGroup(
                 student: $student,
@@ -665,20 +676,29 @@ HTML;
 
             return response()->json([
                 'data' => $invoices->first(),
-                'meta' => ['created_count' => $invoices->count()],
-                'message' => 'Invoice created successfully',
+                'meta' => [
+                    'created_count' => $invoices->count(),
+                    'invoice_ids' => $invoices->pluck('id'),
+                ],
+                'message' => $invoices->count() === 1
+                    ? 'Invoice created successfully'
+                    : "{$invoices->count()} invoices created from fee group",
             ], 201);
         }
 
-        $invoice = $this->ledgerService->createInvoice(
-            student: $student,
-            amount: (float) $request->amount,
-            description: (string) $request->description,
-            feeStructureId: $request->fee_structure_id ? (int) $request->fee_structure_id : null,
-            dueDate: $dueDate,
-            createdBy: $user?->id,
-            applyDiscounts: $applyDiscounts,
-        );
+        try {
+            $invoice = $this->ledgerService->createInvoice(
+                student: $student,
+                amount: (float) $request->amount,
+                description: (string) $request->description,
+                feeStructureId: $request->fee_structure_id ? (int) $request->fee_structure_id : null,
+                dueDate: $dueDate,
+                createdBy: $user?->id,
+                applyDiscounts: $applyDiscounts,
+            );
+        } catch (\InvalidArgumentException $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
+        }
 
         return response()->json([
             'data' => $invoice,
@@ -717,17 +737,32 @@ HTML;
     {
         $this->authorizeModuleAccess(
             $request,
-            capabilities: ['canManageStudents', 'canManageTeachers'],
-            permissionSlugs: ['students.manage'],
+            capabilities: ['canManageFinance'],
+            permissionSlugs: ['finance.manage'],
         );
+        $user = $request->user();
+        $schoolId = $user?->school_id;
+
         $validator = Validator::make($request->all(), [
             'studentIds' => 'required|array',
             'description' => 'required_without:fee_group_id|nullable|string',
             'dueDate' => 'required|date',
             'amount' => 'required_without:fee_group_id|nullable|numeric|min:0.01',
-            'fee_structure_id' => 'nullable|integer|exists:fee_structures,id',
-            'feeStructureId' => 'nullable|integer|exists:fee_structures,id',
-            'fee_group_id' => 'nullable|integer|exists:fee_groups,id',
+            'fee_structure_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('fee_structures', 'id')->where(fn ($q) => $q->where('school_id', $schoolId)),
+            ],
+            'feeStructureId' => [
+                'nullable',
+                'integer',
+                Rule::exists('fee_structures', 'id')->where(fn ($q) => $q->where('school_id', $schoolId)),
+            ],
+            'fee_group_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('fee_groups', 'id')->where(fn ($q) => $q->where('school_id', $schoolId)->where('is_active', true)),
+            ],
             'apply_discounts' => 'nullable|boolean',
             'combine_group' => 'nullable|boolean',
         ]);
@@ -739,8 +774,6 @@ HTML;
             ], 422);
         }
 
-        $user = $request->user();
-        $schoolId = $user?->school_id;
         $dueDate = new \DateTimeImmutable($request->dueDate);
         $applyDiscounts = $request->boolean('apply_discounts', true);
         $feeStructureId = $request->input('fee_structure_id', $request->input('feeStructureId'));
@@ -757,6 +790,7 @@ HTML;
             if ($feeGroupId) {
                 $group = \App\Models\FeeGroup::query()
                     ->where('school_id', $student->school_id)
+                    ->where('is_active', true)
                     ->find((int) $feeGroupId);
                 if (! $group) {
                     continue;
@@ -772,16 +806,20 @@ HTML;
                 continue;
             }
 
-            $this->ledgerService->createInvoice(
-                student: $student,
-                amount: (float) $request->amount,
-                description: (string) $request->description,
-                feeStructureId: $feeStructureId ? (int) $feeStructureId : null,
-                dueDate: $dueDate,
-                createdBy: $user?->id,
-                applyDiscounts: $applyDiscounts,
-            );
-            $created++;
+            try {
+                $this->ledgerService->createInvoice(
+                    student: $student,
+                    amount: (float) $request->amount,
+                    description: (string) $request->description,
+                    feeStructureId: $feeStructureId ? (int) $feeStructureId : null,
+                    dueDate: $dueDate,
+                    createdBy: $user?->id,
+                    applyDiscounts: $applyDiscounts,
+                );
+                $created++;
+            } catch (\InvalidArgumentException) {
+                continue;
+            }
         }
 
         return response()->json([

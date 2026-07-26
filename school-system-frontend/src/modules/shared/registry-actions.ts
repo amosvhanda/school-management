@@ -8,6 +8,7 @@ import {
   schoolTripEnrollPromptForm,
   certificateIssuePromptForm,
   spendDisbursePromptForm,
+  libraryBorrowPromptForm,
 } from '@/modules/shared/action-prompt-forms'
 
 export type RowActionMethod = 'post' | 'put' | 'patch' | 'delete'
@@ -27,6 +28,8 @@ export interface RowActionConfig {
   /** Download response as a file blob (e.g. HTML certificate) */
   downloadBlob?: boolean
   downloadFilename?: (row: Record<string, unknown>) => string
+  /** Copy text to clipboard instead of calling the API */
+  copyText?: (row: Record<string, unknown>) => string | null
   /** Prompt for reason before destructive API action */
   confirmReason?: boolean
   /** Opens a validated FormSheet before calling the API */
@@ -208,12 +211,55 @@ export const moduleActionsRegistry: Record<string, RowActionConfig[]> = {
       method: 'post',
       path: (id) => endpoints.schoolCertificates.download(id),
       variant: 'outline',
+      when: (row) => !row.revoked_at,
       downloadBlob: true,
       downloadFilename: (row) => {
         const code = String(row.verification_code ?? row.id ?? 'certificate')
         return `certificate_${code}.html`
       },
       successMessage: 'Certificate downloaded',
+    },
+    {
+      label: 'Copy verify link',
+      method: 'post',
+      path: () => '',
+      variant: 'outline',
+      when: (row) => Boolean(row.verification_code) && !row.revoked_at,
+      copyText: (row) => {
+        const code = String(row.verification_code ?? '').trim()
+        if (!code) return null
+        return `${window.location.origin}/api/v1${endpoints.schoolCertificates.verify(code)}`
+      },
+      successMessage: 'Verify link copied',
+    },
+    {
+      label: 'Revoke',
+      method: 'post',
+      path: (id) => endpoints.schoolCertificates.revoke(id),
+      variant: 'destructive',
+      when: (row) => !row.revoked_at,
+      confirmReason: true,
+      successMessage: 'Certificate revoked',
+    },
+  ],
+  'ops-library': [
+    {
+      label: 'Lend',
+      method: 'post',
+      path: () => endpoints.library.borrow,
+      when: (row) => Number(row.available_copies ?? 0) > 0,
+      body: (row) => ({ book_id: row.id }),
+      promptForm: libraryBorrowPromptForm,
+      successMessage: 'Book lent',
+    },
+  ],
+  'ops-library-loans': [
+    {
+      label: 'Return',
+      method: 'post',
+      path: (id) => endpoints.library.return(id),
+      when: (row) => String(row.status ?? '').toLowerCase() === 'borrowed',
+      successMessage: 'Book returned',
     },
   ],
   'ops-assets': [
