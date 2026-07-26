@@ -2,8 +2,12 @@
 
 namespace Tests\Feature;
 
+use App\Models\Announcement;
+use App\Models\Assignment;
+use App\Models\ClassModel;
 use App\Models\Guardian;
 use App\Models\Student;
+use App\Models\Teacher;
 use App\Services\GuardianResolutionService;
 use App\Services\StudentResolutionService;
 use Database\Seeders\RoleSeeder;
@@ -259,6 +263,129 @@ class ParentStudentRelationshipsTest extends TestCase
             ->getJson('/api/v1/student-portal/grades')
             ->assertOk()
             ->assertJsonPath('data.grades.0.score', '78.50');
+    }
+
+    public function test_student_portal_assignments_and_announcements_are_scoped(): void
+    {
+        $auth = $this->createAuthenticatedUser(role: 'student');
+        $ownClass = ClassModel::factory()->create(['school_id' => $auth['school']->id]);
+        $otherClass = ClassModel::factory()->create(['school_id' => $auth['school']->id]);
+        $teacher = Teacher::factory()->create(['school_id' => $auth['school']->id]);
+
+        Student::factory()->create([
+            'school_id' => $auth['school']->id,
+            'user_id' => $auth['user']->id,
+            'email' => $auth['user']->email,
+            'status' => 'active',
+            'class_id' => $ownClass->id,
+        ]);
+
+        $visibleAssignment = Assignment::query()->create([
+            'school_id' => $auth['school']->id,
+            'title' => 'Class Essay',
+            'description' => 'Write about local history',
+            'subject' => 'History',
+            'class_id' => $ownClass->id,
+            'teacher_id' => $teacher->id,
+            'due_date' => now()->addDays(3)->toDateString(),
+            'total_marks' => 50,
+            'status' => 'active',
+        ]);
+
+        Assignment::query()->create([
+            'school_id' => $auth['school']->id,
+            'title' => 'Other Class Homework',
+            'description' => 'Should not appear',
+            'subject' => 'Science',
+            'class_id' => $otherClass->id,
+            'teacher_id' => $teacher->id,
+            'due_date' => now()->addDays(2)->toDateString(),
+            'total_marks' => 40,
+            'status' => 'active',
+        ]);
+
+        Assignment::query()->create([
+            'school_id' => $auth['school']->id,
+            'title' => 'Archived Task',
+            'description' => 'Closed',
+            'subject' => 'History',
+            'class_id' => $ownClass->id,
+            'teacher_id' => $teacher->id,
+            'due_date' => now()->addDay()->toDateString(),
+            'total_marks' => 20,
+            'status' => 'archived',
+        ]);
+
+        Announcement::query()->create([
+            'school_id' => $auth['school']->id,
+            'title' => 'All Hands',
+            'message' => 'School assembly tomorrow',
+            'type' => 'info',
+            'target_audience' => 'all',
+            'date' => now()->toDateString(),
+            'is_active' => true,
+            'created_by' => $auth['user']->id,
+        ]);
+
+        Announcement::query()->create([
+            'school_id' => $auth['school']->id,
+            'title' => 'Student Notice',
+            'message' => 'Bring PE kits',
+            'type' => 'important',
+            'target_audience' => 'students',
+            'date' => now()->subDay()->toDateString(),
+            'is_active' => true,
+            'created_by' => $auth['user']->id,
+        ]);
+
+        Announcement::query()->create([
+            'school_id' => $auth['school']->id,
+            'title' => 'Parent Only',
+            'message' => 'Fees reminder',
+            'type' => 'warning',
+            'target_audience' => 'parents',
+            'date' => now()->toDateString(),
+            'is_active' => true,
+            'created_by' => $auth['user']->id,
+        ]);
+
+        Announcement::query()->create([
+            'school_id' => $auth['school']->id,
+            'title' => 'Inactive Notice',
+            'message' => 'Old',
+            'type' => 'info',
+            'target_audience' => 'students',
+            'date' => now()->toDateString(),
+            'is_active' => false,
+            'created_by' => $auth['user']->id,
+        ]);
+
+        $assignments = $this->withHeaders(['Authorization' => 'Bearer '.$auth['token']])
+            ->getJson('/api/v1/student-portal/assignments')
+            ->assertOk()
+            ->json('data');
+
+        $this->assertCount(1, $assignments);
+        $this->assertSame($visibleAssignment->id, $assignments[0]['id']);
+        $this->assertSame('Class Essay', $assignments[0]['title']);
+
+        $announcements = $this->withHeaders(['Authorization' => 'Bearer '.$auth['token']])
+            ->getJson('/api/v1/student-portal/announcements')
+            ->assertOk()
+            ->json('data');
+
+        $titles = collect($announcements)->pluck('title')->all();
+        $this->assertContains('All Hands', $titles);
+        $this->assertContains('Student Notice', $titles);
+        $this->assertNotContains('Parent Only', $titles);
+        $this->assertNotContains('Inactive Notice', $titles);
+
+        $this->withHeaders(['Authorization' => 'Bearer '.$auth['token']])
+            ->getJson('/api/v1/student-portal/dashboard')
+            ->assertOk()
+            ->assertJsonPath('data.assignments.0.title', 'Class Essay')
+            ->assertJsonPath('data.stats.open_assignments', 1)
+            ->assertJsonFragment(['title' => 'All Hands']);
     }
 
     public function test_parents_children_endpoint_includes_guardian_linked_students(): void
