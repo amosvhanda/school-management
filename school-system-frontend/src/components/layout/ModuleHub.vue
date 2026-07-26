@@ -81,6 +81,9 @@ const activeTabId = computed(() => {
   if (!hasAccess.value) return ''
   const raw = String(Array.isArray(route.query.tab) ? route.query.tab[0] : route.query.tab ?? '')
   if (raw && visibleTabs.value.some((tab) => tab.id === raw)) return raw
+  if (props.defaultTab && visibleTabs.value.some((tab) => tab.id === props.defaultTab)) {
+    return props.defaultTab
+  }
   return visibleTabs.value[0]?.id ?? props.defaultTab
 })
 

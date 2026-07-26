@@ -1,211 +1,373 @@
-import type { NavGroup } from '@/types/navigation'
+import type { NavGroup, NavItem } from '@/types/navigation'
 
+/**
+ * Admin/staff sidebar mirrors EduDash menu order and labels.
+ * Parents with children are expanders; leaf links use existing hub redirects.
+ */
 export const staffNavigation: NavGroup[] = [
   {
-    label: 'Overview',
+    label: 'Menu',
     items: [
       { title: 'Dashboard', href: '/', icon: 'LayoutDashboard' },
-      { title: 'School analytics', href: '/analytics', icon: 'BarChart3', capability: 'canManageTeachers' },
-      { title: 'Reports', href: '/reports', icon: 'FileBarChart', capability: 'canManageTeachers' },
-      { title: 'Workflows', href: '/workflows', icon: 'GitBranch', capability: 'canManageTeachers' },
-    ],
-  },
-  {
-    label: 'People',
-    items: [
-      { title: 'People', href: '/people', icon: 'Users', capability: ['canManageStudents', 'canManageTeachers'] },
-    ],
-  },
-  {
-    label: 'Academics',
-    items: [
-      { title: 'Analytics', href: '/academics/analytics', icon: 'BarChart3', capability: ['canManageTeachers', 'canManageStudents', 'canEnterExamResults'] },
-      { title: 'Gradebook', href: '/academics/grades', icon: 'NotebookPen', capability: ['canManageExaminations', 'canEnterExamResults'] },
-      { title: 'Attendance', href: '/academics/attendance', icon: 'ClipboardCheck', capability: 'canManageStudents' },
-      { title: 'Exams', href: '/academics/exams', icon: 'FileText', capability: ['canManageExaminations', 'canEnterExamResults'] },
-      { title: 'Exam schedule', href: '/academics/exam-schedules', icon: 'CalendarClock', capability: 'canManageExaminations' },
-      { title: 'Certificates', href: '/academics/certificates', icon: 'Award', capability: 'canManageTeachers' },
-      { title: 'Timetable', href: '/academics/timetable', icon: 'CalendarDays', capability: 'canManageTeachers' },
-    ],
-  },
-  {
-    label: 'Finance',
-    items: [
-      { title: 'Finance', href: '/finance', icon: 'Wallet', capability: 'canManageFinance' },
-    ],
-  },
-  {
-    label: 'HR & Compliance',
-    items: [
-      { title: 'HR & Compliance', href: '/hr', icon: 'Shield', capability: ['canManageTeachers', 'canManageStudents', 'canViewAuditLogs'] },
-    ],
-  },
-  {
-    label: 'Communications',
-    items: [
-      { title: 'Communications', href: '/communications', icon: 'Megaphone', capability: 'isStaff' },
-    ],
-  },
-  {
-    label: 'Operations',
-    items: [
-      { title: 'Operations', href: '/operations', icon: 'Package', capability: ['canManageInventory', 'canManageLibrary', 'canManageTransport', 'canManageReception', 'canManageTeachers'] },
-    ],
-  },
-  {
-    label: 'Tools',
-    items: [
-      { title: 'Assistant', href: '/assistant', icon: 'Bot', capability: 'isStaff' },
-    ],
-  },
-  {
-    label: 'Administration',
-    items: [
-      { title: 'Users & roles', href: '/admin', icon: 'UserCog', capability: 'canManageTeachers' },
-      { title: 'School Setup', href: '/settings', icon: 'Settings', capability: 'canManageTeachers' },
+
+      {
+        title: 'Students',
+        icon: 'GraduationCap',
+        capability: 'canManageStudents',
+        items: [
+          { title: 'Student List', href: '/students', capability: 'canManageStudents' },
+          { title: 'Student Categories', href: '/people/categories', capability: 'canManageStudents' },
+          { title: 'Enrollment', href: '/enrollment', capability: 'canManageTeachers' },
+        ],
+      },
+      {
+        title: 'Teachers',
+        icon: 'Users',
+        capability: 'canManageTeachers',
+        items: [
+          { title: 'Teacher List', href: '/teachers', capability: 'canManageTeachers' },
+          { title: 'Teacher Timetable', href: '/academics/timetable', capability: 'canManageTeachers' },
+        ],
+      },
+      {
+        title: 'Guardian',
+        icon: 'UserCheck',
+        capability: 'canManageTeachers',
+        items: [
+          { title: 'Guardians List', href: '/guardians', capability: 'canManageTeachers' },
+        ],
+      },
+      {
+        title: 'Classes',
+        icon: 'School',
+        capability: 'canManageTeachers',
+        items: [
+          { title: 'Class List', href: '/academics/classes', capability: 'canManageTeachers' },
+          { title: 'Section', href: '/academics/streams', capability: 'canManageTeachers' },
+          { title: 'Subjects', href: '/academics/subjects', capability: 'canManageTeachers' },
+          { title: 'Class Room', href: '/academics/rooms', capability: 'canManageTeachers' },
+        ],
+      },
+      {
+        title: 'Examinations',
+        icon: 'FileText',
+        capability: ['canManageExaminations', 'canEnterExamResults'],
+        items: [
+          { title: 'Exam', href: '/academics/exams', capability: ['canManageExaminations', 'canEnterExamResults'] },
+          { title: 'Exam Schedule', href: '/academics/exam-schedules', capability: 'canManageExaminations' },
+          { title: 'Exam Result', href: '/academics/grades', capability: ['canManageExaminations', 'canEnterExamResults'] },
+        ],
+      },
+      {
+        title: 'Fees Collection',
+        icon: 'Wallet',
+        capability: 'canManageFinance',
+        items: [
+          { title: 'Fees Collect', href: '/finance/payments', capability: 'canManageFinance' },
+          { title: 'Fees Type', href: '/finance/fee-categories', capability: 'canManageFinance' },
+          { title: 'Fees Group', href: '/finance/fee-groups', capability: 'canManageFinance' },
+          { title: 'Fees Discount', href: '/finance/fee-discounts', capability: 'canManageFinance' },
+        ],
+      },
+      {
+        title: 'Attendance',
+        icon: 'ClipboardCheck',
+        capability: 'canManageStudents',
+        items: [
+          { title: 'Student Attendance', href: '/academics/attendance', capability: 'canManageStudents' },
+          { title: 'Teacher Attendance', href: '/hr/staff-attendance', capability: 'canManageTeachers' },
+          { title: 'Employee Attendance', href: '/hr/staff-attendance', capability: 'canManageTeachers' },
+        ],
+      },
+      {
+        title: 'Leaves',
+        icon: 'Palmtree',
+        capability: 'canManageTeachers',
+        items: [
+          { title: 'Leave Types', href: '/hr/leave-types', capability: 'canManageTeachers' },
+          { title: 'Leave Request', href: '/hr/leave', capability: 'canManageTeachers' },
+        ],
+      },
+      {
+        title: 'Certificate',
+        href: '/academics/certificates',
+        icon: 'Award',
+        capability: 'canManageTeachers',
+      },
+      {
+        title: 'Library',
+        icon: 'Library',
+        capability: 'canManageLibrary',
+        items: [
+          { title: 'Books List', href: '/operations/library', capability: 'canManageLibrary' },
+          { title: 'Members List', href: '/operations/library', capability: 'canManageLibrary' },
+          { title: 'Issue Return', href: '/operations/library', capability: 'canManageLibrary' },
+        ],
+      },
+      {
+        title: 'Accounts',
+        icon: 'BookOpen',
+        capability: 'canManageFinance',
+        items: [
+          { title: 'Income Head', href: '/finance/accounting', capability: 'canManageFinance' },
+          { title: 'Expense Head', href: '/finance/accounting', capability: 'canManageFinance' },
+          { title: 'Transaction', href: '/finance/transactions', capability: 'canManageFinance' },
+          { title: 'Invoices', href: '/finance/invoices', capability: 'canManageFinance' },
+        ],
+      },
+      {
+        title: 'HRM',
+        icon: 'IdCard',
+        capability: 'canManageTeachers',
+        items: [
+          { title: 'Employee List', href: '/hr/employees', capability: 'canManageTeachers' },
+          { title: 'Payroll', href: '/finance/payroll', capability: 'canManageFinance' },
+          { title: 'Designation', href: '/hr/designations', capability: 'canManageTeachers' },
+          { title: 'Department', href: '/academics/departments', capability: 'canManageTeachers' },
+        ],
+      },
+      {
+        title: 'Notice Board',
+        href: '/communications/announcements',
+        icon: 'Megaphone',
+        capability: 'isStaff',
+      },
+      {
+        title: 'Event',
+        href: '/operations/events',
+        icon: 'CalendarHeart',
+        capability: 'canManageTeachers',
+      },
+      {
+        title: 'Message',
+        href: '/communications/threads',
+        icon: 'MessageSquare',
+        capability: 'isStaff',
+      },
+      {
+        title: 'Transport',
+        href: '/operations/transport',
+        icon: 'Bus',
+        capability: 'canManageTransport',
+      },
+      {
+        title: 'Hostel',
+        href: '/operations/hostels',
+        icon: 'Building2',
+        capability: 'canManageTeachers',
+      },
+      {
+        title: 'Inventory',
+        href: '/operations/inventory',
+        icon: 'Package',
+        capability: 'canManageInventory',
+      },
+      {
+        title: 'Subscription Plan',
+        href: '/admin/subscription',
+        icon: 'CreditCard',
+        capability: 'canManageTeachers',
+      },
+      {
+        title: 'Role & Access',
+        href: '/admin',
+        icon: 'UserCog',
+        capability: 'canManageTeachers',
+      },
+      {
+        title: 'Settings',
+        icon: 'Settings',
+        capability: 'canManageTeachers',
+        items: [
+          { title: 'General', href: '/settings', capability: 'canManageTeachers' },
+          { title: 'Currencies', href: '/settings?tab=currencies', capability: 'canManageTeachers' },
+          { title: 'Languages', href: '/settings?tab=languages', capability: 'canManageTeachers' },
+          { title: 'Terms', href: '/academics/terms', capability: 'canManageTeachers' },
+        ],
+      },
+      {
+        title: 'Reports',
+        href: '/reports',
+        icon: 'FileBarChart',
+        capability: 'canManageTeachers',
+      },
+      {
+        title: 'Workflows',
+        href: '/workflows',
+        icon: 'GitBranch',
+        capability: 'canManageTeachers',
+        badge: 'workflows',
+      },
     ],
   },
 ]
 
-export const adminNavigation: NavGroup[] = staffNavigation.map((group) => ({
-  ...group,
-  items: group.items.map((item) => ({
+function withAdminRoles(items: NavItem[]): NavItem[] {
+  return items.map((item) => ({
     ...item,
     roles: ['admin'],
-  })),
+    items: item.items ? withAdminRoles(item.items) : undefined,
+  }))
+}
+
+export const adminNavigation: NavGroup[] = staffNavigation.map((group) => ({
+  ...group,
+  items: withAdminRoles(group.items),
 }))
 
 export const teacherNavigation: NavGroup[] = [
   {
-    label: 'Overview',
+    label: 'Menu',
     items: [
       { title: 'Dashboard', href: '/', icon: 'LayoutDashboard', roles: ['teacher'] },
-      { title: 'My profile', href: '/profile', icon: 'UserCog', capability: 'isStaff', roles: ['teacher'] },
-    ],
-  },
-  {
-    label: 'Classroom',
-    items: [
       { title: 'Teaching', href: '/teaching', icon: 'BookOpen', capability: 'isStaff', roles: ['teacher'] },
-      { title: 'Attendance', href: '/academics/attendance', icon: 'ClipboardCheck', capability: 'canManageStudents', roles: ['teacher'] },
-      { title: 'Gradebook', href: '/academics/grades', icon: 'NotebookPen', capability: ['canManageExaminations', 'canEnterExamResults'], roles: ['teacher'] },
-      { title: 'Exams', href: '/academics/exams', icon: 'FileText', capability: ['canManageExaminations', 'canEnterExamResults'], roles: ['teacher'] },
-      { title: 'My timetable', href: '/academics/my-timetable', icon: 'CalendarDays', roles: ['teacher'] },
-    ],
-  },
-  {
-    label: 'Messages',
-    items: [
-      { title: 'Inbox', href: '/communications', icon: 'Megaphone', capability: 'isStaff', roles: ['teacher'] },
+      {
+        title: 'Attendance',
+        icon: 'ClipboardCheck',
+        capability: 'canManageStudents',
+        roles: ['teacher'],
+        items: [
+          { title: 'Student Attendance', href: '/academics/attendance', capability: 'canManageStudents', roles: ['teacher'] },
+        ],
+      },
+      {
+        title: 'Examinations',
+        icon: 'FileText',
+        capability: ['canManageExaminations', 'canEnterExamResults'],
+        roles: ['teacher'],
+        items: [
+          { title: 'Exam', href: '/academics/exams', capability: ['canManageExaminations', 'canEnterExamResults'], roles: ['teacher'] },
+          { title: 'Exam Result', href: '/academics/grades', capability: ['canManageExaminations', 'canEnterExamResults'], roles: ['teacher'] },
+        ],
+      },
+      { title: 'Teacher Timetable', href: '/academics/my-timetable', icon: 'CalendarDays', roles: ['teacher'] },
+      { title: 'Notice Board', href: '/communications/announcements', icon: 'Megaphone', capability: 'isStaff', roles: ['teacher'] },
+      { title: 'Message', href: '/communications/threads', icon: 'MessageSquare', capability: 'isStaff', roles: ['teacher'] },
+      { title: 'My profile', href: '/profile', icon: 'UserCog', capability: 'isStaff', roles: ['teacher'] },
     ],
   },
 ]
 
 export const financeNavigation: NavGroup[] = [
   {
-    label: 'Overview',
+    label: 'Menu',
     items: [
       { title: 'Dashboard', href: '/', icon: 'LayoutDashboard', roles: ['finance'] },
-      { title: 'Finance', href: '/finance', icon: 'Wallet', capability: 'canManageFinance', roles: ['finance'] },
-      { title: 'Communications', href: '/communications', icon: 'Megaphone', capability: 'isStaff', roles: ['finance'] },
-      { title: 'Audit trail', href: '/hr?tab=audit', icon: 'ScrollText', capability: 'canViewAuditLogs', roles: ['finance'] },
-    ],
-  },
-  {
-    label: 'Tools',
-    items: [
-      { title: 'Assistant', href: '/assistant', icon: 'Bot', capability: 'isStaff', roles: ['finance'] },
+      {
+        title: 'Fees Collection',
+        icon: 'Wallet',
+        capability: 'canManageFinance',
+        roles: ['finance'],
+        items: [
+          { title: 'Fees Collect', href: '/finance/payments', capability: 'canManageFinance', roles: ['finance'] },
+          { title: 'Fees Type', href: '/finance/fee-categories', capability: 'canManageFinance', roles: ['finance'] },
+          { title: 'Fees Group', href: '/finance/fee-groups', capability: 'canManageFinance', roles: ['finance'] },
+          { title: 'Fees Discount', href: '/finance/fee-discounts', capability: 'canManageFinance', roles: ['finance'] },
+        ],
+      },
+      {
+        title: 'Accounts',
+        icon: 'BookOpen',
+        capability: 'canManageFinance',
+        roles: ['finance'],
+        items: [
+          { title: 'Income Head', href: '/finance/accounting', capability: 'canManageFinance', roles: ['finance'] },
+          { title: 'Expense Head', href: '/finance/accounting', capability: 'canManageFinance', roles: ['finance'] },
+          { title: 'Transaction', href: '/finance/transactions', capability: 'canManageFinance', roles: ['finance'] },
+          { title: 'Invoices', href: '/finance/invoices', capability: 'canManageFinance', roles: ['finance'] },
+          { title: 'Payroll', href: '/finance/payroll', capability: 'canManageFinance', roles: ['finance'] },
+        ],
+      },
+      { title: 'Notice Board', href: '/communications/announcements', icon: 'Megaphone', capability: 'isStaff', roles: ['finance'] },
+      { title: 'Audit trail', href: '/compliance/audit', icon: 'ScrollText', capability: 'canViewAuditLogs', roles: ['finance'] },
     ],
   },
 ]
 
 export const accountsNavigation: NavGroup[] = [
   {
-    label: 'Overview',
+    label: 'Menu',
     items: [
       { title: 'Dashboard', href: '/', icon: 'LayoutDashboard', roles: ['accounts'] },
-      { title: 'Finance', href: '/finance', icon: 'Wallet', capability: 'canManageFinance', roles: ['accounts'] },
-      { title: 'Communications', href: '/communications', icon: 'Megaphone', capability: 'isStaff', roles: ['accounts'] },
-      { title: 'Audit trail', href: '/hr?tab=audit', icon: 'ScrollText', capability: 'canViewAuditLogs', roles: ['accounts'] },
-      { title: 'Assistant', href: '/assistant', icon: 'Bot', capability: 'isStaff', roles: ['accounts'] },
+      {
+        title: 'Fees Collection',
+        icon: 'Wallet',
+        capability: 'canManageFinance',
+        roles: ['accounts'],
+        items: [
+          { title: 'Fees Collect', href: '/finance/payments', capability: 'canManageFinance', roles: ['accounts'] },
+          { title: 'Invoices', href: '/finance/invoices', capability: 'canManageFinance', roles: ['accounts'] },
+        ],
+      },
+      {
+        title: 'Accounts',
+        icon: 'BookOpen',
+        capability: 'canManageFinance',
+        roles: ['accounts'],
+        items: [
+          { title: 'Transaction', href: '/finance/transactions', capability: 'canManageFinance', roles: ['accounts'] },
+          { title: 'Income Head', href: '/finance/accounting', capability: 'canManageFinance', roles: ['accounts'] },
+          { title: 'Expense Head', href: '/finance/accounting', capability: 'canManageFinance', roles: ['accounts'] },
+        ],
+      },
+      { title: 'Notice Board', href: '/communications/announcements', icon: 'Megaphone', capability: 'isStaff', roles: ['accounts'] },
     ],
   },
 ]
 
 export const examinationOfficerNavigation: NavGroup[] = [
   {
-    label: 'Overview',
+    label: 'Menu',
     items: [
       { title: 'Dashboard', href: '/', icon: 'LayoutDashboard', roles: ['examination_officer'] },
       {
-        title: 'Academics analytics',
-        href: '/academics/analytics',
-        icon: 'BarChart3',
-        capability: ['canManageExaminations', 'canEnterExamResults'],
+        title: 'Examinations',
+        icon: 'FileText',
+        capability: 'canManageExaminations',
         roles: ['examination_officer'],
+        items: [
+          { title: 'Exam', href: '/academics/exams', capability: 'canManageExaminations', roles: ['examination_officer'] },
+          { title: 'Exam Schedule', href: '/academics/exam-schedules', capability: 'canManageExaminations', roles: ['examination_officer'] },
+          { title: 'Exam Result', href: '/academics/grades', capability: ['canManageExaminations', 'canEnterExamResults'], roles: ['examination_officer'] },
+        ],
       },
-    ],
-  },
-  {
-    label: 'Examinations',
-    items: [
-      { title: 'Exams', href: '/academics/exams', icon: 'FileText', capability: 'canManageExaminations', roles: ['examination_officer'] },
-      { title: 'Exam schedule', href: '/academics/exam-schedules', icon: 'CalendarClock', capability: 'canManageExaminations', roles: ['examination_officer'] },
-      { title: 'Gradebook', href: '/academics/grades', icon: 'BookOpen', capability: ['canManageExaminations', 'canEnterExamResults'], roles: ['examination_officer'] },
-      { title: 'Class tests', href: '/academics/tests', icon: 'NotebookPen', capability: 'canManageExaminations', roles: ['examination_officer'] },
-    ],
-  },
-  {
-    label: 'Communications',
-    items: [
-      { title: 'Communications', href: '/communications', icon: 'Megaphone', capability: 'isStaff', roles: ['examination_officer'] },
-      { title: 'Assistant', href: '/assistant', icon: 'Bot', capability: 'isStaff', roles: ['examination_officer'] },
+      { title: 'Notice Board', href: '/communications/announcements', icon: 'Megaphone', capability: 'isStaff', roles: ['examination_officer'] },
     ],
   },
 ]
 
 export const parentNavigation: NavGroup[] = [
   {
-    label: 'Overview',
+    label: 'Menu',
     items: [
-      { title: 'Home', href: '/portal', icon: 'Home', capability: 'isParent', roles: ['parent'] },
-      { title: 'My profile', href: '/profile', icon: 'UserCog', capability: 'isParent', roles: ['parent'] },
-    ],
-  },
-  {
-    label: 'Family',
-    items: [
+      { title: 'Dashboard', href: '/portal', icon: 'Home', capability: 'isParent', roles: ['parent'] },
       { title: 'My children', href: '/portal/children', icon: 'Users', capability: 'isParent', roles: ['parent'] },
       { title: 'School life', href: '/portal/hub', icon: 'Layers', capability: 'isParent', roles: ['parent'] },
+      { title: 'My profile', href: '/profile', icon: 'UserCog', capability: 'isParent', roles: ['parent'] },
     ],
   },
 ]
 
 export const studentNavigation: NavGroup[] = [
   {
-    label: 'Overview',
+    label: 'Menu',
     items: [
       { title: 'Dashboard', href: '/student', icon: 'Home', roles: ['student'] },
-      { title: 'My profile', href: '/profile', icon: 'UserCog', roles: ['student'] },
-    ],
-  },
-  {
-    label: 'My school',
-    items: [
       { title: 'Timetable', href: '/student/timetable', icon: 'CalendarDays', roles: ['student'] },
-      { title: 'Performance', href: '/student/performance', icon: 'BarChart3', roles: ['student'] },
+      { title: 'Exam Result', href: '/student/performance', icon: 'BarChart3', roles: ['student'] },
       { title: 'Attendance', href: '/student/attendance', icon: 'ClipboardCheck', roles: ['student'] },
-      { title: 'Exams', href: '/student/exams', icon: 'FileText', roles: ['student'] },
+      { title: 'Examinations', href: '/student/exams', icon: 'FileText', roles: ['student'] },
       { title: 'Assignments', href: '/student/assignments', icon: 'NotebookPen', roles: ['student'] },
-      { title: 'Announcements', href: '/student/announcements', icon: 'Megaphone', roles: ['student'] },
-      { title: 'Fees', href: '/student/fees', icon: 'Wallet', roles: ['student'] },
+      { title: 'Notice Board', href: '/student/announcements', icon: 'Megaphone', roles: ['student'] },
+      { title: 'Fees Collection', href: '/student/fees', icon: 'Wallet', roles: ['student'] },
+      { title: 'My profile', href: '/profile', icon: 'UserCog', roles: ['student'] },
     ],
   },
 ]
 
 export const platformNavigation: NavGroup[] = [
   {
-    label: 'Super Admin Portal',
+    label: 'Menu',
     items: [
       { title: 'Dashboard', href: '/platform', icon: 'LayoutDashboard', capability: 'isSuperAdmin', roles: ['super_admin'] },
       { title: 'Licenses', href: '/platform/licenses', icon: 'Key', capability: 'isSuperAdmin', roles: ['super_admin'] },
