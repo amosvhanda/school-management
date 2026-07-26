@@ -484,6 +484,18 @@ export const studentRoutes: RouteRecordRaw[] = [
     meta: { roles: ['student'] },
   },
   {
+    path: 'student/assignments',
+    name: 'student-assignments',
+    component: () => import('@/modules/student-portal/views/StudentDashboardView.vue'),
+    meta: { roles: ['student'] },
+  },
+  {
+    path: 'student/announcements',
+    name: 'student-announcements',
+    component: () => import('@/modules/student-portal/views/StudentDashboardView.vue'),
+    meta: { roles: ['student'] },
+  },
+  {
     path: 'student/timetable',
     name: 'student-timetable',
     component: () => import('@/modules/academics/views/MyTimetableView.vue'),

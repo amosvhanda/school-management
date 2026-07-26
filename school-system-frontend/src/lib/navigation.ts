@@ -193,6 +193,8 @@ export const studentNavigation: NavGroup[] = [
       { title: 'Performance', href: '/student/performance', icon: 'BarChart3', roles: ['student'] },
       { title: 'Attendance', href: '/student/attendance', icon: 'ClipboardCheck', roles: ['student'] },
       { title: 'Exams', href: '/student/exams', icon: 'FileText', roles: ['student'] },
+      { title: 'Assignments', href: '/student/assignments', icon: 'NotebookPen', roles: ['student'] },
+      { title: 'Announcements', href: '/student/announcements', icon: 'Megaphone', roles: ['student'] },
       { title: 'Fees', href: '/student/fees', icon: 'Wallet', roles: ['student'] },
     ],
   },
