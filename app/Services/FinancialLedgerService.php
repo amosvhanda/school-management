@@ -77,12 +77,13 @@ class FinancialLedgerService
         int $createdBy,
         ?string $reference = null,
         ?string $notes = null,
+        ?int $incomeHeadId = null,
     ): Payment {
         if ($amount <= 0) {
             throw new InvalidArgumentException('Payment amount must be greater than zero.');
         }
 
-        return DB::transaction(function () use ($invoiceId, $amount, $method, $schoolId, $createdBy, $reference, $notes) {
+        return DB::transaction(function () use ($invoiceId, $amount, $method, $schoolId, $createdBy, $reference, $notes, $incomeHeadId) {
             $invoice = Invoice::query()
                 ->where('school_id', $schoolId)
                 ->lockForUpdate()
@@ -129,7 +130,7 @@ class FinancialLedgerService
             ]);
 
             $this->applyPaymentToInvoice($invoice, $amount);
-            $this->postPaymentCredit($payment, $createdBy);
+            $this->postPaymentCredit($payment, $createdBy, $incomeHeadId);
 
             return $payment->fresh(['student', 'invoice']);
         });
@@ -426,7 +427,7 @@ class FinancialLedgerService
         return $transaction;
     }
 
-    public function postPaymentCredit(Payment $payment, ?int $createdBy = null): Transaction
+    public function postPaymentCredit(Payment $payment, ?int $createdBy = null, ?int $incomeHeadId = null): Transaction
     {
         $student = $payment->student ?? Student::find($payment->student_id);
         $newBalance = max(0, $this->currentStudentBalance($payment->student_id) - (float) $payment->amount);
@@ -440,6 +441,7 @@ class FinancialLedgerService
             'student_id' => $payment->student_id,
             'payment_id' => $payment->id,
             'invoice_id' => $payment->invoice_id,
+            'income_head_id' => $incomeHeadId,
             'type' => 'payment',
             'category' => 'student',
             'description' => 'Payment received',

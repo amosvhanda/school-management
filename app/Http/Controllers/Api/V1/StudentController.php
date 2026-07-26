@@ -45,7 +45,7 @@ class StudentController extends Controller
             ],
             'search_columns' => ['full_name', 'first_name', 'last_name', 'student_number', 'email'],
             'sorts' => ['full_name', 'created_at', 'student_number', 'status'],
-            'includes' => ['guardians', 'classModel', 'gradeLevel'],
+            'includes' => ['guardians', 'classModel', 'gradeLevel', 'studentCategory'],
             'fields' => [
                 'students.id',
                 'students.full_name',
@@ -55,13 +55,14 @@ class StudentController extends Controller
                 'students.status',
                 'students.class_id',
                 'students.grade_level_id',
+                'students.student_category_id',
                 'students.email',
                 'students.phone',
                 'students.school_id',
                 'students.created_at',
             ],
             'default_sort' => '-created_at',
-            'with' => ['guardians', 'classModel', 'gradeLevel'],
+            'with' => ['guardians', 'classModel', 'gradeLevel', 'studentCategory'],
         ]);
     }
 
@@ -69,7 +70,7 @@ class StudentController extends Controller
     {
         $this->authorize('view', $student);
 
-        return $this->success(new StudentResource($student->load('guardians')));
+        return $this->success(new StudentResource($student->load(['guardians', 'studentCategory'])));
     }
 
     public function store(StoreStudentRequest $request)

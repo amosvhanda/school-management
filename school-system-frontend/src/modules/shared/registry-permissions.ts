@@ -42,6 +42,7 @@ const modulePermissionRegistry: Record<string, ModulePermissionConfig> = {
   'hr-designations': { create: ADMIN, edit: ADMIN, delete: ADMIN },
   'hr-leave-types': { create: ADMIN, edit: ADMIN, delete: ADMIN },
   'settings-currencies': { create: ADMIN, edit: ADMIN, delete: ADMIN },
+  'settings-languages': { create: ADMIN, edit: ADMIN, delete: ADMIN },
   compliance: { create: ADMIN, edit: ADMIN, delete: ADMIN },
   'compliance-incidents': { create: ADMIN, edit: ADMIN, delete: ADMIN },
   'compliance-consent': { create: ADMIN, edit: ADMIN, delete: ADMIN },

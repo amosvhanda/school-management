@@ -2,7 +2,13 @@ import { z } from 'zod'
 import { moduleEndpoints } from '@/services'
 import type { FormFieldSchema } from '@/components/forms/useFormBuilder'
 import { formSection, genderOptions, mergeFormSections } from '@/lib/form-standards'
-import { classRelation, gradeLevelRelation, studentCategoryRelation } from '@/lib/form-relations'
+import {
+  classRelation,
+  feeGroupRelation,
+  feeStructureRelation,
+  gradeLevelRelation,
+  studentCategoryRelation,
+} from '@/lib/form-relations'
 import { guardianRelationshipOptions } from '@/modules/guardians/guardian-form'
 import {
   dateOfBirthSchema,
@@ -220,30 +226,64 @@ export const studentGuardianMetaFields: FormFieldSchema[] = [
   },
 ]
 
-export const studentInvoiceSchema = z.object({
-  amount: z.coerce.number({ invalid_type_error: 'Amount is required' }).min(0.01, 'Amount must be greater than zero'),
-  description: z.string().trim().min(1, 'Description is required').max(500),
-  dueDate: futureDateSchema,
-})
+export const studentInvoiceSchema = z
+  .object({
+    fee_group_id: z.string().optional().or(z.literal('')),
+    fee_structure_id: z.string().optional().or(z.literal('')),
+    amount: z.coerce.number().optional(),
+    description: z.string().optional().or(z.literal('')),
+    dueDate: futureDateSchema,
+    apply_discounts: z.boolean().optional(),
+    combine_group: z.boolean().optional(),
+  })
+  .superRefine((data, ctx) => {
+    if (!data.fee_group_id) {
+      if (!data.description?.trim()) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Description is required',
+          path: ['description'],
+        })
+      }
+      if (data.amount == null || Number(data.amount) <= 0) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Amount must be greater than zero',
+          path: ['amount'],
+        })
+      }
+    }
+  })
 
 export const studentInvoiceFields: FormFieldSchema[] = [
+  {
+    name: 'fee_group_id',
+    label: 'Fee group (optional)',
+    type: 'relation',
+    section: 'Invoice details',
+    placeholder: 'Bill a fee group for this student\'s class',
+    description: 'When set, creates invoices from matching fee structures. Amount below is ignored.',
+    relation: feeGroupRelation(),
+    colSpan: 2,
+  },
+  {
+    name: 'fee_structure_id',
+    label: 'Fee structure (optional)',
+    type: 'relation',
+    section: 'Invoice details',
+    placeholder: 'Link a fee structure',
+    description: 'Used for discount matching by fee category on manual invoices.',
+    relation: feeStructureRelation(),
+    colSpan: 2,
+  },
   {
     name: 'amount',
     label: 'Amount',
     type: 'number',
     section: 'Invoice details',
-    required: true,
     placeholder: '150.00',
-    colSpan: 2,
-  },
-  {
-    name: 'description',
-    label: 'Description',
-    type: 'textarea',
-    section: 'Invoice details',
-    required: true,
-    placeholder: 'Term 1 tuition fees',
-    colSpan: 2,
+    description: 'Ignored when a fee group is selected.',
+    colSpan: 1,
   },
   {
     name: 'dueDate',
@@ -252,6 +292,31 @@ export const studentInvoiceFields: FormFieldSchema[] = [
     section: 'Invoice details',
     required: true,
     min: todayIsoDate(),
+    colSpan: 1,
+  },
+  {
+    name: 'description',
+    label: 'Description',
+    type: 'textarea',
+    section: 'Invoice details',
+    placeholder: 'Term 1 tuition fees',
+    description: 'Required for manual invoices. Optional when using a fee group.',
+    colSpan: 2,
+  },
+  {
+    name: 'apply_discounts',
+    label: 'Apply matching fee discounts',
+    type: 'checkbox',
+    section: 'Invoice details',
+    description: 'Uses active discounts for the student category and fee category.',
+    colSpan: 2,
+  },
+  {
+    name: 'combine_group',
+    label: 'Combine fee group into one invoice',
+    type: 'checkbox',
+    section: 'Invoice details',
+    description: 'Otherwise one invoice is created per fee structure in the group.',
     colSpan: 2,
   },
 ]

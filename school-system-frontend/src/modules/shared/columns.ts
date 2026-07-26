@@ -933,8 +933,18 @@ export const invoiceColumns: ColumnDef<Record<string, unknown>>[] = [
   textColumn('Invoice #', 'invoice_number'),
   studentRelationColumn(),
   currencyColumn('Amount', 'amount'),
+  currencyColumn('Original', 'original_amount'),
+  currencyColumn('Discount', 'discount_amount'),
   currencyColumn('Paid', 'amount_paid'),
   currencyColumn('Balance', 'balance'),
+  {
+    id: 'fee_group',
+    header: 'Fee group',
+    cell: ({ row }) => {
+      const group = row.original.fee_group as { name?: string } | null | undefined
+      return group?.name ?? (row.original.fee_group_id ? String(row.original.fee_group_id) : '—')
+    },
+  },
   dateColumn('Due', 'due_date'),
   statusColumn(),
 ]

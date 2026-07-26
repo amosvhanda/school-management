@@ -56,9 +56,13 @@ class InvoiceController extends Controller
                 'student.student_number',
             ],
             'sorts' => ['created_at', 'due_date', 'amount', 'balance', 'status'],
-            'includes' => ['student', 'payments', 'feeStructure'],
+            'includes' => ['student', 'payments', 'feeStructure', 'feeGroup', 'feeDiscount'],
             'default_sort' => '-created_at',
-            'with' => ['student:id,full_name,student_number'],
+            'with' => [
+                'student:id,full_name,student_number',
+                'feeGroup:id,name',
+                'feeDiscount:id,name',
+            ],
         ]);
     }
 

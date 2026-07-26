@@ -212,7 +212,7 @@ class EduDashParityModulesTest extends TestCase
 
     public function test_school_currency_and_language_defaults(): void
     {
-        $this->actingAdmin();
+        ['school' => $school] = $this->actingAdmin();
 
         $usd = $this->postJson('/api/v1/school-currencies', [
             'code' => 'usd',
@@ -222,6 +222,7 @@ class EduDashParityModulesTest extends TestCase
         ])->assertCreated()->json('data');
 
         $this->assertTrue($usd['is_default']);
+        $this->assertSame('USD', $school->fresh()->currency);
 
         $this->postJson('/api/v1/school-currencies', [
             'code' => 'ZWG',
@@ -229,6 +230,8 @@ class EduDashParityModulesTest extends TestCase
             'symbol' => 'ZiG',
             'is_default' => true,
         ])->assertCreated();
+
+        $this->assertSame('ZWG', $school->fresh()->currency);
 
         $this->getJson('/api/v1/school-currencies')
             ->assertOk();
@@ -252,5 +255,20 @@ class EduDashParityModulesTest extends TestCase
         $this->getJson('/api/v1/school-languages/'.$en['id'])
             ->assertOk()
             ->assertJsonPath('data.is_default', false);
+    }
+
+    public function test_library_member_can_link_to_student(): void
+    {
+        ['school' => $school] = $this->actingAdmin();
+        $student = \App\Models\Student::factory()->create(['school_id' => $school->id]);
+
+        $this->postJson('/api/v1/library/members', [
+            'member_type' => 'student',
+            'member_id' => $student->id,
+            'name' => $student->full_name,
+            'member_number' => 'LIB-STU-1',
+            'status' => 'active',
+        ])->assertCreated()
+            ->assertJsonPath('data.member_id', $student->id);
     }
 }

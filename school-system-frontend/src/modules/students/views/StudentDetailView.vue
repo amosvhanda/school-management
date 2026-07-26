@@ -226,7 +226,7 @@ async function openEdit() {
 }
 
 async function openInvoice() {
-  invoiceFormResetValues.value = {}
+  invoiceFormResetValues.value = { apply_discounts: true }
   invoiceOpen.value = true
 }
 
@@ -249,10 +249,25 @@ async function onSaveStudent(values: Record<string, unknown>) {
 async function onCreateInvoice(values: Record<string, unknown>) {
   saving.value = true
   try {
-    await studentsApi.createInvoice(id, values)
+    const payload: Record<string, unknown> = {
+      dueDate: values.dueDate,
+      apply_discounts: values.apply_discounts !== false,
+      combine_group: values.combine_group === true,
+    }
+    if (values.fee_group_id) {
+      payload.fee_group_id = Number(values.fee_group_id)
+      if (values.description) payload.description = values.description
+    } else {
+      payload.description = values.description
+      payload.amount = values.amount
+      if (values.fee_structure_id) {
+        payload.fee_structure_id = Number(values.fee_structure_id)
+      }
+    }
+    await studentsApi.createInvoice(id, payload)
     toast.success('Invoice created')
     invoiceOpen.value = false
-    invoiceFormResetValues.value = {}
+    invoiceFormResetValues.value = { apply_discounts: true }
     await load()
   } catch (err) {
     invoiceFormSheetRef.value?.applyServerErrors(err)

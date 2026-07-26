@@ -257,6 +257,11 @@ export const listPageRegistry: Record<string, ListPageConfig> = {
       textColumn('Name', 'name'),
       textColumn('Description', 'description'),
       {
+        id: 'categories_count',
+        header: 'Categories',
+        cell: ({ row }) => String(row.original.categories_count ?? 0),
+      },
+      {
         id: 'is_active',
         header: 'Status',
         cell: ({ row }) => (row.original.is_active === false ? 'Inactive' : 'Active'),
@@ -350,6 +355,7 @@ export const listPageRegistry: Record<string, ListPageConfig> = {
       textColumn('Member #', 'member_number'),
       textColumn('Name', 'name'),
       textColumn('Type', 'member_type'),
+      textColumn('Linked ID', 'member_id'),
       textColumn('Email', 'email'),
       textColumn('Phone', 'phone'),
       statusColumn(),

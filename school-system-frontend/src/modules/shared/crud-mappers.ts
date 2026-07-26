@@ -326,6 +326,7 @@ export function mapFormToPayload(
     }
     if (values.reference) payload.reference = values.reference
     if (values.notes) payload.notes = values.notes
+    if (values.income_head_id) payload.income_head_id = Number(values.income_head_id)
     return payload
   }
 
@@ -451,6 +452,7 @@ export function mapFormToPayload(
       name: values.name,
       discount_type: values.discount_type,
       value: values.value,
+      description: values.description || null,
       fee_category_id: values.fee_category_id ? Number(values.fee_category_id) : null,
       student_category_id: values.student_category_id ? Number(values.student_category_id) : null,
       starts_on: values.starts_on || null,
@@ -540,6 +542,7 @@ export function mapFormToPayload(
   if (listKey === 'ops-library-members') {
     return {
       member_type: values.member_type,
+      member_id: values.member_id != null && values.member_id !== '' ? Number(values.member_id) : null,
       member_number: values.member_number || null,
       name: values.name,
       email: values.email || null,
@@ -845,6 +848,7 @@ export const backendCrudSupport: Record<string, { create: boolean; update: boole
   'academics-certificate-templates': { create: true, update: true, delete: true },
   'academics-school-certificates': { create: false, update: false, delete: false },
   'settings-currencies': { create: true, update: true, delete: true },
+  'settings-languages': { create: true, update: true, delete: true },
   'hr-discipline': { create: true, update: true, delete: false },
   compliance: { create: true, update: true, delete: false },
   'compliance-incidents': { create: true, update: true, delete: false },

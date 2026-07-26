@@ -18,6 +18,8 @@ class Transaction extends Model
         'payroll_id',
         'payment_id',
         'invoice_id',
+        'income_head_id',
+        'expense_head_id',
         'type',
         'category',
         'description',
@@ -61,6 +63,16 @@ class Transaction extends Model
     public function invoice(): BelongsTo
     {
         return $this->belongsTo(Invoice::class);
+    }
+
+    public function incomeHead(): BelongsTo
+    {
+        return $this->belongsTo(IncomeHead::class);
+    }
+
+    public function expenseHead(): BelongsTo
+    {
+        return $this->belongsTo(ExpenseHead::class);
     }
 
     public function createdBy(): BelongsTo

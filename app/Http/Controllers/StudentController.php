@@ -631,6 +631,7 @@ HTML;
             'fee_structure_id' => 'nullable|integer|exists:fee_structures,id',
             'fee_group_id' => 'nullable|integer|exists:fee_groups,id',
             'apply_discounts' => 'nullable|boolean',
+            'combine_group' => 'nullable|boolean',
         ]);
 
         if ($validator->fails()) {
@@ -653,6 +654,7 @@ HTML;
                 dueDate: $dueDate,
                 createdBy: $user?->id,
                 applyDiscounts: $applyDiscounts,
+                combine: $request->boolean('combine_group', false),
             );
 
             if ($invoices->isEmpty()) {
@@ -727,6 +729,7 @@ HTML;
             'feeStructureId' => 'nullable|integer|exists:fee_structures,id',
             'fee_group_id' => 'nullable|integer|exists:fee_groups,id',
             'apply_discounts' => 'nullable|boolean',
+            'combine_group' => 'nullable|boolean',
         ]);
 
         if ($validator->fails()) {
@@ -742,6 +745,7 @@ HTML;
         $applyDiscounts = $request->boolean('apply_discounts', true);
         $feeStructureId = $request->input('fee_structure_id', $request->input('feeStructureId'));
         $feeGroupId = $request->input('fee_group_id');
+        $combineGroup = $request->boolean('combine_group', false);
 
         $created = 0;
         foreach ($request->studentIds as $studentId) {
@@ -763,6 +767,7 @@ HTML;
                     dueDate: $dueDate,
                     createdBy: $user?->id,
                     applyDiscounts: $applyDiscounts,
+                    combine: $combineGroup,
                 )->count();
                 continue;
             }

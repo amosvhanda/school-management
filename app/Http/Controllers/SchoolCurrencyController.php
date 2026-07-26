@@ -3,14 +3,19 @@
 namespace App\Http\Controllers;
 
 use App\Http\Controllers\Concerns\ManagesSchoolResourceCrud;
+use App\Models\School;
 use App\Models\SchoolCurrency;
+use App\Services\SchoolConfigurationService;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class SchoolCurrencyController extends Controller
 {
     use ManagesSchoolResourceCrud;
+
+    public function __construct(private SchoolConfigurationService $schoolConfig) {}
 
     protected function resourceModel(): string
     {
@@ -66,15 +71,17 @@ class SchoolCurrencyController extends Controller
 
     protected function afterStore(Request $request, Model $record): void
     {
-        $this->ensureSingleDefault($request, $record);
+        $this->ensureSingleDefault($record);
+        $this->syncSchoolBillingCurrency($record);
     }
 
     protected function afterUpdate(Request $request, Model $record): void
     {
-        $this->ensureSingleDefault($request, $record);
+        $this->ensureSingleDefault($record);
+        $this->syncSchoolBillingCurrency($record);
     }
 
-    protected function ensureSingleDefault(Request $request, Model $record): void
+    protected function ensureSingleDefault(Model $record): void
     {
         /** @var SchoolCurrency $record */
         if (! $record->is_default) {
@@ -86,5 +93,32 @@ class SchoolCurrencyController extends Controller
             ->whereKeyNot($record->id)
             ->where('is_default', true)
             ->update(['is_default' => false]);
+    }
+
+    protected function syncSchoolBillingCurrency(Model $record): void
+    {
+        /** @var SchoolCurrency $record */
+        if (! $record->is_default) {
+            return;
+        }
+
+        $school = School::query()->find($record->school_id);
+        if (! $school) {
+            return;
+        }
+
+        $code = strtoupper((string) $record->code);
+
+        try {
+            if ($school->validateCurrency($code)) {
+                $this->schoolConfig->setSchoolCurrency($school, $code);
+            } else {
+                $school->update(['currency_default' => $code]);
+            }
+        } catch (ValidationException $e) {
+            throw ValidationException::withMessages([
+                'is_default' => $e->errors()['currency'] ?? ['Unable to set this currency as the school default.'],
+            ]);
+        }
     }
 }

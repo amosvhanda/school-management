@@ -5,6 +5,7 @@ namespace App\Http\Requests\Api\V1\Student;
 use App\Http\Requests\Api\V1\ApiFormRequest;
 use App\Models\ClassModel;
 use App\Rules\ZimbabweMobileNumber;
+use Illuminate\Validation\Rule;
 
 class StoreStudentRequest extends ApiFormRequest
 {
@@ -39,7 +40,13 @@ class StoreStudentRequest extends ApiFormRequest
             'class' => ['required_without:class_id', 'nullable', 'string'],
             'class_id' => ['required_without:class', 'nullable', 'integer', 'exists:classes,id'],
             'grade_level_id' => ['nullable', 'integer', 'exists:grade_levels,id'],
-            'student_category_id' => ['nullable', 'integer', 'exists:student_categories,id'],
+            'student_category_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('student_categories', 'id')->where(
+                    fn ($q) => $q->where('school_id', $this->user()?->school_id),
+                ),
+            ],
             'dateOfBirth' => ['nullable', 'date'],
             'gender' => ['nullable', 'string', 'in:male,female,other'],
             'phone' => ZimbabweMobileNumber::optional(),

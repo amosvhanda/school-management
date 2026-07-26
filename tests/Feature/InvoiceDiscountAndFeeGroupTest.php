@@ -128,4 +128,70 @@ class InvoiceDiscountAndFeeGroupTest extends TestCase
             'amount' => 150,
         ]);
     }
+
+    public function test_student_invoice_supports_fee_group_and_payment_income_head(): void
+    {
+        ['school' => $school, 'user' => $user] = $this->actingFinanceAdmin();
+
+        $class = \App\Models\ClassModel::factory()->create(['school_id' => $school->id]);
+        $student = Student::factory()->create([
+            'school_id' => $school->id,
+            'class_id' => $class->id,
+            'class' => $class->name,
+            'currency' => 'USD',
+            'balance' => 0,
+        ]);
+
+        $feeCategory = FeeCategory::create([
+            'school_id' => $school->id,
+            'name' => 'Levies',
+            'is_active' => true,
+        ]);
+
+        FeeStructure::create([
+            'school_id' => $school->id,
+            'class_id' => $class->id,
+            'class_name' => $class->name,
+            'fee_category_id' => $feeCategory->id,
+            'category' => 'Levies',
+            'amount' => 80,
+            'currency' => 'USD',
+        ]);
+
+        $group = FeeGroup::create([
+            'school_id' => $school->id,
+            'name' => 'Levies pack',
+            'is_active' => true,
+        ]);
+        $group->categories()->sync([$feeCategory->id]);
+
+        $invoice = $this->postJson('/api/v1/students/'.$student->id.'/invoices', [
+            'fee_group_id' => $group->id,
+            'dueDate' => now()->addMonth()->toDateString(),
+            'combine_group' => true,
+            'apply_discounts' => false,
+        ])->assertCreated()
+            ->json('data');
+
+        $incomeHead = \App\Models\IncomeHead::create([
+            'school_id' => $school->id,
+            'name' => 'Fee collections',
+            'code' => 'FEES',
+            'is_active' => true,
+        ]);
+
+        $this->postJson('/api/v1/payments', [
+            'invoice_id' => $invoice['id'],
+            'amount' => 80,
+            'method' => 'cash',
+            'income_head_id' => $incomeHead->id,
+        ])->assertCreated();
+
+        $this->assertDatabaseHas('transactions', [
+            'invoice_id' => $invoice['id'],
+            'income_head_id' => $incomeHead->id,
+            'type' => 'payment',
+            'created_by' => $user->id,
+        ]);
+    }
 }

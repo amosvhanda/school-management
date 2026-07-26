@@ -87,6 +87,11 @@ class PaymentController extends Controller
             $invoiceRule = $invoiceRule->where('school_id', $schoolId);
         }
 
+        $incomeHeadRule = Rule::exists('income_heads', 'id');
+        if ($schoolId) {
+            $incomeHeadRule = $incomeHeadRule->where('school_id', $schoolId);
+        }
+
         $validator = Validator::make($request->all(), [
             'invoice_id' => ['required', $invoiceRule],
             'amount' => 'required|numeric|min:0.01',
@@ -94,6 +99,7 @@ class PaymentController extends Controller
             'method' => ['required', 'string', 'max:50', Rule::in(self::PAYMENT_METHODS)],
             'reference' => 'nullable|string|max:100',
             'notes' => 'nullable|string|max:500',
+            'income_head_id' => ['nullable', 'integer', $incomeHeadRule],
         ]);
 
         if ($validator->fails()) {
@@ -120,6 +126,7 @@ class PaymentController extends Controller
                 createdBy: $request->user()->id,
                 reference: $request->reference,
                 notes: $request->notes,
+                incomeHeadId: $request->filled('income_head_id') ? (int) $request->income_head_id : null,
             );
         } catch (InvalidArgumentException $e) {
             return response()->json(['message' => $e->getMessage()], 422);

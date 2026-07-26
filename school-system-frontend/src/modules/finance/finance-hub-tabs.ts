@@ -66,18 +66,18 @@ export const FINANCE_HUB_TABS: ModuleHubTab[] = [
   {
     id: 'accounting',
     title: 'Accounting',
-    description: 'Income and expense heads for the school ledger.',
+    description: 'Income and expense heads used to classify ledger receipts and payments.',
     icon: BookOpen,
     sections: [
       {
         listKey: 'finance-income-heads',
         title: 'Income heads',
-        description: 'Labels for money coming in.',
+        description: 'Classify fee payments and other money coming in.',
       },
       {
         listKey: 'finance-expense-heads',
         title: 'Expense heads',
-        description: 'Labels for money going out.',
+        description: 'Classify school spending for reporting.',
       },
     ],
   },

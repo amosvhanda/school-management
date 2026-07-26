@@ -19,6 +19,7 @@ import {
   gradeLevelRelation,
   streamRelation,
   subjectRelation,
+  incomeHeadRelation,
 } from '@/lib/form-relations'
 import { moduleEndpoints } from '@/services'
 import { studentFormFields, studentFormSchema } from '@/modules/students/student-form'
@@ -709,6 +710,15 @@ export const moduleCrudRegistry: Record<string, ModuleCrudConfig> = {
         required: true,
         options: [...PAYMENT_METHOD_OPTIONS],
       },
+      {
+        name: 'income_head_id',
+        label: 'Income head (optional)',
+        type: 'relation',
+        placeholder: 'Classify this receipt',
+        description: 'Links the ledger credit to an income head for accounting reports.',
+        relation: incomeHeadRelation(),
+        colSpan: 2,
+      },
       { name: 'reference', label: 'Reference / receipt no.', type: 'text', placeholder: 'Optional transaction reference' },
       { name: 'notes', label: 'Notes', type: 'textarea', placeholder: 'Optional internal note' },
     ],
@@ -717,6 +727,7 @@ export const moduleCrudRegistry: Record<string, ModuleCrudConfig> = {
       invoice_id: z.string().min(1, 'Select an invoice'),
       amount: z.coerce.number().positive('Amount must be greater than zero'),
       method: z.string().min(1, 'Select a payment method'),
+      income_head_id: z.string().optional().or(z.literal('')),
       reference: z.string().optional(),
       notes: z.string().optional(),
     }),
@@ -917,6 +928,13 @@ export const moduleCrudRegistry: Record<string, ModuleCrudConfig> = {
       { name: 'starts_on', label: 'Starts on', type: 'date' },
       { name: 'ends_on', label: 'Ends on', type: 'date' },
       {
+        name: 'description',
+        label: 'Description',
+        type: 'textarea',
+        colSpan: 2,
+        placeholder: 'Optional notes about when this discount applies',
+      },
+      {
         name: 'is_active',
         label: 'Active',
         type: 'checkbox',
@@ -931,6 +949,7 @@ export const moduleCrudRegistry: Record<string, ModuleCrudConfig> = {
       student_category_id: z.string().optional().or(z.literal('')),
       starts_on: z.string().optional().or(z.literal('')),
       ends_on: z.string().optional().or(z.literal('')),
+      description: z.string().optional(),
       is_active: z.boolean().optional(),
     }),
   ),
@@ -1677,6 +1696,13 @@ export const moduleCrudRegistry: Record<string, ModuleCrudConfig> = {
           { label: 'External', value: 'external' },
         ],
       },
+      {
+        name: 'member_id',
+        label: 'Linked record ID',
+        type: 'number',
+        placeholder: 'Student / teacher / employee ID',
+        description: 'Optional link to the matching student, teacher, or employee record.',
+      },
       { name: 'member_number', label: 'Member number', type: 'text', placeholder: 'LIB-001' },
       { name: 'name', label: 'Name', type: 'text', required: true },
       { name: 'email', label: 'Email', type: 'email' },
@@ -1696,6 +1722,7 @@ export const moduleCrudRegistry: Record<string, ModuleCrudConfig> = {
     ]),
     z.object({
       member_type: z.enum(['student', 'teacher', 'employee', 'external']),
+      member_id: z.coerce.number().optional(),
       member_number: z.string().optional(),
       name: z.string().min(1, 'Name is required'),
       email: z.string().email().optional().or(z.literal('')),
