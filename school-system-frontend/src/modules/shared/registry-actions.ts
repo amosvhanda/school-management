@@ -9,6 +9,7 @@ import {
   certificateIssuePromptForm,
   spendDisbursePromptForm,
   libraryBorrowPromptForm,
+  feePaymentPromptForm,
 } from '@/modules/shared/action-prompt-forms'
 
 export type RowActionMethod = 'post' | 'put' | 'patch' | 'delete'
@@ -120,6 +121,20 @@ export const moduleActionsRegistry: Record<string, RowActionConfig[]> = {
     },
   ],
   'finance-invoices': [
+    {
+      label: 'Record payment',
+      method: 'post',
+      path: () => endpoints.payments.list,
+      variant: 'outline',
+      when: (row) => {
+        const status = String(row.status ?? '').toLowerCase()
+        const balance = Number(row.balance ?? 0)
+        return ['pending', 'partial', 'overdue'].includes(status) && balance > 0
+      },
+      body: (row) => ({ invoice_id: row.id }),
+      promptForm: feePaymentPromptForm,
+      successMessage: 'Payment recorded',
+    },
     {
       label: 'Print',
       method: 'post',

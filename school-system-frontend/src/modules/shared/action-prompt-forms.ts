@@ -1,8 +1,8 @@
 import { z } from 'zod'
 import type { FormFieldSchema } from '@/components/forms/useFormBuilder'
-import { PAYROLL_PAYMENT_METHOD_OPTIONS } from '@/lib/finance-constants'
+import { PAYMENT_METHOD_OPTIONS, PAYROLL_PAYMENT_METHOD_OPTIONS } from '@/lib/finance-constants'
 import type { FormSheetSize } from '@/lib/form-standards'
-import { expenseHeadRelation } from '@/lib/form-relations'
+import { expenseHeadRelation, incomeHeadRelation } from '@/lib/form-relations'
 import { endpoints } from '@/services/endpoints'
 import { moduleEndpoints } from '@/services'
 
@@ -310,6 +310,73 @@ export const certificateIssuePromptForm: ActionPromptForm = {
   ],
   schema: z.object({
     student_id: z.coerce.number().min(1, 'Select a student'),
+  }),
+}
+
+export const feePaymentPromptForm: ActionPromptForm = {
+  title: 'Record payment',
+  description: 'Apply a fee payment against this invoice. Partial amounts leave the balance outstanding.',
+  saveLabel: 'Record payment',
+  size: 'md',
+  fields: [
+    {
+      name: 'amount',
+      label: 'Amount',
+      type: 'number',
+      required: true,
+      description: 'Defaults to the outstanding balance.',
+    },
+    {
+      name: 'method',
+      label: 'Payment method',
+      type: 'select',
+      required: true,
+      options: [...PAYMENT_METHOD_OPTIONS],
+    },
+    {
+      name: 'income_head_id',
+      label: 'Income head (optional)',
+      type: 'relation',
+      description: 'Classify this receipt for accounting reports.',
+      colSpan: 2,
+      relation: incomeHeadRelation(),
+    },
+    {
+      name: 'reference',
+      label: 'Reference / receipt no.',
+      type: 'text',
+      placeholder: 'Optional transaction reference',
+    },
+    {
+      name: 'notes',
+      label: 'Notes',
+      type: 'textarea',
+      placeholder: 'Optional internal note',
+      colSpan: 2,
+    },
+  ],
+  schema: z.object({
+    amount: z.coerce.number().positive('Enter an amount greater than zero'),
+    method: z.enum([
+      'cash',
+      'ecocash',
+      'onemoney',
+      'innbucks',
+      'bank_transfer',
+      'card',
+      'cheque',
+      'other',
+    ]),
+    income_head_id: z.union([z.coerce.number(), z.literal('')]).optional(),
+    reference: z.string().optional(),
+    notes: z.string().optional(),
+  }),
+  defaults: (row) => ({
+    amount: Number(row.balance ?? row.amount ?? 0),
+    method: 'cash',
+    income_head_id: '',
+    reference: '',
+    notes: '',
   }),
 }
 

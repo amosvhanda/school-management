@@ -3,6 +3,7 @@ import { computed, nextTick, onMounted, ref } from 'vue'
 import { useRoute, RouterLink } from 'vue-router'
 import {
   ArrowLeft,
+  Banknote,
   Download,
   Mail,
   MapPin,
@@ -44,6 +45,8 @@ import {
 import { studentsApi, financeApi } from '@/services/api.service'
 import StudentJourneyPanel from '@/modules/students/components/StudentJourneyPanel.vue'
 import InvoicePrintSheet from '@/modules/finance/components/InvoicePrintSheet.vue'
+import PaymentReceiptSheet from '@/modules/finance/components/PaymentReceiptSheet.vue'
+import { feePaymentPromptForm } from '@/modules/shared/action-prompt-forms'
 
 interface Student {
   id: number
@@ -120,6 +123,13 @@ const invoiceOpen = ref(false)
 const invoicePrintOpen = ref(false)
 const invoicePrintLoading = ref(false)
 const invoicePrintData = ref<Record<string, unknown> | null>(null)
+const paymentOpen = ref(false)
+const paymentTarget = ref<Invoice | null>(null)
+const paymentFormResetValues = ref<Record<string, unknown> | undefined>()
+const paymentFormSheetRef = ref<{ applyServerErrors: (error: unknown) => void } | null>(null)
+const receiptOpen = ref(false)
+const receiptLoading = ref(false)
+const receiptData = ref<Record<string, unknown> | null>(null)
 const saving = ref(false)
 const formEditLoading = ref(false)
 const studentFormResetValues = ref<Record<string, unknown> | undefined>()
@@ -185,6 +195,63 @@ async function openInvoicePrint(invoiceId: number) {
     invoicePrintOpen.value = false
   } finally {
     invoicePrintLoading.value = false
+  }
+}
+
+function canRecordPayment(inv: Invoice) {
+  const status = String(inv.status ?? '').toLowerCase()
+  const balance = Number(inv.balance ?? 0)
+  return ['pending', 'partial', 'overdue'].includes(status) && balance > 0
+}
+
+async function openRecordPayment(inv: Invoice) {
+  paymentTarget.value = inv
+  const defaults =
+    typeof feePaymentPromptForm.defaults === 'function'
+      ? feePaymentPromptForm.defaults(inv as unknown as Record<string, unknown>)
+      : (feePaymentPromptForm.defaults ?? {})
+  paymentFormResetValues.value = { ...defaults }
+  paymentOpen.value = true
+  await nextTick()
+  await preloadRelationFields(feePaymentPromptForm.fields)
+}
+
+async function onRecordPayment(values: Record<string, unknown>) {
+  if (!paymentTarget.value) return
+  saving.value = true
+  try {
+    const payload: Record<string, unknown> = {
+      invoice_id: paymentTarget.value.id,
+      amount: Number(values.amount),
+      method: values.method,
+    }
+    if (values.reference) payload.reference = values.reference
+    if (values.notes) payload.notes = values.notes
+    if (values.income_head_id) payload.income_head_id = Number(values.income_head_id)
+
+    const payment = await financeApi.payments.create(payload) as { id?: number }
+    toast.success('Payment recorded')
+    paymentOpen.value = false
+    paymentTarget.value = null
+    await load()
+
+    if (payment?.id) {
+      receiptOpen.value = true
+      receiptLoading.value = true
+      receiptData.value = null
+      try {
+        receiptData.value = await financeApi.payments.receipt(payment.id)
+      } catch {
+        receiptOpen.value = false
+      } finally {
+        receiptLoading.value = false
+      }
+    }
+  } catch (err) {
+    paymentFormSheetRef.value?.applyServerErrors(err)
+    toast.error('Payment failed', getErrorMessage(err))
+  } finally {
+    saving.value = false
   }
 }
 
@@ -532,15 +599,26 @@ onMounted(load)
                       <Badge :variant="statusVariant(inv.status)">{{ inv.status ?? '—' }}</Badge>
                     </TableCell>
                     <TableCell>
-                      <Button
-                        v-if="canCreateInvoice"
-                        variant="outline"
-                        size="sm"
-                        :aria-label="`Print invoice ${inv.invoice_number ?? inv.id}`"
-                        @click="openInvoicePrint(inv.id)"
-                      >
-                        <Printer class="h-4 w-4" aria-hidden="true" />
-                      </Button>
+                      <div class="flex flex-wrap justify-end gap-2">
+                        <Button
+                          v-if="canCreateInvoice && canRecordPayment(inv)"
+                          variant="outline"
+                          size="sm"
+                          :aria-label="`Record payment for invoice ${inv.invoice_number ?? inv.id}`"
+                          @click="openRecordPayment(inv)"
+                        >
+                          <Banknote class="h-4 w-4" aria-hidden="true" />
+                        </Button>
+                        <Button
+                          v-if="canCreateInvoice"
+                          variant="outline"
+                          size="sm"
+                          :aria-label="`Print invoice ${inv.invoice_number ?? inv.id}`"
+                          @click="openInvoicePrint(inv.id)"
+                        >
+                          <Printer class="h-4 w-4" aria-hidden="true" />
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 </TableBody>
@@ -607,10 +685,30 @@ onMounted(load)
       @submit="onCreateInvoice"
     />
 
+    <FormSheet
+      ref="paymentFormSheetRef"
+      v-model:open="paymentOpen"
+      :title="feePaymentPromptForm.title"
+      :description="feePaymentPromptForm.description"
+      :fields="feePaymentPromptForm.fields"
+      :schema="feePaymentPromptForm.schema"
+      :reset-values="paymentFormResetValues"
+      :form-key="`student-payment-${paymentTarget?.id ?? 'new'}`"
+      :saving="saving"
+      :save-label="feePaymentPromptForm.saveLabel ?? 'Record payment'"
+      @submit="onRecordPayment"
+    />
+
     <InvoicePrintSheet
       v-model:open="invoicePrintOpen"
       :document="invoicePrintData"
       :loading="invoicePrintLoading"
+    />
+
+    <PaymentReceiptSheet
+      v-model:open="receiptOpen"
+      :receipt="receiptData"
+      :loading="receiptLoading"
     />
   </div>
 </template>

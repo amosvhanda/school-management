@@ -468,7 +468,8 @@ export const operationsApi = {
 
 export const hrApi = {
   leaveRequests: {
-    list: (params?: ListQueryParams) => fetchList(e.leaveRequests.list, params),
+    list: (params?: ListQueryParams) => fetchPaginatedList(e.leaveRequests.list, params),
+    listAll: (params?: ListQueryParams) => fetchList(e.leaveRequests.list, { ...params, all: true }),
     create: (payload: Record<string, unknown>) => createRecord(e.leaveRequests.list, payload),
     approve: (id: number | string, payload?: Record<string, unknown>) =>
       postRecord(e.leaveRequests.approve(id), payload ?? {}),

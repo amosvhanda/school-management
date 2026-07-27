@@ -69,6 +69,13 @@ const sheetOpen = ref(false)
 const saving = ref(false)
 const formResetValues = ref<Record<string, unknown> | undefined>()
 const formSheetRef = ref<{ applyServerErrors: (error: unknown) => void } | null>(null)
+const serverPage = ref(1)
+const serverPageCount = ref(1)
+const serverTotal = ref(0)
+const perPage = 15
+const pendingCount = ref(0)
+const approvedCount = ref(0)
+const rejectedCount = ref(0)
 
 const detailOpen = ref(false)
 const detailRow = ref<LeaveRequestRow | null>(null)
@@ -102,11 +109,12 @@ const {
   activeCount: activeFilterCount,
   buildParams,
   clearAll: clearFilters,
-} = useListFilters(computed(() => leaveFilters))
-
-const pendingCount = computed(() => rows.value.filter((r) => r.status === 'pending').length)
-const approvedCount = computed(() => rows.value.filter((r) => r.status === 'approved').length)
-const rejectedCount = computed(() => rows.value.filter((r) => r.status === 'rejected').length)
+} = useListFilters(computed(() => leaveFilters), {
+  onChange: () => {
+    serverPage.value = 1
+    void load(1)
+  },
+})
 
 function statusVariant(status?: string): 'default' | 'secondary' | 'destructive' | 'outline' {
   if (status === 'approved') return 'default'
@@ -188,7 +196,7 @@ const columns: ColumnDef<LeaveRequestRow>[] = [
 const { table, globalFilter } = useDataTable({
   data: rows,
   columns,
-  pageSize: 15,
+  pageSize: perPage,
   serverSideSearch: true,
 })
 
@@ -198,18 +206,58 @@ const { formLoading, prepareCreate } = useFormSheetLoader(() => ({
   setFormValues: (values) => { formResetValues.value = values },
 }))
 
-async function load() {
+async function loadStatusCounts(baseParams: Record<string, unknown>) {
+  try {
+    const { status: _status, filter, ...rest } = baseParams
+    const nextFilter =
+      filter && typeof filter === 'object'
+        ? { ...(filter as Record<string, unknown>) }
+        : undefined
+    if (nextFilter && 'status' in nextFilter) delete nextFilter.status
+    const clean = {
+      ...rest,
+      ...(nextFilter && Object.keys(nextFilter).length ? { filter: nextFilter } : {}),
+    }
+    const [pending, approved, rejected] = await Promise.all([
+      hrApi.leaveRequests.list({ ...clean, status: 'pending', page: 1, per_page: 1 }),
+      hrApi.leaveRequests.list({ ...clean, status: 'approved', page: 1, per_page: 1 }),
+      hrApi.leaveRequests.list({ ...clean, status: 'rejected', page: 1, per_page: 1 }),
+    ])
+    pendingCount.value = pending.total
+    approvedCount.value = approved.total
+    rejectedCount.value = rejected.total
+  } catch {
+    pendingCount.value = rows.value.filter((r) => r.status === 'pending').length
+    approvedCount.value = rows.value.filter((r) => r.status === 'approved').length
+    rejectedCount.value = rows.value.filter((r) => r.status === 'rejected').length
+  }
+}
+
+async function load(page = serverPage.value) {
   loading.value = true
   error.value = null
   try {
-    const params = buildParams({ limit: 200 })
+    const params = buildParams({ page, per_page: perPage })
     if (globalFilter.value.trim()) params.search = globalFilter.value.trim()
-    rows.value = await hrApi.leaveRequests.list(params) as LeaveRequestRow[]
+    const list = await hrApi.leaveRequests.list(params)
+    rows.value = list.data as LeaveRequestRow[]
+    serverPage.value = list.current_page
+    serverPageCount.value = list.last_page
+    serverTotal.value = list.total
+    const countParams = buildParams({})
+    if (globalFilter.value.trim()) countParams.search = globalFilter.value.trim()
+    await loadStatusCounts(countParams)
   } catch (err) {
     error.value = getErrorMessage(err, 'Failed to load leave requests')
   } finally {
     loading.value = false
   }
+}
+
+function onServerPageChange(page: number) {
+  if (page < 1 || page > serverPageCount.value) return
+  serverPage.value = page
+  void load(page)
 }
 
 async function openCreate() {
@@ -292,13 +340,14 @@ let searchTimer: ReturnType<typeof setTimeout> | undefined
 
 watch(globalFilter, () => {
   clearTimeout(searchTimer)
-  searchTimer = setTimeout(() => void load(), 350)
+  searchTimer = setTimeout(() => {
+    serverPage.value = 1
+    void load(1)
+  }, 350)
 })
 
-watch(filterValues, () => void load(), { deep: true })
-
 onMounted(async () => {
-  await load()
+  await load(1)
   if (route.query.create === '1') {
     await openCreate()
     const { create: _create, ...rest } = route.query
@@ -364,7 +413,12 @@ onMounted(async () => {
         :columns="columns"
         :global-filter="globalFilter"
         search-placeholder="Search staff, type, or reason…"
+        :server-pagination="true"
+        :server-page="serverPage"
+        :server-page-count="serverPageCount"
+        :server-total="serverTotal"
         @update:global-filter="globalFilter = $event"
+        @server-page-change="onServerPageChange"
       >
         <template #filters>
           <ListFiltersBar
