@@ -1,4 +1,5 @@
 import { computed, onMounted, ref } from 'vue'
+import { useAuth } from '@/composables/useAuth'
 import { getErrorMessage } from '@/lib/api-response'
 import { teacherPortalApi } from '@/services/api.service'
 
@@ -11,6 +12,7 @@ export interface TeacherClassOption {
 }
 
 export function useTeacherClassLearners() {
+  const { user } = useAuth()
   const loading = ref(true)
   const error = ref<string | null>(null)
   const classes = ref<TeacherClassOption[]>([])
@@ -35,6 +37,13 @@ export function useTeacherClassLearners() {
   })
 
   async function load() {
+    if (!user.value?.teacher_id) {
+      loading.value = false
+      error.value = 'Teacher profile not linked — open classes from Academics instead.'
+      classes.value = []
+      return
+    }
+
     loading.value = true
     error.value = null
     try {

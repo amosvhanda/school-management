@@ -262,6 +262,7 @@ export const teacherColumns: ColumnDef<Record<string, unknown>>[] = [
   textColumn('Subject', 'subject'),
   textColumn('Department', 'department'),
   statusColumn(),
+  viewActionColumn('teacher-detail'),
 ]
 
 export const guardianColumns: ColumnDef<Record<string, unknown>>[] = [
@@ -312,6 +313,7 @@ export const guardianColumns: ColumnDef<Record<string, unknown>>[] = [
         .join(', ')
     },
   },
+  viewActionColumn('guardian-detail'),
 ]
 
 export const enrollmentColumns: ColumnDef<Record<string, unknown>>[] = [

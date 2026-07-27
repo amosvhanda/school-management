@@ -152,7 +152,7 @@ export function feeStructureRelation(overrides?: Partial<RelationFieldConfig>): 
 export function incomeHeadRelation(overrides?: Partial<RelationFieldConfig>): RelationFieldConfig {
   return {
     endpoint: moduleEndpoints.incomeHeads,
-    createRoute: '/finance?tab=accounting&create=1',
+    createRoute: '/finance?tab=income-heads&create=1',
     moduleLabel: 'income head',
     params: { all: true, is_active: true },
     ...overrides,
@@ -162,7 +162,7 @@ export function incomeHeadRelation(overrides?: Partial<RelationFieldConfig>): Re
 export function expenseHeadRelation(overrides?: Partial<RelationFieldConfig>): RelationFieldConfig {
   return {
     endpoint: moduleEndpoints.expenseHeads,
-    createRoute: '/finance?tab=accounting&create=1',
+    createRoute: '/finance?tab=expense-heads&create=1',
     moduleLabel: 'expense head',
     params: { all: true, is_active: true },
     ...overrides,

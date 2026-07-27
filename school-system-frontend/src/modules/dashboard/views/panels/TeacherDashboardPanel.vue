@@ -337,7 +337,7 @@ async function load() {
       teacherId
         ? (academicsApi.tests.list({ teacher_id: teacherId, limit: 20 }) as Promise<Record<string, unknown>[]>).catch(() => [])
         : Promise.resolve([]),
-      teacherPortalApi.dashboard().catch(() => null),
+      teacherId ? teacherPortalApi.dashboard().catch(() => null) : Promise.resolve(null),
     ])
     portalExtras.value = portal as typeof portalExtras.value
 

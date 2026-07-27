@@ -8,6 +8,7 @@ use App\Models\CommunicationThread;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\Rule;
 
 class CommunicationController extends Controller
 {
@@ -35,6 +36,85 @@ class CommunicationController extends Controller
         }
 
         return response()->json(['data' => $query->orderByDesc('last_message_at')->get()]);
+    }
+
+    /**
+     * Parent accounts staff can message (school-scoped, staff-safe).
+     */
+    public function parents(Request $request)
+    {
+        $user = $request->user();
+        $this->assertStaffUser($user);
+
+        $schoolId = $user->school_id;
+
+        $parents = User::query()
+            ->when($schoolId, fn ($q) => $q->where('school_id', $schoolId))
+            ->where('role', UserRole::Parent->value)
+            ->orderBy('name')
+            ->get(['id', 'name', 'first_name', 'last_name', 'email']);
+
+        return response()->json(['data' => $parents]);
+    }
+
+    public function store(Request $request)
+    {
+        $user = $request->user();
+        $this->assertStaffUser($user);
+
+        $schoolId = $user->school_id;
+
+        $validator = Validator::make($request->all(), [
+            'subject' => 'required|string|max:255',
+            'message' => 'required|string',
+            'parent_user_id' => 'required|integer',
+            'student_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('students', 'id')->where(fn ($q) => $q->when(
+                    $schoolId,
+                    fn ($inner) => $inner->where('school_id', $schoolId),
+                )),
+            ],
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['message' => 'Validation failed', 'errors' => $validator->errors()], 422);
+        }
+
+        $parent = User::query()
+            ->when($schoolId, fn ($q) => $q->where('school_id', $schoolId))
+            ->where('role', UserRole::Parent->value)
+            ->find($request->parent_user_id);
+
+        if (! $parent) {
+            return response()->json([
+                'message' => 'Validation failed',
+                'errors' => ['parent_user_id' => ['The selected parent is invalid.']],
+            ], 422);
+        }
+
+        $studentId = $request->filled('student_id') ? (int) $request->student_id : null;
+
+        $thread = CommunicationThread::create([
+            'school_id' => $schoolId,
+            'student_id' => $studentId,
+            'parent_user_id' => $parent->id,
+            'staff_user_id' => $user->id,
+            'subject' => $request->subject,
+            'status' => 'open',
+            'last_message_at' => now(),
+        ]);
+
+        CommunicationMessage::create([
+            'thread_id' => $thread->id,
+            'sender_id' => $user->id,
+            'body' => $request->message,
+        ]);
+
+        return response()->json([
+            'data' => $thread->load(['student:id,full_name,student_number', 'parent:id,name,email', 'staff:id,name']),
+        ], 201);
     }
 
     public function show(Request $request, int $id)

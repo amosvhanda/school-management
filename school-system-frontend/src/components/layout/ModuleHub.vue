@@ -125,11 +125,11 @@ watch(
 )
 
 function selectTab(tabId: string) {
+  // Intentional: switching hub tabs clears list filters (status, class_id, etc.)
+  // so filters from one module do not bleed into another.
   void router.replace(
     hubLocation(props.routeName, tabId, props.defaultTab, {
-      query: Object.fromEntries(
-        Object.entries(route.query).filter(([key]) => key !== 'tab' && key !== 'create'),
-      ),
+      query: {},
     }),
   )
 }
@@ -384,22 +384,35 @@ watch(
 
       <section class="overflow-x-auto rounded-2xl border border-border/60 bg-muted/30 p-2">
         <nav class="flex min-w-max items-center gap-2" :aria-label="ariaLabel">
-          <button
-            v-for="tab in visibleTabs"
-            :key="tab.id"
-            type="button"
-            :class="cn(
-              'inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-              activeTabId === tab.id
-                ? 'bg-background text-foreground shadow-sm'
-                : 'text-muted-foreground hover:bg-background/80 hover:text-foreground',
-            )"
-            :aria-current="activeTabId === tab.id ? 'page' : undefined"
-            @click="selectTab(tab.id)"
-          >
-            <component :is="tab.icon" class="size-4" aria-hidden="true" />
-            {{ tab.title }}
-          </button>
+          <template v-for="(group, groupIndex) in tabGroups" :key="group.label || `group-${groupIndex}`">
+            <span
+              v-if="group.label && groupIndex > 0"
+              class="mx-1 h-6 w-px shrink-0 bg-border"
+              aria-hidden="true"
+            />
+            <span
+              v-if="group.label"
+              class="px-1 text-[10px] font-semibold tracking-wide text-muted-foreground uppercase"
+            >
+              {{ group.label }}
+            </span>
+            <button
+              v-for="tab in group.tabs"
+              :key="tab.id"
+              type="button"
+              :class="cn(
+                'inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                activeTabId === tab.id
+                  ? 'bg-background text-foreground shadow-sm'
+                  : 'text-muted-foreground hover:bg-background/80 hover:text-foreground',
+              )"
+              :aria-current="activeTabId === tab.id ? 'page' : undefined"
+              @click="selectTab(tab.id)"
+            >
+              <component :is="tab.icon" class="size-4" aria-hidden="true" />
+              {{ tab.title }}
+            </button>
+          </template>
         </nav>
       </section>
 

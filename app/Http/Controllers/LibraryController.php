@@ -82,6 +82,29 @@ class LibraryController extends Controller
         return response()->json(['data' => $book->fresh(), 'message' => 'Book updated']);
     }
 
+    public function destroyBook(Request $request, int $id)
+    {
+        $this->authorizeLibrary($request);
+
+        $schoolId = (int) $request->user()->school_id;
+        $book = LibraryBook::where('school_id', $schoolId)->findOrFail($id);
+
+        $activeLoans = LibraryLoan::query()
+            ->where('book_id', $book->id)
+            ->where('status', 'borrowed')
+            ->exists();
+
+        if ($activeLoans) {
+            return response()->json([
+                'message' => 'Return all borrowed copies before deleting this book.',
+            ], 422);
+        }
+
+        $book->delete();
+
+        return response()->json(['message' => 'Book deleted']);
+    }
+
     public function loans(Request $request)
     {
         $this->authorizeLibrary($request);
@@ -102,6 +125,10 @@ class LibraryController extends Controller
 
         if ($request->filled('book_id')) {
             $query->where('book_id', (int) $request->book_id);
+        }
+
+        if ($request->filled('library_member_id')) {
+            $query->where('library_member_id', (int) $request->library_member_id);
         }
 
         return response()->json([
@@ -133,7 +160,7 @@ class LibraryController extends Controller
                 'integer',
                 Rule::exists('students', 'id')->where('school_id', $schoolId),
             ],
-            'due_at' => 'required|date|after:today',
+            'due_at' => 'required|date|after_or_equal:today',
         ]);
 
         if (empty($data['library_member_id']) && empty($data['student_id'])) {

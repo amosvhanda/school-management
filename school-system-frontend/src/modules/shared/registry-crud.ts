@@ -20,6 +20,7 @@ import {
   streamRelation,
   subjectRelation,
   incomeHeadRelation,
+  expenseHeadRelation,
 } from '@/lib/form-relations'
 import { moduleEndpoints } from '@/services'
 import { studentFormFields, studentFormSchema } from '@/modules/students/student-form'
@@ -63,7 +64,7 @@ const statusOptions = [
 export const moduleCrudRegistry: Record<string, ModuleCrudConfig> = {
   students: crud(studentFormFields, studentFormSchema, { staged: true }),
   teachers: crud(teacherFormFields, teacherFormSchema),
-  guardians: crud(guardianFormFields, guardianFormSchema, { canEdit: true, canDelete: false }),
+  guardians: crud(guardianFormFields, guardianFormSchema, { canEdit: true, canDelete: true }),
   'academics-setup': crud(
     [
       {
@@ -982,6 +983,92 @@ export const moduleCrudRegistry: Record<string, ModuleCrudConfig> = {
     }),
   ),
   'finance-transactions': crud([], z.object({}), { canCreate: false, canEdit: false, canDelete: false }),
+  'finance-income': crud(
+    [
+      { name: 'description', label: 'Description', type: 'text', required: true, colSpan: 2, placeholder: 'e.g. Donation, hall hire…' },
+      { name: 'amount', label: 'Amount', type: 'number', required: true, placeholder: '0.00' },
+      {
+        name: 'income_head_id',
+        label: 'Income head',
+        type: 'relation',
+        required: true,
+        placeholder: 'Classify this income',
+        relation: incomeHeadRelation(),
+      },
+      { name: 'date', label: 'Date', type: 'date' },
+      {
+        name: 'payment_method',
+        label: 'Payment method',
+        type: 'select',
+        placeholder: 'Optional',
+        options: [...PAYMENT_METHOD_OPTIONS],
+      },
+      {
+        name: 'currency',
+        label: 'Currency',
+        type: 'select',
+        options: [
+          { label: 'USD', value: 'USD' },
+          { label: 'ZWG', value: 'ZWG' },
+        ],
+      },
+      { name: 'reference', label: 'Reference', type: 'text', placeholder: 'Optional receipt/reference' },
+      { name: 'notes', label: 'Notes', type: 'textarea', colSpan: 2, placeholder: 'Optional note' },
+    ],
+    z.object({
+      description: z.string().min(1, 'Description is required'),
+      amount: z.coerce.number().positive('Amount must be greater than zero'),
+      income_head_id: z.string().min(1, 'Select an income head'),
+      date: z.string().optional().or(z.literal('')),
+      payment_method: z.string().optional().or(z.literal('')),
+      currency: z.string().optional().or(z.literal('')),
+      reference: z.string().optional(),
+      notes: z.string().optional(),
+    }),
+  ),
+  'finance-expense': crud(
+    [
+      { name: 'description', label: 'Description', type: 'text', required: true, colSpan: 2, placeholder: 'e.g. Utilities, repairs…' },
+      { name: 'amount', label: 'Amount', type: 'number', required: true, placeholder: '0.00' },
+      {
+        name: 'expense_head_id',
+        label: 'Expense head',
+        type: 'relation',
+        required: true,
+        placeholder: 'Classify this expense',
+        relation: expenseHeadRelation(),
+      },
+      { name: 'date', label: 'Date', type: 'date' },
+      {
+        name: 'payment_method',
+        label: 'Payment method',
+        type: 'select',
+        placeholder: 'Optional',
+        options: [...PAYMENT_METHOD_OPTIONS],
+      },
+      {
+        name: 'currency',
+        label: 'Currency',
+        type: 'select',
+        options: [
+          { label: 'USD', value: 'USD' },
+          { label: 'ZWG', value: 'ZWG' },
+        ],
+      },
+      { name: 'reference', label: 'Reference', type: 'text', placeholder: 'Optional receipt/reference' },
+      { name: 'notes', label: 'Notes', type: 'textarea', colSpan: 2, placeholder: 'Optional note' },
+    ],
+    z.object({
+      description: z.string().min(1, 'Description is required'),
+      amount: z.coerce.number().positive('Amount must be greater than zero'),
+      expense_head_id: z.string().min(1, 'Select an expense head'),
+      date: z.string().optional().or(z.literal('')),
+      payment_method: z.string().optional().or(z.literal('')),
+      currency: z.string().optional().or(z.literal('')),
+      reference: z.string().optional(),
+      notes: z.string().optional(),
+    }),
+  ),
   'finance-payroll': crud(
     formSection('Payroll adjustment', [
       {
@@ -1191,7 +1278,7 @@ export const moduleCrudRegistry: Record<string, ModuleCrudConfig> = {
       total_copies: z.coerce.number().min(1).optional(),
       category: z.string().optional(),
     }),
-    { canEdit: true, canDelete: false },
+    { canEdit: true, canDelete: true },
   ),
   'ops-transport': crud(
     formSection('Vehicle details', [
@@ -1446,7 +1533,7 @@ export const moduleCrudRegistry: Record<string, ModuleCrudConfig> = {
       status: z.enum(['scheduled', 'ongoing', 'completed', 'cancelled']).optional(),
       description: z.string().optional(),
     }),
-    { canEdit: true, canDelete: false },
+    { canEdit: true, canDelete: true },
   ),
   'comms-announcements': crud(
     [
@@ -1696,10 +1783,48 @@ export const moduleCrudRegistry: Record<string, ModuleCrudConfig> = {
       },
       {
         name: 'member_id',
-        label: 'Linked record ID',
-        type: 'number',
-        placeholder: 'Student / teacher / employee ID',
-        description: 'Optional link to the matching student, teacher, or employee record.',
+        label: 'Student',
+        type: 'relation',
+        colSpan: 2,
+        placeholder: 'Select a student',
+        description: 'Optional link — selecting fills the member name when empty.',
+        visibleWhen: { field: 'member_type', equals: 'student' },
+        relation: {
+          endpoint: moduleEndpoints.students,
+          moduleLabel: 'student',
+          params: { all: true },
+          fillEmptyField: 'name',
+        },
+      },
+      {
+        name: 'member_id',
+        label: 'Teacher',
+        type: 'relation',
+        colSpan: 2,
+        placeholder: 'Select a teacher',
+        description: 'Optional link — selecting fills the member name when empty.',
+        visibleWhen: { field: 'member_type', equals: 'teacher' },
+        relation: {
+          endpoint: moduleEndpoints.teachers,
+          moduleLabel: 'teacher',
+          params: { all: true },
+          fillEmptyField: 'name',
+        },
+      },
+      {
+        name: 'member_id',
+        label: 'Employee',
+        type: 'relation',
+        colSpan: 2,
+        placeholder: 'Select an employee',
+        description: 'Optional link — selecting fills the member name when empty.',
+        visibleWhen: { field: 'member_type', equals: 'employee' },
+        relation: {
+          endpoint: moduleEndpoints.employees,
+          moduleLabel: 'employee',
+          params: { all: true },
+          fillEmptyField: 'name',
+        },
       },
       { name: 'member_number', label: 'Member number', type: 'text', placeholder: 'LIB-001' },
       { name: 'name', label: 'Name', type: 'text', required: true },
@@ -1720,7 +1845,10 @@ export const moduleCrudRegistry: Record<string, ModuleCrudConfig> = {
     ]),
     z.object({
       member_type: z.enum(['student', 'teacher', 'employee', 'external']),
-      member_id: z.coerce.number().optional(),
+      member_id: z.preprocess(
+        (value) => (value === '' || value == null ? undefined : value),
+        z.coerce.number().optional(),
+      ),
       member_number: z.string().optional(),
       name: z.string().min(1, 'Name is required'),
       email: z.string().email().optional().or(z.literal('')),
@@ -1730,11 +1858,43 @@ export const moduleCrudRegistry: Record<string, ModuleCrudConfig> = {
       notes: z.string().optional(),
     }),
   ),
-  'ops-library-loans': crud([], z.object({}), {
-    canCreate: false,
-    canEdit: false,
-    canDelete: false,
-  }),
+  'ops-library-loans': crud(
+    formSection('Loan', [
+      {
+        name: 'book_id',
+        label: 'Book',
+        type: 'relation',
+        required: true,
+        colSpan: 2,
+        placeholder: 'Select a book',
+        relation: {
+          endpoint: moduleEndpoints.libraryBooks,
+          moduleLabel: 'book',
+          params: { all: true },
+        },
+      },
+      {
+        name: 'library_member_id',
+        label: 'Library member',
+        type: 'relation',
+        required: true,
+        colSpan: 2,
+        placeholder: 'Select a member',
+        relation: {
+          endpoint: moduleEndpoints.libraryMembers,
+          moduleLabel: 'library member',
+          params: { all: true, status: 'active' },
+        },
+      },
+      { name: 'due_at', label: 'Due date', type: 'date', required: true, description: 'Today or a future date' },
+    ]),
+    z.object({
+      book_id: z.string().min(1, 'Select a book'),
+      library_member_id: z.string().min(1, 'Select a library member'),
+      due_at: z.string().min(1, 'Due date is required'),
+    }),
+    { canCreate: true, canEdit: false, canDelete: false },
+  ),
   'settings-currencies': crud(
     [
       { name: 'code', label: 'Code', type: 'text', required: true, placeholder: 'USD' },

@@ -30,6 +30,8 @@ const modulePermissionRegistry: Record<string, ModulePermissionConfig> = {
   'settings-custom-fields': { create: ADMIN, edit: ADMIN, delete: ADMIN },
   'compliance-audit': { create: AUDIT, edit: AUDIT, delete: AUDIT },
   'compliance-login-history': { create: AUDIT, edit: AUDIT, delete: AUDIT },
+  'finance-income': { create: FINANCE, edit: FINANCE, delete: FINANCE },
+  'finance-expense': { create: FINANCE, edit: FINANCE, delete: FINANCE },
   'ops-assets': { create: FINANCE, edit: FINANCE, delete: FINANCE },
   'ops-procurement': { create: FINANCE, edit: FINANCE, delete: FINANCE },
   'ops-procurement-vendors': { create: FINANCE, edit: FINANCE, delete: FINANCE },

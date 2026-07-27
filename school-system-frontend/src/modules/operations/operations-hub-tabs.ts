@@ -31,28 +31,28 @@ export const OPERATIONS_HUB_TABS: ModuleHubTab[] = [
     ],
   },
   {
-    id: 'library',
-    title: 'Library',
-    description: 'Books, members, loans, and library inventory.',
+    id: 'library-books',
+    title: 'Library Books',
+    description: 'Catalogue and copy records.',
     icon: Library,
     capability: 'canManageLibrary',
-    sections: [
-      {
-        listKey: 'ops-library',
-        title: 'Books',
-        description: 'Catalogue and copy records.',
-      },
-      {
-        listKey: 'ops-library-members',
-        title: 'Members',
-        description: 'Registered borrowers — students, staff, and external.',
-      },
-      {
-        listKey: 'ops-library-loans',
-        title: 'Loans',
-        description: 'Active and returned loans.',
-      },
-    ],
+    listKey: 'ops-library',
+  },
+  {
+    id: 'library-members',
+    title: 'Library Members',
+    description: 'Registered borrowers — students, staff, and external.',
+    icon: Library,
+    capability: 'canManageLibrary',
+    listKey: 'ops-library-members',
+  },
+  {
+    id: 'library-loans',
+    title: 'Issue / Return',
+    description: 'Issue books to members and record returns.',
+    icon: Library,
+    capability: 'canManageLibrary',
+    listKey: 'ops-library-loans',
   },
   {
     id: 'transport',

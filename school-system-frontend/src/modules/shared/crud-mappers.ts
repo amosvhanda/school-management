@@ -489,6 +489,30 @@ export function mapFormToPayload(
     }
   }
 
+  if (listKey === 'finance-income' || listKey === 'finance-expense') {
+    const isIncome = listKey === 'finance-income'
+    const headId = isIncome ? values.income_head_id : values.expense_head_id
+    return {
+      type: isIncome ? 'income' : 'expense',
+      description: String(values.description ?? '').trim(),
+      amount: values.amount,
+      [isIncome ? 'income_head_id' : 'expense_head_id']: headId ? Number(headId) : undefined,
+      ...(values.date ? { date: values.date } : {}),
+      ...(values.payment_method ? { payment_method: values.payment_method } : {}),
+      currency: values.currency || 'USD',
+      ...(values.reference ? { reference: String(values.reference).trim() } : {}),
+      ...(values.notes ? { notes: String(values.notes).trim() } : {}),
+    }
+  }
+
+  if (listKey === 'ops-library-loans') {
+    return {
+      book_id: values.book_id ? Number(values.book_id) : undefined,
+      library_member_id: values.library_member_id ? Number(values.library_member_id) : undefined,
+      due_at: values.due_at,
+    }
+  }
+
   if (listKey === 'finance-income-heads' || listKey === 'finance-expense-heads') {
     return {
       name: values.name,
@@ -824,7 +848,7 @@ function mapTeacherPayload(values: Record<string, unknown>): Record<string, unkn
 export const backendCrudSupport: Record<string, { create: boolean; update: boolean; delete: boolean }> = {
   students: { create: true, update: true, delete: true },
   teachers: { create: true, update: true, delete: true },
-  guardians: { create: true, update: true, delete: false },
+  guardians: { create: true, update: true, delete: true },
   'academics-setup': { create: true, update: true, delete: true },
   'academics-streams': { create: true, update: true, delete: false },
   'academics-houses': { create: true, update: true, delete: false },
@@ -851,14 +875,16 @@ export const backendCrudSupport: Record<string, { create: boolean; update: boole
   'finance-fee-discounts': { create: true, update: true, delete: true },
   'finance-income-heads': { create: true, update: true, delete: true },
   'finance-expense-heads': { create: true, update: true, delete: true },
+  'finance-income': { create: true, update: true, delete: true },
+  'finance-expense': { create: true, update: true, delete: true },
   'finance-payroll': { create: false, update: true, delete: false },
   'ops-inventory': { create: true, update: true, delete: false },
   'ops-inventory-sales': { create: true, update: false, delete: false },
   'ops-procurement': { create: true, update: false, delete: false },
   'ops-procurement-vendors': { create: true, update: true, delete: false },
-  'ops-library': { create: true, update: true, delete: false },
+  'ops-library': { create: true, update: true, delete: true },
   'ops-library-members': { create: true, update: true, delete: true },
-  'ops-library-loans': { create: false, update: false, delete: false },
+  'ops-library-loans': { create: true, update: false, delete: false },
   'ops-transport': { create: true, update: true, delete: false },
   'ops-transport-drivers': { create: true, update: true, delete: false },
   'ops-transport-routes': { create: true, update: true, delete: false },
@@ -866,7 +892,7 @@ export const backendCrudSupport: Record<string, { create: boolean; update: boole
   'ops-hostels': { create: true, update: true, delete: false },
   'ops-visitors': { create: true, update: false, delete: false },
   'ops-health': { create: true, update: true, delete: false },
-  'ops-events': { create: true, update: true, delete: false },
+  'ops-events': { create: true, update: true, delete: true },
   'comms-announcements': { create: true, update: true, delete: true },
   'hr-leave': { create: true, update: false, delete: false },
   'hr-leave-types': { create: true, update: true, delete: true },

@@ -43,6 +43,7 @@ import {
   transportDriverColumns,
   transportRouteColumns,
   userColumns,
+  viewActionColumn,
   visitorColumns,
   workflowColumns,
 } from '@/modules/shared/columns'
@@ -329,6 +330,32 @@ export const listPageRegistry: Record<string, ListPageConfig> = {
     endpoint: moduleEndpoints.transactions,
     columns: transactionColumns,
   },
+  'finance-income': {
+    title: 'Income',
+    description: 'Manual income ledger entries classified by income head.',
+    endpoint: moduleEndpoints.transactions,
+    columns: [
+      dateColumn('Date', 'date'),
+      textColumn('Description', 'description'),
+      nestedColumn('Income head', 'income_head', 'name'),
+      textColumn('Amount', 'amount'),
+      textColumn('Method', 'payment_method'),
+      textColumn('Currency', 'currency'),
+    ],
+  },
+  'finance-expense': {
+    title: 'Expense',
+    description: 'Manual expense ledger entries classified by expense head.',
+    endpoint: moduleEndpoints.transactions,
+    columns: [
+      dateColumn('Date', 'date'),
+      textColumn('Description', 'description'),
+      nestedColumn('Expense head', 'expense_head', 'name'),
+      textColumn('Amount', 'amount'),
+      textColumn('Method', 'payment_method'),
+      textColumn('Currency', 'currency'),
+    ],
+  },
   'finance-payroll': {
     title: 'Payroll',
     description:
@@ -366,12 +393,14 @@ export const listPageRegistry: Record<string, ListPageConfig> = {
       textColumn('Phone', 'phone'),
       statusColumn(),
       dateColumn('Joined', 'joined_on'),
+      viewActionColumn('library-member-detail'),
     ],
   },
   'ops-library-loans': {
     title: 'Library Loans',
     description: 'Books currently on loan and return history.',
     endpoint: moduleEndpoints.libraryLoans,
+    createEndpoint: endpoints.library.borrow,
     columns: [
       nestedColumn('Book', 'book', 'title'),
       nestedColumn('Member', 'member', 'name'),
@@ -470,6 +499,7 @@ export const listPageRegistry: Record<string, ListPageConfig> = {
       nestedColumn('Designation', 'designation', 'name'),
       textColumn('Employment', 'employment_type'),
       statusColumn(),
+      viewActionColumn('employee-detail'),
     ],
   },
   'people-student-categories': {

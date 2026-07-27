@@ -62,4 +62,13 @@ class SchoolEventController extends Controller
 
         return response()->json(['data' => $event->fresh(), 'message' => 'Event updated']);
     }
+
+    public function destroy(Request $request, int $id)
+    {
+        $event = SchoolEvent::where('school_id', $request->user()->school_id)->findOrFail($id);
+
+        $event->delete();
+
+        return response()->json(['message' => 'Event deleted']);
+    }
 }

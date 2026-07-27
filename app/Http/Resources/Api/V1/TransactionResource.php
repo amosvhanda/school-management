@@ -15,13 +15,17 @@ class TransactionResource extends JsonResource
             'payroll_id' => $this->payroll_id,
             'payment_id' => $this->payment_id,
             'invoice_id' => $this->invoice_id,
+            'income_head_id' => $this->income_head_id,
+            'expense_head_id' => $this->expense_head_id,
             'type' => $this->type,
             'category' => $this->category,
             'description' => $this->description,
             'reference' => $this->reference,
             'debit' => $this->debit,
             'credit' => $this->credit,
+            'amount' => $this->type === 'income' ? $this->credit : $this->debit,
             'balance' => $this->balance,
+            'is_system_generated' => (bool) ($this->payment_id || $this->payroll_id || $this->invoice_id),
             'currency' => $this->currency,
             'status' => $this->status,
             'payment_method' => $this->payment_method,
@@ -63,11 +67,20 @@ class TransactionResource extends JsonResource
                         : null,
                 ];
             }),
+            'income_head' => $this->whenLoaded('incomeHead', fn () => [
+                'id' => $this->incomeHead->id,
+                'name' => $this->incomeHead->name,
+            ]),
+            'expense_head' => $this->whenLoaded('expenseHead', fn () => [
+                'id' => $this->expenseHead->id,
+                'name' => $this->expenseHead->name,
+            ]),
             'created_by' => $this->created_by,
             'created_by_user' => $this->whenLoaded('createdBy', fn () => [
                 'id' => $this->createdBy->id,
                 'name' => $this->createdBy->name,
             ]),
+            'date' => $this->created_at?->toDateString(),
             'created_at' => $this->created_at?->toIso8601String(),
             'updated_at' => $this->updated_at?->toIso8601String(),
         ];

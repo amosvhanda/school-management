@@ -57,6 +57,13 @@ export type FormFieldType =
   | 'multirelation'
   | 'guardian-section'
 
+export interface FormFieldVisibleWhen {
+  /** Parent form field whose value controls visibility */
+  field: string
+  /** Show this field when the parent equals this value (or one of these values) */
+  equals: string | string[]
+}
+
 export interface FormFieldSchema {
   name: string
   label: string
@@ -73,6 +80,8 @@ export interface FormFieldSchema {
   rowKey?: string
   payloadPath?: string
   relation?: RelationFieldConfig
+  /** Hide the field unless the parent field matches `equals`. */
+  visibleWhen?: FormFieldVisibleWhen
   /**
    * On the class `name` field: auto-build display name from grade level + stream
    * (Form 4A2 vs Lower 6 Commercials).

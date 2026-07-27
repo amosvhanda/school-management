@@ -160,4 +160,25 @@ class GuardianController extends Controller
 
         return response()->json($guardian->load(['students']));
     }
+
+    /**
+     * Delete a guardian (blocked while students are linked).
+     */
+    public function destroy(Request $request, int $id): JsonResponse
+    {
+        $schoolId = $request->user()->school_id;
+        $guardian = Guardian::where('school_id', $schoolId)
+            ->withCount('students')
+            ->findOrFail($id);
+
+        if ($guardian->students_count > 0) {
+            return response()->json([
+                'message' => 'Unlink all students before deleting this guardian.',
+            ], 422);
+        }
+
+        $guardian->delete();
+
+        return response()->json(['message' => 'Guardian deleted']);
+    }
 }

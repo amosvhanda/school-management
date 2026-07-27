@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import { ClipboardCheck, Save, Users } from '@lucide/vue'
 import PageLoader from '@/components/feedback/PageLoader.vue'
 import ErrorState from '@/components/feedback/ErrorState.vue'
@@ -90,6 +91,35 @@ const teachers = ref<RosterRow[]>([])
 const employees = ref<RosterRow[]>([])
 const dirty = ref(false)
 
+const route = useRoute()
+const staffFilter = computed<'teacher' | 'employee' | 'all'>(() => {
+  const raw = String(Array.isArray(route.query.staff) ? route.query.staff[0] : route.query.staff ?? '')
+  if (raw === 'teacher' || raw === 'employee') return raw
+  return 'all'
+})
+
+const pageTitle = computed(() => {
+  if (staffFilter.value === 'teacher') return 'Teacher attendance'
+  if (staffFilter.value === 'employee') return 'Employee attendance'
+  return 'Staff attendance'
+})
+
+const pageDescription = computed(() => {
+  if (staffFilter.value === 'teacher') return 'Mark daily teacher attendance and review monthly totals.'
+  if (staffFilter.value === 'employee') return 'Mark daily employee attendance and review monthly totals.'
+  return 'Mark daily attendance and review monthly staff totals.'
+})
+
+const rosterSections = computed(() => {
+  const sections = [
+    { title: 'Teachers', rows: teachers.value, key: 'teachers' as const },
+    { title: 'Employees', rows: employees.value, key: 'employees' as const },
+  ]
+  if (staffFilter.value === 'teacher') return sections.filter((s) => s.key === 'teachers')
+  if (staffFilter.value === 'employee') return sections.filter((s) => s.key === 'employees')
+  return sections
+})
+
 const summaryLoading = ref(false)
 const summaryError = ref<string | null>(null)
 const summaryYear = ref(String(new Date().getFullYear()))
@@ -98,7 +128,21 @@ const summaryStaff = ref<StaffSummaryRow[]>([])
 const summaryByStatus = ref<Record<string, number>>({})
 const summaryTotalMarks = ref(0)
 
-const allRows = computed(() => [...teachers.value, ...employees.value])
+const allRows = computed(() => {
+  if (staffFilter.value === 'teacher') return teachers.value
+  if (staffFilter.value === 'employee') return employees.value
+  return [...teachers.value, ...employees.value]
+})
+
+const filteredSummaryStaff = computed(() => {
+  if (staffFilter.value === 'teacher') {
+    return summaryStaff.value.filter((row) => row.staff_type === 'teacher')
+  }
+  if (staffFilter.value === 'employee') {
+    return summaryStaff.value.filter((row) => row.staff_type === 'employee')
+  }
+  return summaryStaff.value
+})
 
 const stats = computed(() => {
   const total = allRows.value.length
@@ -230,8 +274,8 @@ onMounted(() => {
 
 <template>
   <PageShell
-    title="Staff attendance"
-    description="Mark daily attendance and review monthly staff totals."
+    :title="pageTitle"
+    :description="pageDescription"
     max-width="wide"
   >
     <template #actions>
@@ -290,10 +334,7 @@ onMounted(() => {
 
         <div v-else class="space-y-6">
           <Card
-            v-for="section in [
-              { title: 'Teachers', rows: teachers, key: 'teachers' },
-              { title: 'Employees', rows: employees, key: 'employees' },
-            ]"
+            v-for="section in rosterSections"
             :key="section.key"
           >
             <CardHeader class="pb-3">
@@ -404,7 +445,7 @@ onMounted(() => {
           @retry="loadSummary"
         />
         <EmptyState
-          v-else-if="!summaryStaff.length"
+          v-else-if="!filteredSummaryStaff.length"
           title="No attendance marked"
           description="Mark daily registers first, then return here for monthly totals."
           :icon="ClipboardCheck"
@@ -412,7 +453,7 @@ onMounted(() => {
         <Card v-else>
           <CardHeader class="pb-3">
             <CardTitle class="text-base">Per staff</CardTitle>
-            <CardDescription>{{ summaryStaff.length }} people with marks this month</CardDescription>
+            <CardDescription>{{ filteredSummaryStaff.length }} people with marks this month</CardDescription>
           </CardHeader>
           <CardContent class="p-0">
             <Table>
@@ -430,7 +471,7 @@ onMounted(() => {
               </TableHeader>
               <TableBody>
                 <TableRow
-                  v-for="row in summaryStaff"
+                  v-for="row in filteredSummaryStaff"
                   :key="`${row.staff_type}-${row.staff_id}`"
                 >
                   <TableCell class="font-medium">{{ row.name }}</TableCell>

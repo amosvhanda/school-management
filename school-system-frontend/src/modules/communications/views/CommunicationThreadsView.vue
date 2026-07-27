@@ -1,13 +1,30 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { MessageSquare, Send } from '@lucide/vue'
+import { MessageSquare, Plus, Send } from '@lucide/vue'
 import PageLoader from '@/components/feedback/PageLoader.vue'
 import ErrorState from '@/components/feedback/ErrorState.vue'
 import PageShell from '@/components/layout/PageShell.vue'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { useToast } from '@/composables/useToast'
 import { getErrorMessage } from '@/lib/api-response'
 import { formatDateTime } from '@/lib/format'
@@ -29,6 +46,14 @@ interface MessageRow {
   sender?: { name?: string; first_name?: string; last_name?: string; role?: string }
 }
 
+interface ParentOption {
+  id: number
+  name?: string
+  first_name?: string
+  last_name?: string
+  email?: string
+}
+
 const toast = useToast()
 const threads = ref<ThreadRow[]>([])
 const messages = ref<MessageRow[]>([])
@@ -39,7 +64,20 @@ const error = ref<string | null>(null)
 const replyBody = ref('')
 const sending = ref(false)
 
+const composeOpen = ref(false)
+const parents = ref<ParentOption[]>([])
+const parentsLoading = ref(false)
+const composeParentId = ref('')
+const composeSubject = ref('')
+const composeMessage = ref('')
+const composing = ref(false)
+
 const activeTitle = computed(() => activeThread.value?.subject ?? 'Select a thread')
+
+function parentLabel(parent: ParentOption): string {
+  const name = parent.name ?? [parent.first_name, parent.last_name].filter(Boolean).join(' ')
+  return parent.email ? `${name || 'Parent'} · ${parent.email}` : name || `Parent #${parent.id}`
+}
 
 function senderName(msg: MessageRow): string {
   const s = msg.sender
@@ -96,6 +134,47 @@ async function sendReply() {
   }
 }
 
+async function loadParents() {
+  if (parents.value.length) return
+  parentsLoading.value = true
+  try {
+    parents.value = (await commsApi.parents()) as ParentOption[]
+  } catch (err) {
+    toast.error('Could not load parents', getErrorMessage(err))
+  } finally {
+    parentsLoading.value = false
+  }
+}
+
+async function openCompose() {
+  composeParentId.value = ''
+  composeSubject.value = ''
+  composeMessage.value = ''
+  composeOpen.value = true
+  await loadParents()
+}
+
+async function submitCompose() {
+  if (!composeParentId.value || !composeSubject.value.trim() || !composeMessage.value.trim()) {
+    return
+  }
+  composing.value = true
+  try {
+    await commsApi.threads.create({
+      parent_user_id: Number(composeParentId.value),
+      subject: composeSubject.value.trim(),
+      message: composeMessage.value.trim(),
+    })
+    composeOpen.value = false
+    toast.success('Message sent')
+    await loadThreads()
+  } catch (err) {
+    toast.error('Could not send message', getErrorMessage(err))
+  } finally {
+    composing.value = false
+  }
+}
+
 onMounted(loadThreads)
 </script>
 
@@ -105,6 +184,13 @@ onMounted(loadThreads)
     description="Respond to parent communications"
     max-width="wide"
   >
+    <template #actions>
+      <Button type="button" @click="openCompose">
+        <Plus class="h-4 w-4" aria-hidden="true" />
+        New message
+      </Button>
+    </template>
+
     <PageLoader v-if="loading" />
     <ErrorState v-else-if="error" :description="error" @retry="loadThreads" />
 
@@ -178,5 +264,60 @@ onMounted(loadThreads)
         </CardContent>
       </Card>
     </div>
+
+    <Dialog v-model:open="composeOpen">
+      <DialogContent class="sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>New message</DialogTitle>
+          <DialogDescription>Start a conversation with a parent.</DialogDescription>
+        </DialogHeader>
+        <form class="space-y-4" @submit.prevent="submitCompose">
+          <div class="space-y-2">
+            <Label for="compose-parent">Parent</Label>
+            <Select v-model="composeParentId" :disabled="parentsLoading">
+              <SelectTrigger id="compose-parent">
+                <SelectValue :placeholder="parentsLoading ? 'Loading parents…' : 'Select a parent'" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem
+                  v-for="parent in parents"
+                  :key="parent.id"
+                  :value="String(parent.id)"
+                >
+                  {{ parentLabel(parent) }}
+                </SelectItem>
+              </SelectContent>
+            </Select>
+            <p v-if="!parentsLoading && !parents.length" class="text-xs text-muted-foreground">
+              No parents found for this school.
+            </p>
+          </div>
+          <div class="space-y-2">
+            <Label for="compose-subject">Subject</Label>
+            <Input id="compose-subject" v-model="composeSubject" placeholder="Message subject" maxlength="255" />
+          </div>
+          <div class="space-y-2">
+            <Label for="compose-message">Message</Label>
+            <Textarea
+              id="compose-message"
+              v-model="composeMessage"
+              rows="4"
+              placeholder="Write your message…"
+              class="min-h-[120px]"
+            />
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" @click="composeOpen = false">Cancel</Button>
+            <Button
+              type="submit"
+              :disabled="composing || !composeParentId || !composeSubject.trim() || !composeMessage.trim()"
+            >
+              <Send class="h-4 w-4" aria-hidden="true" />
+              Send message
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   </PageShell>
 </template>

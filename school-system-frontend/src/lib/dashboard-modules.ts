@@ -20,7 +20,7 @@ export const TEACHER_DASHBOARD_MODULE_GROUPS: DashboardModuleGroup[] = [
       {
         title: 'Teaching',
         description: 'Classes, lessons, homework, and more',
-        href: '/teaching',
+        href: '/teaching?tab=classes',
         icon: 'BookOpen',
         capability: 'isStaff',
       },
@@ -577,7 +577,7 @@ export const STAFF_DASHBOARD_MODULE_GROUPS: DashboardModuleGroup[] = [
       {
         title: 'Policies',
         description: 'School compliance policies',
-        href: '/compliance',
+        href: '/hr?tab=policies',
         icon: 'Scale',
         capability: 'canManageTeachers',
       },

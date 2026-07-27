@@ -49,9 +49,16 @@ class TeacherController extends Controller
         ]);
     }
 
-    public function show($id)
+    public function show(Request $request, $id)
     {
-        $teacher = Teacher::findOrFail($id);
+        $schoolId = $request->user()?->school_id;
+        $query = Teacher::query()->with(['designation:id,name,code']);
+
+        if ($schoolId) {
+            $query->where('school_id', $schoolId);
+        }
+
+        $teacher = $query->findOrFail($id);
 
         return response()->json([
             'data' => $teacher,

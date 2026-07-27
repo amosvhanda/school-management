@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, toRef } from 'vue'
+import { useFormValues } from 'vee-validate'
 import { useFormCascade } from '@/composables/useFormCascade'
 import { useClassNameDerive } from '@/composables/useClassNameDerive'
 import { Phone } from '@lucide/vue'
@@ -52,16 +53,37 @@ const props = withDefaults(
 useFormCascade(toRef(() => props.fields))
 useClassNameDerive(toRef(() => props.fields))
 
+const formValues = useFormValues()
+
+function matchesVisibleWhen(field: FormFieldSchema, values: Record<string, unknown> | undefined): boolean {
+  const rule = field.visibleWhen
+  if (!rule) return true
+  const raw = values?.[rule.field]
+  const current = raw == null ? '' : String(raw)
+  const expected = Array.isArray(rule.equals) ? rule.equals : [rule.equals]
+  return expected.includes(current)
+}
+
+function fieldRenderKey(field: FormFieldSchema): string {
+  if (!field.visibleWhen) return field.name
+  const equals = Array.isArray(field.visibleWhen.equals)
+    ? field.visibleWhen.equals.join('|')
+    : field.visibleWhen.equals
+  return `${field.name}:${field.visibleWhen.field}=${equals}`
+}
+
 interface FieldGroup {
   title: string
   fields: FormFieldSchema[]
 }
 
 const groups = computed<FieldGroup[]>(() => {
+  const values = formValues.value as Record<string, unknown> | undefined
   const result: FieldGroup[] = []
   let current: FieldGroup = { title: '', fields: [] }
 
   for (const field of props.fields) {
+    if (!matchesVisibleWhen(field, values)) continue
     const section = field.section ?? ''
     if (section !== current.title) {
       if (current.fields.length) result.push(current)
@@ -113,7 +135,7 @@ function colClass(field: FormFieldSchema) {
       <div :class="gridClass">
         <div
           v-for="field in group.fields"
-          :key="field.name"
+          :key="fieldRenderKey(field)"
           :class="cn('min-w-0', colClass(field))"
         >
           <!-- Special composite block wrapper -->

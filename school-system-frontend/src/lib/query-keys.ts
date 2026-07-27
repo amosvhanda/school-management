@@ -11,6 +11,10 @@ export const queryKeys = {
     workflows: (userId?: number | null) => ['dashboard', userId ?? 'anon', 'workflows'] as const,
     commandCenter: (userId?: number | null) => ['dashboard', userId ?? 'anon', 'command-center'] as const,
     financeSummary: (userId?: number | null) => ['dashboard', userId ?? 'anon', 'finance-summary'] as const,
+    schoolWidgets: (userId?: number | null) => ['dashboard', userId ?? 'anon', 'school-widgets'] as const,
+    lmsWidgets: (userId?: number | null) => ['dashboard', userId ?? 'anon', 'lms-widgets'] as const,
+    rolePreview: (userId?: number | null, role?: string) =>
+      ['dashboard', userId ?? 'anon', 'role-preview', role ?? 'student'] as const,
   },
   parent: {
     unread: (userId?: number | null) => ['parent', userId ?? 'anon', 'notifications-unread'] as const,

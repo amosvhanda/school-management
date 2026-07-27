@@ -1,5 +1,6 @@
 import type { Component } from 'vue'
 import {
+  Bell,
   BookMarked,
   Building2,
   CalendarDays,
@@ -35,6 +36,7 @@ export type SetupTabId =
   | 'currencies'
   | 'languages'
   | 'designations'
+  | 'notifications'
 
 export interface SetupSection {
   listKey: string
@@ -172,6 +174,13 @@ export const SETUP_TABS: SetupTab[] = [
       'Job titles for teaching and non-teaching staff used in HR and payroll.',
     icon: IdCard,
     listKey: 'hr-designations',
+  },
+  {
+    id: 'notifications',
+    title: 'Notification',
+    description:
+      'Store school preferences for outbound notice channels. Delivery wiring uses these flags as they are enabled.',
+    icon: Bell,
   },
   {
     id: 'currencies',

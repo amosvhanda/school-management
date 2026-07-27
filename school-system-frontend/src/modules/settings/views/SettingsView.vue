@@ -19,6 +19,7 @@ import ErrorState from '@/components/feedback/ErrorState.vue'
 import SchoolSetupSection from '@/modules/settings/components/SchoolSetupSection.vue'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { useToast } from '@/composables/useToast'
 import { useSchoolProfile } from '@/composables/useSchoolProfile'
@@ -119,6 +120,41 @@ watch(
 const activeTabConfig = computed(() => tabById(activeTab.value))
 const activeSections = computed(() => sectionsForTab(activeTabConfig.value))
 const isProfileTab = computed(() => activeTab.value === 'profile')
+const isNotificationsTab = computed(() => activeTab.value === 'notifications')
+
+const NOTIFICATION_OPTIONS = [
+  {
+    key: 'email_notices',
+    title: 'Allow email notices',
+    description: 'Preference for using email when the school sends announcements and notices.',
+  },
+  {
+    key: 'sms_notices',
+    title: 'Allow SMS notices',
+    description: 'Preference for using SMS for urgent notices when phone numbers are available.',
+  },
+  {
+    key: 'parent_messages',
+    title: 'Parent message alerts',
+    description: 'Preference for notifying guardians about new staff message threads.',
+  },
+  {
+    key: 'leave_alerts',
+    title: 'Leave request alerts',
+    description: 'Preference for alerting approvers when leave requests are submitted.',
+  },
+] as const
+
+type NotificationKey = (typeof NOTIFICATION_OPTIONS)[number]['key']
+
+const notificationPrefs = ref<Record<NotificationKey, boolean>>({
+  email_notices: false,
+  sms_notices: false,
+  parent_messages: false,
+  leave_alerts: false,
+})
+const notificationsLoading = ref(false)
+const notificationsSaving = ref(false)
 
 const activeSectionMeta = computed(() => {
   switch (activeTab.value) {
@@ -260,6 +296,14 @@ watch(
   { immediate: true },
 )
 
+watch(
+  isNotificationsTab,
+  (active) => {
+    if (active) void loadNotifications()
+  },
+  { immediate: true },
+)
+
 const onSubmit = handleSubmit(async (values) => {
   try {
     await schoolApi.update(values as Record<string, unknown>)
@@ -305,6 +349,40 @@ async function loadSetupCounts() {
     feeStructures: Array.isArray(feeStructures) ? feeStructures.length : 0,
     feeCategories: Array.isArray(feeCategories) ? feeCategories.length : 0,
     timetable: Array.isArray(timetable) ? timetable.length : 0,
+  }
+}
+
+async function loadNotifications() {
+  notificationsLoading.value = true
+  try {
+    const settings = (await schoolApi.settings()) as Record<string, Record<string, unknown>>
+    const group = settings?.notifications ?? {}
+    for (const option of NOTIFICATION_OPTIONS) {
+      notificationPrefs.value[option.key] = group[option.key] === true
+    }
+  } catch (err) {
+    toast.error('Could not load notification settings', getErrorMessage(err))
+  } finally {
+    notificationsLoading.value = false
+  }
+}
+
+async function saveNotifications() {
+  notificationsSaving.value = true
+  try {
+    await schoolApi.updateSettings(
+      NOTIFICATION_OPTIONS.map((option) => ({
+        group: 'notifications',
+        key: option.key,
+        value: notificationPrefs.value[option.key],
+        type: 'boolean',
+      })),
+    )
+    toast.success('Notification settings saved')
+  } catch (err) {
+    toast.error('Save failed', getErrorMessage(err))
+  } finally {
+    notificationsSaving.value = false
   }
 }
 
@@ -482,6 +560,38 @@ onMounted(load)
                 </div>
               </div>
             </form>
+          </div>
+
+          <div v-else-if="isNotificationsTab" class="space-y-6">
+            <PageLoader v-if="notificationsLoading" label="Loading notification settings" />
+            <template v-else>
+              <fieldset class="space-y-3">
+                <legend class="sr-only">Notification preferences</legend>
+                <label
+                  v-for="option in NOTIFICATION_OPTIONS"
+                  :key="option.key"
+                  :for="`notify-${option.key}`"
+                  class="flex cursor-pointer items-start gap-3 rounded-xl border border-border/60 px-4 py-3 transition-colors hover:bg-muted/40"
+                >
+                  <Checkbox
+                    :id="`notify-${option.key}`"
+                    class="mt-0.5"
+                    :checked="notificationPrefs[option.key]"
+                    @update:checked="(checked: boolean | 'indeterminate') => (notificationPrefs[option.key] = checked === true)"
+                  />
+                  <span class="min-w-0 space-y-1">
+                    <span class="block text-sm font-medium text-foreground">{{ option.title }}</span>
+                    <span class="block text-xs leading-relaxed text-muted-foreground">{{ option.description }}</span>
+                  </span>
+                </label>
+              </fieldset>
+              <div class="flex justify-end">
+                <Button type="button" :disabled="notificationsSaving" @click="saveNotifications">
+                  <Save class="mr-2 size-4" aria-hidden="true" />
+                  {{ notificationsSaving ? 'Saving…' : 'Save notifications' }}
+                </Button>
+              </div>
+            </template>
           </div>
 
           <div v-else class="space-y-8">

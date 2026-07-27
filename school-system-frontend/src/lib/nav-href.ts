@@ -1,36 +1,49 @@
 /**
  * Canonical destinations for sidebar links.
- * Prefer final hub URLs (path + optional tab) so active states match after redirects.
+ * Prefer final hub URLs (path + optional tab/status) so active states match after redirects.
  */
 
 export interface NavTarget {
   path: string
   tab: string | null
+  /** List filter intent (e.g. suspended students). */
+  status?: string | null
+  /** Staff attendance scope (teacher | employee). */
+  staff?: string | null
 }
 
 /** Pretty redirect paths → where the router actually lands. */
 const REDIRECT_TARGETS: Record<string, NavTarget> = {
-  '/students': { path: '/people', tab: null },
+  '/students': { path: '/people', tab: null, status: null },
+  '/students/suspended': { path: '/people', tab: null, status: 'suspended' },
   '/teachers': { path: '/people', tab: 'teachers' },
   '/guardians': { path: '/people', tab: 'guardians' },
   '/enrollment': { path: '/people', tab: 'enrollment' },
   '/people/categories': { path: '/people', tab: 'student-categories' },
   '/finance/payments': { path: '/finance', tab: 'payments' },
   '/finance/invoices': { path: '/finance', tab: 'invoices' },
-  '/finance/fees': { path: '/finance', tab: 'fees' },
-  '/finance/fee-categories': { path: '/finance', tab: 'fees' },
-  '/finance/fee-groups': { path: '/finance', tab: 'fees' },
-  '/finance/fee-discounts': { path: '/finance', tab: 'fees' },
+  '/finance/fees': { path: '/finance', tab: 'fee-structures' },
+  '/finance/fee-categories': { path: '/finance', tab: 'fee-categories' },
+  '/finance/fee-groups': { path: '/finance', tab: 'fee-groups' },
+  '/finance/fee-discounts': { path: '/finance', tab: 'fee-discounts' },
+  '/finance/fee-structures': { path: '/finance', tab: 'fee-structures' },
   '/finance/transactions': { path: '/finance', tab: 'transactions' },
   '/finance/payroll': { path: '/finance', tab: 'payroll' },
   '/finance/cash-flow': { path: '/finance', tab: 'cash-flow' },
   '/finance/reports': { path: '/finance', tab: 'aging' },
-  '/finance/accounting': { path: '/finance', tab: 'accounting' },
+  '/finance/accounting': { path: '/finance', tab: 'income-heads' },
+  '/finance/income-heads': { path: '/finance', tab: 'income-heads' },
+  '/finance/expense-heads': { path: '/finance', tab: 'expense-heads' },
+  '/finance/income': { path: '/finance', tab: 'income' },
+  '/finance/expense': { path: '/finance', tab: 'expense' },
   '/finance/procurement': { path: '/finance', tab: 'procurement' },
   '/finance/assets': { path: '/finance', tab: 'assets' },
   '/operations/inventory': { path: '/operations', tab: null },
   '/operations/inventory/sales': { path: '/operations', tab: 'inventory' },
-  '/operations/library': { path: '/operations', tab: 'library' },
+  '/operations/library': { path: '/operations', tab: 'library-books' },
+  '/operations/library/books': { path: '/operations', tab: 'library-books' },
+  '/operations/library/members': { path: '/operations', tab: 'library-members' },
+  '/operations/library/loans': { path: '/operations', tab: 'library-loans' },
   '/operations/transport': { path: '/operations', tab: 'transport' },
   '/operations/transport/drivers': { path: '/operations', tab: 'transport' },
   '/operations/transport/routes': { path: '/operations', tab: 'transport' },
@@ -83,21 +96,32 @@ export function parseNavHref(href: string): NavTarget {
   const path = rawPath || '/'
   const params = new URLSearchParams(queryString)
   const tab = params.get('tab')
+  const status = params.get('status')
+  const staff = params.get('staff')
 
   const redirect = REDIRECT_TARGETS[path]
   if (redirect) {
     return {
       path: redirect.path,
       tab: redirect.tab ?? tab,
+      status: redirect.status !== undefined ? redirect.status : status,
+      staff: redirect.staff !== undefined ? redirect.staff : staff,
     }
   }
 
-  return { path, tab }
+  return { path, tab, status, staff }
 }
 
-export function currentNavTarget(routePath: string, routeTab: unknown): NavTarget {
+export function currentNavTarget(
+  routePath: string,
+  routeTab: unknown,
+  routeStatus?: unknown,
+  routeStaff?: unknown,
+): NavTarget {
   const tab = typeof routeTab === 'string' && routeTab ? routeTab : null
-  return { path: routePath || '/', tab }
+  const status = typeof routeStatus === 'string' && routeStatus ? routeStatus : null
+  const staff = typeof routeStaff === 'string' && routeStaff ? routeStaff : null
+  return { path: routePath || '/', tab, status, staff }
 }
 
 export function effectiveTab(target: NavTarget): string | null {
@@ -113,9 +137,18 @@ export function navTargetsEqual(a: NavTarget, b: NavTarget): boolean {
 
   const aTab = effectiveTab(a)
   const bTab = effectiveTab(b)
-  // Exact tab match when either side specifies a tab or hub has a default.
-  if (aTab || bTab) return aTab === bTab
-  return true
+  if (aTab || bTab) {
+    if (aTab !== bTab) return false
+  }
+
+  // Status / staff filters are part of identity when either side declares them.
+  const aStatus = a.status ?? null
+  const bStatus = b.status ?? null
+  if (aStatus !== bStatus) return false
+
+  const aStaff = a.staff ?? null
+  const bStaff = b.staff ?? null
+  return aStaff === bStaff
 }
 
 export function isNavHrefActive(
@@ -123,14 +156,16 @@ export function isNavHrefActive(
   routePath: string,
   routeTab: unknown,
   siblingHrefs: Array<string | undefined> = [],
+  routeStatus?: unknown,
+  routeStaff?: unknown,
 ): boolean {
   if (!href) return false
 
   const target = parseNavHref(href)
-  const current = currentNavTarget(routePath, routeTab)
+  const current = currentNavTarget(routePath, routeTab, routeStatus, routeStaff)
   if (!navTargetsEqual(target, current)) return false
 
-  // Prefer the most specific sibling (same path, more specific tab, or longer path alias).
+  // Prefer the most specific sibling (same path, more specific tab/status/staff).
   const moreSpecific = siblingHrefs.some((other) => {
     if (!other || other === href) return false
     const sibling = parseNavHref(other)
@@ -139,6 +174,15 @@ export function isNavHrefActive(
     const hrefTab = parseNavHref(href).tab
     const siblingTab = sibling.tab
     if (hrefTab == null && siblingTab != null) return true
+
+    const hrefStatus = parseNavHref(href).status ?? null
+    const siblingStatus = sibling.status ?? null
+    if (hrefStatus == null && siblingStatus != null) return true
+
+    const hrefStaff = parseNavHref(href).staff ?? null
+    const siblingStaff = sibling.staff ?? null
+    if (hrefStaff == null && siblingStaff != null) return true
+
     if (href.length < other.length && sibling.path === target.path) return true
     return false
   })

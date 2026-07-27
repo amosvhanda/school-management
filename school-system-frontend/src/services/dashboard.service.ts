@@ -7,9 +7,12 @@ import type {
   AttendanceSummary,
   CommandCenterData,
   DashboardKpis,
+  LmsDashboardWidgets,
   MonthlyStat,
   PayrollSummary,
   RecentActivityItem,
+  RoleDashboardPreview,
+  SchoolDashboardWidgets,
 } from '@/types/dashboard'
 
 const defaultAttendance: AttendanceSummary = {
@@ -17,6 +20,7 @@ const defaultAttendance: AttendanceSummary = {
   absent: 0,
   late: 0,
   excused: 0,
+  half_day: 0,
   total: 0,
   date: new Date().toISOString().slice(0, 10),
 }
@@ -51,6 +55,11 @@ export function defaultKpis(): DashboardKpis {
     errorsChange: 0,
     pendingEnrollments: 0,
     pendingLeaveRequests: 0,
+    totalStaff: 0,
+    collectedThisMonth: 0,
+    incomeThisMonth: 0,
+    expenseThisMonth: 0,
+    newAdmissionsThisMonth: 0,
   }
 }
 
@@ -78,6 +87,7 @@ export function normalizeKpis(raw: Record<string, unknown>): DashboardKpis {
       absent: num(attendance.absent),
       late: num(attendance.late),
       excused: num(attendance.excused),
+      half_day: num(attendance.half_day),
       total: num(attendance.total),
       date: String(attendance.date ?? defaultAttendance.date),
     },
@@ -97,6 +107,11 @@ export function normalizeKpis(raw: Record<string, unknown>): DashboardKpis {
     errorsChange: num(raw.errorsChange),
     pendingEnrollments: num(raw.pendingEnrollments),
     pendingLeaveRequests: num(raw.pendingLeaveRequests),
+    totalStaff: num(raw.totalStaff),
+    collectedThisMonth: num(raw.collectedThisMonth),
+    incomeThisMonth: num(raw.incomeThisMonth),
+    expenseThisMonth: num(raw.expenseThisMonth),
+    newAdmissionsThisMonth: num(raw.newAdmissionsThisMonth),
   }
 }
 
@@ -107,6 +122,69 @@ export async function fetchKpis(): Promise<DashboardKpis> {
     throw new Error('Dashboard KPIs response was empty or invalid.')
   }
   return normalizeKpis(raw)
+}
+
+export async function fetchSchoolWidgets(): Promise<SchoolDashboardWidgets> {
+  const { data } = await api.get(e.dashboard.schoolWidgets)
+  const raw = unwrapOne<Partial<SchoolDashboardWidgets>>(data) ?? {}
+  const charts = raw.charts && typeof raw.charts === 'object' ? raw.charts : null
+
+  return {
+    notices: Array.isArray(raw.notices) ? raw.notices : [],
+    leave_requests: Array.isArray(raw.leave_requests) ? raw.leave_requests : [],
+    upcoming_events: Array.isArray(raw.upcoming_events) ? raw.upcoming_events : [],
+    top_teachers: Array.isArray(raw.top_teachers) ? raw.top_teachers : [],
+    top_students: Array.isArray(raw.top_students) ? raw.top_students : [],
+    new_admissions: Array.isArray(raw.new_admissions) ? raw.new_admissions : [],
+    charts: charts
+      ? {
+          fee_revenue: Array.isArray(charts.fee_revenue) ? charts.fee_revenue : [],
+          income_expense: Array.isArray(charts.income_expense) ? charts.income_expense : [],
+          admissions_by_class: Array.isArray(charts.admissions_by_class) ? charts.admissions_by_class : [],
+          calendar_events: Array.isArray(charts.calendar_events) ? charts.calendar_events : [],
+        }
+      : {
+          fee_revenue: [],
+          income_expense: [],
+          admissions_by_class: [],
+          calendar_events: [],
+        },
+  }
+}
+
+export async function fetchLmsWidgets(): Promise<LmsDashboardWidgets> {
+  const { data } = await api.get(e.dashboard.lmsWidgets)
+  const raw = unwrapOne<Partial<LmsDashboardWidgets>>(data) ?? {}
+  const kpis = raw.kpis && typeof raw.kpis === 'object' ? raw.kpis : {}
+
+  return {
+    kpis: {
+      total_lessons: Number(kpis.total_lessons ?? 0),
+      live_lessons: Number(kpis.live_lessons ?? 0),
+      recorded_lessons: Number(kpis.recorded_lessons ?? 0),
+      instructors: Number(kpis.instructors ?? 0),
+      active_students: Number(kpis.active_students ?? 0),
+    },
+    upcoming_sessions: Array.isArray(raw.upcoming_sessions) ? raw.upcoming_sessions : [],
+    recent_sessions: Array.isArray(raw.recent_sessions) ? raw.recent_sessions : [],
+    top_instructors: Array.isArray(raw.top_instructors) ? raw.top_instructors : [],
+    sessions_by_type: Array.isArray(raw.sessions_by_type) ? raw.sessions_by_type : [],
+  }
+}
+
+export async function fetchRolePreview(role: string): Promise<RoleDashboardPreview> {
+  const { data } = await api.get(e.dashboard.rolePreview(role))
+  const raw = unwrapOne<Partial<RoleDashboardPreview>>(data) ?? {}
+
+  return {
+    role: String(raw.role ?? role),
+    title: String(raw.title ?? `${role} preview`),
+    subtitle: String(raw.subtitle ?? ''),
+    kpis: Array.isArray(raw.kpis) ? raw.kpis : [],
+    highlights: Array.isArray(raw.highlights) ? raw.highlights : [],
+    notices: Array.isArray(raw.notices) ? raw.notices : [],
+    upcoming_events: Array.isArray(raw.upcoming_events) ? raw.upcoming_events : [],
+  }
 }
 
 export async function fetchActivity(days = 30) {

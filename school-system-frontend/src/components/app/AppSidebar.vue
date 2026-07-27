@@ -58,11 +58,18 @@ function siblingHrefs(items: NavItem[]): Array<string | undefined> {
 }
 
 function isItemActive(href: string | undefined, siblings: NavItem[]) {
-  return isNavHrefActive(href, route.path, route.query.tab, siblingHrefs(siblings))
+  return isNavHrefActive(
+    href,
+    route.path,
+    route.query.tab,
+    siblingHrefs(siblings),
+    route.query.status,
+    route.query.staff,
+  )
 }
 
 function hasActiveDescendant(item: NavItem): boolean {
-  const current = currentNavTarget(route.path, route.query.tab)
+  const current = currentNavTarget(route.path, route.query.tab, route.query.status, route.query.staff)
   if (item.href && navTargetsEqual(parseNavHref(item.href), current)) return true
   return (item.items ?? []).some((child) => hasActiveDescendant(child))
 }

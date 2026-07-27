@@ -1,5 +1,6 @@
 import { createPinia } from 'pinia'
 import { createApp } from 'vue'
+import axios from 'axios'
 import { bootstrapTheme } from './lib/theme.ts'
 import { configureRequestProgress } from './lib/request-progress.ts'
 import { useNotificationStore } from './stores/notification.store.ts'
@@ -21,6 +22,8 @@ app.use(router)
 
 app.config.errorHandler = (err, _instance, info) => {
   console.error('[vue]', err, info)
+  // Network/API failures are handled by axios interceptors and local catch blocks.
+  if (axios.isAxiosError(err)) return
   try {
     useNotificationStore().notify({
       title: 'Something went wrong',

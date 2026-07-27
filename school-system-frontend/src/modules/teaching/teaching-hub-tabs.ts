@@ -52,6 +52,15 @@ export const TEACHING_HUB_TABS: ModuleHubTab[] = [
     component: () => import('@/modules/teaching/views/HomeworkPanel.vue'),
   },
   {
+    id: 'lms',
+    title: 'Online learning',
+    description: 'Virtual lessons, recordings, quizzes, and polls.',
+    icon: Video,
+    priority: 'primary',
+    capability: 'isStaff',
+    component: () => import('@/modules/teaching/views/OnlineLearningPanel.vue'),
+  },
+  {
     id: 'behaviour',
     title: 'Behaviour',
     description: 'Points, rewards, misconduct, and support plans.',
@@ -79,16 +88,6 @@ export const TEACHING_HUB_TABS: ModuleHubTab[] = [
     group: 'Materials',
     capability: 'isStaff',
     component: () => import('@/modules/teaching/views/SyllabusPanel.vue'),
-  },
-  {
-    id: 'lms',
-    title: 'Online learning',
-    description: 'Virtual lessons, recordings, quizzes, and polls.',
-    icon: Video,
-    priority: 'secondary',
-    group: 'Materials',
-    capability: 'isStaff',
-    component: () => import('@/modules/teaching/views/OnlineLearningPanel.vue'),
   },
   {
     id: 'report-cards',

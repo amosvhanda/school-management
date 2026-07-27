@@ -90,6 +90,9 @@ export const endpoints = {
   },
   dashboard: {
     kpis: '/dashboard/kpis',
+    schoolWidgets: '/dashboard/school-widgets',
+    lmsWidgets: '/dashboard/lms-widgets',
+    rolePreview: (role: string) => `/dashboard/role-preview/${role}`,
     activity: '/dashboard/activity',
     monthlyStats: '/dashboard/monthly-stats',
     recentActivity: '/dashboard/recent-activity',
@@ -258,6 +261,8 @@ export const endpoints = {
   transactions: {
     list: '/transactions',
     summary: '/transactions/summary',
+    create: '/transactions',
+    detail: (id: number | string) => `/transactions/${id}`,
   },
   invoices: {
     list: '/invoices',
@@ -396,13 +401,14 @@ export const endpoints = {
     profile: (studentId: number | string) => `/health/students/${studentId}/profile`,
     visits: '/health/clinic-visits',
   },
-  events: { list: '/events' },
+  events: { list: '/events', detail: (id: number | string) => `/events/${id}` },
   discipline: {
     list: '/disciplinary-records',
     detail: (id: number | string) => `/disciplinary-records/${id}`,
   },
   communications: {
     threads: '/communications/threads',
+    parents: '/communications/parents',
     thread: (id: number | string) => `/communications/threads/${id}`,
     reply: (id: number | string) => `/communications/threads/${id}/messages`,
   },

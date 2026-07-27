@@ -139,6 +139,14 @@ const displayColumns = computed<ColumnDef<Record<string, unknown>, unknown>[]>((
       const canEditRow = props.canEdit && hasForm.value && (
         props.listKey !== 'finance-payroll'
         || String(record.status ?? '').toLowerCase() === 'pending'
+      ) && !(
+        (props.listKey === 'finance-income' || props.listKey === 'finance-expense')
+        && Boolean(record.is_system_generated)
+      )
+
+      const canDeleteRow = props.canDelete && !(
+        (props.listKey === 'finance-income' || props.listKey === 'finance-expense')
+        && Boolean(record.is_system_generated)
       )
 
       const menuActions = (props.rowActions ?? [])
@@ -152,7 +160,7 @@ const displayColumns = computed<ColumnDef<Record<string, unknown>, unknown>[]>((
 
       return h(TableRowActions, {
         canEdit: canEditRow,
-        canDelete: props.canDelete,
+        canDelete: canDeleteRow,
         actions: menuActions,
         onEdit: () => { void openEdit(record) },
         onDelete: () => { deleteTarget.value = record },
@@ -255,6 +263,16 @@ async function load(page = serverPage.value) {
         params.payroll_id = payrollId
       }
     }
+    if (props.listKey === 'finance-income') {
+      params.type = 'income'
+      params.manual_only = true
+      params.sort = params.sort ?? '-created_at'
+    }
+    if (props.listKey === 'finance-expense') {
+      params.type = 'expense'
+      params.manual_only = true
+      params.sort = params.sort ?? '-created_at'
+    }
     if (props.listKey === 'finance-invoices') {
       params.include = 'student'
       params.sort = params.sort ?? '-created_at'
@@ -312,6 +330,8 @@ async function openCreate() {
     formResetValues.value = { status: 'active' }
   } else if (props.listKey === 'ops-events') {
     formResetValues.value = { status: 'scheduled' }
+  } else if (props.listKey === 'finance-income' || props.listKey === 'finance-expense') {
+    formResetValues.value = { currency: 'USD' }
   } else if (props.listKey === 'compliance') {
     formResetValues.value = { status: 'active' }
   } else if (props.listKey === 'compliance-incidents') {
@@ -601,23 +621,45 @@ onMounted(async () => {
   }
 
   await load()
+  await maybeAutoCreate()
+})
+
+async function maybeAutoCreate() {
   const shouldAutoCreate = props.embedded
     ? props.autoCreate === true
     : route.query.create === '1'
 
-  if (shouldAutoCreate && props.canCreate && hasForm.value) {
-    void openCreate()
-    if (route.query.create === '1') {
-      const { create: _create, tab, ...rest } = route.query
-      router.replace({
-        query: {
-          ...rest,
-          ...(typeof tab === 'string' ? { tab } : {}),
-        },
-      })
-    }
+  if (!shouldAutoCreate || !props.canCreate || !hasForm.value) return
+
+  void openCreate()
+  if (route.query.create === '1') {
+    const { create: _create, tab, ...rest } = route.query
+    router.replace({
+      query: {
+        ...rest,
+        ...(typeof tab === 'string' ? { tab } : {}),
+      },
+    })
   }
-})
+}
+
+watch(
+  () => props.autoCreate,
+  (autoCreate, previous) => {
+    if (props.embedded && autoCreate === true && previous !== true) {
+      void maybeAutoCreate()
+    }
+  },
+)
+
+watch(
+  () => route.query.create,
+  (create, previous) => {
+    if (!props.embedded && create === '1' && previous !== '1') {
+      void maybeAutoCreate()
+    }
+  },
+)
 
 defineExpose({ load, openEdit })
 </script>

@@ -240,6 +240,9 @@ Route::middleware(['auth:sanctum', 'school.isolated', 'school.licensed'])->group
 
     // Dashboard (operational)
     Route::get('/dashboard/kpis', [DashboardController::class, 'kpis']);
+    Route::get('/dashboard/school-widgets', [DashboardController::class, 'schoolWidgets']);
+    Route::get('/dashboard/lms-widgets', [DashboardController::class, 'lmsWidgets']);
+    Route::get('/dashboard/role-preview/{role}', [DashboardController::class, 'rolePreview']);
     Route::get('/dashboard/activity', [DashboardController::class, 'activity']);
     Route::get('/dashboard/monthly-stats', [DashboardController::class, 'monthlyStats']);
     Route::get('/dashboard/recent-activity', [DashboardController::class, 'recentActivity']);
@@ -418,6 +421,9 @@ Route::middleware(['auth:sanctum', 'school.isolated', 'school.licensed'])->group
     Route::delete('/payments/{payment}', [PaymentController::class, 'destroy']);
     Route::get('/transactions', [TransactionController::class, 'index']);
     Route::get('/transactions/summary', [TransactionController::class, 'summary']);
+    Route::post('/transactions', [TransactionController::class, 'store']);
+    Route::put('/transactions/{id}', [TransactionController::class, 'update']);
+    Route::delete('/transactions/{id}', [TransactionController::class, 'destroy']);
     Route::get('/invoices', [InvoiceController::class, 'index']);
     Route::post('/invoices', [InvoiceController::class, 'store']);
     Route::get('/invoices/{invoice}', [InvoiceController::class, 'show']);
@@ -512,6 +518,8 @@ Route::middleware(['auth:sanctum', 'school.isolated', 'school.licensed'])->group
     Route::put('/disciplinary-records/{id}', [DisciplinaryRecordController::class, 'update']);
 
     Route::get('/communications/threads', [CommunicationController::class, 'index']);
+    Route::get('/communications/parents', [CommunicationController::class, 'parents']);
+    Route::post('/communications/threads', [CommunicationController::class, 'store']);
     Route::get('/communications/threads/{id}', [CommunicationController::class, 'show']);
     Route::post('/communications/threads/{id}/messages', [CommunicationController::class, 'reply']);
 
@@ -520,6 +528,7 @@ Route::middleware(['auth:sanctum', 'school.isolated', 'school.licensed'])->group
     Route::get('/guardians/{id}/students', [GuardianController::class, 'students']);
     Route::post('/guardians', [GuardianController::class, 'store']);
     Route::put('/guardians/{id}', [GuardianController::class, 'update']);
+    Route::delete('/guardians/{id}', [GuardianController::class, 'destroy']);
     Route::post('/guardians/{id}/link-student', [GuardianController::class, 'linkToStudent']);
     Route::get('/enrollment-applications', [EnrollmentController::class, 'index']);
     Route::post('/enrollment-applications', [EnrollmentController::class, 'store']);
@@ -629,6 +638,7 @@ Route::middleware(['auth:sanctum', 'school.isolated', 'school.licensed'])->group
     Route::get('/library/books', [LibraryController::class, 'books']);
     Route::post('/library/books', [LibraryController::class, 'storeBook']);
     Route::put('/library/books/{id}', [LibraryController::class, 'updateBook']);
+    Route::delete('/library/books/{id}', [LibraryController::class, 'destroyBook']);
     Route::get('/library/loans', [LibraryController::class, 'loans']);
     Route::post('/library/loans', [LibraryController::class, 'borrow']);
     Route::post('/library/loans/{id}/return', [LibraryController::class, 'returnBook']);
@@ -649,6 +659,7 @@ Route::middleware(['auth:sanctum', 'school.isolated', 'school.licensed'])->group
     Route::get('/events', [SchoolEventController::class, 'index']);
     Route::post('/events', [SchoolEventController::class, 'store']);
     Route::put('/events/{id}', [SchoolEventController::class, 'update']);
+    Route::delete('/events/{id}', [SchoolEventController::class, 'destroy']);
     Route::get('/compliance/policies', [ComplianceController::class, 'policies']);
     Route::post('/compliance/policies', [ComplianceController::class, 'storePolicy']);
     Route::put('/compliance/policies/{id}', [ComplianceController::class, 'updatePolicy']);

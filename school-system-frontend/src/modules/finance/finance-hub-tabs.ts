@@ -4,11 +4,15 @@ import {
   BookOpen,
   CreditCard,
   HardDrive,
+  Layers,
   LineChart,
+  Percent,
   Receipt,
   Scale,
   ShoppingCart,
   Tags,
+  TrendingDown,
+  TrendingUp,
   Wallet,
 } from '@lucide/vue'
 import type { ModuleHubTab } from '@/lib/module-hub'
@@ -20,6 +24,7 @@ export const FINANCE_HUB_TABS: ModuleHubTab[] = [
     description: 'Collections, cash movement, and the numbers that matter today.',
     icon: Wallet,
     panel: 'finance-overview',
+    group: 'Home',
   },
   {
     id: 'payments',
@@ -27,6 +32,7 @@ export const FINANCE_HUB_TABS: ModuleHubTab[] = [
     description: 'Record and review fee collections.',
     icon: CreditCard,
     listKey: 'finance-payments',
+    group: 'Fees',
   },
   {
     id: 'invoices',
@@ -34,52 +40,71 @@ export const FINANCE_HUB_TABS: ModuleHubTab[] = [
     description: 'Bill students and track outstanding balances.',
     icon: Receipt,
     listKey: 'finance-invoices',
+    group: 'Fees',
   },
   {
-    id: 'fees',
-    title: 'Fees',
-    description: 'Fee categories, groups, discounts, and class structures.',
+    id: 'fee-categories',
+    title: 'Fee categories',
+    description: 'Group fee types used on invoices and structures.',
     icon: Tags,
-    sections: [
-      {
-        listKey: 'finance-fee-categories',
-        title: 'Fee categories',
-        description: 'Group fee types used on invoices and structures.',
-      },
-      {
-        listKey: 'finance-fee-groups',
-        title: 'Fee groups',
-        description: 'Bundle categories for packaging on invoices.',
-      },
-      {
-        listKey: 'finance-fee-discounts',
-        title: 'Fee discounts',
-        description: 'Percent or fixed discounts by category.',
-      },
-      {
-        listKey: 'finance-fees',
-        title: 'Fee structures',
-        description: 'Configure amounts by class and term.',
-      },
-    ],
+    listKey: 'finance-fee-categories',
+    group: 'Fees',
   },
   {
-    id: 'accounting',
-    title: 'Accounting',
-    description: 'Income and expense heads used to classify ledger receipts and payments.',
+    id: 'fee-groups',
+    title: 'Fee groups',
+    description: 'Bundle categories for packaging on invoices.',
+    icon: Layers,
+    listKey: 'finance-fee-groups',
+    group: 'Fees',
+  },
+  {
+    id: 'fee-discounts',
+    title: 'Fee discounts',
+    description: 'Percent or fixed discounts by category.',
+    icon: Percent,
+    listKey: 'finance-fee-discounts',
+    group: 'Fees',
+  },
+  {
+    id: 'fee-structures',
+    title: 'Fee structures',
+    description: 'Configure amounts by class and term.',
+    icon: Tags,
+    listKey: 'finance-fees',
+    group: 'Fees',
+  },
+  {
+    id: 'income-heads',
+    title: 'Income heads',
+    description: 'Classify fee payments and other money coming in.',
     icon: BookOpen,
-    sections: [
-      {
-        listKey: 'finance-income-heads',
-        title: 'Income heads',
-        description: 'Classify fee payments and other money coming in.',
-      },
-      {
-        listKey: 'finance-expense-heads',
-        title: 'Expense heads',
-        description: 'Classify school spending for reporting.',
-      },
-    ],
+    listKey: 'finance-income-heads',
+    group: 'Accounts',
+  },
+  {
+    id: 'expense-heads',
+    title: 'Expense heads',
+    description: 'Classify school spending for reporting.',
+    icon: BookOpen,
+    listKey: 'finance-expense-heads',
+    group: 'Accounts',
+  },
+  {
+    id: 'income',
+    title: 'Income',
+    description: 'Record manual income entries classified by income head.',
+    icon: TrendingUp,
+    listKey: 'finance-income',
+    group: 'Accounts',
+  },
+  {
+    id: 'expense',
+    title: 'Expense',
+    description: 'Record manual expense entries classified by expense head.',
+    icon: TrendingDown,
+    listKey: 'finance-expense',
+    group: 'Accounts',
   },
   {
     id: 'transactions',
@@ -87,6 +112,7 @@ export const FINANCE_HUB_TABS: ModuleHubTab[] = [
     description: 'Full ledger — money in and out across currencies.',
     icon: ArrowLeftRight,
     component: () => import('@/modules/finance/views/TransactionsManagementView.vue'),
+    group: 'Accounts',
   },
   {
     id: 'payroll',
@@ -94,6 +120,7 @@ export const FINANCE_HUB_TABS: ModuleHubTab[] = [
     description: 'Generate payslips and pay staff.',
     icon: Banknote,
     component: () => import('@/modules/finance/views/PayrollManagementView.vue'),
+    group: 'Payroll & cash',
   },
   {
     id: 'cash-flow',
@@ -101,6 +128,7 @@ export const FINANCE_HUB_TABS: ModuleHubTab[] = [
     description: 'Money in vs money out so everything balances.',
     icon: Scale,
     component: () => import('@/modules/finance/views/FinanceCashFlowView.vue'),
+    group: 'Payroll & cash',
   },
   {
     id: 'aging',
@@ -108,12 +136,14 @@ export const FINANCE_HUB_TABS: ModuleHubTab[] = [
     description: 'Outstanding balances by due date.',
     icon: LineChart,
     component: () => import('@/modules/finance/views/FinanceReportsView.vue'),
+    group: 'Payroll & cash',
   },
   {
     id: 'procurement',
     title: 'Spend',
     description: 'Spend requests and vendor payments.',
     icon: ShoppingCart,
+    group: 'Operations',
     sections: [
       {
         listKey: 'ops-procurement',
@@ -133,6 +163,7 @@ export const FINANCE_HUB_TABS: ModuleHubTab[] = [
     description: 'School assets and depreciation records.',
     icon: HardDrive,
     listKey: 'ops-assets',
+    group: 'Operations',
   },
 ]
 
