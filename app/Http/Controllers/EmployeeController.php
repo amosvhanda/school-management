@@ -106,7 +106,7 @@ class EmployeeController extends Controller
             ->with(['designation:id,name', 'department:id,name']);
         $this->orderIndex($query);
 
-        return response()->json(['data' => $query->get()]);
+        return $this->indexResponse($request, $query);
     }
 
     public function show(Request $request, int $id): JsonResponse
@@ -135,6 +135,10 @@ class EmployeeController extends Controller
 
         if ($request->filled('status')) {
             $query->where('status', $request->string('status')->toString());
+        }
+
+        if ($request->filled('designation_id')) {
+            $query->where('designation_id', $request->integer('designation_id'));
         }
 
         return $query;

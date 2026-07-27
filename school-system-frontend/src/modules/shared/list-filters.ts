@@ -39,6 +39,8 @@ export interface ListPageMeta {
   /** Use API pagination (page/per_page) instead of loading all rows */
   serverPagination?: boolean
   perPage?: number
+  /** Show Export CSV in CrudListPage toolbar (exports current filters via all=true when paginated) */
+  csvExport?: boolean
 }
 
 const recordStatusOptions: ListFilterOption[] = [
@@ -55,6 +57,7 @@ export const moduleListMetaRegistry: Record<string, ListPageMeta> = {
     filterMode: 'server',
     serverPagination: true,
     perPage: 25,
+    csvExport: true,
     filters: [
       {
         key: 'class_id',
@@ -98,6 +101,7 @@ export const moduleListMetaRegistry: Record<string, ListPageMeta> = {
     filterMode: 'server',
     serverPagination: true,
     perPage: 25,
+    csvExport: true,
     filters: [
       {
         key: 'status',
@@ -109,7 +113,11 @@ export const moduleListMetaRegistry: Record<string, ListPageMeta> = {
     ],
   },
   guardians: {
-    filterMode: 'client',
+    serverSearch: true,
+    filterMode: 'server',
+    serverPagination: true,
+    perPage: 25,
+    csvExport: true,
     filters: [
       {
         key: 'relationship',
@@ -122,6 +130,148 @@ export const moduleListMetaRegistry: Record<string, ListPageMeta> = {
           { label: 'Father', value: 'father' },
           { label: 'Guardian', value: 'guardian' },
           { label: 'Other', value: 'other' },
+        ],
+      },
+    ],
+  },
+  'academics-setup': {
+    serverSearch: true,
+    filterMode: 'server',
+    serverPagination: true,
+    perPage: 25,
+    filters: [
+      {
+        key: 'grade_level_id',
+        label: 'Grade level',
+        type: 'relation',
+        placeholder: 'All grades',
+        relation: { endpoint: moduleEndpoints.gradeLevels, moduleLabel: 'grade level' },
+      },
+      {
+        key: 'stream_id',
+        label: 'Stream',
+        type: 'relation',
+        placeholder: 'All streams',
+        relation: { endpoint: moduleEndpoints.streams, moduleLabel: 'stream' },
+      },
+      {
+        key: 'teacher_id',
+        label: 'Class teacher',
+        type: 'relation',
+        placeholder: 'All teachers',
+        relation: { endpoint: moduleEndpoints.teachers, moduleLabel: 'teacher' },
+      },
+    ],
+  },
+  'academics-exam-schedules': {
+    serverSearch: true,
+    filterMode: 'server',
+    serverPagination: true,
+    perPage: 25,
+    filters: [
+      {
+        key: 'exam_id',
+        label: 'Exam',
+        type: 'relation',
+        placeholder: 'All exams',
+        relation: { endpoint: moduleEndpoints.exams, moduleLabel: 'exam' },
+      },
+      {
+        key: 'class_id',
+        label: 'Class',
+        type: 'relation',
+        placeholder: 'All classes',
+        relation: { endpoint: moduleEndpoints.classes, moduleLabel: 'class' },
+      },
+    ],
+  },
+  'ops-events': {
+    serverSearch: true,
+    filterMode: 'server',
+    serverPagination: true,
+    perPage: 25,
+    filters: [
+      {
+        key: 'type',
+        label: 'Type',
+        type: 'select',
+        placeholder: 'Any type',
+        options: [
+          { label: 'Sports day', value: 'Sports day' },
+          { label: 'Meeting', value: 'Meeting' },
+          { label: 'Holiday', value: 'Holiday' },
+          { label: 'Exam', value: 'Exam' },
+          { label: 'Other', value: 'Other' },
+        ],
+      },
+      {
+        key: 'status',
+        label: 'Status',
+        type: 'select',
+        placeholder: 'Any status',
+        options: [
+          { label: 'Scheduled', value: 'scheduled' },
+          { label: 'Ongoing', value: 'ongoing' },
+          { label: 'Completed', value: 'completed' },
+          { label: 'Cancelled', value: 'cancelled' },
+        ],
+      },
+    ],
+  },
+  'ops-health': {
+    serverSearch: true,
+    filterMode: 'server',
+    serverPagination: true,
+    perPage: 25,
+    filters: [
+      {
+        key: 'student_id',
+        label: 'Student',
+        type: 'relation',
+        placeholder: 'All students',
+        relation: { endpoint: moduleEndpoints.students, moduleLabel: 'student' },
+      },
+    ],
+  },
+  'hr-discipline': {
+    serverSearch: true,
+    filterMode: 'server',
+    serverPagination: true,
+    perPage: 25,
+    filters: [
+      {
+        key: 'student_id',
+        label: 'Student',
+        type: 'relation',
+        placeholder: 'All students',
+        relation: { endpoint: moduleEndpoints.students, moduleLabel: 'student' },
+      },
+      {
+        key: 'severity',
+        label: 'Severity',
+        type: 'select',
+        placeholder: 'Any severity',
+        options: [
+          { label: 'Minor', value: 'minor' },
+          { label: 'Moderate', value: 'moderate' },
+          { label: 'Major', value: 'major' },
+        ],
+      },
+    ],
+  },
+  'ops-library-loans': {
+    filterMode: 'server',
+    serverPagination: true,
+    perPage: 25,
+    filters: [
+      {
+        key: 'status',
+        label: 'Status',
+        type: 'select',
+        placeholder: 'Any status',
+        options: [
+          { label: 'Borrowed', value: 'borrowed' },
+          { label: 'Returned', value: 'returned' },
         ],
       },
     ],
@@ -172,6 +322,7 @@ export const moduleListMetaRegistry: Record<string, ListPageMeta> = {
     filterMode: 'server',
     serverPagination: true,
     perPage: 25,
+    csvExport: true,
     filters: [
       {
         key: 'student_id',
@@ -239,7 +390,10 @@ export const moduleListMetaRegistry: Record<string, ListPageMeta> = {
     ],
   },
   'finance-transactions': {
+    serverSearch: true,
     filterMode: 'server',
+    serverPagination: true,
+    perPage: 25,
     filters: [
       {
         key: 'type',
@@ -285,7 +439,11 @@ export const moduleListMetaRegistry: Record<string, ListPageMeta> = {
     ],
   },
   'finance-fees': {
+    serverSearch: true,
     filterMode: 'server',
+    serverPagination: true,
+    perPage: 25,
+    csvExport: true,
     filters: [
       {
         key: 'fee_category_id',
@@ -357,7 +515,11 @@ export const moduleListMetaRegistry: Record<string, ListPageMeta> = {
     ],
   },
   'ops-inventory': {
+    serverSearch: true,
     filterMode: 'server',
+    serverPagination: true,
+    perPage: 25,
+    csvExport: true,
     filters: [
       {
         key: 'type',
@@ -476,7 +638,10 @@ export const moduleListMetaRegistry: Record<string, ListPageMeta> = {
     ],
   },
   'ops-library': {
+    serverSearch: true,
     filterMode: 'server',
+    serverPagination: true,
+    perPage: 25,
     filters: [
       {
         key: 'category',
@@ -488,51 +653,6 @@ export const moduleListMetaRegistry: Record<string, ListPageMeta> = {
           { label: 'Non-fiction', value: 'Non-fiction' },
           { label: 'Textbook', value: 'Textbook' },
           { label: 'Reference', value: 'Reference' },
-        ],
-      },
-    ],
-  },
-  'ops-library-loans': {
-    filterMode: 'server',
-    filters: [
-      {
-        key: 'status',
-        label: 'Status',
-        type: 'select',
-        placeholder: 'Any status',
-        options: [
-          { label: 'Borrowed', value: 'borrowed' },
-          { label: 'Returned', value: 'returned' },
-        ],
-      },
-    ],
-  },
-  'ops-events': {
-    filterMode: 'server',
-    filters: [
-      {
-        key: 'type',
-        label: 'Type',
-        type: 'select',
-        placeholder: 'Any type',
-        options: [
-          { label: 'Sports day', value: 'Sports day' },
-          { label: 'Meeting', value: 'Meeting' },
-          { label: 'Holiday', value: 'Holiday' },
-          { label: 'Exam', value: 'Exam' },
-          { label: 'Other', value: 'Other' },
-        ],
-      },
-      {
-        key: 'status',
-        label: 'Status',
-        type: 'select',
-        placeholder: 'Any status',
-        options: [
-          { label: 'Scheduled', value: 'scheduled' },
-          { label: 'Ongoing', value: 'ongoing' },
-          { label: 'Completed', value: 'completed' },
-          { label: 'Cancelled', value: 'cancelled' },
         ],
       },
     ],
@@ -593,7 +713,11 @@ export const moduleListMetaRegistry: Record<string, ListPageMeta> = {
     ],
   },
   'ops-procurement': {
+    serverSearch: true,
     filterMode: 'server',
+    serverPagination: true,
+    perPage: 25,
+    csvExport: true,
     filters: [
       {
         key: 'status',
@@ -693,6 +817,7 @@ export const moduleListMetaRegistry: Record<string, ListPageMeta> = {
     filterMode: 'server',
     serverPagination: true,
     perPage: 25,
+    csvExport: true,
     filters: [
       {
         key: 'student_id',
@@ -707,6 +832,228 @@ export const moduleListMetaRegistry: Record<string, ListPageMeta> = {
         type: 'select',
         placeholder: 'Any status',
         options: [...INVOICE_STATUS_OPTIONS],
+      },
+    ],
+  },
+  'finance-fee-groups': {
+    serverSearch: true,
+    filterMode: 'server',
+    serverPagination: true,
+    perPage: 25,
+    filters: [
+      {
+        key: 'is_active',
+        label: 'Status',
+        type: 'select',
+        placeholder: 'Any status',
+        options: [
+          { label: 'Active', value: '1' },
+          { label: 'Inactive', value: '0' },
+        ],
+      },
+    ],
+  },
+  'finance-fee-discounts': {
+    serverSearch: true,
+    filterMode: 'server',
+    serverPagination: true,
+    perPage: 25,
+    filters: [
+      {
+        key: 'is_active',
+        label: 'Status',
+        type: 'select',
+        placeholder: 'Any status',
+        options: [
+          { label: 'Active', value: '1' },
+          { label: 'Inactive', value: '0' },
+        ],
+      },
+    ],
+  },
+  'finance-income-heads': {
+    serverSearch: true,
+    filterMode: 'server',
+    serverPagination: true,
+    perPage: 25,
+    filters: [
+      {
+        key: 'is_active',
+        label: 'Status',
+        type: 'select',
+        placeholder: 'Any status',
+        options: [
+          { label: 'Active', value: '1' },
+          { label: 'Inactive', value: '0' },
+        ],
+      },
+    ],
+  },
+  'finance-expense-heads': {
+    serverSearch: true,
+    filterMode: 'server',
+    serverPagination: true,
+    perPage: 25,
+    filters: [
+      {
+        key: 'is_active',
+        label: 'Status',
+        type: 'select',
+        placeholder: 'Any status',
+        options: [
+          { label: 'Active', value: '1' },
+          { label: 'Inactive', value: '0' },
+        ],
+      },
+    ],
+  },
+  'finance-income': {
+    serverSearch: true,
+    filterMode: 'server',
+    serverPagination: true,
+    perPage: 25,
+    filters: [
+      {
+        key: 'income_head_id',
+        label: 'Income head',
+        type: 'relation',
+        placeholder: 'All heads',
+        relation: { endpoint: moduleEndpoints.incomeHeads, moduleLabel: 'income head' },
+      },
+      {
+        key: 'payment_method',
+        label: 'Method',
+        type: 'select',
+        placeholder: 'Any method',
+        options: [...PAYMENT_METHOD_OPTIONS],
+      },
+    ],
+  },
+  'finance-expense': {
+    serverSearch: true,
+    filterMode: 'server',
+    serverPagination: true,
+    perPage: 25,
+    filters: [
+      {
+        key: 'expense_head_id',
+        label: 'Expense head',
+        type: 'relation',
+        placeholder: 'All heads',
+        relation: { endpoint: moduleEndpoints.expenseHeads, moduleLabel: 'expense head' },
+      },
+      {
+        key: 'payment_method',
+        label: 'Method',
+        type: 'select',
+        placeholder: 'Any method',
+        options: [...PAYMENT_METHOD_OPTIONS],
+      },
+    ],
+  },
+  'hr-employees': {
+    serverSearch: true,
+    filterMode: 'server',
+    serverPagination: true,
+    perPage: 25,
+    filters: [
+      {
+        key: 'status',
+        label: 'Status',
+        type: 'select',
+        placeholder: 'Any status',
+        options: recordStatusOptions.filter((o) => ['active', 'inactive', 'suspended'].includes(o.value)),
+      },
+      {
+        key: 'designation_id',
+        label: 'Designation',
+        type: 'relation',
+        placeholder: 'All designations',
+        relation: { endpoint: moduleEndpoints.designations, moduleLabel: 'designation' },
+      },
+    ],
+  },
+  'hr-leave-types': {
+    serverSearch: true,
+    filterMode: 'server',
+    serverPagination: true,
+    perPage: 25,
+    filters: [
+      {
+        key: 'is_active',
+        label: 'Status',
+        type: 'select',
+        placeholder: 'Any status',
+        options: [
+          { label: 'Active', value: '1' },
+          { label: 'Inactive', value: '0' },
+        ],
+      },
+    ],
+  },
+  'hr-designations': {
+    serverSearch: true,
+    filterMode: 'server',
+    serverPagination: true,
+    perPage: 25,
+    filters: [
+      {
+        key: 'is_active',
+        label: 'Status',
+        type: 'select',
+        placeholder: 'Any status',
+        options: [
+          { label: 'Active', value: '1' },
+          { label: 'Inactive', value: '0' },
+        ],
+      },
+    ],
+  },
+  'people-student-categories': {
+    serverSearch: true,
+    filterMode: 'server',
+    serverPagination: true,
+    perPage: 25,
+    filters: [
+      {
+        key: 'is_active',
+        label: 'Status',
+        type: 'select',
+        placeholder: 'Any status',
+        options: [
+          { label: 'Active', value: '1' },
+          { label: 'Inactive', value: '0' },
+        ],
+      },
+    ],
+  },
+  'ops-library-members': {
+    serverSearch: true,
+    filterMode: 'server',
+    serverPagination: true,
+    perPage: 25,
+    filters: [
+      {
+        key: 'member_type',
+        label: 'Type',
+        type: 'select',
+        placeholder: 'Any type',
+        options: [
+          { label: 'Student', value: 'student' },
+          { label: 'Teacher', value: 'teacher' },
+          { label: 'Employee', value: 'employee' },
+          { label: 'External', value: 'external' },
+        ],
+      },
+      {
+        key: 'status',
+        label: 'Status',
+        type: 'select',
+        placeholder: 'Any status',
+        options: [
+          { label: 'Active', value: 'active' },
+          { label: 'Inactive', value: 'inactive' },
+        ],
       },
     ],
   },

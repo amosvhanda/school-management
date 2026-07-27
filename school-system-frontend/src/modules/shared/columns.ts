@@ -152,6 +152,18 @@ export function statusColumn(header = 'Status', key = 'status'): ColumnDef<Recor
   }
 }
 
+/** Boolean is_active flag rendered as Active/Inactive badge. */
+export function activeStatusColumn(header = 'Status', key = 'is_active'): ColumnDef<Record<string, unknown>> {
+  return {
+    id: key,
+    header,
+    cell: ({ row }) => {
+      const active = row.original[key] !== false && row.original[key] !== 0
+      return h(Badge, { variant: active ? 'default' : 'secondary' }, () => (active ? 'Active' : 'Inactive'))
+    },
+  }
+}
+
 export function currencyColumn(header: string, amountKey: string, currencyKey = 'currency'): ColumnDef<Record<string, unknown>> {
   return {
     id: `${amountKey}-currency`,
@@ -432,7 +444,7 @@ export const feeStructureColumns: ColumnDef<Record<string, unknown>>[] = [
       return h(
         RouterLink,
         {
-          to: { path: '/finance/fee-categories', query: { highlight: String(categoryId) } },
+          to: { path: '/finance', query: { tab: 'fee-categories', highlight: String(categoryId) } },
           class: 'text-sm font-medium text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
         },
         { default: () => name },
@@ -446,11 +458,7 @@ export const feeStructureColumns: ColumnDef<Record<string, unknown>>[] = [
 export const feeCategoryColumns: ColumnDef<Record<string, unknown>>[] = [
   textColumn('Name', 'name'),
   textColumn('Description', 'description'),
-  {
-    id: 'is_active',
-    header: 'Status',
-    cell: ({ row }) => (row.original.is_active === false ? 'Inactive' : 'Active'),
-  },
+  activeStatusColumn(),
   {
     id: 'fee_structures_count',
     header: 'Fee structures',
@@ -462,7 +470,7 @@ export const feeCategoryColumns: ColumnDef<Record<string, unknown>>[] = [
       return h(
         RouterLink,
         {
-          to: { path: '/finance/fees', query: { fee_category_id: String(id) } },
+          to: { path: '/finance', query: { tab: 'fee-structures', fee_category_id: String(id) } },
           class: 'text-sm font-medium text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
           'aria-label': `View ${label} for this category`,
         },
@@ -526,7 +534,7 @@ export const payrollColumns: ColumnDef<Record<string, unknown>>[] = [
       return h(
         RouterLink,
         {
-          to: { path: '/finance/transactions', query: { payroll_id: String(id), category: 'payroll' } },
+          to: { path: '/finance', query: { tab: 'transactions', payroll_id: String(id), category: 'payroll' } },
           class: 'text-primary underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
         },
         () => `${count} payment${count === 1 ? '' : 's'}`,
@@ -905,7 +913,7 @@ export const transactionColumns: ColumnDef<Record<string, unknown>>[] = [
           return h(
             RouterLink,
             {
-              to: { path: '/finance/payroll', query: { highlight: String(id) } },
+              to: { path: '/finance', query: { tab: 'payroll', highlight: String(id) } },
               class: 'text-primary underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
             },
             () => `${name}${period}`,

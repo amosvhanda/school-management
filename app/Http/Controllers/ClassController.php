@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\RespondsWithPaginatedList;
 use App\Models\ClassModel;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
@@ -9,6 +10,8 @@ use Illuminate\Validation\Rule;
 
 class ClassController extends Controller
 {
+    use RespondsWithPaginatedList;
+
     public function index(Request $request)
     {
         $schoolId = $request->user()?->school_id;
@@ -16,28 +19,33 @@ class ClassController extends Controller
         $query = ClassModel::query()
             ->when($schoolId, fn ($builder) => $builder->where('school_id', $schoolId));
 
-        if ($request->has('teacher_id')) {
+        if ($request->filled('teacher_id')) {
             $query->where('teacher_id', $request->teacher_id);
         }
 
-        if ($request->has('form')) {
+        if ($request->filled('form')) {
             $query->where('form', $request->form);
         }
 
-        $query->with(['teacher', 'gradeLevel', 'stream']);
-
-        // Support 'all=true' parameter to get all classes without pagination
-        if ($request->get('all') === 'true' || $request->get('all') === true) {
-            $classes = $query->orderBy('name')->get();
-        } else {
-            // Default pagination or limit
-            $limit = $request->get('limit', 50);
-            $classes = $query->orderBy('name')->limit($limit)->get();
+        if ($request->filled('grade_level_id')) {
+            $query->where('grade_level_id', $request->integer('grade_level_id'));
         }
 
-        return response()->json([
-            'data' => $classes,
-        ]);
+        if ($request->filled('stream_id')) {
+            $query->where('stream_id', $request->integer('stream_id'));
+        }
+
+        if ($request->filled('search')) {
+            $search = $request->string('search')->toString();
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                    ->orWhere('form', 'like', "%{$search}%");
+            });
+        }
+
+        $query->with(['teacher', 'gradeLevel', 'stream'])->orderBy('name');
+
+        return $this->indexResponse($request, $query);
     }
 
     public function show(Request $request, ClassModel $class)

@@ -5,7 +5,7 @@ import { schoolSetupHref } from '@/modules/settings/school-setup-links'
 export function studentRelation(overrides?: Partial<RelationFieldConfig>): RelationFieldConfig {
   return {
     endpoint: moduleEndpoints.students,
-    createRoute: '/students?create=1',
+    createRoute: '/people?tab=students&create=1',
     moduleLabel: 'student',
     ...overrides,
   }
@@ -14,7 +14,7 @@ export function studentRelation(overrides?: Partial<RelationFieldConfig>): Relat
 export function guardianRelation(overrides?: Partial<RelationFieldConfig>): RelationFieldConfig {
   return {
     endpoint: moduleEndpoints.guardians,
-    createRoute: '/guardians?create=1',
+    createRoute: '/people?tab=guardians&create=1',
     moduleLabel: 'guardian',
     ...overrides,
   }
@@ -32,8 +32,17 @@ export function classRelation(overrides?: Partial<RelationFieldConfig>): Relatio
 export function inventoryItemRelation(overrides?: Partial<RelationFieldConfig>): RelationFieldConfig {
   return {
     endpoint: moduleEndpoints.inventoryItems,
-    createRoute: '/operations/inventory?create=1',
+    createRoute: '/operations?tab=inventory&create=1&section=ops-inventory',
     moduleLabel: 'inventory item',
+    ...overrides,
+  }
+}
+
+export function inventorySaleRelation(overrides?: Partial<RelationFieldConfig>): RelationFieldConfig {
+  return {
+    endpoint: moduleEndpoints.inventorySales,
+    createRoute: '/operations?tab=inventory&create=1&section=ops-inventory-sales',
+    moduleLabel: 'inventory sale',
     ...overrides,
   }
 }
@@ -41,7 +50,7 @@ export function inventoryItemRelation(overrides?: Partial<RelationFieldConfig>):
 export function transportVehicleRelation(overrides?: Partial<RelationFieldConfig>): RelationFieldConfig {
   return {
     endpoint: moduleEndpoints.transportVehicles,
-    createRoute: '/operations/transport?create=1',
+    createRoute: '/operations?tab=transport&create=1&section=ops-transport',
     moduleLabel: 'vehicle',
     ...overrides,
   }
@@ -50,8 +59,26 @@ export function transportVehicleRelation(overrides?: Partial<RelationFieldConfig
 export function transportDriverRelation(overrides?: Partial<RelationFieldConfig>): RelationFieldConfig {
   return {
     endpoint: moduleEndpoints.transportDrivers,
-    createRoute: '/operations/transport/drivers?create=1',
+    createRoute: '/operations?tab=transport&create=1&section=ops-transport-drivers',
     moduleLabel: 'driver',
+    ...overrides,
+  }
+}
+
+export function transportRouteRelation(overrides?: Partial<RelationFieldConfig>): RelationFieldConfig {
+  return {
+    endpoint: moduleEndpoints.transportRoutes,
+    createRoute: '/operations?tab=transport&create=1&section=ops-transport-routes',
+    moduleLabel: 'transport route',
+    ...overrides,
+  }
+}
+
+export function procurementVendorRelation(overrides?: Partial<RelationFieldConfig>): RelationFieldConfig {
+  return {
+    endpoint: moduleEndpoints.procurementVendors,
+    createRoute: '/finance?tab=procurement&create=1&section=ops-procurement-vendors',
+    moduleLabel: 'vendor',
     ...overrides,
   }
 }
@@ -97,7 +124,7 @@ export function streamRelation(overrides?: Partial<RelationFieldConfig>): Relati
 export function feeCategoryRelation(overrides?: Partial<RelationFieldConfig>): RelationFieldConfig {
   return {
     endpoint: moduleEndpoints.feeCategories,
-    createRoute: schoolSetupHref('fees', { create: true }),
+    createRoute: '/finance?tab=fee-categories&create=1',
     moduleLabel: 'fee category',
     params: { all: true },
     ...overrides,
@@ -107,7 +134,7 @@ export function feeCategoryRelation(overrides?: Partial<RelationFieldConfig>): R
 export function studentCategoryRelation(overrides?: Partial<RelationFieldConfig>): RelationFieldConfig {
   return {
     endpoint: moduleEndpoints.studentCategories,
-    createRoute: schoolSetupHref('student-categories', { create: true }),
+    createRoute: '/people?tab=student-categories&create=1',
     moduleLabel: 'student category',
     ...overrides,
   }
@@ -125,7 +152,7 @@ export function leaveTypeRelation(overrides?: Partial<RelationFieldConfig>): Rel
 export function designationRelation(overrides?: Partial<RelationFieldConfig>): RelationFieldConfig {
   return {
     endpoint: moduleEndpoints.designations,
-    createRoute: schoolSetupHref('designations', { create: true }),
+    createRoute: '/hr?tab=designations&create=1',
     moduleLabel: 'designation',
     ...overrides,
   }
@@ -134,7 +161,7 @@ export function designationRelation(overrides?: Partial<RelationFieldConfig>): R
 export function feeGroupRelation(overrides?: Partial<RelationFieldConfig>): RelationFieldConfig {
   return {
     endpoint: moduleEndpoints.feeGroups,
-    createRoute: schoolSetupHref('fees', { create: true }),
+    createRoute: '/finance?tab=fee-groups&create=1',
     moduleLabel: 'fee group',
     ...overrides,
   }
@@ -143,7 +170,7 @@ export function feeGroupRelation(overrides?: Partial<RelationFieldConfig>): Rela
 export function feeStructureRelation(overrides?: Partial<RelationFieldConfig>): RelationFieldConfig {
   return {
     endpoint: moduleEndpoints.feeStructures,
-    createRoute: schoolSetupHref('fees', { create: true }),
+    createRoute: '/finance?tab=fee-structures&create=1',
     moduleLabel: 'fee structure',
     ...overrides,
   }
@@ -180,6 +207,7 @@ export function payrollTeacherRelation(overrides?: Partial<RelationFieldConfig>)
 export function invoiceRelation(overrides?: Partial<RelationFieldConfig>): RelationFieldConfig {
   return {
     endpoint: moduleEndpoints.invoices,
+    createRoute: '/finance?tab=invoices&create=1',
     moduleLabel: 'invoice',
     params: { status: 'pending,partial,overdue' },
     ...overrides,
@@ -189,7 +217,62 @@ export function invoiceRelation(overrides?: Partial<RelationFieldConfig>): Relat
 export function staffUserRelation(overrides?: Partial<RelationFieldConfig>): RelationFieldConfig {
   return {
     endpoint: moduleEndpoints.users,
+    createRoute: '/admin?tab=users&create=1',
     moduleLabel: 'staff host',
+    ...overrides,
+  }
+}
+
+export function roomRelation(overrides?: Partial<RelationFieldConfig>): RelationFieldConfig {
+  return {
+    endpoint: moduleEndpoints.rooms,
+    createRoute: schoolSetupHref('rooms', { create: true }),
+    moduleLabel: 'room',
+    ...overrides,
+  }
+}
+
+export function termRelation(overrides?: Partial<RelationFieldConfig>): RelationFieldConfig {
+  return {
+    endpoint: moduleEndpoints.terms,
+    createRoute: schoolSetupHref('academic-setup', { create: true }),
+    moduleLabel: 'term',
+    ...overrides,
+  }
+}
+
+export function examRelation(overrides?: Partial<RelationFieldConfig>): RelationFieldConfig {
+  return {
+    endpoint: moduleEndpoints.exams,
+    createRoute: '/academics/exams',
+    moduleLabel: 'exam',
+    ...overrides,
+  }
+}
+
+export function libraryBookRelation(overrides?: Partial<RelationFieldConfig>): RelationFieldConfig {
+  return {
+    endpoint: moduleEndpoints.libraryBooks,
+    createRoute: '/operations?tab=library-books&create=1',
+    moduleLabel: 'library book',
+    ...overrides,
+  }
+}
+
+export function libraryMemberRelation(overrides?: Partial<RelationFieldConfig>): RelationFieldConfig {
+  return {
+    endpoint: moduleEndpoints.libraryMembers,
+    createRoute: '/operations?tab=library-members&create=1',
+    moduleLabel: 'library member',
+    ...overrides,
+  }
+}
+
+export function employeeRelation(overrides?: Partial<RelationFieldConfig>): RelationFieldConfig {
+  return {
+    endpoint: moduleEndpoints.employees,
+    createRoute: '/hr?tab=employees&create=1',
+    moduleLabel: 'employee',
     ...overrides,
   }
 }

@@ -13,6 +13,7 @@ import {
 } from '@lucide/vue'
 import PageLoader from '@/components/feedback/PageLoader.vue'
 import ErrorState from '@/components/feedback/ErrorState.vue'
+import EmptyState from '@/components/feedback/EmptyState.vue'
 import DashboardHero from '@/components/dashboard/DashboardHero.vue'
 import MetricBand from '@/components/dashboard/MetricBand.vue'
 import type { MetricCard } from '@/components/dashboard/MetricBand.vue'
@@ -137,6 +138,11 @@ const portalExtras = ref<{
   workload?: { lesson_plans_draft?: number; assignments_open?: number; submissions_to_grade?: number }
 } | null>(null)
 
+const hasTeacherProfile = computed(() => Boolean(user.value?.teacher_id))
+const teachingWorkspaceHref = computed(() =>
+  hasTeacherProfile.value ? '/teaching?tab=classes' : '/teaching?tab=lms',
+)
+
 const heroName = computed(() => teacher.value?.name || user.value?.name || 'Teacher')
 
 const subjectLine = computed(() => {
@@ -155,9 +161,9 @@ const overviewCards = computed<MetricCard[]>(() => [
   {
     title: 'My Classes',
     value: classCards.value.length,
-    subtitle: 'Open in Teaching',
+    subtitle: hasTeacherProfile.value ? 'Open in Teaching' : 'Link a teacher profile',
     icon: BookOpen,
-    href: '/teaching?tab=classes',
+    href: teachingWorkspaceHref.value,
     capability: 'isStaff',
   },
   {
@@ -165,7 +171,7 @@ const overviewCards = computed<MetricCard[]>(() => [
     value: totalStudents.value,
     subtitle: 'Across your classes',
     icon: Users,
-    href: '/teaching?tab=classes',
+    href: teachingWorkspaceHref.value,
     capability: 'canManageStudents',
   },
   {
@@ -206,8 +212,8 @@ const quickActions = computed(() => {
       capability: 'canManageStudents' as const,
     },
     {
-      label: 'Open Teaching',
-      href: '/teaching',
+      label: hasTeacherProfile.value ? 'Open Teaching' : 'Open LMS',
+      href: teachingWorkspaceHref.value,
       icon: BookOpen,
       primary: false,
       capability: 'isStaff' as const,
@@ -229,8 +235,10 @@ const quickActions = computed(() => {
   )
 })
 
-const canOpenClasses = computed(() =>
-  canShowDashboardItem(user.value, { href: '/teaching?tab=classes', capability: 'isStaff' }, router),
+const canOpenClasses = computed(
+  () =>
+    hasTeacherProfile.value &&
+    canShowDashboardItem(user.value, { href: '/teaching?tab=classes', capability: 'isStaff' }, router),
 )
 
 const canTakeAttendance = computed(() =>
@@ -500,6 +508,22 @@ onMounted(load)
     <ErrorState v-else-if="error" :description="error" @retry="refresh" />
 
     <template v-else>
+      <EmptyState
+        v-if="!hasTeacherProfile"
+        title="Teacher profile not linked"
+        description="This account has no teacher profile, so class lists, homework, and lesson plans are unavailable. Use LMS for school-wide online lessons, or link a teacher under People → Teachers."
+      >
+        <div class="flex flex-wrap justify-center gap-2">
+          <Button as-child>
+            <RouterLink to="/teaching?tab=lms">Open LMS</RouterLink>
+          </Button>
+          <Button variant="outline" as-child>
+            <RouterLink to="/people?tab=teachers">People → Teachers</RouterLink>
+          </Button>
+        </div>
+      </EmptyState>
+
+      <template v-if="hasTeacherProfile">
       <MetricBand
         title="Today at a glance"
         description="Classes, register, and marks that need attention"
@@ -815,6 +839,7 @@ onMounted(load)
           </div>
         </CardContent>
       </Card>
+      </template>
     </template>
   </div>
 </template>

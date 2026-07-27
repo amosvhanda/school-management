@@ -207,4 +207,37 @@ class InvoiceApiTest extends TestCase
             'amount' => 1200.00,
         ])->assertNotFound();
     }
+
+    public function test_print_invoice_returns_document_payload(): void
+    {
+        $auth = $this->createAuthenticatedUser();
+        $student = Student::factory()->create(['school_id' => $auth['school']->id]);
+        $invoice = Invoice::factory()->create([
+            'school_id' => $auth['school']->id,
+            'student_id' => $student->id,
+            'description' => 'Term fees',
+            'amount' => 500,
+            'amount_paid' => 0,
+            'balance' => 500,
+            'status' => 'pending',
+            'currency' => $auth['school']->currency_default,
+        ]);
+
+        $response = $this->withHeaders([
+            'Authorization' => 'Bearer '.$auth['token'],
+        ])->getJson("/api/v1/invoices/{$invoice->id}/print");
+
+        $response->assertOk()
+            ->assertJsonPath('data.invoice.id', $invoice->id)
+            ->assertJsonPath('data.invoice.description', 'Term fees')
+            ->assertJsonPath('data.school.id', $auth['school']->id)
+            ->assertJsonStructure([
+                'data' => [
+                    'document_number',
+                    'issued_at',
+                    'invoice' => ['id', 'amount', 'balance', 'student'],
+                    'school',
+                ],
+            ]);
+    }
 }

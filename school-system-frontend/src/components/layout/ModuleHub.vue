@@ -22,6 +22,7 @@ import {
   groupModuleHubTabs,
   sectionsForHubTab,
   hubLocation,
+  shouldAutoCreateSection,
   type ModuleHubTab,
 } from '@/lib/module-hub'
 
@@ -145,6 +146,10 @@ watch(
   },
   { immediate: true },
 )
+
+function shouldAutoCreate(section: { listKey: string }, index: number) {
+  return shouldAutoCreateSection(section, index, route.query)
+}
 </script>
 
 <template>
@@ -360,7 +365,7 @@ watch(
                 </div>
                 <RegistrySection
                   :list-key="section.listKey"
-                  :auto-create="route.query.create === '1' && index === 0"
+                  :auto-create="shouldAutoCreate(section, index)"
                 />
               </section>
             </div>
@@ -451,7 +456,7 @@ watch(
               </div>
               <RegistrySection
                 :list-key="section.listKey"
-                :auto-create="route.query.create === '1' && index === 0"
+                :auto-create="shouldAutoCreate(section, index)"
               />
             </section>
           </div>

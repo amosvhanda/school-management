@@ -341,7 +341,7 @@ class TeacherPortalController extends Controller
 
     public function attendanceReports(Request $request)
     {
-        $teacher = $this->requireTeacher($request, ['canManageStudents']);
+        [$teacher, $isSchoolManager] = $this->resolveAttendanceActor($request);
         $data = $request->validate([
             'class_id' => ['required', 'integer'],
             'from' => ['nullable', 'date'],
@@ -350,7 +350,13 @@ class TeacherPortalController extends Controller
             'student_id' => ['nullable', 'integer'],
             'format' => ['nullable', Rule::in(['json', 'csv', 'print'])],
         ]);
-        $this->assertTeacherOwnsClass($teacher, (int) $data['class_id']);
+
+        $classId = (int) $data['class_id'];
+        $this->assertClassInSchool($request, $classId);
+
+        if (! $isSchoolManager) {
+            $this->assertTeacherOwnsClass($teacher, $classId);
+        }
 
         $from = $data['from'] ?? now()->subDays(30)->toDateString();
         $to = $data['to'] ?? now()->toDateString();

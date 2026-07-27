@@ -101,7 +101,7 @@ class FeeDiscountController extends Controller
             ->with(['feeCategory:id,name', 'studentCategory:id,name']);
         $this->orderIndex($query);
 
-        return response()->json(['data' => $query->get()]);
+        return $this->indexResponse($request, $query);
     }
 
     public function show(Request $request, int $id): JsonResponse

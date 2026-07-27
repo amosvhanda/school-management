@@ -25,6 +25,8 @@ export interface RowActionConfig {
   successMessage?: string
   /** Opens payment receipt sheet instead of calling API directly */
   openReceipt?: boolean
+  /** Opens printable invoice sheet */
+  openInvoicePrint?: boolean
   /** Download response as a file blob (e.g. HTML certificate) */
   downloadBlob?: boolean
   downloadFilename?: (row: Record<string, unknown>) => string
@@ -115,6 +117,15 @@ export const moduleActionsRegistry: Record<string, RowActionConfig[]> = {
       when: (row) => String(row.status ?? '').toLowerCase() === 'completed',
       confirmReason: true,
       successMessage: 'Payment reversed',
+    },
+  ],
+  'finance-invoices': [
+    {
+      label: 'Print',
+      method: 'post',
+      path: (id) => endpoints.invoices.print(id),
+      variant: 'outline',
+      openInvoicePrint: true,
     },
   ],
   'finance-payroll': [

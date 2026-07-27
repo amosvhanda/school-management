@@ -299,7 +299,7 @@ async function loadHrKpis(): Promise<SectionKpi[]> {
       value: String(policies.length),
       subtitle: 'Compliance documents',
       icon: Building2,
-      href: '/compliance',
+      href: '/hr?tab=policies',
     },
   ]
 }

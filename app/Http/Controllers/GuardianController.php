@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\RespondsWithPaginatedList;
 use App\Http\Requests\Api\V1\Guardian\LinkGuardianStudentRequest;
 use App\Http\Requests\Api\V1\Guardian\StoreGuardianRequest;
 use App\Http\Requests\Api\V1\Guardian\UpdateGuardianRequest;
@@ -14,6 +15,8 @@ use Illuminate\Support\Facades\DB;
 
 class GuardianController extends Controller
 {
+    use RespondsWithPaginatedList;
+
     public function __construct(protected GuardianService $guardianService) {}
 
     /**
@@ -23,11 +26,28 @@ class GuardianController extends Controller
     {
         $schoolId = $request->user()->school_id;
 
-        $guardians = Guardian::where('school_id', $schoolId)
-            ->with(['students', 'user'])
-            ->get();
+        $query = Guardian::where('school_id', $schoolId)
+            ->with(['students', 'user']);
 
-        return response()->json($guardians);
+        if ($request->filled('search')) {
+            $search = $request->string('search')->toString();
+            $query->where(function ($q) use ($search) {
+                $q->where('first_name', 'like', "%{$search}%")
+                    ->orWhere('last_name', 'like', "%{$search}%")
+                    ->orWhere('email', 'like', "%{$search}%")
+                    ->orWhere('phone', 'like', "%{$search}%")
+                    ->orWhere('relationship', 'like', "%{$search}%")
+                    ->orWhereRaw("concat(first_name, ' ', last_name) like ?", ["%{$search}%"]);
+            });
+        }
+
+        if ($request->filled('relationship')) {
+            $query->where('relationship', $request->string('relationship')->toString());
+        }
+
+        $query->orderBy('last_name')->orderBy('first_name');
+
+        return $this->indexResponse($request, $query);
     }
 
     /**

@@ -20,8 +20,8 @@ import DashboardHero from '@/components/dashboard/DashboardHero.vue'
 import MetricBand from '@/components/dashboard/MetricBand.vue'
 import type { MetricCard } from '@/components/dashboard/MetricBand.vue'
 import EmptyState from '@/components/feedback/EmptyState.vue'
+import ErrorState from '@/components/feedback/ErrorState.vue'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import {
@@ -612,11 +612,14 @@ onMounted(loadStudentPortal)
       </div>
     </header>
 
-    <Alert v-if="error" variant="destructive">
-      <AlertDescription>{{ error }}</AlertDescription>
-    </Alert>
+    <ErrorState
+      v-if="!loading && error"
+      :title="studentProfile ? 'Could not load records' : 'Student profile not linked'"
+      :description="error"
+      @retry="refresh"
+    />
 
-    <template v-if="section === 'dashboard'">
+    <template v-else-if="section === 'dashboard'">
       <MetricBand
         title="My overview"
         description="Performance, attendance, and fees at a glance"
@@ -692,7 +695,7 @@ onMounted(loadStudentPortal)
       </section>
     </template>
 
-    <Card v-if="section === 'performance'" class="border-border/70">
+    <Card v-if="!error && section === 'performance'" class="border-border/70">
       <CardHeader>
         <CardTitle>Continuous assessment</CardTitle>
         <CardDescription>Subject scores by term (as recorded by teachers)</CardDescription>
@@ -729,7 +732,7 @@ onMounted(loadStudentPortal)
       </CardContent>
     </Card>
 
-    <Card v-if="section === 'attendance'" class="border-border/70">
+    <Card v-if="!error && section === 'attendance'" class="border-border/70">
       <CardHeader>
         <CardTitle>Attendance</CardTitle>
         <CardDescription>Summary of your presence this term</CardDescription>
@@ -766,7 +769,7 @@ onMounted(loadStudentPortal)
       </CardContent>
     </Card>
 
-    <Card v-if="section === 'exams'" class="border-border/70">
+    <Card v-if="!error && section === 'exams'" class="border-border/70">
       <CardHeader>
         <CardTitle>Examinations</CardTitle>
         <CardDescription>Published exams and your results</CardDescription>
@@ -797,7 +800,7 @@ onMounted(loadStudentPortal)
       </CardContent>
     </Card>
 
-    <Card v-if="section === 'fees'" class="border-border/70">
+    <Card v-if="!error && section === 'fees'" class="border-border/70">
       <CardHeader>
         <CardTitle>Fees</CardTitle>
         <CardDescription>Invoice and payment status</CardDescription>
@@ -828,7 +831,7 @@ onMounted(loadStudentPortal)
       </CardContent>
     </Card>
 
-    <Card v-if="section === 'assignments'" class="border-border/70">
+    <Card v-if="!error && section === 'assignments'" class="border-border/70">
       <CardHeader>
         <CardTitle>Assignments</CardTitle>
         <CardDescription>Open homework and classwork from your teachers</CardDescription>
@@ -876,7 +879,7 @@ onMounted(loadStudentPortal)
       </CardContent>
     </Card>
 
-    <section v-if="section === 'announcements'" class="space-y-4" aria-labelledby="student-announcements-title">
+    <section v-if="!error && section === 'announcements'" class="space-y-4" aria-labelledby="student-announcements-title">
       <div class="sr-only">
         <h2 id="student-announcements-title">Announcements</h2>
       </div>

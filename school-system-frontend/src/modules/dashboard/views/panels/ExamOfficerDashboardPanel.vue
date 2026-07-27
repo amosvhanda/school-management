@@ -11,7 +11,6 @@ import type { MetricCard } from '@/components/dashboard/MetricBand.vue'
 import ErrorState from '@/components/feedback/ErrorState.vue'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Alert, AlertDescription } from '@/components/ui/alert'
 import { useAuth } from '@/composables/useAuth'
 import { canShowDashboardItem } from '@/lib/dashboard-access'
 import { lazy } from '@/lib/lazy'
@@ -160,11 +159,9 @@ onMounted(refreshAll)
 
     <DashboardSkeleton v-if="loading" />
 
-    <template v-else>
-      <Alert v-if="error" variant="destructive">
-        <AlertDescription>{{ error }}</AlertDescription>
-      </Alert>
+    <ErrorState v-else-if="error" :description="error" @retry="refreshAll" />
 
+    <template v-else>
       <MetricBand
         title="Examination overview"
         description="Schedule, approvals, and publishing status"
@@ -201,7 +198,5 @@ onMounted(refreshAll)
         <ActivityFeed :items="recent" class="min-h-72" />
       </section>
     </template>
-
-    <ErrorState v-if="!loading && error && examStats.total === 0" :description="error" @retry="refreshAll" />
   </div>
 </template>

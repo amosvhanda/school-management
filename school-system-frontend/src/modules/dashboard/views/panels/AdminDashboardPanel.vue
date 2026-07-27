@@ -37,7 +37,7 @@ const meta = getRoleDashboardMeta(user.value?.role)
 
 const {
   loading, error, partialErrors, lastUpdated, kpis,
-  recent, schoolWidgets, activity, load,
+  recent, schoolWidgets, schoolWidgetsError, activity, load,
 } = useStaffDashboard()
 
 const overviewCards = computed<MetricCard[]>(() => [
@@ -190,7 +190,13 @@ onMounted(refresh)
             <AttendancePanel :summary="kpis.attendanceSummary" />
           </div>
           <div class="xl:col-span-7">
-            <FeeRevenueChart :data="feeRevenue" />
+            <ErrorState
+              v-if="schoolWidgetsError"
+              title="Fee revenue unavailable"
+              :description="schoolWidgetsError"
+              @retry="refresh"
+            />
+            <FeeRevenueChart v-else :data="feeRevenue" />
           </div>
         </div>
         <div class="grid gap-6 xl:grid-cols-12">
@@ -212,7 +218,13 @@ onMounted(refresh)
             Charts, notices, leave, calendar, and people highlights
           </p>
         </div>
-        <SchoolDashboardWidgets :kpis="kpis" :widgets="schoolWidgets" />
+        <ErrorState
+          v-if="schoolWidgetsError"
+          title="School dashboard unavailable"
+          :description="schoolWidgetsError"
+          @retry="refresh"
+        />
+        <SchoolDashboardWidgets v-else :kpis="kpis" :widgets="schoolWidgets" />
       </section>
 
       <DashboardModulesGrid

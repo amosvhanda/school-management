@@ -4,7 +4,6 @@ import { getStoredToken } from '@/lib/api'
 import { queryClient } from '@/lib/query-client'
 import { queryKeys } from '@/lib/query-keys'
 import {
-  defaultKpis,
   fetchActivity,
   fetchCommandCenter,
   fetchFinanceSummary,
@@ -56,6 +55,7 @@ export function useStaffDashboard() {
   const financeSummary = ref<Record<string, unknown> | null>(null)
   const pendingWorkflows = ref(0)
   const schoolWidgets = ref<SchoolDashboardWidgets | null>(null)
+  const schoolWidgetsError = ref<string | null>(null)
 
   function userKey() {
     return authStore.user?.id ?? null
@@ -82,11 +82,16 @@ export function useStaffDashboard() {
       }),
     )
 
-    kpis.value = kpiResult.data ?? defaultKpis()
-    if (kpiResult.error) {
-      partialErrors.value.push(`${kpiResult.label}: ${kpiResult.error}`)
-      error.value = kpiResult.error
+    if (kpiResult.error || !kpiResult.data) {
+      kpis.value = null
+      error.value = kpiResult.error ?? 'Failed to load dashboard KPIs'
+      lastUpdated.value = new Date()
+      loading.value = false
+      return
     }
+
+    kpis.value = kpiResult.data
+    error.value = null
 
     const tasks: Promise<void>[] = []
 
@@ -174,15 +179,20 @@ export function useStaffDashboard() {
             queryFn: fetchSchoolWidgets,
           }),
         ).then((result) => {
-          if (result.error) partialErrors.value.push(`${result.label}: ${result.error}`)
-          schoolWidgets.value = result.data
+          if (result.error) {
+            partialErrors.value.push(`${result.label}: ${result.error}`)
+            schoolWidgetsError.value = result.error
+            schoolWidgets.value = null
+          } else {
+            schoolWidgetsError.value = null
+            schoolWidgets.value = result.data
+          }
         }),
       )
     }
 
     await Promise.all(tasks)
 
-    if (kpiResult.data) error.value = null
     lastUpdated.value = new Date()
     loading.value = false
   }
@@ -200,6 +210,7 @@ export function useStaffDashboard() {
     financeSummary,
     pendingWorkflows,
     schoolWidgets,
+    schoolWidgetsError,
     load,
   }
 }

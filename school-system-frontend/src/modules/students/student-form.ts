@@ -184,7 +184,7 @@ export const studentGuardianMetaFields: FormFieldSchema[] = [
     rowKey: 'guardian.id',
     relation: {
       endpoint: moduleEndpoints.guardians,
-      createRoute: '/guardians?create=1',
+      createRoute: '/people?tab=guardians&create=1',
       moduleLabel: 'guardian',
     },
   },

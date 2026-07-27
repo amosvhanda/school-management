@@ -1,13 +1,23 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { RouterLink } from 'vue-router'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
 import { Separator } from '@/components/ui/separator'
 import { formatDate } from '@/lib/format'
 import type { AttendanceSummary } from '@/types/dashboard'
 
-const props = defineProps<{ summary: AttendanceSummary }>()
+const props = withDefaults(defineProps<{
+  summary: AttendanceSummary
+  /** Optional deep-link when today’s register is empty. */
+  actionHref?: string
+  actionLabel?: string
+}>(), {
+  actionHref: '/academics/attendance',
+  actionLabel: 'Open attendance',
+})
 
 const rate = computed(() => {
   if (!props.summary.total) return 0
@@ -35,6 +45,19 @@ const segments = computed(() => [
       </div>
     </CardHeader>
     <CardContent class="space-y-5 px-5 pt-5">
+      <div
+        v-if="!summary.total"
+        class="space-y-3 rounded-lg border border-dashed border-border/70 bg-muted/20 px-3 py-3"
+        role="status"
+      >
+        <p class="text-sm text-muted-foreground">
+          No attendance marked for today yet.
+        </p>
+        <Button v-if="actionHref" variant="outline" size="sm" as-child>
+          <RouterLink :to="actionHref">{{ actionLabel }}</RouterLink>
+        </Button>
+      </div>
+
       <div class="space-y-2">
         <div class="flex items-center justify-between text-sm">
           <span class="text-muted-foreground">Present rate</span>

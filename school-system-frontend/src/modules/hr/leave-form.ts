@@ -68,7 +68,7 @@ export const leaveFormFields: FormFieldSchema[] = mergeFormSections(
       colSpan: 2,
       relation: {
         endpoint: moduleEndpoints.teachers,
-        createRoute: '/teachers?create=1',
+        createRoute: '/people?tab=teachers&create=1',
         moduleLabel: 'teacher',
       },
     },

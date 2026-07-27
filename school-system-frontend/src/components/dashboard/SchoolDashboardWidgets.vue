@@ -245,20 +245,24 @@ function personInitials(name: string) {
             <li
               v-for="teacher in topTeachers"
               :key="teacher.id"
-              class="flex items-center gap-3"
             >
-              <span
-                class="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary"
-                aria-hidden="true"
+              <RouterLink
+                :to="`/teachers/${teacher.id}`"
+                class="flex items-center gap-3 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
-                {{ personInitials(teacher.name) }}
-              </span>
-              <div class="min-w-0 flex-1">
-                <p class="truncate text-sm font-medium">{{ teacher.name }}</p>
-                <p class="truncate text-xs text-muted-foreground">
-                  {{ teacher.subject || teacher.department || teacher.email || 'Teacher' }}
-                </p>
-              </div>
+                <span
+                  class="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary"
+                  aria-hidden="true"
+                >
+                  {{ personInitials(teacher.name) }}
+                </span>
+                <div class="min-w-0 flex-1">
+                  <p class="truncate text-sm font-medium">{{ teacher.name }}</p>
+                  <p class="truncate text-xs text-muted-foreground">
+                    {{ teacher.subject || teacher.department || teacher.email || 'Teacher' }}
+                  </p>
+                </div>
+              </RouterLink>
             </li>
           </ul>
         </CardContent>
@@ -289,25 +293,29 @@ function personInitials(name: string) {
             <li
               v-for="student in newAdmissions"
               :key="student.id"
-              class="flex items-center justify-between gap-3"
             >
-              <div class="flex min-w-0 items-center gap-3">
-                <span
-                  class="flex size-9 shrink-0 items-center justify-center rounded-full bg-chart-2/15 text-xs font-semibold text-chart-2"
-                  aria-hidden="true"
-                >
-                  {{ personInitials(student.name) }}
-                </span>
-                <div class="min-w-0">
-                  <p class="truncate text-sm font-medium">{{ student.name }}</p>
-                  <p v-if="student.class_name" class="truncate text-xs text-muted-foreground">
-                    {{ student.class_name }}
-                  </p>
+              <RouterLink
+                :to="`/students/${student.id}`"
+                class="flex items-center justify-between gap-3 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <div class="flex min-w-0 items-center gap-3">
+                  <span
+                    class="flex size-9 shrink-0 items-center justify-center rounded-full bg-chart-2/15 text-xs font-semibold text-chart-2"
+                    aria-hidden="true"
+                  >
+                    {{ personInitials(student.name) }}
+                  </span>
+                  <div class="min-w-0">
+                    <p class="truncate text-sm font-medium">{{ student.name }}</p>
+                    <p v-if="student.class_name" class="truncate text-xs text-muted-foreground">
+                      {{ student.class_name }}
+                    </p>
+                  </div>
                 </div>
-              </div>
-              <span v-if="student.joined_on" class="shrink-0 text-[11px] text-muted-foreground">
-                {{ formatDate(student.joined_on) }}
-              </span>
+                <span v-if="student.joined_on" class="shrink-0 text-[11px] text-muted-foreground">
+                  {{ formatDate(student.joined_on) }}
+                </span>
+              </RouterLink>
             </li>
           </ul>
         </CardContent>
@@ -329,43 +337,47 @@ function personInitials(name: string) {
             <li
               v-for="(student, index) in topStudents"
               :key="student.id"
-              class="flex items-center gap-3"
             >
-              <span
-                class="relative flex size-10 shrink-0 items-center justify-center"
-                aria-hidden="true"
+              <RouterLink
+                :to="`/students/${student.id}`"
+                class="flex items-center gap-3 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
-                <svg viewBox="0 0 36 36" class="size-10 -rotate-90" role="presentation">
-                  <circle
-                    cx="18"
-                    cy="18"
-                    r="15.5"
-                    fill="none"
-                    class="stroke-muted"
-                    stroke-width="3"
-                  />
-                  <circle
-                    cx="18"
-                    cy="18"
-                    r="15.5"
-                    fill="none"
-                    class="stroke-chart-2"
-                    stroke-width="3"
-                    stroke-linecap="round"
-                    :stroke-dasharray="`${Math.min(100, Math.max(0, Number(student.marks) || 0)) * 0.973}, 100`"
-                  />
-                </svg>
-                <span class="absolute text-[10px] font-semibold tabular-nums">{{ index + 1 }}</span>
-              </span>
-              <div class="min-w-0 flex-1">
-                <p class="truncate text-sm font-medium">{{ student.name }}</p>
-                <p class="truncate text-xs text-muted-foreground">
-                  {{ student.class_name || 'Student' }}
-                </p>
-              </div>
-              <Badge v-if="student.marks != null" variant="secondary" class="tabular-nums">
-                {{ student.marks }}%
-              </Badge>
+                <span
+                  class="relative flex size-10 shrink-0 items-center justify-center"
+                  aria-hidden="true"
+                >
+                  <svg viewBox="0 0 36 36" class="size-10 -rotate-90" role="presentation">
+                    <circle
+                      cx="18"
+                      cy="18"
+                      r="15.5"
+                      fill="none"
+                      class="stroke-muted"
+                      stroke-width="3"
+                    />
+                    <circle
+                      cx="18"
+                      cy="18"
+                      r="15.5"
+                      fill="none"
+                      class="stroke-chart-2"
+                      stroke-width="3"
+                      stroke-linecap="round"
+                      :stroke-dasharray="`${Math.min(100, Math.max(0, Number(student.marks) || 0)) * 0.973}, 100`"
+                    />
+                  </svg>
+                  <span class="absolute text-[10px] font-semibold tabular-nums">{{ index + 1 }}</span>
+                </span>
+                <div class="min-w-0 flex-1">
+                  <p class="truncate text-sm font-medium">{{ student.name }}</p>
+                  <p class="truncate text-xs text-muted-foreground">
+                    {{ student.class_name || 'Student' }}
+                  </p>
+                </div>
+                <Badge v-if="student.marks != null" variant="secondary" class="tabular-nums">
+                  {{ student.marks }}%
+                </Badge>
+              </RouterLink>
             </li>
           </ul>
         </CardContent>

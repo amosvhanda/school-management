@@ -71,7 +71,9 @@ class LeaveRequestController extends Controller
             });
         }
 
-        $leaveRequests = $query->latest('created_at')->get()->map(fn (LeaveRequest $leave) => [
+        $query->latest('created_at');
+
+        $mapLeave = fn (LeaveRequest $leave) => [
             'id' => $leave->id,
             'teacher_id' => $leave->teacher_id,
             'teacher_name' => $leave->teacher?->name,
@@ -93,9 +95,36 @@ class LeaveRequestController extends Controller
             'review_notes' => $leave->review_notes,
             'created_at' => $leave->created_at?->toIso8601String(),
             'updated_at' => $leave->updated_at?->toIso8601String(),
-        ]);
+        ];
 
-        return response()->json(['data' => $leaveRequests]);
+        if ($request->boolean('all')) {
+            return response()->json([
+                'data' => $query->limit(500)->get()->map($mapLeave)->values(),
+            ]);
+        }
+
+        if ($request->filled('limit') && ! $request->filled('page') && ! $request->filled('per_page')) {
+            $limit = min(max((int) $request->input('limit'), 1), 200);
+
+            return response()->json([
+                'data' => $query->limit($limit)->get()->map($mapLeave)->values(),
+            ]);
+        }
+
+        $perPage = min(max($request->integer('per_page', 25), 1), 100);
+        $paginator = $query->paginate($perPage)->appends($request->query());
+
+        return response()->json([
+            'data' => collect($paginator->items())->map($mapLeave)->values(),
+            'meta' => [
+                'current_page' => $paginator->currentPage(),
+                'last_page' => $paginator->lastPage(),
+                'per_page' => $paginator->perPage(),
+                'total' => $paginator->total(),
+                'from' => $paginator->firstItem(),
+                'to' => $paginator->lastItem(),
+            ],
+        ]);
     }
 
     public function store(Request $request)

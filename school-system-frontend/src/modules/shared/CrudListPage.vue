@@ -3,7 +3,7 @@ import { ref, onMounted, computed, h, nextTick, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { z } from 'zod'
 import type { ColumnDef } from '@tanstack/vue-table'
-import { Plus } from '@lucide/vue'
+import { Download, Plus } from '@lucide/vue'
 import PageLoader from '@/components/feedback/PageLoader.vue'
 import ErrorState from '@/components/feedback/ErrorState.vue'
 import DataTable from '@/components/data-table/DataTable.vue'
@@ -45,6 +45,7 @@ import {
 } from '@/services/dashboard.service'
 import { api } from '@/lib/api'
 import PaymentReceiptSheet from '@/modules/finance/components/PaymentReceiptSheet.vue'
+import InvoicePrintSheet from '@/modules/finance/components/InvoicePrintSheet.vue'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { teacherCreateDefaults } from '@/modules/teachers/teacher-form'
@@ -94,6 +95,10 @@ const serverTotal = ref(0)
 const receiptOpen = ref(false)
 const receiptLoading = ref(false)
 const receiptData = ref<Record<string, unknown> | null>(null)
+const invoicePrintOpen = ref(false)
+const invoicePrintLoading = ref(false)
+const invoicePrintData = ref<Record<string, unknown> | null>(null)
+const exportLoading = ref(false)
 const reverseTarget = ref<{ action: RowActionConfig; row: Record<string, unknown> } | null>(null)
 const reverseReason = ref('')
 
@@ -179,6 +184,7 @@ const filterMode = computed(() =>
 )
 const serverPagination = computed(() => listMeta.value?.serverPagination ?? false)
 const perPage = computed(() => listMeta.value?.perPage ?? 25)
+const csvExportEnabled = computed(() => listMeta.value?.csvExport ?? false)
 
 const {
   values: filterValues,
@@ -300,6 +306,82 @@ function onServerPageChange(page: number) {
   void load(page)
 }
 
+function csvEscape(value: unknown): string {
+  return `"${String(value ?? '').replaceAll('"', '""')}"`
+}
+
+function csvColumns(): Array<{ key: string; header: string }> {
+  const cols: Array<{ key: string; header: string }> = []
+  for (const col of props.columns) {
+    const key =
+      'accessorKey' in col && col.accessorKey != null ? String(col.accessorKey) : null
+    if (!key || key.includes('.')) continue
+    const header = typeof col.header === 'string' ? col.header : key
+    cols.push({ key, header })
+  }
+  return cols.length ? cols : [{ key: 'id', header: 'ID' }]
+}
+
+function cellValue(row: Record<string, unknown>, key: string): unknown {
+  const value = row[key]
+  if (value != null && typeof value === 'object') {
+    const record = value as Record<string, unknown>
+    return record.full_name ?? record.name ?? record.title ?? JSON.stringify(value)
+  }
+  return value
+}
+
+async function exportCsv() {
+  if (exportLoading.value) return
+  exportLoading.value = true
+  try {
+    const params = buildFilterParams({ all: true })
+    if (serverSearch.value && globalFilter.value.trim()) {
+      params.search = globalFilter.value.trim()
+      params.filter = {
+        ...(params.filter ?? {}),
+        search: globalFilter.value.trim(),
+      }
+    }
+    if (props.listKey === 'students') {
+      params.include = 'guardians,classModel,gradeLevel'
+    }
+    if (props.listKey === 'finance-payments') {
+      params.include = 'student,invoice'
+    }
+    if (props.listKey === 'finance-invoices') {
+      params.include = 'student'
+    }
+
+    const exportRows = serverPagination.value || filterMode.value === 'server'
+      ? await fetchList<Record<string, unknown>>(props.endpoint, params)
+      : tableRows.value
+
+    if (!exportRows.length) {
+      toast.warning('Nothing to export')
+      return
+    }
+
+    const columns = csvColumns()
+    const header = columns.map((c) => csvEscape(c.header)).join(',')
+    const lines = exportRows.map((row) =>
+      columns.map((c) => csvEscape(cellValue(row, c.key))).join(','),
+    )
+    const blob = new Blob([[header, ...lines].join('\n')], { type: 'text/csv;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `${props.listKey ?? 'export'}-${new Date().toISOString().slice(0, 10)}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+    toast.success('CSV exported')
+  } catch (err) {
+    toast.error('Export failed', getErrorMessage(err))
+  } finally {
+    exportLoading.value = false
+  }
+}
+
 watch(globalFilter, () => {
   if (!serverSearch.value) return
   clearTimeout(searchTimer)
@@ -404,6 +486,23 @@ async function runAction(action: RowActionConfig, row: Record<string, unknown>) 
       receiptOpen.value = false
     } finally {
       receiptLoading.value = false
+    }
+    return
+  }
+
+  if (action.openInvoicePrint) {
+    invoicePrintOpen.value = true
+    invoicePrintLoading.value = true
+    invoicePrintData.value = null
+    try {
+      invoicePrintData.value = await fetchOne<Record<string, unknown>>(
+        action.path(id as string | number),
+      )
+    } catch (err) {
+      toast.error('Invoice unavailable', getErrorMessage(err))
+      invoicePrintOpen.value = false
+    } finally {
+      invoicePrintLoading.value = false
     }
     return
   }
@@ -633,13 +732,10 @@ async function maybeAutoCreate() {
 
   void openCreate()
   if (route.query.create === '1') {
-    const { create: _create, tab, ...rest } = route.query
-    router.replace({
-      query: {
-        ...rest,
-        ...(typeof tab === 'string' ? { tab } : {}),
-      },
-    })
+    const rest = { ...route.query }
+    delete rest.create
+    delete rest.section
+    router.replace({ query: rest })
   }
 }
 
@@ -675,6 +771,15 @@ defineExpose({ load, openEdit })
         @click="runToolbarAction(action)"
       >
         {{ action.label }}
+      </Button>
+      <Button
+        v-if="csvExportEnabled"
+        variant="outline"
+        :disabled="exportLoading || loading"
+        @click="exportCsv"
+      >
+        <Download class="mr-2 h-4 w-4" aria-hidden="true" />
+        {{ exportLoading ? 'Exporting…' : 'Export CSV' }}
       </Button>
       <Button v-if="canCreate && hasForm" @click="openCreate">
         <Plus class="mr-2 h-4 w-4" aria-hidden="true" />
@@ -793,11 +898,16 @@ defineExpose({ load, openEdit })
       :receipt="receiptData"
       :loading="receiptLoading"
     />
+    <InvoicePrintSheet
+      v-model:open="invoicePrintOpen"
+      :document="invoicePrintData"
+      :loading="invoicePrintLoading"
+    />
   </PageShell>
 
   <section v-else class="space-y-4" :aria-label="title">
     <div
-      v-if="(canCreate && hasForm) || (toolbarActions?.length ?? 0) > 0"
+      v-if="(canCreate && hasForm) || (toolbarActions?.length ?? 0) > 0 || csvExportEnabled"
       class="flex flex-wrap items-center justify-end gap-2"
     >
       <Button
@@ -809,6 +919,16 @@ defineExpose({ load, openEdit })
         @click="runToolbarAction(action)"
       >
         {{ action.label }}
+      </Button>
+      <Button
+        v-if="csvExportEnabled"
+        variant="outline"
+        size="sm"
+        :disabled="exportLoading || loading"
+        @click="exportCsv"
+      >
+        <Download class="mr-2 h-4 w-4" aria-hidden="true" />
+        {{ exportLoading ? 'Exporting…' : 'Export CSV' }}
       </Button>
       <Button v-if="canCreate && hasForm" size="sm" @click="openCreate">
         <Plus class="mr-2 h-4 w-4" aria-hidden="true" />
@@ -918,6 +1038,11 @@ defineExpose({ load, openEdit })
       v-model:open="receiptOpen"
       :receipt="receiptData"
       :loading="receiptLoading"
+    />
+    <InvoicePrintSheet
+      v-model:open="invoicePrintOpen"
+      :document="invoicePrintData"
+      :loading="invoicePrintLoading"
     />
   </section>
 </template>

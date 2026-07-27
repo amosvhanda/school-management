@@ -28,6 +28,11 @@ export interface ModuleHubTab {
   priority?: 'primary' | 'secondary'
   /** Capability required to see this tab (optional). */
   capability?: NavCapability | NavCapability[]
+  /**
+   * When true, hide this tab for accounts without a linked teacher profile
+   * (school admins still keep school-wide LMS).
+   */
+  requiresTeacherProfile?: boolean
   /** Single registry CRUD section. */
   listKey?: string
   /** Multiple registry CRUD sections stacked in one tab. */
@@ -108,4 +113,17 @@ export function redirectToHubTab(
         ...extraQuery,
       },
     })
+}
+
+/** Whether a hub/setup section should open its create sheet from ?create=1[&section=listKey]. */
+export function shouldAutoCreateSection(
+  section: { listKey: string },
+  index: number,
+  query: { create?: unknown; section?: unknown },
+): boolean {
+  const create = Array.isArray(query.create) ? query.create[0] : query.create
+  if (create !== '1') return false
+  const target = String(Array.isArray(query.section) ? query.section[0] : query.section ?? '')
+  if (target) return section.listKey === target
+  return index === 0
 }

@@ -32,6 +32,7 @@ import {
   schoolTripColumns,
   procurementVendorColumns,
   statusColumn,
+  activeStatusColumn,
   studentColumns,
   teacherColumns,
   termColumns,
@@ -268,11 +269,7 @@ export const listPageRegistry: Record<string, ListPageConfig> = {
         header: 'Categories',
         cell: ({ row }) => String(row.original.categories_count ?? 0),
       },
-      {
-        id: 'is_active',
-        header: 'Status',
-        cell: ({ row }) => (row.original.is_active === false ? 'Inactive' : 'Active'),
-      },
+      activeStatusColumn(),
       textColumn('Order', 'order'),
     ],
   },
@@ -284,11 +281,9 @@ export const listPageRegistry: Record<string, ListPageConfig> = {
       textColumn('Name', 'name'),
       textColumn('Type', 'discount_type'),
       textColumn('Value', 'value'),
-      {
-        id: 'is_active',
-        header: 'Status',
-        cell: ({ row }) => (row.original.is_active === false ? 'Inactive' : 'Active'),
-      },
+      nestedColumn('Fee category', 'fee_category', 'name'),
+      nestedColumn('Student category', 'student_category', 'name'),
+      activeStatusColumn(),
       dateColumn('Starts', 'starts_on'),
       dateColumn('Ends', 'ends_on'),
     ],
@@ -301,11 +296,7 @@ export const listPageRegistry: Record<string, ListPageConfig> = {
       textColumn('Name', 'name'),
       textColumn('Code', 'code'),
       textColumn('Description', 'description'),
-      {
-        id: 'is_active',
-        header: 'Status',
-        cell: ({ row }) => (row.original.is_active === false ? 'Inactive' : 'Active'),
-      },
+      activeStatusColumn(),
     ],
   },
   'finance-expense-heads': {
@@ -316,11 +307,7 @@ export const listPageRegistry: Record<string, ListPageConfig> = {
       textColumn('Name', 'name'),
       textColumn('Code', 'code'),
       textColumn('Description', 'description'),
-      {
-        id: 'is_active',
-        header: 'Status',
-        cell: ({ row }) => (row.original.is_active === false ? 'Inactive' : 'Active'),
-      },
+      activeStatusColumn(),
     ],
   },
   'finance-transactions': {
@@ -388,7 +375,16 @@ export const listPageRegistry: Record<string, ListPageConfig> = {
       textColumn('Member #', 'member_number'),
       textColumn('Name', 'name'),
       textColumn('Type', 'member_type'),
-      textColumn('Linked ID', 'member_id'),
+      {
+        id: 'linked_record',
+        header: 'Linked record',
+        cell: ({ row }) => {
+          const type = String(row.original.member_type ?? '')
+          const id = row.original.member_id
+          if (!id || type === 'external') return '—'
+          return `${type.replaceAll('_', ' ')} #${id}`
+        },
+      },
       textColumn('Email', 'email'),
       textColumn('Phone', 'phone'),
       statusColumn(),
@@ -465,11 +461,7 @@ export const listPageRegistry: Record<string, ListPageConfig> = {
         header: 'Paid',
         cell: ({ row }) => (row.original.is_paid ? 'Yes' : 'No'),
       },
-      {
-        id: 'is_active',
-        header: 'Status',
-        cell: ({ row }) => (row.original.is_active === false ? 'Inactive' : 'Active'),
-      },
+      activeStatusColumn(),
     ],
   },
   'hr-designations': {
@@ -480,11 +472,7 @@ export const listPageRegistry: Record<string, ListPageConfig> = {
       textColumn('Name', 'name'),
       textColumn('Code', 'code'),
       textColumn('Description', 'description'),
-      {
-        id: 'is_active',
-        header: 'Status',
-        cell: ({ row }) => (row.original.is_active === false ? 'Inactive' : 'Active'),
-      },
+      activeStatusColumn(),
     ],
   },
   'hr-employees': {
@@ -510,11 +498,7 @@ export const listPageRegistry: Record<string, ListPageConfig> = {
       textColumn('Name', 'name'),
       textColumn('Code', 'code'),
       textColumn('Description', 'description'),
-      {
-        id: 'is_active',
-        header: 'Status',
-        cell: ({ row }) => (row.original.is_active === false ? 'Inactive' : 'Active'),
-      },
+      activeStatusColumn(),
       textColumn('Order', 'order'),
     ],
   },

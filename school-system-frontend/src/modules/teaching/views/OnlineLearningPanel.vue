@@ -3,6 +3,7 @@ import { computed, onMounted, ref } from 'vue'
 import { toast } from 'vue-sonner'
 import PageLoader from '@/components/feedback/PageLoader.vue'
 import ErrorState from '@/components/feedback/ErrorState.vue'
+import EmptyState from '@/components/feedback/EmptyState.vue'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -44,6 +45,7 @@ const loading = ref(true)
 const error = ref<string | null>(null)
 const lessons = ref<OnlineLesson[]>([])
 const teachers = ref<TeacherOption[]>([])
+const teachersError = ref<string | null>(null)
 const saving = ref(false)
 const form = ref({
   title: '',
@@ -56,13 +58,23 @@ const form = ref({
 
 async function loadTeachers() {
   if (!isSchoolManager.value) return
+  teachersError.value = null
   try {
     const rows = await teachersApi.list({ all: true, status: 'active' }) as TeacherOption[]
     teachers.value = Array.isArray(rows)
       ? rows.map((row) => ({ id: Number(row.id), name: String(row.name ?? `Teacher #${row.id}`) }))
       : []
-  } catch {
+    if (!teachers.value.length) {
+      teachersError.value = 'No active teachers found. Add teachers under People → Teachers before creating LMS sessions.'
+      return
+    }
+    const selfId = user.value?.teacher_id
+    if (selfId && teachers.value.some((row) => row.id === selfId) && !form.value.teacher_id) {
+      form.value.teacher_id = String(selfId)
+    }
+  } catch (err) {
     teachers.value = []
+    teachersError.value = getErrorMessage(err, 'Could not load teachers for LMS assignment')
   }
 }
 
@@ -85,7 +97,7 @@ async function save() {
     toast.warning('Title required')
     return
   }
-  if (isSchoolManager.value && !user.value?.teacher_id && !form.value.teacher_id) {
+  if (isSchoolManager.value && !form.value.teacher_id) {
     toast.warning('Select a teacher for this lesson')
     return
   }
@@ -154,8 +166,13 @@ onMounted(load)
 
             <div v-if="isSchoolManager" class="space-y-2 sm:col-span-2">
               <Label for="ol-teacher">Teacher</Label>
-              <Select v-model="form.teacher_id">
-                <SelectTrigger id="ol-teacher" aria-required="true">
+              <Select v-model="form.teacher_id" :disabled="!teachers.length">
+                <SelectTrigger
+                  id="ol-teacher"
+                  aria-required="true"
+                  :aria-invalid="Boolean(teachersError)"
+                  :aria-describedby="teachersError ? 'ol-teacher-error' : undefined"
+                >
                   <SelectValue placeholder="Select a teacher…" />
                 </SelectTrigger>
                 <SelectContent>
@@ -168,7 +185,15 @@ onMounted(load)
                   </SelectItem>
                 </SelectContent>
               </Select>
-              <p v-if="!teachers.length" class="text-xs text-muted-foreground">
+              <p
+                v-if="teachersError"
+                id="ol-teacher-error"
+                class="text-xs text-destructive"
+                role="alert"
+              >
+                {{ teachersError }}
+              </p>
+              <p v-else-if="!teachers.length" class="text-xs text-muted-foreground">
                 Add teachers under People → Teachers before creating LMS sessions.
               </p>
             </div>
@@ -200,7 +225,10 @@ onMounted(load)
               <Textarea id="ol-desc" v-model="form.description" rows="2" />
             </div>
             <div class="sm:col-span-2 flex justify-end">
-              <Button type="submit" :disabled="saving || (isSchoolManager && !teachers.length)">
+              <Button
+                type="submit"
+                :disabled="saving || (isSchoolManager && (!teachers.length || Boolean(teachersError) || !form.teacher_id))"
+              >
                 {{ saving ? 'Saving…' : 'Create' }}
               </Button>
             </div>
@@ -208,9 +236,11 @@ onMounted(load)
         </CardContent>
       </Card>
 
-      <p v-if="!lessons.length" class="py-6 text-center text-sm text-muted-foreground">
-        No online lessons yet.
-      </p>
+      <EmptyState
+        v-if="!lessons.length"
+        title="No online lessons yet"
+        description="Create a live class, recording, quiz, or poll to get started."
+      />
 
       <Card v-for="lesson in lessons" :key="lesson.id" class="border-border/70">
         <CardContent class="space-y-2 py-4">

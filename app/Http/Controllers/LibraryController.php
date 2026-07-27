@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\RespondsWithPaginatedList;
 use App\Models\LibraryBook;
 use App\Models\LibraryLoan;
 use App\Models\LibraryMember;
@@ -13,6 +14,8 @@ use Illuminate\Validation\ValidationException;
 
 class LibraryController extends Controller
 {
+    use RespondsWithPaginatedList;
+
     private function authorizeLibrary(Request $request): void
     {
         $this->authorizeModuleAccess(
@@ -32,7 +35,17 @@ class LibraryController extends Controller
             $query->where('category', $request->string('category'));
         }
 
-        return response()->json(['data' => $query->orderBy('title')->get()]);
+        if ($request->filled('search')) {
+            $search = $request->string('search')->toString();
+            $query->where(function ($q) use ($search) {
+                $q->where('title', 'like', "%{$search}%")
+                    ->orWhere('author', 'like', "%{$search}%")
+                    ->orWhere('isbn', 'like', "%{$search}%")
+                    ->orWhere('category', 'like', "%{$search}%");
+            });
+        }
+
+        return $this->indexResponse($request, $query->orderBy('title'));
     }
 
     public function storeBook(Request $request)
@@ -131,9 +144,10 @@ class LibraryController extends Controller
             $query->where('library_member_id', (int) $request->library_member_id);
         }
 
-        return response()->json([
-            'data' => $query->orderByDesc('borrowed_at')->orderByDesc('id')->get(),
-        ]);
+        return $this->indexResponse(
+            $request,
+            $query->orderByDesc('borrowed_at')->orderByDesc('id'),
+        );
     }
 
     public function borrow(Request $request)

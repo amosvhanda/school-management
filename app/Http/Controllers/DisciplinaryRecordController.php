@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\RespondsWithPaginatedList;
 use App\Models\DisciplinaryRecord;
 use App\Models\Student;
 use App\Services\ParentNotificationService;
@@ -10,6 +11,8 @@ use Illuminate\Support\Facades\Validator;
 
 class DisciplinaryRecordController extends Controller
 {
+    use RespondsWithPaginatedList;
+
     public function __construct(private ParentNotificationService $notifications) {}
 
     public function index(Request $request)
@@ -24,7 +27,24 @@ class DisciplinaryRecordController extends Controller
             $query->where('student_id', $request->student_id);
         }
 
-        return response()->json(['data' => $query->orderByDesc('incident_date')->get()]);
+        if ($request->filled('severity')) {
+            $query->where('severity', $request->string('severity')->toString());
+        }
+
+        if ($request->filled('search')) {
+            $search = $request->string('search')->toString();
+            $query->where(function ($q) use ($search) {
+                $q->where('incident_type', 'like', "%{$search}%")
+                    ->orWhere('description', 'like', "%{$search}%")
+                    ->orWhere('action_taken', 'like', "%{$search}%")
+                    ->orWhereHas('student', function ($sq) use ($search) {
+                        $sq->where('full_name', 'like', "%{$search}%")
+                            ->orWhere('student_number', 'like', "%{$search}%");
+                    });
+            });
+        }
+
+        return $this->indexResponse($request, $query->orderByDesc('incident_date'));
     }
 
     public function show(Request $request, int $id)

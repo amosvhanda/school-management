@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\RespondsWithPaginatedList;
 use App\Models\GoodsReceipt;
 use App\Models\PurchaseRequisition;
 use App\Models\Vendor;
@@ -14,6 +15,8 @@ use Illuminate\Validation\Rule;
 
 class ProcurementController extends Controller
 {
+    use RespondsWithPaginatedList;
+
     public function __construct(
         private WorkflowService $workflows,
         private FinancialLedgerService $ledger,
@@ -21,18 +24,31 @@ class ProcurementController extends Controller
 
     public function requisitions(Request $request)
     {
+        $filters = is_array($request->input('filter')) ? $request->input('filter') : [];
+        $status = $request->input('status', $filters['status'] ?? null);
+        $spendType = $request->input('spend_type', $filters['spend_type'] ?? null);
+        $search = $request->input('search', $filters['search'] ?? null);
+
         $query = PurchaseRequisition::query()
             ->where('school_id', $request->user()->school_id)
             ->with(['requester:id,name', 'items', 'vendor:id,name', 'workflowInstance']);
 
-        if ($request->filled('status')) {
-            $query->where('status', $request->string('status'));
+        if (filled($status)) {
+            $query->where('status', $status);
         }
-        if ($request->filled('spend_type')) {
-            $query->where('spend_type', $request->string('spend_type'));
+        if (filled($spendType)) {
+            $query->where('spend_type', $spendType);
+        }
+        if (filled($search)) {
+            $query->where(function ($q) use ($search) {
+                $q->where('title', 'like', "%{$search}%")
+                    ->orWhere('description', 'like', "%{$search}%");
+            });
         }
 
-        return response()->json(['data' => $query->orderByDesc('created_at')->get()]);
+        $query->orderByDesc('created_at');
+
+        return $this->indexResponse($request, $query);
     }
 
     public function storeRequisition(Request $request)

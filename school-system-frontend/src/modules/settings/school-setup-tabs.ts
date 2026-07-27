@@ -36,6 +36,7 @@ export type SetupTabId =
   | 'currencies'
   | 'languages'
   | 'designations'
+  | 'custom-fields'
   | 'notifications'
 
 export interface SetupSection {
@@ -197,6 +198,14 @@ export const SETUP_TABS: SetupTab[] = [
       'Preferred languages for school communications and UI preference.',
     icon: Languages,
     listKey: 'settings-languages',
+  },
+  {
+    id: 'custom-fields',
+    title: 'Custom Fields',
+    description:
+      'School-specific fields for students, teachers, and staff forms.',
+    icon: SlidersHorizontal,
+    listKey: 'settings-custom-fields',
   },
   {
     id: 'fees',

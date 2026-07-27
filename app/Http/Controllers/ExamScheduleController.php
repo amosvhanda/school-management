@@ -156,7 +156,7 @@ class ExamScheduleController extends Controller
 
         $this->orderIndex($query);
 
-        return response()->json(['data' => $query->get()]);
+        return $this->indexResponse($request, $query);
     }
 
     public function show(Request $request, int $id): JsonResponse

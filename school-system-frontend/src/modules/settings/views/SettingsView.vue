@@ -38,6 +38,7 @@ import {
   type SetupTabId,
 } from '@/modules/settings/school-setup-tabs'
 import { schoolSetupLocation } from '@/modules/settings/school-setup-links'
+import { shouldAutoCreateSection } from '@/lib/module-hub'
 
 interface SchoolProfile {
   name?: string
@@ -259,7 +260,7 @@ const quickLinks = computed(() => [
   {
     title: 'Custom fields',
     description: 'Add school-specific student and staff fields.',
-    href: '/settings/custom-fields',
+    tabId: 'custom-fields' as SetupTabId,
     icon: SlidersHorizontal,
   },
   {
@@ -610,7 +611,7 @@ onMounted(load)
               </div>
               <SchoolSetupSection
                 :list-key="section.listKey"
-                :auto-create="route.query.create === '1' && index === 0"
+                :auto-create="shouldAutoCreateSection(section, index, route.query)"
                 @saved="loadSetupCounts"
               />
             </section>

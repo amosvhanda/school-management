@@ -87,6 +87,37 @@ class InvoiceController extends Controller
         return (new InvoiceResource($invoice))->additional(['message' => 'Success']);
     }
 
+    public function print(Request $request, Invoice $invoice)
+    {
+        $this->authorizeModuleAccess(
+            $request,
+            capabilities: ['canManageFinance'],
+            permissionSlugs: ['finance.manage', 'transactions.view'],
+        );
+
+        if ($request->user()->school_id && $invoice->school_id !== $request->user()->school_id) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        $invoice->load([
+            'student:id,full_name,student_number,class',
+            'payments' => fn ($q) => $q->orderByDesc('date')->limit(50),
+            'feeStructure:id,category,amount',
+            'feeGroup:id,name',
+            'feeDiscount:id,name',
+            'school:id,name,code,address,phone,email',
+        ]);
+
+        return response()->json([
+            'data' => [
+                'document_number' => 'INV-'.str_pad((string) $invoice->id, 6, '0', STR_PAD_LEFT),
+                'issued_at' => now()->toIso8601String(),
+                'invoice' => new InvoiceResource($invoice),
+                'school' => $invoice->school,
+            ],
+        ]);
+    }
+
     public function store(Request $request)
     {
         $this->authorizeModuleAccess(

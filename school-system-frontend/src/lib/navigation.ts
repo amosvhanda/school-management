@@ -18,6 +18,7 @@ export const staffNavigation: NavGroup[] = [
           { title: 'Teacher', href: '/dashboard/teacher', capability: 'canManageTeachers' },
           { title: 'Parent', href: '/dashboard/parent', capability: 'canManageTeachers' },
           { title: 'LMS', href: '/dashboard/lms', capability: 'isStaff' },
+          { title: 'Manage LMS', href: '/teaching?tab=lms', capability: 'canManageTeachers' },
         ],
       },
 
@@ -26,7 +27,7 @@ export const staffNavigation: NavGroup[] = [
         icon: 'GraduationCap',
         capability: 'canManageStudents',
         items: [
-          { title: 'Add New', href: '/students?create=1', capability: 'canManageStudents' },
+          { title: 'Add New', href: '/people?tab=students&create=1', capability: 'canManageStudents' },
           { title: 'Student List', href: '/students', capability: 'canManageStudents' },
           { title: 'Suspended', href: '/students/suspended', capability: 'canManageStudents' },
           { title: 'Student Categories', href: '/people/categories', capability: 'canManageStudents' },
@@ -38,7 +39,7 @@ export const staffNavigation: NavGroup[] = [
         icon: 'Users',
         capability: 'canManageTeachers',
         items: [
-          { title: 'Add New', href: '/teachers?create=1', capability: 'canManageTeachers' },
+          { title: 'Add New', href: '/people?tab=teachers&create=1', capability: 'canManageTeachers' },
           { title: 'Teacher List', href: '/teachers', capability: 'canManageTeachers' },
           { title: 'Teacher Timetable', href: '/academics/timetable', capability: 'canManageTeachers' },
         ],
@@ -48,7 +49,7 @@ export const staffNavigation: NavGroup[] = [
         icon: 'UserCheck',
         capability: 'canManageTeachers',
         items: [
-          { title: 'Add New', href: '/guardians?create=1', capability: 'canManageTeachers' },
+          { title: 'Add New', href: '/people?tab=guardians&create=1', capability: 'canManageTeachers' },
           { title: 'Guardians List', href: '/guardians', capability: 'canManageTeachers' },
         ],
       },
@@ -82,6 +83,7 @@ export const staffNavigation: NavGroup[] = [
           { title: 'Fees Type', href: '/finance/fee-categories', capability: 'canManageFinance' },
           { title: 'Fees Group', href: '/finance/fee-groups', capability: 'canManageFinance' },
           { title: 'Fees Discount', href: '/finance/fee-discounts', capability: 'canManageFinance' },
+          { title: 'Fees Structure', href: '/finance/fee-structures', capability: 'canManageFinance' },
         ],
       },
       {
@@ -130,6 +132,8 @@ export const staffNavigation: NavGroup[] = [
           { title: 'Expense List', href: '/finance/expense', capability: 'canManageFinance' },
           { title: 'Transaction', href: '/finance/transactions', capability: 'canManageFinance' },
           { title: 'Invoices', href: '/finance/invoices', capability: 'canManageFinance' },
+          { title: 'Cash Flow', href: '/finance/cash-flow', capability: 'canManageFinance' },
+          { title: 'Aging', href: '/finance/reports', capability: 'canManageFinance' },
         ],
       },
       {
@@ -137,11 +141,13 @@ export const staffNavigation: NavGroup[] = [
         icon: 'IdCard',
         capability: 'canManageTeachers',
         items: [
-          { title: 'Add New', href: '/hr/employees?create=1', capability: 'canManageTeachers' },
+          { title: 'Add New', href: '/hr?tab=employees&create=1', capability: 'canManageTeachers' },
           { title: 'Employee List', href: '/hr/employees', capability: 'canManageTeachers' },
           { title: 'Payroll', href: '/finance/payroll', capability: 'canManageFinance' },
           { title: 'Designation', href: '/hr/designations', capability: 'canManageTeachers' },
           { title: 'Department', href: '/academics/departments', capability: 'canManageTeachers' },
+          { title: 'Discipline', href: '/hr/discipline', capability: 'canManageStudents' },
+          { title: 'Policies', href: '/hr?tab=policies', capability: 'canManageTeachers' },
         ],
       },
       {
@@ -181,6 +187,24 @@ export const staffNavigation: NavGroup[] = [
         capability: 'canManageInventory',
       },
       {
+        title: 'Visitors',
+        href: '/operations/visitors',
+        icon: 'UserCheck',
+        capability: 'canManageReception',
+      },
+      {
+        title: 'Clinic',
+        href: '/operations/health',
+        icon: 'HeartPulse',
+        capability: 'canManageTeachers',
+      },
+      {
+        title: 'School Trips',
+        href: '/operations/school-trips',
+        icon: 'Bus',
+        capability: 'canManageTeachers',
+      },
+      {
         title: 'Subscription Plan',
         href: '/admin/subscription',
         icon: 'CreditCard',
@@ -207,6 +231,7 @@ export const staffNavigation: NavGroup[] = [
           { title: 'Notification', href: '/settings?tab=notifications', capability: 'canManageTeachers' },
           { title: 'Currencies', href: '/settings?tab=currencies', capability: 'canManageTeachers' },
           { title: 'Languages', href: '/settings?tab=languages', capability: 'canManageTeachers' },
+          { title: 'Custom Fields', href: '/settings?tab=custom-fields', capability: 'canManageTeachers' },
           { title: 'Terms', href: '/academics/terms', capability: 'canManageTeachers' },
         ],
       },
@@ -288,6 +313,7 @@ export const financeNavigation: NavGroup[] = [
           { title: 'Fees Type', href: '/finance/fee-categories', capability: 'canManageFinance', roles: ['finance'] },
           { title: 'Fees Group', href: '/finance/fee-groups', capability: 'canManageFinance', roles: ['finance'] },
           { title: 'Fees Discount', href: '/finance/fee-discounts', capability: 'canManageFinance', roles: ['finance'] },
+          { title: 'Fees Structure', href: '/finance/fee-structures', capability: 'canManageFinance', roles: ['finance'] },
         ],
       },
       {
@@ -302,6 +328,8 @@ export const financeNavigation: NavGroup[] = [
           { title: 'Expense List', href: '/finance/expense', capability: 'canManageFinance', roles: ['finance'] },
           { title: 'Transaction', href: '/finance/transactions', capability: 'canManageFinance', roles: ['finance'] },
           { title: 'Invoices', href: '/finance/invoices', capability: 'canManageFinance', roles: ['finance'] },
+          { title: 'Cash Flow', href: '/finance/cash-flow', capability: 'canManageFinance', roles: ['finance'] },
+          { title: 'Aging', href: '/finance/reports', capability: 'canManageFinance', roles: ['finance'] },
           { title: 'Payroll', href: '/finance/payroll', capability: 'canManageFinance', roles: ['finance'] },
         ],
       },
@@ -337,6 +365,8 @@ export const accountsNavigation: NavGroup[] = [
           { title: 'Income List', href: '/finance/income', capability: 'canManageFinance', roles: ['accounts'] },
           { title: 'Expense Head', href: '/finance/expense-heads', capability: 'canManageFinance', roles: ['accounts'] },
           { title: 'Expense List', href: '/finance/expense', capability: 'canManageFinance', roles: ['accounts'] },
+          { title: 'Cash Flow', href: '/finance/cash-flow', capability: 'canManageFinance', roles: ['accounts'] },
+          { title: 'Aging', href: '/finance/reports', capability: 'canManageFinance', roles: ['accounts'] },
         ],
       },
       { title: 'Notice Board', href: '/communications/announcements', icon: 'Megaphone', capability: 'isStaff', roles: ['accounts'] },

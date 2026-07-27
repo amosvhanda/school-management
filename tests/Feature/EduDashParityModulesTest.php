@@ -567,6 +567,22 @@ class EduDashParityModulesTest extends TestCase
             ->assertJsonPath('data.role', 'parent');
     }
 
+    public function test_admin_without_teacher_is_forbidden_from_teacher_only_portal(): void
+    {
+        $this->actingAdmin();
+
+        foreach ([
+            '/api/v1/teacher-portal/classes',
+            '/api/v1/teacher-portal/lesson-plans',
+            '/api/v1/teacher-portal/dashboard',
+            '/api/v1/teacher-portal/notifications',
+        ] as $path) {
+            $this->getJson($path)
+                ->assertForbidden()
+                ->assertJsonFragment(['message' => 'Teacher profile not linked to this account.']);
+        }
+    }
+
     public function test_admin_can_submit_and_lock_attendance_without_teacher_profile(): void
     {
         ['school' => $school] = $this->actingAdmin();
@@ -588,5 +604,12 @@ class EduDashParityModulesTest extends TestCase
         ])
             ->assertOk()
             ->assertJsonPath('message', 'Attendance locked');
+
+        $this->getJson('/api/v1/teacher-portal/attendance/reports?'.http_build_query([
+            'class_id' => $class->id,
+            'from' => now()->subDays(7)->toDateString(),
+            'to' => now()->toDateString(),
+        ]))
+            ->assertOk();
     }
 }

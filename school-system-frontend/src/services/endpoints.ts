@@ -267,6 +267,7 @@ export const endpoints = {
   invoices: {
     list: '/invoices',
     detail: (id: number | string) => `/invoices/${id}`,
+    print: (id: number | string) => `/invoices/${id}/print`,
   },
   feeStructures: {
     list: '/fee-structures',

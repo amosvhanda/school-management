@@ -31,6 +31,7 @@ export const TEACHING_HUB_TABS: ModuleHubTab[] = [
     icon: Users,
     priority: 'primary',
     capability: 'isStaff',
+    requiresTeacherProfile: true,
     component: () => import('@/modules/teaching/views/MyClassesPanel.vue'),
   },
   {
@@ -40,6 +41,7 @@ export const TEACHING_HUB_TABS: ModuleHubTab[] = [
     icon: NotebookPen,
     priority: 'primary',
     capability: 'isStaff',
+    requiresTeacherProfile: true,
     component: () => import('@/modules/teaching/views/LessonPlansPanel.vue'),
   },
   {
@@ -49,6 +51,7 @@ export const TEACHING_HUB_TABS: ModuleHubTab[] = [
     icon: BookOpen,
     priority: 'primary',
     capability: 'isStaff',
+    requiresTeacherProfile: true,
     component: () => import('@/modules/teaching/views/HomeworkPanel.vue'),
   },
   {
@@ -67,6 +70,7 @@ export const TEACHING_HUB_TABS: ModuleHubTab[] = [
     icon: ShieldAlert,
     priority: 'primary',
     capability: 'canManageStudents',
+    requiresTeacherProfile: true,
     component: () => import('@/modules/teaching/views/BehaviourSupportPanel.vue'),
   },
   {
@@ -77,6 +81,7 @@ export const TEACHING_HUB_TABS: ModuleHubTab[] = [
     priority: 'secondary',
     group: 'Materials',
     capability: 'isStaff',
+    requiresTeacherProfile: true,
     component: () => import('@/modules/teaching/views/ResourcesPanel.vue'),
   },
   {
@@ -87,6 +92,7 @@ export const TEACHING_HUB_TABS: ModuleHubTab[] = [
     priority: 'secondary',
     group: 'Materials',
     capability: 'isStaff',
+    requiresTeacherProfile: true,
     component: () => import('@/modules/teaching/views/SyllabusPanel.vue'),
   },
   {
@@ -97,6 +103,7 @@ export const TEACHING_HUB_TABS: ModuleHubTab[] = [
     priority: 'secondary',
     group: 'Assessment',
     capability: 'canEnterExamResults',
+    requiresTeacherProfile: true,
     component: () => import('@/modules/teaching/views/ReportCardsPanel.vue'),
   },
   {
@@ -107,6 +114,7 @@ export const TEACHING_HUB_TABS: ModuleHubTab[] = [
     priority: 'secondary',
     group: 'Assessment',
     capability: 'canEnterExamResults',
+    requiresTeacherProfile: true,
     component: () => import('@/modules/teaching/views/ParticipationPanel.vue'),
   },
   {
@@ -117,6 +125,7 @@ export const TEACHING_HUB_TABS: ModuleHubTab[] = [
     priority: 'secondary',
     group: 'Schedule',
     capability: 'isStaff',
+    requiresTeacherProfile: true,
     component: () => import('@/modules/teaching/views/TeacherCalendarPanel.vue'),
   },
   {
@@ -127,6 +136,7 @@ export const TEACHING_HUB_TABS: ModuleHubTab[] = [
     priority: 'secondary',
     group: 'Schedule',
     capability: 'isStaff',
+    requiresTeacherProfile: true,
     component: () => import('@/modules/teaching/views/TimetableToolsPanel.vue'),
   },
   {
@@ -137,6 +147,7 @@ export const TEACHING_HUB_TABS: ModuleHubTab[] = [
     priority: 'secondary',
     group: 'Staff',
     capability: 'isStaff',
+    requiresTeacherProfile: true,
     component: () => import('@/modules/teaching/views/TeacherLeavePanel.vue'),
   },
   {
@@ -147,6 +158,7 @@ export const TEACHING_HUB_TABS: ModuleHubTab[] = [
     priority: 'secondary',
     group: 'Staff',
     capability: 'isStaff',
+    requiresTeacherProfile: true,
     component: () => import('@/modules/teaching/views/SubstitutionsPanel.vue'),
   },
   {
@@ -157,6 +169,7 @@ export const TEACHING_HUB_TABS: ModuleHubTab[] = [
     priority: 'secondary',
     group: 'Staff',
     capability: 'isStaff',
+    requiresTeacherProfile: true,
     component: () => import('@/modules/teaching/views/DepartmentPanel.vue'),
   },
   {
@@ -167,6 +180,7 @@ export const TEACHING_HUB_TABS: ModuleHubTab[] = [
     priority: 'secondary',
     group: 'Utilities',
     capability: 'isStaff',
+    requiresTeacherProfile: true,
     component: () => import('@/modules/teaching/views/ExportPanel.vue'),
   },
   {
@@ -177,6 +191,7 @@ export const TEACHING_HUB_TABS: ModuleHubTab[] = [
     priority: 'secondary',
     group: 'Utilities',
     capability: 'isStaff',
+    requiresTeacherProfile: true,
     component: () => import('@/modules/teaching/views/TeacherNotificationsPanel.vue'),
   },
   {
@@ -187,6 +202,7 @@ export const TEACHING_HUB_TABS: ModuleHubTab[] = [
     priority: 'secondary',
     group: 'Utilities',
     capability: 'isStaff',
+    requiresTeacherProfile: true,
     component: () => import('@/modules/teaching/views/AiTeachingPanel.vue'),
   },
 ]

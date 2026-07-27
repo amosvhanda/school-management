@@ -348,7 +348,8 @@ export const financeApi = {
       postRecord(e.payments.reverse(id), payload ?? {}),
   },
   transactions: {
-    list: (params?: ListQueryParams) => fetchList(e.transactions.list, params),
+    list: (params?: ListQueryParams) => fetchPaginatedList(e.transactions.list, params),
+    listAll: (params?: ListQueryParams) => fetchList(e.transactions.list, { ...params, all: true }),
     summary: (params?: ListQueryParams) => fetchOne(e.transactions.summary, params),
   },
   invoices: {
@@ -356,6 +357,7 @@ export const financeApi = {
     create: (payload: Record<string, unknown>) => createRecord(e.invoices.list, payload),
     update: (id: number | string, payload: Record<string, unknown>) =>
       updateRecord(e.invoices.detail(id), payload),
+    print: (id: number | string) => fetchOne(e.invoices.print(id)),
   },
   feeStructures: crud(e.feeStructures.list, e.feeStructures.detail),
   feeCategories: crud(e.feeCategories.list, e.feeCategories.detail),

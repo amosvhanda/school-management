@@ -12,6 +12,8 @@ use Illuminate\Validation\Rule;
 
 trait ManagesSchoolResourceCrud
 {
+    use RespondsWithPaginatedList;
+
     abstract protected function resourceModel(): string;
 
     /**
@@ -106,7 +108,7 @@ trait ManagesSchoolResourceCrud
         $query = $this->applyIndexFilters($this->schoolQuery($request), $request);
         $this->orderIndex($query);
 
-        return response()->json(['data' => $query->get()]);
+        return $this->indexResponse($request, $query);
     }
 
     public function show(Request $request, int $id): JsonResponse

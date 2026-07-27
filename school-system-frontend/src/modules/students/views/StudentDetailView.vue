@@ -9,6 +9,7 @@ import {
   Pencil,
   Phone,
   Plus,
+  Printer,
   User,
   Users,
 } from '@lucide/vue'
@@ -40,8 +41,9 @@ import {
   studentInvoiceFields,
   studentInvoiceSchema,
 } from '@/modules/students/student-form'
-import { studentsApi } from '@/services/api.service'
+import { studentsApi, financeApi } from '@/services/api.service'
 import StudentJourneyPanel from '@/modules/students/components/StudentJourneyPanel.vue'
+import InvoicePrintSheet from '@/modules/finance/components/InvoicePrintSheet.vue'
 
 interface Student {
   id: number
@@ -115,6 +117,9 @@ const performance = ref<PerformanceData | null>(null)
 const invoices = ref<Invoice[]>([])
 const editOpen = ref(false)
 const invoiceOpen = ref(false)
+const invoicePrintOpen = ref(false)
+const invoicePrintLoading = ref(false)
+const invoicePrintData = ref<Record<string, unknown> | null>(null)
 const saving = ref(false)
 const formEditLoading = ref(false)
 const studentFormResetValues = ref<Record<string, unknown> | undefined>()
@@ -167,6 +172,20 @@ function formatMoney(amount?: number, currency = 'USD') {
 
 function invoiceTotal(inv: Invoice) {
   return inv.amount ?? inv.total
+}
+
+async function openInvoicePrint(invoiceId: number) {
+  invoicePrintOpen.value = true
+  invoicePrintLoading.value = true
+  invoicePrintData.value = null
+  try {
+    invoicePrintData.value = await financeApi.invoices.print(invoiceId)
+  } catch (err) {
+    toast.error('Invoice unavailable', getErrorMessage(err))
+    invoicePrintOpen.value = false
+  } finally {
+    invoicePrintLoading.value = false
+  }
 }
 
 function statusVariant(status?: string) {
@@ -498,6 +517,9 @@ onMounted(load)
                     <TableHead>Balance</TableHead>
                     <TableHead>Due</TableHead>
                     <TableHead>Status</TableHead>
+                    <TableHead class="w-24">
+                      <span class="sr-only">Actions</span>
+                    </TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -508,6 +530,17 @@ onMounted(load)
                     <TableCell>{{ formatDate(inv.due_date) }}</TableCell>
                     <TableCell>
                       <Badge :variant="statusVariant(inv.status)">{{ inv.status ?? '—' }}</Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Button
+                        v-if="canCreateInvoice"
+                        variant="outline"
+                        size="sm"
+                        :aria-label="`Print invoice ${inv.invoice_number ?? inv.id}`"
+                        @click="openInvoicePrint(inv.id)"
+                      >
+                        <Printer class="h-4 w-4" aria-hidden="true" />
+                      </Button>
                     </TableCell>
                   </TableRow>
                 </TableBody>
@@ -572,6 +605,12 @@ onMounted(load)
       save-label="Create invoice"
       saving-label="Creating…"
       @submit="onCreateInvoice"
+    />
+
+    <InvoicePrintSheet
+      v-model:open="invoicePrintOpen"
+      :document="invoicePrintData"
+      :loading="invoicePrintLoading"
     />
   </div>
 </template>

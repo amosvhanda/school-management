@@ -73,7 +73,7 @@ export const guardianFormFields: FormFieldSchema[] = mergeFormSections(
       colSpan: 2,
       relation: {
         endpoint: moduleEndpoints.students,
-        createRoute: '/students?create=1',
+        createRoute: '/people?tab=students&create=1',
         moduleLabel: 'student',
       },
     },

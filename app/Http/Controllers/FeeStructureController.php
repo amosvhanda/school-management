@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\RespondsWithPaginatedList;
 use App\Models\ClassModel;
 use App\Models\FeeCategory;
 use App\Models\FeeStructure;
@@ -11,6 +12,8 @@ use Illuminate\Validation\Rule;
 
 class FeeStructureController extends Controller
 {
+    use RespondsWithPaginatedList;
+
     public function index(Request $request)
     {
         $this->authorizeModuleAccess(
@@ -26,6 +29,7 @@ class FeeStructureController extends Controller
         $feeCategoryId = $request->input('fee_category_id', $filters['fee_category_id'] ?? null);
         $category = $request->input('category', $filters['category'] ?? null);
         $currency = $request->input('currency', $filters['currency'] ?? null);
+        $search = $request->input('search', $filters['search'] ?? null);
 
         if (filled($classId)) {
             $query->where('class_id', $classId);
@@ -39,17 +43,16 @@ class FeeStructureController extends Controller
         if (filled($currency)) {
             $query->where('currency', $currency);
         }
-
-        if ($request->boolean('all')) {
-            $feeStructures = $query->orderBy('class_name')->orderBy('category')->get();
-        } else {
-            $limit = min(max((int) $request->get('limit', 50), 1), 200);
-            $feeStructures = $query->orderBy('class_name')->orderBy('category')->limit($limit)->get();
+        if (filled($search)) {
+            $query->where(function ($q) use ($search) {
+                $q->where('category', 'like', "%{$search}%")
+                    ->orWhere('class_name', 'like', "%{$search}%");
+            });
         }
 
-        return response()->json([
-            'data' => $feeStructures,
-        ]);
+        $query->orderBy('class_name')->orderBy('category');
+
+        return $this->indexResponse($request, $query);
     }
 
     public function store(Request $request)

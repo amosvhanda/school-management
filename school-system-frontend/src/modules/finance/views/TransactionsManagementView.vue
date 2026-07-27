@@ -98,6 +98,11 @@ const currencyFilter = ref('all')
 const statusFilter = ref('all')
 const fromDate = ref('')
 const toDate = ref('')
+const serverPage = ref(1)
+const serverPageCount = ref(1)
+const serverTotal = ref(0)
+const perPage = 25
+let searchTimer: ReturnType<typeof setTimeout> | undefined
 
 const TYPE_OPTIONS = [
   { value: 'payment', label: 'Payment' },
@@ -135,24 +140,7 @@ const filteredRows = computed(() => {
   if (activeTab.value === 'by-student') {
     list = list.filter((r) => r.student_id != null)
   }
-  const q = searchQuery.value.trim().toLowerCase()
-  if (!q) return list
-  return list.filter((r) => {
-    const hay = [
-      r.description,
-      r.reference,
-      r.type,
-      r.category,
-      r.status,
-      r.student?.full_name,
-      r.student?.student_number,
-      r.payroll?.employee_name,
-    ]
-      .filter(Boolean)
-      .join(' ')
-      .toLowerCase()
-    return hay.includes(q)
-  })
+  return list
 })
 
 const byStudentGroups = computed(() => {
@@ -252,39 +240,51 @@ function typeMeta(type?: string) {
   }
 }
 
-function listParams() {
-  const params: Record<string, string | number> = {}
+function listParams(page = serverPage.value) {
+  const params: Record<string, string | number | boolean> = {
+    page,
+    per_page: perPage,
+  }
   if (studentFilter.value !== 'all') params.student_id = studentFilter.value
   if (typeFilter.value !== 'all') params.type = typeFilter.value
   if (currencyFilter.value !== 'all') params.currency = currencyFilter.value
   if (statusFilter.value !== 'all') params.status = statusFilter.value
   if (fromDate.value) params.from = fromDate.value
   if (toDate.value) params.to = `${toDate.value} 23:59:59`
+  if (searchQuery.value.trim()) params.search = searchQuery.value.trim()
   if (route.query.payroll_id) params.payroll_id = String(route.query.payroll_id)
   if (route.query.category) params.category = String(route.query.category)
   if (route.query.type && typeFilter.value === 'all') params.type = String(route.query.type)
   return params
 }
 
-async function load() {
+async function load(page = serverPage.value) {
   loading.value = true
   error.value = null
   try {
-    const params = listParams()
+    const params = listParams(page)
     const [list, sum] = await Promise.all([
-      financeApi.transactions.list(params) as Promise<TransactionRow[]>,
+      financeApi.transactions.list(params),
       financeApi.transactions.summary({
         ...(fromDate.value ? { from: fromDate.value } : {}),
         ...(toDate.value ? { to: `${toDate.value} 23:59:59` } : {}),
       }) as Promise<TxSummary>,
     ])
-    rows.value = list
+    rows.value = list.data as TransactionRow[]
+    serverPage.value = list.current_page
+    serverPageCount.value = list.last_page
+    serverTotal.value = list.total
     summary.value = sum
   } catch (err) {
     error.value = getErrorMessage(err, 'Failed to load transactions')
   } finally {
     loading.value = false
   }
+}
+
+function onServerPageChange(page: number) {
+  if (page < 1 || page > serverPageCount.value) return
+  void load(page)
 }
 
 async function loadReconciliation() {
@@ -299,48 +299,62 @@ async function loadReconciliation() {
 }
 
 function exportCsv() {
-  if (!filteredRows.value.length) {
+  if (!rows.value.length && serverTotal.value === 0) {
     toast.warning('Nothing to export')
     return
   }
-  const header = [
-    'Date',
-    'Type',
-    'Party',
-    'Description',
-    'Reference',
-    'Debit',
-    'Credit',
-    'Balance',
-    'Currency',
-    'Status',
-  ]
-  const lines = filteredRows.value.map((row) =>
-    [
-      row.created_at ?? '',
-      row.type ?? '',
-      partyName(row),
-      row.description ?? '',
-      row.reference ?? '',
-      num(row.debit),
-      num(row.credit),
-      num(row.balance),
-      row.currency ?? 'USD',
-      row.status ?? '',
-    ]
-      .map((v) => `"${String(v).replaceAll('"', '""')}"`)
-      .join(','),
-  )
-  const blob = new Blob([[header.join(','), ...lines].join('\n')], {
-    type: 'text/csv;charset=utf-8',
-  })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = `transactions-${new Date().toISOString().slice(0, 10)}.csv`
-  a.click()
-  URL.revokeObjectURL(url)
-  toast.success('Transactions exported')
+  void (async () => {
+    try {
+      const filters = { ...listParams(1) }
+      delete filters.page
+      delete filters.per_page
+      const exportRows = (await financeApi.transactions.listAll(filters)) as TransactionRow[]
+      if (!exportRows.length) {
+        toast.warning('Nothing to export')
+        return
+      }
+      const header = [
+        'Date',
+        'Type',
+        'Party',
+        'Description',
+        'Reference',
+        'Debit',
+        'Credit',
+        'Balance',
+        'Currency',
+        'Status',
+      ]
+      const lines = exportRows.map((row) =>
+        [
+          row.created_at ?? '',
+          row.type ?? '',
+          partyName(row),
+          row.description ?? '',
+          row.reference ?? '',
+          num(row.debit),
+          num(row.credit),
+          num(row.balance),
+          row.currency ?? 'USD',
+          row.status ?? '',
+        ]
+          .map((v) => `"${String(v).replaceAll('"', '""')}"`)
+          .join(','),
+      )
+      const blob = new Blob([[header.join(','), ...lines].join('\n')], {
+        type: 'text/csv;charset=utf-8',
+      })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `transactions-${new Date().toISOString().slice(0, 10)}.csv`
+      a.click()
+      URL.revokeObjectURL(url)
+      toast.success('Transactions exported')
+    } catch (err) {
+      toast.error(getErrorMessage(err, 'Export failed'))
+    }
+  })()
 }
 
 function printLedger() {
@@ -350,9 +364,18 @@ function printLedger() {
 watch(
   [studentFilter, typeFilter, currencyFilter, statusFilter, fromDate, toDate],
   () => {
-    void load()
+    serverPage.value = 1
+    void load(1)
   },
 )
+
+watch(searchQuery, () => {
+  clearTimeout(searchTimer)
+  searchTimer = setTimeout(() => {
+    serverPage.value = 1
+    void load(1)
+  }, 300)
+})
 
 watch(activeTab, (tab) => {
   if (tab === 'reconciliation') void loadReconciliation()
@@ -645,6 +668,34 @@ onMounted(() => {
                     />
                   </TableBody>
                 </Table>
+              </div>
+              <div
+                v-if="serverPageCount > 1"
+                class="flex flex-col gap-3 border-t border-border/60 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+              >
+                <p class="text-sm text-muted-foreground">
+                  Page {{ serverPage }} of {{ serverPageCount }} · {{ serverTotal }} transactions
+                </p>
+                <div class="flex gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    :disabled="serverPage <= 1 || loading"
+                    @click="onServerPageChange(serverPage - 1)"
+                  >
+                    Previous
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    :disabled="serverPage >= serverPageCount || loading"
+                    @click="onServerPageChange(serverPage + 1)"
+                  >
+                    Next
+                  </Button>
+                </div>
               </div>
             </CardContent>
           </Card>

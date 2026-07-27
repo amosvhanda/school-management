@@ -67,10 +67,10 @@ const allActions: QuickAction[] = [
   },
   {
     label: 'LMS',
-    description: 'Online learning overview',
-    href: '/dashboard/lms',
+    description: 'Create and manage online lessons',
+    href: '/teaching?tab=lms',
     icon: Video,
-    capability: 'isStaff',
+    capability: 'canManageTeachers',
     variants: ['admin'],
   },
   {

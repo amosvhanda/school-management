@@ -47,6 +47,15 @@ class TransactionController extends Controller
         if ($request->filled('status') && $request->status !== 'all') {
             $query->where('status', $request->status);
         }
+        if ($request->filled('income_head_id')) {
+            $query->where('income_head_id', $request->integer('income_head_id'));
+        }
+        if ($request->filled('expense_head_id')) {
+            $query->where('expense_head_id', $request->integer('expense_head_id'));
+        }
+        if ($request->filled('payment_method') && $request->payment_method !== 'all') {
+            $query->where('payment_method', $request->payment_method);
+        }
         if ($request->filled('from')) {
             $query->where('created_at', '>=', $request->from);
         }
@@ -72,9 +81,25 @@ class TransactionController extends Controller
             });
         }
 
-        $transactions = $query->orderBy('created_at', 'desc')->get();
+        if ($request->boolean('all')) {
+            $transactions = $query->orderBy('created_at', 'desc')->limit(500)->get();
 
-        return TransactionResource::collection($transactions)
+            return TransactionResource::collection($transactions)
+                ->additional(['message' => 'Success']);
+        }
+
+        if ($request->filled('limit') && ! $request->filled('page') && ! $request->filled('per_page')) {
+            $limit = min(max((int) $request->input('limit'), 1), 200);
+            $transactions = $query->orderBy('created_at', 'desc')->limit($limit)->get();
+
+            return TransactionResource::collection($transactions)
+                ->additional(['message' => 'Success']);
+        }
+
+        $perPage = min(max($request->integer('per_page', 25), 1), 100);
+        $paginator = $query->orderBy('created_at', 'desc')->paginate($perPage)->appends($request->query());
+
+        return TransactionResource::collection($paginator)
             ->additional(['message' => 'Success']);
     }
 
