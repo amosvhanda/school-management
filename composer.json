@@ -6,7 +6,7 @@
     "keywords": ["laravel", "framework", "api", "school"],
     "license": "MIT",
     "require": {
-        "php": "^8.3",
+        "php": "^8.4",
         "laravel/ai": "^0.8.1",
         "laravel/fortify": "^1.37",
         "laravel/framework": "^13.0",
