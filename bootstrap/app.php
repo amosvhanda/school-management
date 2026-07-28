@@ -39,9 +39,11 @@ return Application::configure(basePath: dirname(__DIR__))
             'school.isolated' => \App\Http\Middleware\ValidateSchoolIsolation::class,
             'school.licensed' => \App\Http\Middleware\EnsureSchoolLicenseActive::class,
             'super_admin' => \App\Http\Middleware\EnsureSuperAdmin::class,
+            'school.domain' => \App\Http\Middleware\ResolveSchoolFromDomain::class,
         ]);
 
         $middleware->api(append: [
+            \App\Http\Middleware\ResolveSchoolFromDomain::class,
             \App\Http\Middleware\CaptureAuditContext::class,
         ]);
 

@@ -42,22 +42,33 @@ class SettingsController extends Controller
 
     public function publicConfig(Request $request)
     {
-        $schoolId = $request->user()->school_id;
+        $school = $request->attributes->get('currentSchool');
 
-        if ($schoolId === null) {
+        if (! $school instanceof School && $request->user()?->school_id !== null) {
+            $school = School::find($request->user()->school_id);
+        }
+
+        if (! $school instanceof School) {
             return $this->success([
                 'settings' => [],
                 'terminology' => [],
                 'custom_fields' => [],
+                'school' => null,
             ]);
         }
 
-        $school = School::findOrFail($schoolId);
         $locale = $request->get('locale', 'en');
 
         return $this->success([
             'settings' => $this->settingsService->getAll($school, publicOnly: true),
             'terminology' => $this->terminologyService->getForSchool($school, $locale),
+            'school' => [
+                'id' => $school->id,
+                'name' => $school->name,
+                'code' => $school->code,
+                'website' => $school->website,
+                'logo_path' => $school->logo_path,
+            ],
         ]);
     }
 

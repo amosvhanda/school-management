@@ -4,8 +4,10 @@ namespace Tests\Feature;
 
 use App\Enums\UserRole;
 use App\Models\School;
+use App\Models\SchoolDomain;
 use App\Models\User;
 use Illuminate\Support\Facades\Hash;
+use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
 class AdminSchoolProvisionTest extends TestCase
@@ -91,5 +93,93 @@ class AdminSchoolProvisionTest extends TestCase
                 'admin_password_confirmation' => 'Password123!',
             ])
             ->assertForbidden();
+    }
+
+    public function test_super_admin_can_suspend_and_reactivate_school(): void
+    {
+        $school = School::factory()->create([
+            'status' => 'active',
+            'license_status' => 'active',
+            'license_plan' => 'lifetime',
+        ]);
+        $admin = User::factory()->create([
+            'role' => UserRole::Admin,
+            'school_id' => $school->id,
+        ]);
+        $superAdmin = User::factory()->create([
+            'role' => UserRole::SuperAdmin,
+            'school_id' => null,
+        ]);
+
+        Sanctum::actingAs($superAdmin);
+        $this
+            ->patchJson("/api/v1/admin/schools/{$school->id}/status", [
+                'status' => 'suspended',
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.school.status', 'suspended');
+
+        Sanctum::actingAs($admin);
+        $this
+            ->getJson('/api/v1/dashboard/kpis')
+            ->assertForbidden()
+            ->assertJsonPath('code', 'school_suspended');
+
+        Sanctum::actingAs($superAdmin);
+        $this
+            ->patchJson("/api/v1/admin/schools/{$school->id}/status", [
+                'status' => 'active',
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.school.status', 'active');
+
+        Sanctum::actingAs($admin);
+        $this
+            ->getJson('/api/v1/dashboard/kpis')
+            ->assertOk();
+    }
+
+    public function test_super_admin_can_add_and_verify_school_domain(): void
+    {
+        $school = School::factory()->create();
+        $superAdmin = User::factory()->create([
+            'role' => UserRole::SuperAdmin,
+            'school_id' => null,
+        ]);
+        Sanctum::actingAs($superAdmin);
+        $create = $this
+            ->postJson("/api/v1/admin/schools/{$school->id}/domains", [
+                'domain' => 'green.example.test',
+                'is_primary' => true,
+            ]);
+
+        $create->assertCreated()
+            ->assertJsonPath('data.domain.domain', 'green.example.test')
+            ->assertJsonPath('data.domain.is_primary', true)
+            ->assertJsonPath('data.domain.is_verified', false);
+
+        $domainId = $create->json('data.domain.id');
+
+        Sanctum::actingAs($superAdmin);
+        $this
+            ->postJson("/api/v1/admin/schools/{$school->id}/domains/{$domainId}/verify")
+            ->assertOk()
+            ->assertJsonPath('data.domain.is_verified', true);
+
+        $this->assertDatabaseHas('school_domains', [
+            'id' => $domainId,
+            'school_id' => $school->id,
+            'domain' => 'green.example.test',
+            'is_primary' => true,
+            'is_verified' => true,
+        ]);
+
+        Sanctum::actingAs($superAdmin);
+        $this
+            ->getJson("/api/v1/admin/schools/{$school->id}")
+            ->assertOk()
+            ->assertJsonPath('data.domains.0.domain', 'green.example.test');
+
+        $this->assertNotNull(SchoolDomain::find($domainId));
     }
 }

@@ -125,6 +125,7 @@ Route::get('/platform/certificates/verify/{code}', [PlatformDocumentController::
 Route::get('/certificates/verify/{code}', [SchoolCertificateController::class, 'verify']);
 Route::get('/auth/platform-terms', [AuthController::class, 'platformTerms']);
 Route::get('/auth/privacy-policy', [AuthController::class, 'privacyPolicy']);
+Route::get('/settings/config', [SettingsController::class, 'publicConfig']);
 Route::post('/integrations/token', [ExternalIntegrationController::class, 'token'])
     ->middleware('throttle:login');
 
@@ -140,6 +141,13 @@ Route::middleware(['auth:sanctum', 'school.isolated', 'school.licensed'])->group
     Route::middleware('super_admin')->group(function () {
         Route::get('/admin/schools', [AdminSchoolController::class, 'index']);
         Route::post('/admin/schools', [AdminSchoolController::class, 'store']);
+        Route::get('/admin/schools/{school}', [AdminSchoolController::class, 'show']);
+        Route::patch('/admin/schools/{school}/status', [AdminSchoolController::class, 'updateStatus']);
+        Route::get('/admin/schools/{school}/domains', [AdminSchoolController::class, 'domains']);
+        Route::post('/admin/schools/{school}/domains', [AdminSchoolController::class, 'storeDomain']);
+        Route::patch('/admin/schools/{school}/domains/{domain}', [AdminSchoolController::class, 'updateDomain']);
+        Route::post('/admin/schools/{school}/domains/{domain}/verify', [AdminSchoolController::class, 'verifyDomain']);
+        Route::delete('/admin/schools/{school}/domains/{domain}', [AdminSchoolController::class, 'destroyDomain']);
         Route::prefix('admin/licenses')->group(function () {
             Route::get('/', [AdminLicenseController::class, 'index']);
             Route::post('/', [AdminLicenseController::class, 'store']);
@@ -223,7 +231,6 @@ Route::middleware(['auth:sanctum', 'school.isolated', 'school.licensed'])->group
     // School settings, terminology & custom fields (SaaS customization)
     Route::get('/settings/school', [SettingsController::class, 'schoolSettings']);
     Route::put('/settings/school', [SettingsController::class, 'updateSchoolSettings']);
-    Route::get('/settings/config', [SettingsController::class, 'publicConfig']);
     Route::get('/settings/terminology', [SettingsController::class, 'terminology']);
     Route::put('/settings/terminology', [SettingsController::class, 'updateTerminology']);
     Route::get('/settings/custom-fields', [SettingsController::class, 'customFields']);

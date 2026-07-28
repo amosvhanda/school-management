@@ -6,6 +6,7 @@ export interface SchoolConfig {
   terminology?: Record<string, string>
   settings?: Record<string, unknown>
   custom_fields?: Array<Record<string, unknown>>
+  school?: Record<string, unknown> | null
 }
 
 export const useConfigStore = defineStore('config', () => {

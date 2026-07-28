@@ -27,16 +27,6 @@ class EnsureSchoolLicenseActive
 
     public function handle(Request $request, Closure $next): Response
     {
-        if (! config('license.enforcement', false)) {
-            return $next($request);
-        }
-
-        foreach ($this->except as $pattern) {
-            if ($request->is($pattern)) {
-                return $next($request);
-            }
-        }
-
         $user = $request->user();
 
         if (! $user || $user->isSuperAdmin()) {
@@ -51,6 +41,23 @@ class EnsureSchoolLicenseActive
         }
 
         $school = School::find($user->school_id);
+
+        if ($school && $school->status !== 'active') {
+            return response()->json([
+                'message' => 'This school is currently suspended.',
+                'code' => 'school_suspended',
+            ], 403);
+        }
+
+        if (! config('license.enforcement', false)) {
+            return $next($request);
+        }
+
+        foreach ($this->except as $pattern) {
+            if ($request->is($pattern)) {
+                return $next($request);
+            }
+        }
 
         if (! $school || ! $this->licenses->isLicensed($school)) {
             $state = $school ? $this->licenses->resolveLicenseState($school) : [

@@ -38,6 +38,7 @@ class SecureAuthenticationService
     public function authenticate(Request $request, string $email, string $password, ?string $role = null): User
     {
         $this->ensureIsNotRateLimited($request);
+        $resolvedSchool = $request->attributes->get('currentSchool');
 
         $user = User::query()
             ->whereRaw('LOWER(email) = ?', [strtolower($email)])
@@ -61,6 +62,14 @@ class SecureAuthenticationService
         if ($user->role !== UserRole::SuperAdmin && ! $user->school_id) {
             throw ValidationException::withMessages([
                 'email' => ['Your account is not associated with a school. Please contact support.'],
+            ]);
+        }
+
+        if ($resolvedSchool instanceof School
+            && $user->role !== UserRole::SuperAdmin
+            && (int) $user->school_id !== (int) $resolvedSchool->id) {
+            throw ValidationException::withMessages([
+                'email' => ['This account does not belong to the school on this domain.'],
             ]);
         }
 

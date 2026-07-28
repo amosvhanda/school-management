@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, type HTMLAttributes } from 'vue'
+import { computed, onMounted, ref, type HTMLAttributes } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { GraduationCap, Loader2, Lock, Mail } from '@lucide/vue'
 import {
@@ -28,6 +28,7 @@ import {
   formLabelClass,
 } from '@/lib/form-standards'
 import { loginFormSchema } from '@/modules/auth/auth-form'
+import { useConfigStore } from '@/stores/config.store'
 import { cn } from '@/lib/utils'
 
 const props = defineProps<{
@@ -37,9 +38,16 @@ const props = defineProps<{
 const router = useRouter()
 const route = useRoute()
 const { login, logout } = useAuth()
+const configStore = useConfigStore()
 const toast = useToast()
 const isDev = computed(() => import.meta.env.DEV)
 const quickLoginRole = ref<string | null>(null)
+const tenantBrandName = computed(() =>
+  String(configStore.settings?.branding?.school_name ?? '').trim() || brandName,
+)
+const tenantBrandTagline = computed(() =>
+  String(configStore.settings?.branding?.motto ?? '').trim() || brandTagline,
+)
 
 const { submit, isSubmitting, setValues } = useFormApiSubmit({
   schema: loginFormSchema,
@@ -107,6 +115,13 @@ async function quickSignIn(account: DemoAccount) {
     quickLoginRole.value = null
   }
 }
+
+onMounted(() => {
+  if (configStore.loaded) return
+  void configStore.fetchPublicConfig().catch(() => {
+    configStore.markLoadedWithoutSchool()
+  })
+})
 </script>
 
 <template>
@@ -159,10 +174,10 @@ async function quickSignIn(account: DemoAccount) {
           </div>
           <div class="space-y-1.5">
             <p class="font-heading text-lg font-semibold tracking-tight text-primary">
-              {{ brandName }}
+              {{ tenantBrandName }}
             </p>
             <p class="text-xs text-muted-foreground">
-              {{ brandTagline }}
+              {{ tenantBrandTagline }}
             </p>
             <h1 class="font-heading text-2xl font-semibold tracking-tight md:text-[1.75rem]">
               Welcome back
