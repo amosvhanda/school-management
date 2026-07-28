@@ -2,7 +2,7 @@ import { api } from '@/lib/api'
 import { unwrapOne } from '@/lib/api-response'
 import { endpoints } from './endpoints'
 
-export type PeopleImportType = 'students' | 'teachers' | 'employees'
+export type PeopleImportType = 'students' | 'teachers' | 'employees' | 'guardians'
 
 export interface PeopleImportResult {
   created: number
@@ -10,6 +10,7 @@ export interface PeopleImportResult {
   failed: number
   errors: Array<{ line: number; message: string }>
   logins_created?: number
+  dry_run?: boolean
 }
 
 export async function downloadPeopleImportTemplate(type: PeopleImportType): Promise<void> {
@@ -31,12 +32,15 @@ export async function downloadPeopleImportTemplate(type: PeopleImportType): Prom
 export async function importPeopleCsv(
   type: PeopleImportType,
   file: File,
-  options?: { createLoginUsers?: boolean },
+  options?: { createLoginUsers?: boolean; dryRun?: boolean },
 ): Promise<PeopleImportResult> {
   const form = new FormData()
   form.append('file', file)
   if (options?.createLoginUsers) {
     form.append('create_login_users', '1')
+  }
+  if (options?.dryRun) {
+    form.append('dry_run', '1')
   }
   const { data } = await api.post(endpoints.imports.import(type), form, {
     headers: { 'Content-Type': 'multipart/form-data' },

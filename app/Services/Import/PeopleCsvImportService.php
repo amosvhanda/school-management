@@ -6,6 +6,7 @@ use App\Models\ClassModel;
 use App\Models\Department;
 use App\Models\Designation;
 use App\Models\Employee;
+use App\Models\Guardian;
 use App\Models\School;
 use App\Models\Student;
 use App\Models\Teacher;
@@ -15,6 +16,7 @@ use App\Services\StaffNumberService;
 use App\Services\StudentAdmissionService;
 use App\Services\StudentPlacementService;
 use App\Support\Csv\CsvReader;
+use App\Support\Csv\DryRunRollback;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -33,7 +35,7 @@ class PeopleCsvImportService
     /**
      * @return array{created:int, updated:int, failed:int, errors:list<array{line:int, message:string}>}
      */
-    public function importStudents(UploadedFile $file, int $schoolId, ?int $actorId = null): array
+    public function importStudents(UploadedFile $file, int $schoolId, ?int $actorId = null, bool $dryRun = false): array
     {
         $rows = $this->csv->read(
             $file->getRealPath(),
@@ -138,13 +140,13 @@ class PeopleCsvImportService
             ], $actorId);
 
             return 'created';
-        });
+        }, $dryRun);
     }
 
     /**
      * @return array{created:int, updated:int, failed:int, errors:list<array{line:int, message:string}>, logins_created?:int}
      */
-    public function importTeachers(UploadedFile $file, int $schoolId, bool $createLoginUsers = false): array
+    public function importTeachers(UploadedFile $file, int $schoolId, bool $createLoginUsers = false, bool $dryRun = false): array
     {
         $rows = $this->csv->read(
             $file->getRealPath(),
@@ -215,10 +217,10 @@ class PeopleCsvImportService
             }
 
             return 'created';
-        });
+        }, $dryRun);
 
         if ($createLoginUsers) {
-            $result['logins_created'] = $loginsCreated;
+            $result['logins_created'] = $dryRun ? 0 : $loginsCreated;
         }
 
         return $result;
@@ -227,7 +229,7 @@ class PeopleCsvImportService
     /**
      * @return array{created:int, updated:int, failed:int, errors:list<array{line:int, message:string}>}
      */
-    public function importEmployees(UploadedFile $file, int $schoolId): array
+    public function importEmployees(UploadedFile $file, int $schoolId, bool $dryRun = false): array
     {
         $rows = $this->csv->read(
             $file->getRealPath(),
@@ -296,7 +298,74 @@ class PeopleCsvImportService
             ]);
 
             return 'created';
-        });
+        }, $dryRun);
+    }
+
+    /**
+     * @return array{created:int, updated:int, failed:int, errors:list<array{line:int, message:string}>}
+     */
+    public function importGuardians(UploadedFile $file, int $schoolId, bool $dryRun = false): array
+    {
+        $rows = $this->csv->read(
+            $file->getRealPath(),
+            $this->guardianHeaderAliases(),
+            ['first_name', 'last_name'],
+        );
+
+        return $this->runRows($rows, function (array $data) use ($schoolId): string {
+            $firstName = trim((string) ($data['first_name'] ?? ''));
+            $lastName = trim((string) ($data['last_name'] ?? ''));
+            $phone = trim((string) ($data['phone'] ?? ''));
+            $email = strtolower(trim((string) ($data['email'] ?? '')));
+
+            if ($firstName === '' || $lastName === '') {
+                throw new \RuntimeException('first_name and last_name are required.');
+            }
+            if ($phone === '' && $email === '') {
+                throw new \RuntimeException('phone or email is required to match existing guardians.');
+            }
+
+            $studentId = null;
+            $studentNumber = trim((string) ($data['student_number'] ?? ''));
+            if ($studentNumber !== '') {
+                $student = Student::query()
+                    ->where('school_id', $schoolId)
+                    ->where('student_number', $studentNumber)
+                    ->first();
+                if (! $student) {
+                    throw new \RuntimeException("Student \"{$studentNumber}\" was not found.");
+                }
+                $studentId = $student->id;
+            }
+
+            $existing = Guardian::query()
+                ->where('school_id', $schoolId)
+                ->where(function ($q) use ($email, $phone) {
+                    if ($email !== '') {
+                        $q->where('email', $email);
+                    }
+                    if ($phone !== '') {
+                        $q->orWhere('phone', $phone);
+                    }
+                })
+                ->first();
+
+            $guardianData = [
+                'first_name' => $firstName,
+                'last_name' => $lastName,
+                'phone' => $phone,
+                'email' => $email !== '' ? $email : null,
+                'relationship' => $this->nullableString($data['relationship'] ?? null) ?? 'parent',
+                'address' => $this->nullableString($data['address'] ?? null),
+                'national_id' => $this->nullableString($data['national_id'] ?? null),
+                'occupation' => $this->nullableString($data['occupation'] ?? null),
+                'is_primary' => true,
+            ];
+
+            $this->guardians->createOrFindGuardian($guardianData, $schoolId, $studentId);
+
+            return $existing ? 'updated' : 'created';
+        }, $dryRun);
     }
 
     /**
@@ -352,6 +421,17 @@ class PeopleCsvImportService
                 'salary_currency',
                 'notes',
             ],
+            'guardians' => [
+                'first_name',
+                'last_name',
+                'phone',
+                'email',
+                'relationship',
+                'address',
+                'national_id',
+                'occupation',
+                'student_number',
+            ],
             default => throw new \InvalidArgumentException('Unknown import type.'),
         };
     }
@@ -361,7 +441,7 @@ class PeopleCsvImportService
      * @param  callable(array<string, string>, int): string  $handler
      * @return array{created:int, updated:int, failed:int, errors:list<array{line:int, message:string}>}
      */
-    private function runRows(array $rows, callable $handler): array
+    private function runRows(array $rows, callable $handler, bool $dryRun = false): array
     {
         $created = 0;
         $updated = 0;
@@ -370,7 +450,20 @@ class PeopleCsvImportService
 
         foreach ($rows as $row) {
             try {
-                $action = DB::transaction(fn () => $handler($row['data'], $row['line']));
+                if ($dryRun) {
+                    $action = null;
+                    try {
+                        DB::transaction(function () use ($handler, $row, &$action) {
+                            $action = $handler($row['data'], $row['line']);
+                            throw new DryRunRollback('dry-run');
+                        });
+                    } catch (DryRunRollback) {
+                        // Row validated and rolled back.
+                    }
+                } else {
+                    $action = DB::transaction(fn () => $handler($row['data'], $row['line']));
+                }
+
                 if ($action === 'updated') {
                     $updated++;
                 } else {
@@ -486,6 +579,30 @@ class PeopleCsvImportService
             'salary_currency' => 'salary_currency',
             'currency' => 'salary_currency',
             'notes' => 'notes',
+        ];
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function guardianHeaderAliases(): array
+    {
+        return [
+            'first_name' => 'first_name',
+            'firstname' => 'first_name',
+            'last_name' => 'last_name',
+            'lastname' => 'last_name',
+            'surname' => 'last_name',
+            'phone' => 'phone',
+            'mobile' => 'phone',
+            'email' => 'email',
+            'relationship' => 'relationship',
+            'address' => 'address',
+            'national_id' => 'national_id',
+            'id_number' => 'national_id',
+            'occupation' => 'occupation',
+            'student_number' => 'student_number',
+            'admission_number' => 'student_number',
         ];
     }
 

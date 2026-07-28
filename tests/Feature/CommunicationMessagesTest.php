@@ -121,4 +121,37 @@ class CommunicationMessagesTest extends TestCase
         ]);
         $this->assertGreaterThanOrEqual(1, TeacherNotification::where('type', 'message')->count());
     }
+
+    public function test_parent_can_close_and_reopen_own_thread(): void
+    {
+        $auth = $this->createAuthenticatedUser();
+        $parent = User::factory()->create([
+            'school_id' => $auth['school']->id,
+            'role' => 'parent',
+            'password' => bcrypt('password'),
+        ]);
+        $parentToken = $parent->createToken('test')->plainTextToken;
+
+        $thread = CommunicationThread::create([
+            'school_id' => $auth['school']->id,
+            'parent_user_id' => $parent->id,
+            'subject' => 'Close me',
+            'status' => 'open',
+            'last_message_at' => now(),
+        ]);
+
+        $this->withHeaders([
+            'Authorization' => 'Bearer '.$parentToken,
+        ])->patchJson('/api/v1/parent/portal/communications/threads/'.$thread->id, [
+            'status' => 'closed',
+        ])->assertOk()
+            ->assertJsonPath('data.status', 'closed');
+
+        $this->withHeaders([
+            'Authorization' => 'Bearer '.$parentToken,
+        ])->patchJson('/api/v1/parent/portal/communications/threads/'.$thread->id, [
+            'status' => 'open',
+        ])->assertOk()
+            ->assertJsonPath('data.status', 'open');
+    }
 }

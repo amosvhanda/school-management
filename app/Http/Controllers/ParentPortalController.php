@@ -490,6 +490,29 @@ class ParentPortalController extends Controller
         return response()->json(['data' => $thread->fresh()->load(['student', 'staff'])], 201);
     }
 
+    public function updateThread(Request $request, int $threadId)
+    {
+        $parent = $this->requireParent($request);
+
+        $validator = Validator::make($request->all(), [
+            'status' => ['required', 'string', Rule::in(['open', 'closed'])],
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['message' => 'Validation failed', 'errors' => $validator->errors()], 422);
+        }
+
+        $thread = CommunicationThread::query()
+            ->where('parent_user_id', $parent->id)
+            ->findOrFail($threadId);
+
+        $thread->update(['status' => $request->string('status')->toString()]);
+
+        return response()->json([
+            'data' => $thread->fresh()->load(['student:id,full_name,student_number', 'staff:id,name,first_name,last_name']),
+        ]);
+    }
+
     public function threadMessages(Request $request, int $threadId)
     {
         $parent = $this->requireParent($request);

@@ -36,6 +36,7 @@ class PeopleImportController extends Controller
         $validator = Validator::make($request->all(), [
             'file' => ['required', 'file', 'mimes:csv,txt', 'max:5120'],
             'create_login_users' => ['sometimes', 'boolean'],
+            'dry_run' => ['sometimes', 'boolean'],
         ]);
 
         if ($validator->fails()) {
@@ -48,12 +49,14 @@ class PeopleImportController extends Controller
         $schoolId = (int) $request->user()->school_id;
         $file = $request->file('file');
         $createLogins = $request->boolean('create_login_users');
+        $dryRun = $request->boolean('dry_run');
 
         try {
             $result = match ($type) {
-                'students' => $this->imports->importStudents($file, $schoolId, $request->user()?->id),
-                'teachers' => $this->imports->importTeachers($file, $schoolId, $createLogins),
-                'employees' => $this->imports->importEmployees($file, $schoolId),
+                'students' => $this->imports->importStudents($file, $schoolId, $request->user()?->id, $dryRun),
+                'teachers' => $this->imports->importTeachers($file, $schoolId, $createLogins, $dryRun),
+                'employees' => $this->imports->importEmployees($file, $schoolId, $dryRun),
+                'guardians' => $this->imports->importGuardians($file, $schoolId, $dryRun),
                 default => null,
             };
         } catch (\InvalidArgumentException $e) {
@@ -66,14 +69,20 @@ class PeopleImportController extends Controller
             return response()->json(['message' => 'Unknown import type.'], 404);
         }
 
+        $prefix = $dryRun ? 'Preview' : 'Import finished';
+
         return response()->json([
             'message' => sprintf(
-                'Import finished: %d created, %d updated, %d failed.',
+                '%s: %d created, %d updated, %d failed.',
+                $prefix,
                 $result['created'],
                 $result['updated'],
                 $result['failed'],
             ),
-            'data' => $result,
+            'data' => [
+                ...$result,
+                'dry_run' => $dryRun,
+            ],
         ]);
     }
 
@@ -91,6 +100,10 @@ class PeopleImportController extends Controller
             'employees' => [
                 'capabilities' => ['canManageTeachers'],
                 'permissions' => ['hr.manage', 'people.manage'],
+            ],
+            'guardians' => [
+                'capabilities' => ['canManageTeachers', 'canManageStudents'],
+                'permissions' => ['people.manage', 'students.manage'],
             ],
         ];
 

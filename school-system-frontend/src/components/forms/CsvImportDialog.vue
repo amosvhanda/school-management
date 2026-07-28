@@ -29,19 +29,30 @@ const emit = defineEmits<{ imported: [] }>()
 const toast = useToast()
 const file = ref<File | null>(null)
 const uploading = ref(false)
+const previewing = ref(false)
 const downloading = ref(false)
 const createLoginUsers = ref(true)
 const resultSummary = ref<string | null>(null)
 const rowErrors = ref<Array<{ line: number; message: string }>>([])
+const isPreview = ref(false)
 
 const typeLabel = computed(() => {
   if (props.type === 'students') return 'students'
   if (props.type === 'teachers') return 'teachers'
+  if (props.type === 'guardians') return 'guardians'
   return 'employees'
+})
+
+const matchHint = computed(() => {
+  if (props.type === 'students') return 'student numbers'
+  if (props.type === 'teachers') return 'emails'
+  if (props.type === 'guardians') return 'phone or email'
+  return 'employee numbers'
 })
 
 const dialogTitle = computed(() => props.title ?? `Import ${typeLabel.value}`)
 const showLoginOption = computed(() => props.type === 'teachers')
+const busy = computed(() => uploading.value || previewing.value)
 
 watch(open, (isOpen) => {
   if (!isOpen) {
@@ -49,6 +60,7 @@ watch(open, (isOpen) => {
     resultSummary.value = null
     rowErrors.value = []
     createLoginUsers.value = true
+    isPreview.value = false
   }
 })
 
@@ -57,6 +69,7 @@ function onFileChange(event: Event) {
   file.value = input.files?.[0] ?? null
   resultSummary.value = null
   rowErrors.value = []
+  isPreview.value = false
 }
 
 async function downloadTemplate() {
@@ -71,24 +84,39 @@ async function downloadTemplate() {
   }
 }
 
-async function submitImport() {
+function formatResult(result: Awaited<ReturnType<typeof importPeopleCsv>>, preview: boolean): string {
+  const verb = preview ? 'Would create' : 'Created'
+  const verbUpdate = preview ? 'would update' : 'updated'
+  const verbFail = preview ? 'would fail' : 'failed'
+  let summary = `${verb} ${result.created}, ${verbUpdate} ${result.updated}, ${verbFail} ${result.failed}.`
+  if (!preview && result.logins_created != null) {
+    summary += ` Login accounts created: ${result.logins_created} (default password: password123).`
+  }
+  return summary
+}
+
+async function runImport(dryRun: boolean) {
   if (!file.value) {
     toast.error('Choose a CSV file first')
     return
   }
 
-  uploading.value = true
+  if (dryRun) previewing.value = true
+  else uploading.value = true
   resultSummary.value = null
   rowErrors.value = []
+  isPreview.value = dryRun
   try {
     const result = await importPeopleCsv(props.type, file.value, {
       createLoginUsers: showLoginOption.value && createLoginUsers.value,
+      dryRun,
     })
-    resultSummary.value = `Created ${result.created}, updated ${result.updated}, failed ${result.failed}.`
-    if (result.logins_created != null) {
-      resultSummary.value += ` Login accounts created: ${result.logins_created} (default password: password123).`
-    }
+    resultSummary.value = formatResult(result, dryRun)
     rowErrors.value = result.errors ?? []
+    if (dryRun) {
+      toast.success('Preview complete', resultSummary.value)
+      return
+    }
     if (result.failed === 0) {
       toast.success('Import complete', resultSummary.value)
       emit('imported')
@@ -98,9 +126,10 @@ async function submitImport() {
       if (result.created + result.updated > 0) emit('imported')
     }
   } catch (err) {
-    toast.error('Import failed', getErrorMessage(err))
+    toast.error(dryRun ? 'Preview failed' : 'Import failed', getErrorMessage(err))
   } finally {
     uploading.value = false
+    previewing.value = false
   }
 }
 </script>
@@ -111,9 +140,8 @@ async function submitImport() {
       <DialogHeader>
         <DialogTitle>{{ dialogTitle }}</DialogTitle>
         <DialogDescription id="csv-import-desc">
-          Download the template, fill in your existing records, then upload the CSV.
-          Matching {{ type === 'students' ? 'student numbers' : type === 'teachers' ? 'emails' : 'employee numbers' }}
-          update existing rows; new rows are created.
+          Download the template, fill in your existing records, then preview or import the CSV.
+          Matching {{ matchHint }} update existing rows; new rows are created.
         </DialogDescription>
       </DialogHeader>
 
@@ -137,7 +165,7 @@ async function submitImport() {
             id="csv-import-file"
             type="file"
             accept=".csv,text/csv"
-            :disabled="uploading"
+            :disabled="busy"
             @change="onFileChange"
           />
           <p v-if="file" class="text-sm text-muted-foreground">Selected: {{ file.name }}</p>
@@ -164,12 +192,23 @@ async function submitImport() {
         </div>
 
         <div
+          v-if="type === 'guardians'"
+          class="rounded-md border border-border bg-muted/30 p-3 text-sm text-muted-foreground"
+        >
+          Optional <code class="text-xs">student_number</code> links the guardian to that learner.
+          Phone or email is required for matching.
+        </div>
+
+        <div
           v-if="resultSummary"
           class="rounded-md border border-border bg-muted/40 p-3 text-sm"
           role="status"
           aria-live="polite"
         >
-          <p>{{ resultSummary }}</p>
+          <p>
+            <span v-if="isPreview" class="font-medium">Preview — </span>
+            {{ resultSummary }}
+          </p>
           <ul v-if="rowErrors.length" class="mt-2 max-h-40 list-disc space-y-1 overflow-y-auto pl-5 text-destructive">
             <li v-for="err in rowErrors" :key="`${err.line}-${err.message}`">
               Line {{ err.line }}: {{ err.message }}
@@ -179,10 +218,18 @@ async function submitImport() {
       </div>
 
       <DialogFooter class="gap-2 sm:gap-0">
-        <Button type="button" variant="outline" :disabled="uploading" @click="open = false">
+        <Button type="button" variant="outline" :disabled="busy" @click="open = false">
           Cancel
         </Button>
-        <Button type="button" :disabled="uploading || !file" @click="submitImport">
+        <Button
+          type="button"
+          variant="secondary"
+          :disabled="busy || !file"
+          @click="runImport(true)"
+        >
+          {{ previewing ? 'Previewing…' : 'Preview' }}
+        </Button>
+        <Button type="button" :disabled="busy || !file" @click="runImport(false)">
           <Upload class="mr-2 h-4 w-4" aria-hidden="true" />
           {{ uploading ? 'Importing…' : 'Import CSV' }}
         </Button>

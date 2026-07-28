@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\ClassModel;
 use App\Models\Employee;
+use App\Models\Guardian;
 use App\Models\Student;
 use App\Models\Teacher;
 use Illuminate\Http\UploadedFile;
@@ -158,5 +159,66 @@ class PeopleCsvImportTest extends TestCase
             'first_name' => 'Grace',
         ]);
         $this->assertSame(1, Employee::where('employee_number', 'EMP-IMPORT-1')->count());
+    }
+
+    public function test_dry_run_students_does_not_persist(): void
+    {
+        $auth = $this->createAuthenticatedUser();
+        ClassModel::factory()->create([
+            'school_id' => $auth['school']->id,
+            'name' => 'Form 2A',
+        ]);
+
+        $csv = implode("\n", [
+            'student_number,first_name,last_name,class',
+            'DRY-001,Preview,Only,Form 2A',
+        ]);
+
+        $response = $this->withHeaders([
+            'Authorization' => 'Bearer '.$auth['token'],
+        ])->post('/api/v1/imports/students', [
+            'file' => UploadedFile::fake()->createWithContent('preview.csv', $csv),
+            'dry_run' => true,
+        ]);
+
+        $response->assertOk()
+            ->assertJsonPath('data.created', 1)
+            ->assertJsonPath('data.failed', 0)
+            ->assertJsonPath('data.dry_run', true);
+
+        $this->assertDatabaseMissing('students', [
+            'school_id' => $auth['school']->id,
+            'student_number' => 'DRY-001',
+        ]);
+    }
+
+    public function test_import_guardians_links_student_by_number(): void
+    {
+        $auth = $this->createAuthenticatedUser();
+        $student = Student::factory()->create([
+            'school_id' => $auth['school']->id,
+            'student_number' => 'STU-G-1',
+        ]);
+
+        $csv = implode("\n", [
+            'first_name,last_name,phone,email,relationship,student_number',
+            'Mary,Moyo,+263771111111,mary.g@school.test,mother,STU-G-1',
+        ]);
+
+        $response = $this->withHeaders([
+            'Authorization' => 'Bearer '.$auth['token'],
+        ])->post('/api/v1/imports/guardians', [
+            'file' => UploadedFile::fake()->createWithContent('guardians.csv', $csv),
+        ]);
+
+        $response->assertOk()->assertJsonPath('data.created', 1);
+
+        $guardian = Guardian::query()
+            ->where('school_id', $auth['school']->id)
+            ->where('email', 'mary.g@school.test')
+            ->first();
+
+        $this->assertNotNull($guardian);
+        $this->assertTrue($guardian->students()->where('students.id', $student->id)->exists());
     }
 }

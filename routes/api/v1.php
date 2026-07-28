@@ -305,9 +305,9 @@ Route::middleware(['auth:sanctum', 'school.isolated', 'school.licensed', '2fa.en
     Route::post('/students/bulk/status', [StudentController::class, 'bulkStatus']);
     Route::post('/students/bulk/promote', [StudentController::class, 'bulkPromote']);
     Route::get('/imports/{type}/template', [PeopleImportController::class, 'template'])
-        ->whereIn('type', ['students', 'teachers', 'employees']);
+        ->whereIn('type', ['students', 'teachers', 'employees', 'guardians']);
     Route::post('/imports/{type}', [PeopleImportController::class, 'import'])
-        ->whereIn('type', ['students', 'teachers', 'employees']);
+        ->whereIn('type', ['students', 'teachers', 'employees', 'guardians']);
     Route::get('/students/{student}', [App\Http\Controllers\Api\V1\StudentController::class, 'show']);
     Route::put('/students/{student}', [App\Http\Controllers\Api\V1\StudentController::class, 'update']);
     Route::delete('/students/{student}', [App\Http\Controllers\Api\V1\StudentController::class, 'destroy']);
@@ -565,6 +565,7 @@ Route::middleware(['auth:sanctum', 'school.isolated', 'school.licensed', '2fa.en
         Route::post('/notifications/read-all', [ParentPortalController::class, 'markAllNotificationsRead']);
         Route::get('/communications/threads', [ParentPortalController::class, 'threads']);
         Route::post('/communications/threads', [ParentPortalController::class, 'createThread']);
+        Route::patch('/communications/threads/{threadId}', [ParentPortalController::class, 'updateThread']);
         Route::get('/communications/threads/{threadId}/messages', [ParentPortalController::class, 'threadMessages']);
         Route::post('/communications/threads/{threadId}/messages', [ParentPortalController::class, 'sendMessage']);
         Route::get('/store/items', [ParentPortalController::class, 'storeItems']);

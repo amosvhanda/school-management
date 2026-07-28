@@ -336,8 +336,8 @@ export const endpoints = {
     detail: (id: number | string) => `/employees/${id}`,
   },
   imports: {
-    template: (type: 'students' | 'teachers' | 'employees') => `/imports/${type}/template`,
-    import: (type: 'students' | 'teachers' | 'employees') => `/imports/${type}`,
+    template: (type: 'students' | 'teachers' | 'employees' | 'guardians') => `/imports/${type}/template`,
+    import: (type: 'students' | 'teachers' | 'employees' | 'guardians') => `/imports/${type}`,
   },
   staffAttendance: {
     list: '/staff-attendance',
@@ -520,6 +520,7 @@ export const endpoints = {
     markNotificationRead: (id: number | string) => `/parent/portal/notifications/${id}/read`,
     markAllNotificationsRead: '/parent/portal/notifications/read-all',
     threads: '/parent/portal/communications/threads',
+    thread: (threadId: number | string) => `/parent/portal/communications/threads/${threadId}`,
     threadMessages: (threadId: number | string) => `/parent/portal/communications/threads/${threadId}/messages`,
     consentForms: '/parent/portal/consent-forms',
     respondConsent: (id: number | string) => `/parent/portal/consent-forms/${id}/respond`,

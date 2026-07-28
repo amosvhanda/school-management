@@ -75,11 +75,29 @@ const newThread = ref({
 const scopeStore = useParentPortalScope('messages-child')
 
 const activeTitle = computed(() => activeThread.value?.subject ?? 'Select a conversation')
+const isClosed = computed(() => (activeThread.value?.status ?? 'open') === 'closed')
+const updating = ref(false)
 
 function senderName(msg: MessageRow): string {
   const s = msg.sender
   if (!s) return 'School'
   return s.name ?? ([s.first_name, s.last_name].filter(Boolean).join(' ') || 'User')
+}
+
+async function setStatus(status: 'open' | 'closed') {
+  if (!activeThread.value) return
+  updating.value = true
+  try {
+    const updated = await parentPortalApi.updateThread(activeThread.value.id, { status }) as ThreadRow
+    activeThread.value = { ...activeThread.value, ...updated }
+    const row = threads.value.find((t) => t.id === activeThread.value?.id)
+    if (row) row.status = status
+    toast.success(status === 'closed' ? 'Conversation closed' : 'Conversation reopened')
+  } catch (err) {
+    toast.error('Could not update conversation', getErrorMessage(err))
+  } finally {
+    updating.value = false
+  }
 }
 
 async function loadThreads() {
@@ -253,10 +271,34 @@ watch(
 
       <Card class="flex h-[min(70vh,640px)] flex-col overflow-hidden">
         <CardHeader class="border-b pb-3">
-          <CardTitle class="flex items-center gap-2 text-base">
-            <MessageSquare class="h-4 w-4" aria-hidden="true" />
-            {{ activeTitle }}
-          </CardTitle>
+          <div class="flex flex-wrap items-start justify-between gap-2">
+            <CardTitle class="flex items-center gap-2 text-base">
+              <MessageSquare class="h-4 w-4" aria-hidden="true" />
+              {{ activeTitle }}
+            </CardTitle>
+            <div v-if="activeThread" class="flex flex-wrap gap-2">
+              <Button
+                v-if="!isClosed"
+                type="button"
+                size="sm"
+                variant="outline"
+                :disabled="updating"
+                @click="setStatus('closed')"
+              >
+                Close
+              </Button>
+              <Button
+                v-else
+                type="button"
+                size="sm"
+                variant="outline"
+                :disabled="updating"
+                @click="setStatus('open')"
+              >
+                Reopen
+              </Button>
+            </div>
+          </div>
         </CardHeader>
         <CardContent class="flex flex-1 flex-col gap-4 overflow-hidden p-4">
           <PageLoader v-if="messagesLoading" />
@@ -279,7 +321,7 @@ watch(
               <Textarea
                 id="parent-reply"
                 v-model="replyBody"
-                placeholder="Type your message…"
+                :placeholder="isClosed ? 'Reopen by sending a reply…' : 'Type your message…'"
                 rows="3"
                 class="min-h-[80px] flex-1"
               />

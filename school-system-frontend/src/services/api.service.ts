@@ -700,6 +700,8 @@ export const parentPortalApi = {
   markAllNotificationsRead: () => postRecord(e.parentPortal.markAllNotificationsRead),
   threads: () => fetchList(e.parentPortal.threads),
   createThread: (payload: Record<string, unknown>) => createRecord(e.parentPortal.threads, payload),
+  updateThread: (threadId: number | string, payload: Record<string, unknown>) =>
+    patchRecord(e.parentPortal.thread(threadId), payload),
   threadMessages: (threadId: number | string) =>
     fetchOne<{ thread?: Record<string, unknown>; messages?: Record<string, unknown>[] }>(
       e.parentPortal.threadMessages(threadId),
