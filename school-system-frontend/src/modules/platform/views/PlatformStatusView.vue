@@ -6,7 +6,9 @@ import {
   AlertTriangle,
   Database,
   GitBranch,
+  HardDrive,
   ListTodo,
+  Mail,
   MemoryStick,
   Server,
 } from '@lucide/vue'
@@ -67,8 +69,23 @@ interface HealthSnapshot {
   timestamp?: string
   uptime_check?: boolean
   database?: { connected?: boolean }
+  cache?: { ok?: boolean; driver?: string }
+  storage?: { writable?: boolean; disk?: string }
+  mail?: { mailer?: string; from?: string }
   usage?: { active_users_24h?: number; error_events_24h?: number }
-  server?: { php_version?: string; memory_usage_mb?: number }
+  queues?: {
+    pending_jobs?: number
+    failed_jobs?: number
+    notification_pending?: number
+    notification_failed?: number
+    default_connection?: string
+  }
+  server?: {
+    php_version?: string
+    memory_usage_mb?: number
+    app_env?: string
+    license_enforcement?: boolean
+  }
 }
 
 const route = useRoute()
@@ -340,6 +357,34 @@ onMounted(load)
           :accent="health.database?.connected ? 'success' : 'danger'"
         />
         <KpiCard
+          title="Cache"
+          :value="health.cache?.ok ? 'Writable' : 'Failed'"
+          :subtitle="health.cache?.driver ? `Driver: ${health.cache.driver}` : 'Cache probe'"
+          :icon="Server"
+          :accent="health.cache?.ok ? 'success' : 'danger'"
+        />
+        <KpiCard
+          title="Storage"
+          :value="health.storage?.writable ? 'Writable' : 'Failed'"
+          :subtitle="health.storage?.disk ? `Disk: ${health.storage.disk}` : 'Local disk probe'"
+          :icon="HardDrive"
+          :accent="health.storage?.writable ? 'success' : 'danger'"
+        />
+        <KpiCard
+          title="Failed jobs"
+          :value="String(health.queues?.failed_jobs ?? 0)"
+          :subtitle="`${health.queues?.pending_jobs ?? 0} pending · ${health.queues?.default_connection ?? 'queue'}`"
+          :icon="AlertTriangle"
+          :accent="(health.queues?.failed_jobs ?? 0) > 0 ? 'danger' : undefined"
+        />
+        <KpiCard
+          title="Notification queue"
+          :value="String(health.queues?.notification_pending ?? 0)"
+          :subtitle="`${health.queues?.notification_failed ?? 0} failed`"
+          :icon="Mail"
+          :accent="(health.queues?.notification_failed ?? 0) > 0 ? 'warning' : undefined"
+        />
+        <KpiCard
           title="Active users (24h)"
           :value="String(health.usage?.active_users_24h ?? 0)"
           subtitle="Accounts with recent activity"
@@ -373,6 +418,18 @@ onMounted(load)
               <span class="font-medium tabular-nums">
                 {{ health.server?.memory_usage_mb != null ? `${health.server.memory_usage_mb} MB` : '—' }}
               </span>
+            </div>
+            <div class="flex items-center justify-between gap-3">
+              <span class="text-muted-foreground">App environment</span>
+              <span class="font-medium capitalize">{{ health.server?.app_env || '—' }}</span>
+            </div>
+            <div class="flex items-center justify-between gap-3">
+              <span class="text-muted-foreground">License enforcement</span>
+              <span class="font-medium">{{ health.server?.license_enforcement ? 'On' : 'Off' }}</span>
+            </div>
+            <div class="flex items-center justify-between gap-3">
+              <span class="text-muted-foreground">Mailer</span>
+              <span class="font-medium">{{ health.mail?.mailer || '—' }}</span>
             </div>
           </CardContent>
         </Card>

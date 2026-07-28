@@ -104,24 +104,29 @@ class AttendanceNotificationService
     }
 
     /**
-     * Process notification queue (should be called by a queue worker or cron)
+     * Process notification queue (should be called by a queue worker or cron).
+     *
+     * @param  int|null  $schoolId  When set, only process that school's notifications (tenant-aware workers).
      */
-    public function processNotificationQueue(int $limit = 50): int
+    public function processNotificationQueue(int $limit = 50, ?int $schoolId = null): int
     {
-        NotificationQueue::query()
+        $retryQuery = NotificationQueue::query()
             ->where('status', 'failed')
             ->where('retry_count', '<', self::MAX_RETRIES)
             ->where(function ($q) {
                 $q->whereNull('updated_at')
                     ->orWhere('updated_at', '<=', now()->subMinutes(5));
             })
-            ->limit($limit)
-            ->update([
-                'status' => 'pending',
-                'error_message' => null,
-            ]);
+            ->when($schoolId, fn ($q) => $q->where('school_id', $schoolId))
+            ->limit($limit);
+
+        $retryQuery->update([
+            'status' => 'pending',
+            'error_message' => null,
+        ]);
 
         $notifications = NotificationQueue::where('status', 'pending')
+            ->when($schoolId, fn ($q) => $q->where('school_id', $schoolId))
             ->orderBy('created_at', 'asc')
             ->limit($limit)
             ->get();
@@ -151,16 +156,18 @@ class AttendanceNotificationService
     }
 
     /**
-     * Send notification via email or SMS
+     * Send notification via email, SMS, or WhatsApp using school-scoped providers when configured.
      */
     protected function sendNotification(NotificationQueue $notification): void
     {
         try {
+            $school = $notification->school_id
+                ? \App\Models\School::find($notification->school_id)
+                : null;
+            $messaging = app(\App\Services\Tenancy\SchoolMessagingService::class);
+
             if (in_array($notification->channel, ['email', 'both'], true) && ! empty($notification->recipient_email)) {
                 try {
-                    $school = $notification->school_id
-                        ? \App\Models\School::find($notification->school_id)
-                        : null;
                     $mailConfig = app(\App\Services\Tenancy\SchoolMailService::class)->applyForSchool($school);
 
                     \Illuminate\Support\Facades\Mail::mailer($mailConfig['mailer'])
@@ -177,11 +184,12 @@ class AttendanceNotificationService
             }
 
             if (in_array($notification->channel, ['sms', 'both'], true) && ! empty($notification->recipient_phone)) {
-                $smsEnabled = config('services.sms.enabled', false);
-                if ($smsEnabled) {
+                $smsConfig = $messaging->smsConfig($school);
+                if ($smsConfig['enabled']) {
                     app(\App\Services\Messaging\SmsService::class)->send(
                         $notification->recipient_phone,
                         $notification->message,
+                        $smsConfig,
                     );
                 } else {
                     Log::info("SMS disabled - would send to {$notification->recipient_phone}");
@@ -189,11 +197,13 @@ class AttendanceNotificationService
             }
 
             if (in_array($notification->channel, ['whatsapp'], true) && ! empty($notification->recipient_phone)) {
-                $whatsappEnabled = config('services.whatsapp.enabled', false);
-                if ($whatsappEnabled) {
+                $whatsappConfig = $messaging->whatsappConfig($school);
+                if ($whatsappConfig['enabled']) {
                     app(\App\Services\Messaging\WhatsAppService::class)->send(
                         $notification->recipient_phone,
                         $notification->message,
+                        null,
+                        $whatsappConfig,
                     );
                 } else {
                     Log::info("WhatsApp disabled - would send to {$notification->recipient_phone}");

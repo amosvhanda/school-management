@@ -19,6 +19,8 @@ class EnsureSchoolLicenseActive
         'api/v1/license/*',
         'api/v1/auth/logout',
         'api/v1/auth/me',
+        'api/v1/auth/schools',
+        'api/v1/auth/switch-school',
         'api/v1/auth/platform-terms',
         'api/v1/auth/accept-platform-terms',
     ];

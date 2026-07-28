@@ -8,22 +8,35 @@ use Illuminate\Support\Facades\Log;
 class SmsService
 {
     /**
-     * Send an SMS via the configured provider.
+     * Send an SMS via the configured (or school-overridden) provider.
+     *
+     * @param  array<string, mixed>|null  $config
      */
-    public function send(string $phone, string $message): bool
+    public function send(string $phone, string $message, ?array $config = null): bool
     {
-        $enabled = (bool) config('services.sms.enabled', false);
+        $config ??= [
+            'enabled' => (bool) config('services.sms.enabled', false),
+            'provider' => config('services.sms.provider', 'log'),
+            'twilio_sid' => config('services.sms.twilio_sid') ?: config('services.whatsapp.twilio_sid'),
+            'twilio_token' => config('services.sms.twilio_token') ?: config('services.whatsapp.twilio_token'),
+            'twilio_from' => config('services.sms.twilio_from'),
+            'africastalking_username' => config('services.sms.africastalking_username'),
+            'africastalking_api_key' => config('services.sms.africastalking_api_key'),
+            'africastalking_from' => config('services.sms.africastalking_from'),
+        ];
+
+        $enabled = (bool) ($config['enabled'] ?? false);
         if (! $enabled) {
             Log::info("SMS disabled - would send to {$phone}: {$message}");
 
             return false;
         }
 
-        $provider = config('services.sms.provider', 'log');
+        $provider = (string) ($config['provider'] ?? 'log');
 
         return match ($provider) {
-            'africastalking' => $this->sendViaAfricasTalking($phone, $message),
-            'twilio' => $this->sendViaTwilio($phone, $message),
+            'africastalking' => $this->sendViaAfricasTalking($phone, $message, $config),
+            'twilio' => $this->sendViaTwilio($phone, $message, $config),
             default => $this->sendViaLog($phone, $message),
         };
     }
@@ -35,11 +48,14 @@ class SmsService
         return true;
     }
 
-    protected function sendViaTwilio(string $phone, string $message): bool
+    /**
+     * @param  array<string, mixed>  $config
+     */
+    protected function sendViaTwilio(string $phone, string $message, array $config): bool
     {
-        $sid = config('services.sms.twilio_sid') ?: config('services.whatsapp.twilio_sid');
-        $token = config('services.sms.twilio_token') ?: config('services.whatsapp.twilio_token');
-        $from = config('services.sms.twilio_from');
+        $sid = $config['twilio_sid'] ?? null;
+        $token = $config['twilio_token'] ?? null;
+        $from = $config['twilio_from'] ?? null;
 
         if (! $sid || ! $token || ! $from) {
             Log::warning('Twilio SMS credentials are not configured.');
@@ -70,11 +86,14 @@ class SmsService
         return true;
     }
 
-    protected function sendViaAfricasTalking(string $phone, string $message): bool
+    /**
+     * @param  array<string, mixed>  $config
+     */
+    protected function sendViaAfricasTalking(string $phone, string $message, array $config): bool
     {
-        $username = config('services.sms.africastalking_username');
-        $apiKey = config('services.sms.africastalking_api_key');
-        $from = config('services.sms.africastalking_from');
+        $username = $config['africastalking_username'] ?? null;
+        $apiKey = $config['africastalking_api_key'] ?? null;
+        $from = $config['africastalking_from'] ?? null;
 
         if (! $username || ! $apiKey) {
             Log::warning("Africa's Talking SMS credentials are not configured.");

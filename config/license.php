@@ -7,10 +7,17 @@ return [
     |--------------------------------------------------------------------------
     |
     | When enabled, schools must have an active license (or be in grace period)
-    | to use protected API routes. Disable locally; enable in production SaaS.
+    | to use protected API routes. Defaults to true in production unless
+    | LICENSE_ENFORCEMENT is explicitly set. Keep false for local/dev.
     |
     */
-    'enforcement' => env('LICENSE_ENFORCEMENT', false),
+    'enforcement' => filter_var(
+        env(
+            'LICENSE_ENFORCEMENT',
+            env('APP_ENV') === 'production' ? 'true' : 'false'
+        ),
+        FILTER_VALIDATE_BOOLEAN
+    ),
 
     /*
     |--------------------------------------------------------------------------

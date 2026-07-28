@@ -8,23 +8,35 @@ use Illuminate\Support\Facades\Log;
 class WhatsAppService
 {
     /**
-     * Send a WhatsApp message via the configured provider.
+     * Send a WhatsApp message via the configured (or school-overridden) provider.
      *
-     * @param  array<string, string>|null  $contentVariables  Twilio template variables (e.g. ["1" => "12/1", "2" => "3pm"])
+     * @param  array<string, string>|null  $contentVariables
+     * @param  array<string, mixed>|null  $config
      */
-    public function send(string $phone, string $message, ?array $contentVariables = null): bool
+    public function send(string $phone, string $message, ?array $contentVariables = null, ?array $config = null): bool
     {
-        $enabled = (bool) config('services.whatsapp.enabled', false);
+        $config ??= [
+            'enabled' => (bool) config('services.whatsapp.enabled', false),
+            'provider' => config('services.whatsapp.provider', 'log'),
+            'twilio_sid' => config('services.whatsapp.twilio_sid'),
+            'twilio_token' => config('services.whatsapp.twilio_token'),
+            'twilio_from' => config('services.whatsapp.twilio_from'),
+            'twilio_content_sid' => config('services.whatsapp.twilio_content_sid'),
+            'twilio_content_variables' => config('services.whatsapp.twilio_content_variables'),
+            'use_template' => (bool) config('services.whatsapp.use_template', false),
+        ];
+
+        $enabled = (bool) ($config['enabled'] ?? false);
         if (! $enabled) {
             Log::info("WhatsApp disabled - would send to {$phone}: {$message}");
 
             return false;
         }
 
-        $provider = config('services.whatsapp.provider', 'log');
+        $provider = (string) ($config['provider'] ?? 'log');
 
         return match ($provider) {
-            'twilio' => $this->sendViaTwilio($phone, $message, $contentVariables),
+            'twilio' => $this->sendViaTwilio($phone, $message, $contentVariables, $config),
             default => $this->sendViaLog($phone, $message),
         };
     }
@@ -36,11 +48,15 @@ class WhatsAppService
         return true;
     }
 
-    protected function sendViaTwilio(string $phone, string $message, ?array $contentVariables = null): bool
+    /**
+     * @param  array<string, string>|null  $contentVariables
+     * @param  array<string, mixed>  $config
+     */
+    protected function sendViaTwilio(string $phone, string $message, ?array $contentVariables, array $config): bool
     {
-        $sid = config('services.whatsapp.twilio_sid');
-        $token = config('services.whatsapp.twilio_token');
-        $from = config('services.whatsapp.twilio_from');
+        $sid = $config['twilio_sid'] ?? null;
+        $token = $config['twilio_token'] ?? null;
+        $from = $config['twilio_from'] ?? null;
 
         if (! $sid || ! $token || ! $from) {
             Log::warning('Twilio WhatsApp credentials are not configured.');
@@ -53,11 +69,11 @@ class WhatsAppService
             'To' => $this->normalizeWhatsAppAddress($phone),
         ];
 
-        $contentSid = config('services.whatsapp.twilio_content_sid');
-        $useTemplate = (bool) config('services.whatsapp.use_template', false);
+        $contentSid = $config['twilio_content_sid'] ?? null;
+        $useTemplate = (bool) ($config['use_template'] ?? false);
 
         if ($useTemplate && $contentSid) {
-            $variables = $contentVariables ?? $this->defaultContentVariables($message);
+            $variables = $contentVariables ?? $this->defaultContentVariables($message, $config);
             $payload['ContentSid'] = $contentSid;
             $payload['ContentVariables'] = json_encode($variables, JSON_UNESCAPED_UNICODE);
         } else {
@@ -86,11 +102,12 @@ class WhatsAppService
     }
 
     /**
+     * @param  array<string, mixed>  $config
      * @return array<string, string>
      */
-    protected function defaultContentVariables(string $message): array
+    protected function defaultContentVariables(string $message, array $config = []): array
     {
-        $configured = config('services.whatsapp.twilio_content_variables');
+        $configured = $config['twilio_content_variables'] ?? null;
         if (is_string($configured) && $configured !== '') {
             $decoded = json_decode($configured, true);
             if (is_array($decoded) && $decoded !== []) {

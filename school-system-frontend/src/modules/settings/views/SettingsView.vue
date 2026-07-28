@@ -172,6 +172,7 @@ const notificationPrefs = ref<Record<NotificationKey, boolean>>({
 const notificationsLoading = ref(false)
 const notificationsSaving = ref(false)
 const mailSaving = ref(false)
+const messagingSaving = ref(false)
 const mailForm = ref({
   enabled: false,
   from_address: '',
@@ -181,6 +182,25 @@ const mailForm = ref({
   smtp_username: '',
   smtp_password: '',
   smtp_encryption: 'tls',
+})
+const smsForm = ref({
+  enabled: false,
+  provider: 'log',
+  twilio_sid: '',
+  twilio_token: '',
+  twilio_from: '',
+  africastalking_username: '',
+  africastalking_api_key: '',
+  africastalking_from: '',
+})
+const whatsappForm = ref({
+  enabled: false,
+  provider: 'log',
+  twilio_sid: '',
+  twilio_token: '',
+  twilio_from: '',
+  twilio_content_sid: '',
+  use_template: false,
 })
 
 const activeSectionMeta = computed(() => {
@@ -399,6 +419,29 @@ async function loadNotifications() {
       smtp_password: '',
       smtp_encryption: String(mail.smtp_encryption ?? 'tls'),
     }
+
+    const sms = settings?.sms ?? {}
+    smsForm.value = {
+      enabled: sms.enabled === true,
+      provider: String(sms.provider ?? 'log'),
+      twilio_sid: String(sms.twilio_sid ?? ''),
+      twilio_token: '',
+      twilio_from: String(sms.twilio_from ?? ''),
+      africastalking_username: String(sms.africastalking_username ?? ''),
+      africastalking_api_key: '',
+      africastalking_from: String(sms.africastalking_from ?? ''),
+    }
+
+    const whatsapp = settings?.whatsapp ?? {}
+    whatsappForm.value = {
+      enabled: whatsapp.enabled === true,
+      provider: String(whatsapp.provider ?? 'log'),
+      twilio_sid: String(whatsapp.twilio_sid ?? ''),
+      twilio_token: '',
+      twilio_from: String(whatsapp.twilio_from ?? ''),
+      twilio_content_sid: String(whatsapp.twilio_content_sid ?? ''),
+      use_template: whatsapp.use_template === true,
+    }
   } catch (err) {
     toast.error('Could not load notification settings', getErrorMessage(err))
   } finally {
@@ -454,6 +497,61 @@ async function saveMailSettings() {
     toast.error('Save failed', getErrorMessage(err))
   } finally {
     mailSaving.value = false
+  }
+}
+
+async function saveMessagingSettings() {
+  messagingSaving.value = true
+  try {
+    const payload: Array<{ group: string; key: string; value: unknown; type?: string }> = [
+      { group: 'sms', key: 'enabled', value: smsForm.value.enabled, type: 'boolean' },
+      { group: 'sms', key: 'provider', value: smsForm.value.provider || 'log' },
+      { group: 'sms', key: 'twilio_sid', value: smsForm.value.twilio_sid || null },
+      { group: 'sms', key: 'twilio_from', value: smsForm.value.twilio_from || null },
+      { group: 'sms', key: 'africastalking_username', value: smsForm.value.africastalking_username || null },
+      { group: 'sms', key: 'africastalking_from', value: smsForm.value.africastalking_from || null },
+      { group: 'whatsapp', key: 'enabled', value: whatsappForm.value.enabled, type: 'boolean' },
+      { group: 'whatsapp', key: 'provider', value: whatsappForm.value.provider || 'log' },
+      { group: 'whatsapp', key: 'twilio_sid', value: whatsappForm.value.twilio_sid || null },
+      { group: 'whatsapp', key: 'twilio_from', value: whatsappForm.value.twilio_from || null },
+      { group: 'whatsapp', key: 'twilio_content_sid', value: whatsappForm.value.twilio_content_sid || null },
+      { group: 'whatsapp', key: 'use_template', value: whatsappForm.value.use_template, type: 'boolean' },
+    ]
+
+    if (smsForm.value.twilio_token.trim()) {
+      payload.push({
+        group: 'sms',
+        key: 'twilio_token',
+        value: smsForm.value.twilio_token,
+        type: 'encrypted',
+      })
+    }
+    if (smsForm.value.africastalking_api_key.trim()) {
+      payload.push({
+        group: 'sms',
+        key: 'africastalking_api_key',
+        value: smsForm.value.africastalking_api_key,
+        type: 'encrypted',
+      })
+    }
+    if (whatsappForm.value.twilio_token.trim()) {
+      payload.push({
+        group: 'whatsapp',
+        key: 'twilio_token',
+        value: whatsappForm.value.twilio_token,
+        type: 'encrypted',
+      })
+    }
+
+    await schoolApi.updateSettings(payload)
+    smsForm.value.twilio_token = ''
+    smsForm.value.africastalking_api_key = ''
+    whatsappForm.value.twilio_token = ''
+    toast.success('SMS & WhatsApp settings saved')
+  } catch (err) {
+    toast.error('Save failed', getErrorMessage(err))
+  } finally {
+    messagingSaving.value = false
   }
 }
 
@@ -736,6 +834,151 @@ onMounted(load)
                   <Button type="button" :disabled="mailSaving" @click="saveMailSettings">
                     <Save class="mr-2 size-4" aria-hidden="true" />
                     {{ mailSaving ? 'Saving…' : 'Save email delivery' }}
+                  </Button>
+                </div>
+              </section>
+
+              <section class="space-y-4 border-t pt-6" aria-labelledby="messaging-settings-heading">
+                <div class="space-y-1">
+                  <h3 id="messaging-settings-heading" class="text-sm font-semibold">SMS & WhatsApp</h3>
+                  <p class="text-xs text-muted-foreground">
+                    Optional per-school provider credentials. When disabled, the platform defaults from
+                    environment variables are used (if enabled).
+                  </p>
+                </div>
+
+                <label class="flex items-start gap-3 rounded-xl border border-border/60 px-4 py-3">
+                  <Checkbox
+                    id="sms-enabled"
+                    class="mt-0.5"
+                    :checked="smsForm.enabled"
+                    @update:checked="(checked: boolean | 'indeterminate') => (smsForm.enabled = checked === true)"
+                  />
+                  <span class="space-y-1">
+                    <span class="block text-sm font-medium">Use school SMS credentials</span>
+                    <span class="block text-xs text-muted-foreground">
+                      Requires &quot;Allow SMS notices&quot; above. Leave blank secrets to keep current values.
+                    </span>
+                  </span>
+                </label>
+
+                <div class="grid gap-4 sm:grid-cols-2">
+                  <div class="space-y-2">
+                    <Label for="sms-provider">SMS provider</Label>
+                    <Select v-model="smsForm.provider">
+                      <SelectTrigger id="sms-provider">
+                        <SelectValue placeholder="Select provider" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="log">Log (dev)</SelectItem>
+                        <SelectItem value="twilio">Twilio</SelectItem>
+                        <SelectItem value="africastalking">Africa&apos;s Talking</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div class="space-y-2">
+                    <Label for="sms-twilio-from">Twilio from number</Label>
+                    <Input id="sms-twilio-from" v-model="smsForm.twilio_from" autocomplete="off" placeholder="+263…" />
+                  </div>
+                  <div class="space-y-2">
+                    <Label for="sms-twilio-sid">Twilio Account SID</Label>
+                    <Input id="sms-twilio-sid" v-model="smsForm.twilio_sid" autocomplete="off" />
+                  </div>
+                  <div class="space-y-2">
+                    <Label for="sms-twilio-token">Twilio auth token</Label>
+                    <Input
+                      id="sms-twilio-token"
+                      v-model="smsForm.twilio_token"
+                      type="password"
+                      autocomplete="new-password"
+                      placeholder="Leave blank to keep current token"
+                    />
+                  </div>
+                  <div class="space-y-2">
+                    <Label for="sms-at-username">Africa&apos;s Talking username</Label>
+                    <Input id="sms-at-username" v-model="smsForm.africastalking_username" autocomplete="off" />
+                  </div>
+                  <div class="space-y-2">
+                    <Label for="sms-at-key">Africa&apos;s Talking API key</Label>
+                    <Input
+                      id="sms-at-key"
+                      v-model="smsForm.africastalking_api_key"
+                      type="password"
+                      autocomplete="new-password"
+                      placeholder="Leave blank to keep current key"
+                    />
+                  </div>
+                  <div class="space-y-2 sm:col-span-2">
+                    <Label for="sms-at-from">Africa&apos;s Talking sender ID</Label>
+                    <Input id="sms-at-from" v-model="smsForm.africastalking_from" autocomplete="off" />
+                  </div>
+                </div>
+
+                <label class="flex items-start gap-3 rounded-xl border border-border/60 px-4 py-3">
+                  <Checkbox
+                    id="whatsapp-enabled"
+                    class="mt-0.5"
+                    :checked="whatsappForm.enabled"
+                    @update:checked="(checked: boolean | 'indeterminate') => (whatsappForm.enabled = checked === true)"
+                  />
+                  <span class="space-y-1">
+                    <span class="block text-sm font-medium">Use school WhatsApp credentials</span>
+                    <span class="block text-xs text-muted-foreground">
+                      Requires &quot;Allow WhatsApp notices&quot; above.
+                    </span>
+                  </span>
+                </label>
+
+                <div class="grid gap-4 sm:grid-cols-2">
+                  <div class="space-y-2">
+                    <Label for="wa-provider">WhatsApp provider</Label>
+                    <Select v-model="whatsappForm.provider">
+                      <SelectTrigger id="wa-provider">
+                        <SelectValue placeholder="Select provider" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="log">Log (dev)</SelectItem>
+                        <SelectItem value="twilio">Twilio</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div class="space-y-2">
+                    <Label for="wa-from">From (whatsapp:+…)</Label>
+                    <Input id="wa-from" v-model="whatsappForm.twilio_from" autocomplete="off" />
+                  </div>
+                  <div class="space-y-2">
+                    <Label for="wa-sid">Twilio Account SID</Label>
+                    <Input id="wa-sid" v-model="whatsappForm.twilio_sid" autocomplete="off" />
+                  </div>
+                  <div class="space-y-2">
+                    <Label for="wa-token">Twilio auth token</Label>
+                    <Input
+                      id="wa-token"
+                      v-model="whatsappForm.twilio_token"
+                      type="password"
+                      autocomplete="new-password"
+                      placeholder="Leave blank to keep current token"
+                    />
+                  </div>
+                  <div class="space-y-2">
+                    <Label for="wa-content-sid">Content template SID</Label>
+                    <Input id="wa-content-sid" v-model="whatsappForm.twilio_content_sid" autocomplete="off" />
+                  </div>
+                  <label class="flex items-start gap-3 self-end rounded-xl border border-border/60 px-4 py-3">
+                    <Checkbox
+                      id="wa-use-template"
+                      class="mt-0.5"
+                      :checked="whatsappForm.use_template"
+                      @update:checked="(checked: boolean | 'indeterminate') => (whatsappForm.use_template = checked === true)"
+                    />
+                    <span class="text-sm font-medium">Use Twilio content template</span>
+                  </label>
+                </div>
+
+                <div class="flex justify-end">
+                  <Button type="button" :disabled="messagingSaving" @click="saveMessagingSettings">
+                    <Save class="mr-2 size-4" aria-hidden="true" />
+                    {{ messagingSaving ? 'Saving…' : 'Save SMS & WhatsApp' }}
                   </Button>
                 </div>
               </section>

@@ -37,4 +37,11 @@ return [
     |--------------------------------------------------------------------------
     */
     'session_partitioning' => (bool) env('TENANCY_SESSION_PARTITIONING', true),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Current school id (set by queue middleware / request lifecycle)
+    |--------------------------------------------------------------------------
+    */
+    'current_school_id' => null,
 ];
