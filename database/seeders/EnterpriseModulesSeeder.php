@@ -3,11 +3,11 @@
 namespace Database\Seeders;
 
 use App\Models\AbacPolicy;
-use App\Models\Asset;
 use App\Models\AcademicCalendarEntry;
 use App\Models\AdmissionScore;
 use App\Models\AlumniRecord;
 use App\Models\AssessmentCategory;
+use App\Models\Asset;
 use App\Models\BankStatementLine;
 use App\Models\CbtExamSession;
 use App\Models\CbtResponse;
@@ -35,13 +35,11 @@ use App\Models\PromotionRule;
 use App\Models\QuestionBankItem;
 use App\Models\RemarkRequest;
 use App\Models\RevenueRecognitionRule;
-use App\Models\School;
 use App\Models\StaffCertification;
 use App\Models\StaffContract;
 use App\Models\StudentTimelineEvent;
 use App\Models\Subject;
 use App\Models\SubjectPrerequisite;
-use App\Models\Teacher;
 use App\Models\TransportRoute;
 use App\Models\Vehicle;
 use App\Models\WebhookSubscription;
@@ -89,7 +87,7 @@ class EnterpriseModulesSeeder extends Seeder
                 ],
                 [
                     'term_id' => $term?->id,
-                    'syllabus' => 'Demo syllabus outline for ' . $subject->name,
+                    'syllabus' => 'Demo syllabus outline for '.$subject->name,
                     'learning_outcomes' => ['LO1' => 'Understand core concepts', 'LO2' => 'Apply knowledge'],
                     'status' => 'published',
                     'published_by' => $admin->id,
@@ -186,7 +184,7 @@ class EnterpriseModulesSeeder extends Seeder
             );
 
             $journal = JournalEntry::updateOrCreate(
-                ['reference' => strtoupper($school->code) . '-JE-001'],
+                ['reference' => strtoupper($school->code).'-JE-001'],
                 [
                     'school_id' => $school->id,
                     'entry_date' => now()->subDays(5)->toDateString(),
@@ -238,7 +236,7 @@ class EnterpriseModulesSeeder extends Seeder
                 [
                     'school_id' => $school->id,
                     'transaction_date' => now()->subDays(3)->toDateString(),
-                    'reference' => strtoupper($school->code) . '-BNK-001',
+                    'reference' => strtoupper($school->code).'-BNK-001',
                 ],
                 [
                     'description' => 'School fees deposit',
@@ -337,7 +335,7 @@ class EnterpriseModulesSeeder extends Seeder
             $application = EnrollmentApplication::query()->where('school_id', $school->id)->first();
 
             AdmissionScore::updateOrCreate(
-                ['school_id' => $school->id, 'applicant_name' => 'Demo Applicant ' . $school->code],
+                ['school_id' => $school->id, 'applicant_name' => 'Demo Applicant '.$school->code],
                 [
                     'enrollment_application_id' => $application?->id,
                     'academic_score' => 72,
@@ -608,10 +606,10 @@ class EnterpriseModulesSeeder extends Seeder
             );
 
             WebhookSubscription::updateOrCreate(
-                ['school_id' => $school->id, 'event_type' => 'payment.received'],
+                ['school_id' => $school->id, 'event_type' => 'payment.completed'],
                 [
                     'target_url' => 'https://example.com/webhooks/payments',
-                    'secret_hash' => hash('sha256', 'demo-webhook-secret'),
+                    'secret' => 'demo-webhook-secret',
                     'is_active' => true,
                 ]
             );

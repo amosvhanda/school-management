@@ -11,9 +11,10 @@ use App\Models\IntegrationConnector;
 use App\Models\PerformanceReview;
 use App\Models\StaffCertification;
 use App\Models\StaffContract;
+use App\Models\WebhookDelivery;
 use App\Models\WebhookSubscription;
+use App\Services\Enterprise\EnterpriseWebhookDispatcher;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 
@@ -93,6 +94,72 @@ class EnterpriseGovernanceController extends Controller
     public function connectors(Request $request)
     {
         return response()->json(['data' => IntegrationConnector::where('school_id', $request->user()->school_id)->get()]);
+    }
+
+    public function webhooks(Request $request)
+    {
+        return response()->json([
+            'data' => WebhookSubscription::query()
+                ->where('school_id', $request->user()->school_id)
+                ->orderByDesc('created_at')
+                ->get(),
+        ]);
+    }
+
+    public function webhookDeliveries(Request $request)
+    {
+        $query = WebhookDelivery::query()
+            ->where('school_id', $request->user()->school_id)
+            ->with('subscription:id,event_type,target_url')
+            ->orderByDesc('created_at');
+
+        if ($request->filled('status')) {
+            $query->where('status', $request->string('status')->toString());
+        }
+
+        return response()->json(['data' => $query->limit(200)->get()]);
+    }
+
+    public function retryWebhookDelivery(Request $request, int $id, EnterpriseWebhookDispatcher $dispatcher)
+    {
+        $delivery = WebhookDelivery::query()
+            ->where('school_id', $request->user()->school_id)
+            ->findOrFail($id);
+
+        $dispatcher->retryDelivery($delivery);
+
+        return response()->json([
+            'data' => $delivery->fresh(),
+            'message' => 'Webhook delivery queued for retry',
+        ]);
+    }
+
+    public function updateWebhook(Request $request, int $id)
+    {
+        $webhook = WebhookSubscription::query()
+            ->where('school_id', $request->user()->school_id)
+            ->findOrFail($id);
+
+        $data = Validator::make($request->all(), [
+            'event_type' => 'sometimes|required|string|max:100',
+            'target_url' => 'sometimes|required|url|max:500',
+            'is_active' => 'boolean',
+        ])->validate();
+
+        $webhook->update($data);
+
+        return response()->json(['data' => $webhook->fresh(), 'message' => 'Webhook updated']);
+    }
+
+    public function destroyWebhook(Request $request, int $id)
+    {
+        $webhook = WebhookSubscription::query()
+            ->where('school_id', $request->user()->school_id)
+            ->findOrFail($id);
+
+        $webhook->delete();
+
+        return response()->json(['message' => 'Webhook deleted']);
     }
 
     public function storeConnector(Request $request)
@@ -177,7 +244,8 @@ class EnterpriseGovernanceController extends Controller
             'school_id' => $request->user()->school_id,
             'event_type' => $data['event_type'],
             'target_url' => $data['target_url'],
-            'secret_hash' => Hash::make($secret),
+            'secret' => $secret,
+            'is_active' => true,
         ]);
 
         return response()->json(['data' => $webhook, 'secret' => $secret], 201);

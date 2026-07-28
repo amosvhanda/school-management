@@ -867,7 +867,12 @@ Route::middleware(['auth:sanctum', 'school.isolated', 'school.licensed'])->group
         Route::post('/compliance/requirements', [EnterpriseGovernanceController::class, 'storeComplianceRequirement']);
         Route::get('/integrations/connectors', [EnterpriseGovernanceController::class, 'connectors']);
         Route::post('/integrations/connectors', [EnterpriseGovernanceController::class, 'storeConnector']);
+        Route::get('/integrations/webhooks', [EnterpriseGovernanceController::class, 'webhooks']);
         Route::post('/integrations/webhooks', [EnterpriseGovernanceController::class, 'storeWebhook']);
+        Route::get('/integrations/webhooks/deliveries', [EnterpriseGovernanceController::class, 'webhookDeliveries']);
+        Route::post('/integrations/webhooks/deliveries/{id}/retry', [EnterpriseGovernanceController::class, 'retryWebhookDelivery']);
+        Route::put('/integrations/webhooks/{id}', [EnterpriseGovernanceController::class, 'updateWebhook']);
+        Route::delete('/integrations/webhooks/{id}', [EnterpriseGovernanceController::class, 'destroyWebhook']);
         Route::get('/security/abac-policies', [EnterpriseGovernanceController::class, 'abacPolicies']);
         Route::post('/security/abac-policies', [EnterpriseGovernanceController::class, 'storeAbacPolicy']);
         Route::get('/group/policies', [EnterpriseGovernanceController::class, 'groupPolicies']);

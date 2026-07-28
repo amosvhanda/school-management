@@ -13,6 +13,7 @@ use App\Models\StudentStatusEvent;
 use App\Models\StudentTransportAllocation;
 use App\Models\User;
 use App\Services\Domain\SchoolDomainRules;
+use App\Services\Enterprise\EnterpriseWebhookDispatcher;
 use App\Services\Platform\CertificateGeneratorService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -60,7 +61,7 @@ class StudentLifecycleActionService
             $this->domainRules->assertGraduationRequirements($student, $year);
         }
 
-        return DB::transaction(function () use ($student, $action, $targetStatus, $reason, $effectiveDate, $deactivate, $payload, $actor) {
+        $result = DB::transaction(function () use ($student, $action, $targetStatus, $reason, $effectiveDate, $deactivate, $payload, $actor) {
             $from = $student->status;
             $certificate = null;
             $transfer = null;
@@ -170,6 +171,21 @@ class StudentLifecycleActionService
                 'alumni' => $alumni,
             ];
         });
+
+        if ($action === 'graduate') {
+            app(EnterpriseWebhookDispatcher::class)->dispatch(
+                (int) $student->school_id,
+                'student.graduated',
+                [
+                    'student_id' => $student->id,
+                    'full_name' => $student->full_name,
+                    'graduation_year' => (int) date('Y', strtotime((string) $effectiveDate)),
+                    'alumni_id' => $result['alumni']?->id,
+                ],
+            );
+        }
+
+        return $result;
     }
 
     public function downloadTransferCertificate(Student $student): ?Certificate

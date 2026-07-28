@@ -5,6 +5,7 @@ namespace App\Services\Platform;
 use App\Models\Invoice;
 use App\Models\PaymentGatewayConfig;
 use App\Models\PaymentGatewayTransaction;
+use App\Services\Enterprise\EnterpriseWebhookDispatcher;
 use App\Services\FinancialLedgerService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -100,7 +101,9 @@ class PaymentGatewayService
             return $txn;
         }
 
-        return DB::transaction(function () use ($txn, $providerResponse) {
+        $newlyCompleted = false;
+
+        $completed = DB::transaction(function () use ($txn, $providerResponse, &$newlyCompleted) {
             $locked = PaymentGatewayTransaction::query()
                 ->whereKey($txn->id)
                 ->lockForUpdate()
@@ -130,8 +133,27 @@ class PaymentGatewayService
                 );
             }
 
+            $newlyCompleted = true;
+
             return $locked->fresh();
         });
+
+        if ($newlyCompleted) {
+            app(EnterpriseWebhookDispatcher::class)->dispatch(
+                (int) $completed->school_id,
+                'payment.completed',
+                [
+                    'internal_reference' => $completed->internal_reference,
+                    'invoice_id' => $completed->invoice_id,
+                    'student_id' => $completed->student_id,
+                    'amount' => (float) $completed->amount,
+                    'currency' => $completed->currency,
+                    'provider' => $providerResponse['provider'] ?? null,
+                ],
+            );
+        }
+
+        return $completed;
     }
 
     public function refreshStatus(PaymentGatewayTransaction $txn): PaymentGatewayTransaction
