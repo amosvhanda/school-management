@@ -40,9 +40,13 @@ jobs:
           mkdir -p database
           touch database/database.sqlite
           php artisan migrate --force
+        env:
+          PREVENT_LAZY_LOADING: "true"
 
       - name: Run backend test suite
         run: php artisan test
+        env:
+          PREVENT_LAZY_LOADING: "true"
 
       - name: Install frontend dependencies
         run: npm install

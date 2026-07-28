@@ -160,6 +160,14 @@ export const studentPortalApi = {
     return (data as { data?: unknown }).data ?? data
   },
   announcements: () => fetchOne(e.studentPortal.announcements),
+  cbtAvailable: () => fetchOne(e.studentPortal.cbtAvailable),
+  cbtStart: (payload: { subject_id: number; count?: number; exam_id?: number }) =>
+    postRecord(e.studentPortal.cbtStart, payload),
+  cbtSession: (id: number | string) => fetchOne(e.studentPortal.cbtSession(id)),
+  cbtSubmit: (id: number | string, answers: Array<{ question_id: number; answer: string }>) =>
+    postRecord(e.studentPortal.cbtSubmit(id), { answers }),
+  cbtAntiCheat: (id: number | string, event_type: string, metadata?: Record<string, unknown>) =>
+    postRecord(e.studentPortal.cbtAntiCheat(id), { event_type, metadata }),
 }
 
 export const studentsApi = {

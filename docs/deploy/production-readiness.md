@@ -3,6 +3,12 @@
 This platform uses **one shared database** with `school_id` row-level tenancy.
 Per-tenant databases are intentionally out of scope.
 
+## Security gates
+
+- `REQUIRE_TWO_FACTOR=true` in production (auto when `APP_ENV=production`)
+- Privileged roles must enable 2FA via **Profile → Security** before using APIs
+- Run `php artisan saas:go-live-check` before cutover
+
 ## Before go-live
 
 1. **Environment**
@@ -29,6 +35,7 @@ Per-tenant databases are intentionally out of scope.
 5. **Health**
    - `GET /up` and platform System Health (`/platform/system/health`)
    - Confirm failed jobs / notification queue depth are acceptable
+   - `php artisan saas:go-live-check` (use `--strict` before production cutover)
 
 6. **Database pooling (optional ops)**
    - Place PgBouncer or Cloud SQL Auth Proxy in front of MySQL/Postgres
@@ -47,3 +54,6 @@ Bearer-token API clients do not use cookie CSRF. Sanctum SPA cookie auth should 
 | Jobs | `BelongsToTenant` + `SetTenantContext` on `tenant` queue |
 | Backups | Logical per-school JSON via `SchoolBackupService` |
 | Migrations | Global Laravel migrations for the shared schema |
+| Privileged 2FA | `2fa.enabled` middleware + Profile setup (production default) |
+| Online exams | Student CBT under `/student/exams` + staff question bank |
+| POS | Inventory till panel on Operations → Sales |

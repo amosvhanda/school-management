@@ -141,7 +141,7 @@ Route::get('/webhooks/payments/{provider}/sandbox-checkout', [PaymentWebhookCont
     ->middleware('throttle:30,1');
 
 // ─── Authenticated ────────────────────────────────────────────────────────
-Route::middleware(['auth:sanctum', 'school.isolated', 'school.licensed'])->group(function () {
+Route::middleware(['auth:sanctum', 'school.isolated', 'school.licensed', '2fa.enabled'])->group(function () {
 
     // License (accessible even when expired — middleware excludes these paths)
     Route::get('/license/status', [LicenseController::class, 'status']);
@@ -337,12 +337,14 @@ Route::middleware(['auth:sanctum', 'school.isolated', 'school.licensed'])->group
     Route::delete('/subject-packages/{id}', [AcademicStructureController::class, 'destroySubjectPackage']);
 
     // Inventory / uniform store
-    Route::get('/inventory/items', [InventoryController::class, 'index']);
-    Route::post('/inventory/items', [InventoryController::class, 'store']);
-    Route::put('/inventory/items/{id}', [InventoryController::class, 'update']);
-    Route::post('/inventory/items/{id}/restock', [InventoryController::class, 'restock']);
-    Route::get('/inventory/sales', [InventoryController::class, 'sales']);
-    Route::post('/inventory/sales', [InventoryController::class, 'createSale']);
+    Route::middleware('capability:canManageInventory')->group(function () {
+        Route::get('/inventory/items', [InventoryController::class, 'index']);
+        Route::post('/inventory/items', [InventoryController::class, 'store']);
+        Route::put('/inventory/items/{id}', [InventoryController::class, 'update']);
+        Route::post('/inventory/items/{id}/restock', [InventoryController::class, 'restock']);
+        Route::get('/inventory/sales', [InventoryController::class, 'sales']);
+        Route::post('/inventory/sales', [InventoryController::class, 'createSale']);
+    });
 
     // Holiday lessons (separate from regular term)
     Route::get('/holiday-programs', [HolidayProgramController::class, 'index']);
@@ -512,12 +514,14 @@ Route::middleware(['auth:sanctum', 'school.isolated', 'school.licensed'])->group
     Route::post('/payroll/generate', [PayrollController::class, 'generate']);
     Route::put('/payroll/{id}', [PayrollController::class, 'update']);
     Route::post('/payroll/{id}/process', [PayrollController::class, 'process']);
-    Route::get('/finance/summary', [FinanceController::class, 'summary']);
-    Route::get('/finance/outstanding-balances', [FinanceController::class, 'outstandingBalances']);
-    Route::get('/finance/aging', [FinanceController::class, 'aging']);
-    Route::get('/finance/reconciliation', [FinanceController::class, 'reconciliation']);
-    Route::get('/finance/cash-flow', [FinanceController::class, 'cashFlow']);
-    Route::get('/finance/reports/{period}', [FinanceController::class, 'periodReport']);
+    Route::middleware('capability:canManageFinance')->group(function () {
+        Route::get('/finance/summary', [FinanceController::class, 'summary']);
+        Route::get('/finance/outstanding-balances', [FinanceController::class, 'outstandingBalances']);
+        Route::get('/finance/aging', [FinanceController::class, 'aging']);
+        Route::get('/finance/reconciliation', [FinanceController::class, 'reconciliation']);
+        Route::get('/finance/cash-flow', [FinanceController::class, 'cashFlow']);
+        Route::get('/finance/reports/{period}', [FinanceController::class, 'periodReport']);
+    });
 
     // People & enrollment
     Route::get('/parents/{id}/children', [ParentController::class, 'children']);
@@ -534,6 +538,11 @@ Route::middleware(['auth:sanctum', 'school.isolated', 'school.licensed'])->group
         Route::get('/assignments/{id}', [StudentPortalController::class, 'showAssignment']);
         Route::post('/assignments/{id}/submit', [StudentPortalController::class, 'submitAssignment']);
         Route::get('/announcements', [StudentPortalController::class, 'announcements']);
+        Route::get('/cbt/available', [StudentPortalController::class, 'cbtAvailable']);
+        Route::post('/cbt/start', [StudentPortalController::class, 'startCbt']);
+        Route::get('/cbt/sessions/{id}', [StudentPortalController::class, 'showCbtSession']);
+        Route::post('/cbt/sessions/{id}/submit', [StudentPortalController::class, 'submitCbt']);
+        Route::post('/cbt/sessions/{id}/anti-cheat', [StudentPortalController::class, 'cbtAntiCheat']);
     });
 
     // Parent / guardian portal
@@ -842,16 +851,16 @@ Route::middleware(['auth:sanctum', 'school.isolated', 'school.licensed'])->group
         Route::get('/finance/revenue-rules', [EnterpriseFinanceController::class, 'revenueRules']);
         Route::post('/finance/revenue-rules', [EnterpriseFinanceController::class, 'storeRevenueRule']);
 
-        Route::get('/exams/question-bank', [EnterpriseExamController::class, 'questions']);
-        Route::post('/exams/question-bank', [EnterpriseExamController::class, 'storeQuestion']);
-        Route::post('/exams/generate-paper', [EnterpriseExamController::class, 'generatePaper']);
-        Route::post('/exams/cbt/start', [EnterpriseExamController::class, 'startCbt']);
-        Route::post('/exams/cbt/{id}/submit', [EnterpriseExamController::class, 'submitCbt']);
-        Route::post('/exams/cbt/{sessionId}/anti-cheat', [EnterpriseExamController::class, 'antiCheatLog']);
-        Route::get('/exams/remark-requests', [EnterpriseExamController::class, 'remarkRequests']);
-        Route::post('/exams/remark-requests', [EnterpriseExamController::class, 'requestRemark']);
-        Route::get('/workflows/delegations', [EnterpriseExamController::class, 'delegations']);
-        Route::post('/workflows/delegations', [EnterpriseExamController::class, 'storeDelegation']);
+        Route::get('/exams/question-bank', [EnterpriseExamController::class, 'questions'])->middleware('capability:canManageExaminations');
+        Route::post('/exams/question-bank', [EnterpriseExamController::class, 'storeQuestion'])->middleware('capability:canManageExaminations');
+        Route::post('/exams/generate-paper', [EnterpriseExamController::class, 'generatePaper'])->middleware('capability:canManageExaminations');
+        Route::post('/exams/cbt/start', [EnterpriseExamController::class, 'startCbt'])->middleware('capability:canManageExaminations');
+        Route::post('/exams/cbt/{id}/submit', [EnterpriseExamController::class, 'submitCbt'])->middleware('capability:canManageExaminations');
+        Route::post('/exams/cbt/{sessionId}/anti-cheat', [EnterpriseExamController::class, 'antiCheatLog'])->middleware('capability:canManageExaminations');
+        Route::get('/exams/remark-requests', [EnterpriseExamController::class, 'remarkRequests'])->middleware('capability:canManageExaminations');
+        Route::post('/exams/remark-requests', [EnterpriseExamController::class, 'requestRemark'])->middleware('capability:canManageExaminations');
+        Route::get('/workflows/delegations', [EnterpriseExamController::class, 'delegations'])->middleware('capability:canManageTeachers');
+        Route::post('/workflows/delegations', [EnterpriseExamController::class, 'storeDelegation'])->middleware('capability:canManageTeachers');
 
         Route::post('/admissions/score', [EnterpriseIntelligenceController::class, 'admissionScore']);
         Route::get('/students/{id}/profile', [EnterpriseIntelligenceController::class, 'studentProfile']);

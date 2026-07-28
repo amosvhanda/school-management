@@ -6,6 +6,7 @@ import PageShell from '@/components/layout/PageShell.vue'
 import WorkspaceCard from '@/components/layout/WorkspaceCard.vue'
 import ModuleHubContent from '@/components/layout/ModuleHubContent.vue'
 import RegistrySection from '@/modules/shared/RegistrySection.vue'
+import PosTillPanel from '@/modules/operations/components/PosTillPanel.vue'
 import {
   Select,
   SelectContent,
@@ -363,6 +364,7 @@ function shouldAutoCreate(section: { listKey: string }, index: number) {
                     {{ section.description }}
                   </p>
                 </div>
+                <PosTillPanel v-if="section.listKey === 'ops-inventory-sales'" />
                 <RegistrySection
                   :list-key="section.listKey"
                   :auto-create="shouldAutoCreate(section, index)"
@@ -454,6 +456,7 @@ function shouldAutoCreate(section: { listKey: string }, index: number) {
                   {{ section.description }}
                 </p>
               </div>
+              <PosTillPanel v-if="section.listKey === 'ops-inventory-sales'" />
               <RegistrySection
                 :list-key="section.listKey"
                 :auto-create="shouldAutoCreate(section, index)"

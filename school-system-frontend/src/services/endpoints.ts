@@ -67,6 +67,11 @@ export const endpoints = {
     assignment: (id: number | string) => `/student-portal/assignments/${id}`,
     submitAssignment: (id: number | string) => `/student-portal/assignments/${id}/submit`,
     announcements: '/student-portal/announcements',
+    cbtAvailable: '/student-portal/cbt/available',
+    cbtStart: '/student-portal/cbt/start',
+    cbtSession: (id: number | string) => `/student-portal/cbt/sessions/${id}`,
+    cbtSubmit: (id: number | string) => `/student-portal/cbt/sessions/${id}/submit`,
+    cbtAntiCheat: (id: number | string) => `/student-portal/cbt/sessions/${id}/anti-cheat`,
   },
   school: {
     show: '/school',

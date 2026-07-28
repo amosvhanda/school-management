@@ -42,6 +42,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'school.domain' => \App\Http\Middleware\ResolveSchoolFromDomain::class,
             'capability' => \App\Http\Middleware\EnsureCapability::class,
             'permission' => \App\Http\Middleware\EnsurePermission::class,
+            '2fa.enabled' => \App\Http\Middleware\EnsureTwoFactorEnabled::class,
         ]);
 
         $middleware->api(append: [

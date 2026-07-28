@@ -93,8 +93,9 @@ class EnterpriseExamController extends Controller
 
     public function antiCheatLog(Request $request, int $sessionId)
     {
+        $session = CbtExamSession::where('school_id', $request->user()->school_id)->findOrFail($sessionId);
         $data = Validator::make($request->all(), ['event_type' => 'required|string', 'metadata' => 'nullable|array'])->validate();
-        $this->exams->logAntiCheat($sessionId, $data['event_type'], $data['metadata'] ?? null);
+        $this->exams->logAntiCheat($session->id, $data['event_type'], $data['metadata'] ?? null);
 
         return response()->json(['message' => 'Anti-cheat event logged']);
     }

@@ -21,6 +21,7 @@ import MetricBand from '@/components/dashboard/MetricBand.vue'
 import type { MetricCard } from '@/components/dashboard/MetricBand.vue'
 import EmptyState from '@/components/feedback/EmptyState.vue'
 import ErrorState from '@/components/feedback/ErrorState.vue'
+import StudentCbtPanel from '@/modules/student-portal/components/StudentCbtPanel.vue'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -841,6 +842,8 @@ onMounted(loadStudentPortal)
         </div>
       </CardContent>
     </Card>
+
+    <StudentCbtPanel v-if="!error && section === 'exams'" class="mb-6" />
 
     <Card v-if="!error && section === 'exams'" class="border-border/70">
       <CardHeader>

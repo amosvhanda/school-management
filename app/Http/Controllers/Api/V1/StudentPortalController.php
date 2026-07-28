@@ -13,6 +13,10 @@ use App\Models\Grade;
 use App\Models\Invoice;
 use App\Models\Student;
 use App\Models\Timetable;
+use App\Models\CbtExamSession;
+use App\Models\QuestionBankItem;
+use App\Models\Subject;
+use App\Services\Enterprise\ExaminationEnterpriseService;
 use App\Services\FileUploadService;
 use App\Services\StudentResolutionService;
 use Illuminate\Http\Request;
@@ -25,6 +29,7 @@ class StudentPortalController extends Controller
     public function __construct(
         private StudentResolutionService $students,
         private FileUploadService $uploads,
+        private ExaminationEnterpriseService $cbt,
     ) {}
 
     public function dashboard(Request $request)
@@ -358,6 +363,145 @@ class StudentPortalController extends Controller
                 'submission_file_url' => $submission?->file_url,
             ]);
         })->values()->all();
+    }
+
+    public function cbtAvailable(Request $request)
+    {
+        $student = $this->requireStudent($request);
+        $schoolId = (int) $request->user()->school_id;
+
+        $subjects = QuestionBankItem::query()
+            ->where('school_id', $schoolId)
+            ->selectRaw('subject_id, COUNT(*) as question_count')
+            ->whereNotNull('subject_id')
+            ->groupBy('subject_id')
+            ->havingRaw('COUNT(*) >= 1')
+            ->get();
+
+        $names = Subject::query()
+            ->where('school_id', $schoolId)
+            ->whereIn('id', $subjects->pluck('subject_id'))
+            ->pluck('name', 'id');
+
+        $active = CbtExamSession::query()
+            ->where('school_id', $schoolId)
+            ->where('student_id', $student->id)
+            ->where('status', 'in_progress')
+            ->latest('id')
+            ->first();
+
+        return $this->success([
+            'subjects' => $subjects->map(fn ($row) => [
+                'subject_id' => (int) $row->subject_id,
+                'subject_name' => $names[(int) $row->subject_id] ?? 'Subject '.$row->subject_id,
+                'question_count' => (int) $row->question_count,
+            ])->values()->all(),
+            'active_session' => $active ? [
+                'id' => $active->id,
+                'exam_id' => $active->exam_id,
+                'started_at' => $active->started_at?->toIso8601String(),
+                'question_count' => is_array($active->question_ids) ? count($active->question_ids) : 0,
+            ] : null,
+        ]);
+    }
+
+    public function startCbt(Request $request)
+    {
+        $student = $this->requireStudent($request);
+        $schoolId = (int) $request->user()->school_id;
+
+        $data = $request->validate([
+            'subject_id' => ['required', 'integer', 'exists:subjects,id'],
+            'count' => ['nullable', 'integer', 'min:1', 'max:40'],
+            'exam_id' => ['nullable', 'integer', 'exists:exams,id'],
+        ]);
+
+        $existing = CbtExamSession::query()
+            ->where('school_id', $schoolId)
+            ->where('student_id', $student->id)
+            ->where('status', 'in_progress')
+            ->latest('id')
+            ->first();
+
+        if ($existing) {
+            return $this->success($this->cbt->sessionPayloadForStudent($existing), 'Resuming in-progress session');
+        }
+
+        $count = (int) ($data['count'] ?? 10);
+        $questions = $this->cbt->generateRandomPaper($schoolId, (int) $data['subject_id'], $count);
+        if ($questions->isEmpty()) {
+            throw ValidationException::withMessages([
+                'subject_id' => ['No questions are available for this subject yet.'],
+            ]);
+        }
+
+        $session = $this->cbt->startCbtSession(
+            $schoolId,
+            $student->id,
+            $questions->pluck('id')->all(),
+            $data['exam_id'] ?? null,
+        );
+
+        return $this->created($this->cbt->sessionPayloadForStudent($session), 'CBT session started');
+    }
+
+    public function showCbtSession(Request $request, int $id)
+    {
+        $student = $this->requireStudent($request);
+        $session = CbtExamSession::query()
+            ->where('school_id', $request->user()->school_id)
+            ->where('student_id', $student->id)
+            ->findOrFail($id);
+
+        return $this->success($this->cbt->sessionPayloadForStudent($session));
+    }
+
+    public function submitCbt(Request $request, int $id)
+    {
+        $student = $this->requireStudent($request);
+        $session = CbtExamSession::query()
+            ->where('school_id', $request->user()->school_id)
+            ->where('student_id', $student->id)
+            ->findOrFail($id);
+
+        if ($session->status !== 'in_progress') {
+            throw ValidationException::withMessages([
+                'session' => ['This exam session is already submitted.'],
+            ]);
+        }
+
+        $data = $request->validate([
+            'answers' => ['required', 'array', 'min:1'],
+            'answers.*.question_id' => ['required', 'integer'],
+            'answers.*.answer' => ['required', 'string'],
+        ]);
+
+        $submitted = $this->cbt->submitCbtSession($session, $data['answers']);
+
+        return $this->success([
+            'id' => $submitted->id,
+            'status' => $submitted->status,
+            'score' => $submitted->score,
+            'submitted_at' => $submitted->submitted_at?->toIso8601String(),
+        ], 'Exam submitted');
+    }
+
+    public function cbtAntiCheat(Request $request, int $id)
+    {
+        $student = $this->requireStudent($request);
+        $session = CbtExamSession::query()
+            ->where('school_id', $request->user()->school_id)
+            ->where('student_id', $student->id)
+            ->findOrFail($id);
+
+        $data = $request->validate([
+            'event_type' => ['required', 'string', 'max:100'],
+            'metadata' => ['nullable', 'array'],
+        ]);
+
+        $this->cbt->logAntiCheat($session->id, $data['event_type'], $data['metadata'] ?? null);
+
+        return $this->success(message: 'Anti-cheat event logged');
     }
 
     /**
