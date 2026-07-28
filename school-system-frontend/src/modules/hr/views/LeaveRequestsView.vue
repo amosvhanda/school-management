@@ -55,6 +55,7 @@ import {
 import type { ListFilterSchema } from '@/modules/shared/list-filters'
 import { moduleEndpoints } from '@/services'
 import { hrApi } from '@/services/api.service'
+import type { ListQueryParams } from '@/types/api'
 
 const toast = useToast()
 const route = useRoute()
@@ -214,9 +215,13 @@ async function loadStatusCounts(baseParams: Record<string, unknown>) {
         ? { ...(filter as Record<string, unknown>) }
         : undefined
     if (nextFilter && 'status' in nextFilter) delete nextFilter.status
-    const clean = {
-      ...rest,
-      ...(nextFilter && Object.keys(nextFilter).length ? { filter: nextFilter } : {}),
+    const clean: ListQueryParams = {
+      ...(rest as ListQueryParams),
+      ...(nextFilter && Object.keys(nextFilter).length
+        ? {
+            filter: nextFilter as Record<string, string | number | boolean | null | undefined>,
+          }
+        : {}),
     }
     const [pending, approved, rejected] = await Promise.all([
       hrApi.leaveRequests.list({ ...clean, status: 'pending', page: 1, per_page: 1 }),

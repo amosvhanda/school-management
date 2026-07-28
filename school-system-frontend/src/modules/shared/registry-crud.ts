@@ -28,7 +28,6 @@ import {
   examRelation,
   libraryBookRelation,
   libraryMemberRelation,
-  employeeRelation,
 } from '@/lib/form-relations'
 import { moduleEndpoints } from '@/services'
 import { studentFormFields, studentFormSchema } from '@/modules/students/student-form'

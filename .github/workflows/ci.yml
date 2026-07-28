@@ -47,5 +47,13 @@ jobs:
       - name: Install frontend dependencies
         run: npm install
 
-      - name: Build frontend assets
+      - name: Build Laravel frontend assets
         run: node ./node_modules/vite/bin/vite.js build
+
+      - name: Install Vue app dependencies
+        working-directory: school-system-frontend
+        run: npm install
+
+      - name: Build Vue app
+        working-directory: school-system-frontend
+        run: npm run build

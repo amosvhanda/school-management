@@ -84,7 +84,7 @@ async function load() {
   loading.value = true
   error.value = null
   try {
-    data.value = await teacherPortalApi.calendar()
+    data.value = (await teacherPortalApi.calendar()) as typeof data.value
   } catch (err) {
     error.value = getErrorMessage(err, 'Failed to load calendar')
   } finally {

@@ -155,7 +155,10 @@ export async function fetchSchoolWidgets(): Promise<SchoolDashboardWidgets> {
 export async function fetchLmsWidgets(): Promise<LmsDashboardWidgets> {
   const { data } = await api.get(e.dashboard.lmsWidgets)
   const raw = unwrapOne<Partial<LmsDashboardWidgets>>(data) ?? {}
-  const kpis = raw.kpis && typeof raw.kpis === 'object' ? raw.kpis : {}
+  const kpis =
+    raw.kpis && typeof raw.kpis === 'object'
+      ? (raw.kpis as Record<string, unknown>)
+      : {}
 
   return {
     kpis: {

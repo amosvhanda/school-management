@@ -61,12 +61,13 @@ async function handleSwitchSchool(schoolId: number) {
   switchingSchool.value = true
   try {
     await switchSchool(schoolId)
-    toast.success('School switched', {
-      description: `You are now working in ${target?.name ?? 'the selected school'}.`,
-    })
+    toast.success(
+      'School switched',
+      `You are now working in ${target?.name ?? 'the selected school'}.`,
+    )
     window.location.reload()
   } catch (err) {
-    toast.error('Could not switch school', { description: getErrorMessage(err) })
+    toast.error('Could not switch school', getErrorMessage(err))
   } finally {
     switchingSchool.value = false
   }

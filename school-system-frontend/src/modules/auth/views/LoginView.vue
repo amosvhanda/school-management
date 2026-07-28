@@ -42,12 +42,22 @@ const configStore = useConfigStore()
 const toast = useToast()
 const isDev = computed(() => import.meta.env.DEV)
 const quickLoginRole = ref<string | null>(null)
-const tenantBrandName = computed(() =>
-  String(configStore.settings?.branding?.school_name ?? '').trim() || brandName,
-)
-const tenantBrandTagline = computed(() =>
-  String(configStore.settings?.branding?.motto ?? '').trim() || brandTagline,
-)
+const tenantBrandName = computed(() => {
+  const branding = configStore.settings?.branding
+  const name =
+    branding && typeof branding === 'object'
+      ? String((branding as Record<string, unknown>).school_name ?? '').trim()
+      : ''
+  return name || brandName
+})
+const tenantBrandTagline = computed(() => {
+  const branding = configStore.settings?.branding
+  const motto =
+    branding && typeof branding === 'object'
+      ? String((branding as Record<string, unknown>).motto ?? '').trim()
+      : ''
+  return motto || brandTagline
+})
 
 const { submit, isSubmitting, setValues } = useFormApiSubmit({
   schema: loginFormSchema,

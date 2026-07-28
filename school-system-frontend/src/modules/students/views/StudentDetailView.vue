@@ -199,12 +199,12 @@ async function onPhotoSelected(event: Event) {
   if (!file) return
 
   if (!file.type.startsWith('image/')) {
-    toast.warning('Invalid file', { description: 'Please choose an image file.' })
+    toast.warning('Invalid file', 'Please choose an image file.')
     input.value = ''
     return
   }
   if (file.size > 5 * 1024 * 1024) {
-    toast.warning('File too large', { description: 'Choose an image under 5 MB.' })
+    toast.warning('File too large', 'Choose an image under 5 MB.')
     input.value = ''
     return
   }
@@ -217,7 +217,7 @@ async function onPhotoSelected(event: Event) {
     }
     toast.success('Student photo updated')
   } catch (err) {
-    toast.error('Could not upload photo', { description: getErrorMessage(err) })
+    toast.error('Could not upload photo', getErrorMessage(err))
   } finally {
     uploadingPhoto.value = false
     input.value = ''
@@ -264,7 +264,7 @@ async function openInvoicePrint(invoiceId: number) {
   invoicePrintLoading.value = true
   invoicePrintData.value = null
   try {
-    invoicePrintData.value = await financeApi.invoices.print(invoiceId)
+    invoicePrintData.value = (await financeApi.invoices.print(invoiceId)) as Record<string, unknown>
   } catch (err) {
     toast.error('Invoice unavailable', getErrorMessage(err))
     invoicePrintOpen.value = false
@@ -279,7 +279,7 @@ async function openIdCardPrint() {
   idCardPrintLoading.value = true
   idCardPrintData.value = null
   try {
-    idCardPrintData.value = await studentsApi.printIdCard(student.value.id)
+    idCardPrintData.value = (await studentsApi.printIdCard(student.value.id)) as Record<string, unknown>
   } catch (err) {
     toast.error('Could not load ID card', getErrorMessage(err))
     idCardPrintOpen.value = false
@@ -328,12 +328,13 @@ async function payOnline(inv: Invoice) {
       return
     }
 
-    toast.success('Payment initiated', {
-      description: result.instructions
+    toast.success(
+      'Payment initiated',
+      result.instructions
         ?? (result.transaction?.internal_reference
           ? `Reference ${result.transaction.internal_reference}`
           : 'Awaiting gateway confirmation.'),
-    })
+    )
     await load()
   } catch (err) {
     toast.error('Online payment failed', getErrorMessage(err))
@@ -366,7 +367,7 @@ async function onRecordPayment(values: Record<string, unknown>) {
       receiptLoading.value = true
       receiptData.value = null
       try {
-        receiptData.value = await financeApi.payments.receipt(payment.id)
+        receiptData.value = (await financeApi.payments.receipt(payment.id)) as Record<string, unknown>
       } catch {
         receiptOpen.value = false
       } finally {
