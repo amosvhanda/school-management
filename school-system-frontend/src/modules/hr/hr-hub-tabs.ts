@@ -4,6 +4,7 @@ import {
   ClipboardCheck,
   FileCheck,
   IdCard,
+  ListTodo,
   Palmtree,
   Scale,
   ScrollText,
@@ -21,6 +22,14 @@ export const HR_HUB_TABS: ModuleHubTab[] = [
     icon: Users,
     capability: 'canManageTeachers',
     listKey: 'hr-employees',
+  },
+  {
+    id: 'staff-tasks',
+    title: 'Staff tasks',
+    description: 'Assign and track operational work for school staff.',
+    icon: ListTodo,
+    capability: 'canManageTeachers',
+    component: () => import('@/modules/hr/views/SchoolStaffTasksView.vue'),
   },
   {
     id: 'designations',

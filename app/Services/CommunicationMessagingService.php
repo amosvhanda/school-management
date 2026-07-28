@@ -136,7 +136,10 @@ class CommunicationMessagingService
                 'message',
                 "Message: {$subject}",
                 $preview,
-                ['thread_id' => $thread->id],
+                [
+                    'thread_id' => $thread->id,
+                    'link' => '/portal/hub?tab=messages&thread='.$thread->id,
+                ],
             );
 
             return;
@@ -149,7 +152,10 @@ class CommunicationMessagingService
             'type' => 'message',
             'title' => "Message: {$subject}",
             'body' => $preview,
-            'data' => ['thread_id' => $thread->id],
+            'data' => [
+                'thread_id' => $thread->id,
+                'link' => '/portal/hub?tab=messages&thread='.$thread->id,
+            ],
         ]);
     }
 
@@ -180,7 +186,7 @@ class CommunicationMessagingService
                 'type' => 'message',
                 'title' => "Parent message: {$subject}",
                 'body' => $preview,
-                'link' => '/communications?tab=messages',
+                'link' => '/communications?tab=messages&thread='.$thread->id,
             ]);
         }
     }

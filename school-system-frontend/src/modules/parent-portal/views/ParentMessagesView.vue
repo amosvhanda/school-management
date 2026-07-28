@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import { MessageSquare, Plus, Send } from '@lucide/vue'
 import PageLoader from '@/components/feedback/PageLoader.vue'
 import ErrorState from '@/components/feedback/ErrorState.vue'
@@ -53,6 +54,7 @@ interface MessageRow {
 }
 
 const toast = useToast()
+const route = useRoute()
 const threads = ref<ThreadRow[]>([])
 const children = ref<ChildOption[]>([])
 const messages = ref<MessageRow[]>([])
@@ -93,6 +95,18 @@ async function loadThreads() {
 
     const restoredChildId = scopeStore.resolveChildSelection(childRows, scopeStore.read(''), '')
     if (restoredChildId) scopeStore.write(restoredChildId)
+
+    const threadParam = Array.isArray(route.query.thread)
+      ? route.query.thread[0]
+      : route.query.thread
+    const deepLinkId = threadParam ? Number(threadParam) : NaN
+    if (Number.isFinite(deepLinkId) && deepLinkId > 0) {
+      const match = threadRows.find((t) => t.id === deepLinkId)
+      if (match) {
+        await selectThread(match)
+        return
+      }
+    }
 
     if (threadRows.length && !activeThread.value) {
       await selectThread(threadRows[0])

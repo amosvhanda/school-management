@@ -9,6 +9,7 @@ use App\Models\Employee;
 use App\Models\School;
 use App\Models\Student;
 use App\Models\Teacher;
+use App\Models\User;
 use App\Services\GuardianService;
 use App\Services\StaffNumberService;
 use App\Services\StudentAdmissionService;
@@ -16,6 +17,7 @@ use App\Services\StudentPlacementService;
 use App\Support\Csv\CsvReader;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 use Throwable;
 
 class PeopleCsvImportService
@@ -140,9 +142,9 @@ class PeopleCsvImportService
     }
 
     /**
-     * @return array{created:int, updated:int, failed:int, errors:list<array{line:int, message:string}>}
+     * @return array{created:int, updated:int, failed:int, errors:list<array{line:int, message:string}>, logins_created?:int}
      */
-    public function importTeachers(UploadedFile $file, int $schoolId): array
+    public function importTeachers(UploadedFile $file, int $schoolId, bool $createLoginUsers = false): array
     {
         $rows = $this->csv->read(
             $file->getRealPath(),
@@ -152,8 +154,9 @@ class PeopleCsvImportService
 
         $school = School::findOrFail($schoolId);
         $defaultCurrency = $school->getDefaultCurrency() ?? 'USD';
+        $loginsCreated = 0;
 
-        return $this->runRows($rows, function (array $data) use ($schoolId, $defaultCurrency): string {
+        $result = $this->runRows($rows, function (array $data) use ($schoolId, $defaultCurrency, $createLoginUsers, &$loginsCreated): string {
             $firstName = $data['first_name'] ?? '';
             $lastName = $data['last_name'] ?? '';
             $email = strtolower(trim((string) ($data['email'] ?? '')));
@@ -191,12 +194,15 @@ class PeopleCsvImportService
                     $payload['employee_id'] = $employeeId;
                 }
                 $existing->update($payload);
+                if ($createLoginUsers && $this->ensureTeacherLoginUser($existing->fresh())) {
+                    $loginsCreated++;
+                }
 
                 return 'updated';
             }
 
             $employeeId = trim((string) ($data['employee_id'] ?? $data['employee_number'] ?? ''));
-            Teacher::create([
+            $teacher = Teacher::create([
                 ...$payload,
                 'employee_id' => $employeeId !== ''
                     ? $employeeId
@@ -204,8 +210,18 @@ class PeopleCsvImportService
                 'school_id' => $schoolId,
             ]);
 
+            if ($createLoginUsers && $this->ensureTeacherLoginUser($teacher)) {
+                $loginsCreated++;
+            }
+
             return 'created';
         });
+
+        if ($createLoginUsers) {
+            $result['logins_created'] = $loginsCreated;
+        }
+
+        return $result;
     }
 
     /**
@@ -558,5 +574,49 @@ class PeopleCsvImportService
         }
 
         return (float) $value;
+    }
+
+    /**
+     * Create or link a teacher login user. Returns true when a new user was created.
+     */
+    private function ensureTeacherLoginUser(Teacher $teacher): bool
+    {
+        if ($teacher->user_id) {
+            return false;
+        }
+
+        $email = strtolower(trim((string) $teacher->email));
+        if ($email === '') {
+            throw new \RuntimeException('Email is required to create a login user.');
+        }
+
+        $existingUser = User::query()
+            ->where('school_id', $teacher->school_id)
+            ->where('email', $email)
+            ->first();
+
+        if ($existingUser) {
+            $teacher->update(['user_id' => $existingUser->id]);
+            if ($existingUser->role?->value !== 'teacher' && (string) $existingUser->role !== 'teacher') {
+                $existingUser->update(['role' => 'teacher']);
+            }
+
+            return false;
+        }
+
+        $user = User::create([
+            'name' => $teacher->name ?: trim($teacher->first_name.' '.$teacher->last_name),
+            'first_name' => $teacher->first_name,
+            'last_name' => $teacher->last_name,
+            'email' => $email,
+            'phone' => $teacher->phone,
+            'password' => Hash::make('password123'),
+            'role' => 'teacher',
+            'school_id' => $teacher->school_id,
+        ]);
+
+        $teacher->update(['user_id' => $user->id]);
+
+        return true;
     }
 }

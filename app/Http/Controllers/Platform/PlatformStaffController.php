@@ -10,6 +10,7 @@ use App\Models\StaffFeedPost;
 use App\Models\StaffTask;
 use App\Models\Student;
 use App\Models\StudentIntervention;
+use App\Models\TeacherNotification;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
@@ -175,6 +176,17 @@ class PlatformStaffController extends Controller
             'priority' => $data['priority'] ?? 'normal',
             'status' => 'pending',
             'due_date' => $data['due_date'] ?? null,
+        ]);
+
+        TeacherNotification::create([
+            'school_id' => $schoolId,
+            'user_id' => $assignee->id,
+            'type' => 'staff_task',
+            'title' => 'New task assigned',
+            'body' => $data['title'],
+            'link' => $assignee->role?->value === 'teacher' || (string) $assignee->role === 'teacher'
+                ? '/teaching?tab=my-tasks'
+                : '/hr?tab=staff-tasks',
         ]);
 
         $task->load(['school:id,name,code', 'assignee:id,name,email,role', 'assigner:id,name,email']);

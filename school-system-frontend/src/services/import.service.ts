@@ -9,6 +9,7 @@ export interface PeopleImportResult {
   updated: number
   failed: number
   errors: Array<{ line: number; message: string }>
+  logins_created?: number
 }
 
 export async function downloadPeopleImportTemplate(type: PeopleImportType): Promise<void> {
@@ -27,9 +28,16 @@ export async function downloadPeopleImportTemplate(type: PeopleImportType): Prom
   URL.revokeObjectURL(url)
 }
 
-export async function importPeopleCsv(type: PeopleImportType, file: File): Promise<PeopleImportResult> {
+export async function importPeopleCsv(
+  type: PeopleImportType,
+  file: File,
+  options?: { createLoginUsers?: boolean },
+): Promise<PeopleImportResult> {
   const form = new FormData()
   form.append('file', file)
+  if (options?.createLoginUsers) {
+    form.append('create_login_users', '1')
+  }
   const { data } = await api.post(endpoints.imports.import(type), form, {
     headers: { 'Content-Type': 'multipart/form-data' },
   })

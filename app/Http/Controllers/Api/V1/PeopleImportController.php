@@ -35,6 +35,7 @@ class PeopleImportController extends Controller
 
         $validator = Validator::make($request->all(), [
             'file' => ['required', 'file', 'mimes:csv,txt', 'max:5120'],
+            'create_login_users' => ['sometimes', 'boolean'],
         ]);
 
         if ($validator->fails()) {
@@ -46,11 +47,12 @@ class PeopleImportController extends Controller
 
         $schoolId = (int) $request->user()->school_id;
         $file = $request->file('file');
+        $createLogins = $request->boolean('create_login_users');
 
         try {
             $result = match ($type) {
                 'students' => $this->imports->importStudents($file, $schoolId, $request->user()?->id),
-                'teachers' => $this->imports->importTeachers($file, $schoolId),
+                'teachers' => $this->imports->importTeachers($file, $schoolId, $createLogins),
                 'employees' => $this->imports->importEmployees($file, $schoolId),
                 default => null,
             };

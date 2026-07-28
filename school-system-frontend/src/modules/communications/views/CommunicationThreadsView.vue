@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import { MessageSquare, Plus, Send } from '@lucide/vue'
 import PageLoader from '@/components/feedback/PageLoader.vue'
 import ErrorState from '@/components/feedback/ErrorState.vue'
@@ -75,6 +76,7 @@ interface StaffOption {
 }
 
 const toast = useToast()
+const route = useRoute()
 const threads = ref<ThreadRow[]>([])
 const messages = ref<MessageRow[]>([])
 const activeThread = ref<ThreadRow | null>(null)
@@ -131,6 +133,25 @@ async function loadThreads() {
     if (search.value.trim()) params.search = search.value.trim()
 
     threads.value = (await commsApi.threads.list(params)) as ThreadRow[]
+
+    const threadParam = Array.isArray(route.query.thread)
+      ? route.query.thread[0]
+      : route.query.thread
+    const deepLinkId = threadParam ? Number(threadParam) : NaN
+
+    if (Number.isFinite(deepLinkId) && deepLinkId > 0) {
+      const match = threads.value.find((t) => t.id === deepLinkId)
+      if (match) {
+        await selectThread(match)
+        return
+      }
+      try {
+        await selectThread({ id: deepLinkId })
+        return
+      } catch {
+        // fall through to default selection
+      }
+    }
 
     if (activeThread.value) {
       const refreshed = threads.value.find((t) => t.id === activeThread.value?.id)
@@ -317,6 +338,13 @@ watch(composeParentId, (id) => {
 onMounted(async () => {
   await Promise.all([loadThreads(), loadStaffOptions()])
 })
+
+watch(
+  () => route.query.thread,
+  () => {
+    void loadThreads()
+  },
+)
 </script>
 
 <template>

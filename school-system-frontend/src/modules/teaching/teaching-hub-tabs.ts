@@ -16,6 +16,7 @@ import {
   FolderOpen,
   Building2,
   UserRoundCog,
+  ListTodo,
 } from '@lucide/vue'
 import type { ModuleHubTab } from '@/lib/module-hub'
 
@@ -160,6 +161,16 @@ export const TEACHING_HUB_TABS: ModuleHubTab[] = [
     capability: 'isStaff',
     requiresTeacherProfile: true,
     component: () => import('@/modules/teaching/views/SubstitutionsPanel.vue'),
+  },
+  {
+    id: 'my-tasks',
+    title: 'My tasks',
+    description: 'Operational tasks assigned to you.',
+    icon: ListTodo,
+    priority: 'secondary',
+    group: 'Staff',
+    capability: 'isStaff',
+    component: () => import('@/modules/hr/views/SchoolStaffTasksMineView.vue'),
   },
   {
     id: 'department',

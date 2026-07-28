@@ -60,6 +60,7 @@ const REDIRECT_TARGETS: Record<string, NavTarget> = {
   '/hr/leave': { path: '/hr', tab: 'leave' },
   '/hr/leave-types': { path: '/hr', tab: 'leave-types' },
   '/hr/staff-attendance': { path: '/hr', tab: 'staff-attendance' },
+  '/hr/staff-tasks': { path: '/hr', tab: 'staff-tasks' },
   '/hr/employees': { path: '/hr', tab: null },
   '/hr/designations': { path: '/hr', tab: 'designations' },
   '/hr/recruitment': { path: '/hr', tab: 'recruitment' },

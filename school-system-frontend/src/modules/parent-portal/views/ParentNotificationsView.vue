@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import PageLoader from '@/components/feedback/PageLoader.vue'
 import ErrorState from '@/components/feedback/ErrorState.vue'
 import PageShell from '@/components/layout/PageShell.vue'
@@ -53,6 +54,7 @@ interface ChildOption {
 }
 
 const toast = useToast()
+const router = useRouter()
 const notifications = ref<NotificationRow[]>([])
 const children = ref<ChildOption[]>([])
 const selectedStudentId = ref('all')
@@ -161,6 +163,26 @@ async function markAllRead() {
   }
 }
 
+async function openNotification(note: NotificationRow) {
+  if (!note.read_at) {
+    try {
+      await parentPortalApi.markNotificationRead(note.id)
+    } catch {
+      // still navigate
+    }
+  }
+  const threadId = Number(note.data?.thread_id ?? 0)
+  if (note.type === 'message' || threadId > 0) {
+    await router.push({
+      name: 'portal-hub',
+      query: {
+        tab: 'messages',
+        ...(threadId > 0 ? { thread: String(threadId) } : {}),
+      },
+    })
+  }
+}
+
 onMounted(async () => {
   selectedStudentId.value = scopeStore.read('all')
   await load()
@@ -209,7 +231,9 @@ onMounted(async () => {
       <Card
         v-for="note in notificationsView"
         :key="note.id"
+        class="cursor-pointer transition-colors hover:bg-muted/20"
         :class="!note.read_at ? 'border-primary/40 bg-muted/20' : ''"
+        @click="openNotification(note)"
       >
         <CardHeader class="pb-2">
           <div class="flex flex-wrap items-start justify-between gap-2">
@@ -227,7 +251,7 @@ onMounted(async () => {
           </p>
           <div class="flex items-center justify-between gap-2 text-xs text-muted-foreground">
             <time :title="note.fullTime">{{ note.relativeTime }}</time>
-            <Button v-if="!note.read_at" variant="ghost" size="sm" @click="markRead(note.id)">
+            <Button v-if="!note.read_at" variant="ghost" size="sm" @click.stop="markRead(note.id)">
               Mark read
             </Button>
           </div>

@@ -30,6 +30,7 @@ const toast = useToast()
 const file = ref<File | null>(null)
 const uploading = ref(false)
 const downloading = ref(false)
+const createLoginUsers = ref(true)
 const resultSummary = ref<string | null>(null)
 const rowErrors = ref<Array<{ line: number; message: string }>>([])
 
@@ -40,12 +41,14 @@ const typeLabel = computed(() => {
 })
 
 const dialogTitle = computed(() => props.title ?? `Import ${typeLabel.value}`)
+const showLoginOption = computed(() => props.type === 'teachers')
 
 watch(open, (isOpen) => {
   if (!isOpen) {
     file.value = null
     resultSummary.value = null
     rowErrors.value = []
+    createLoginUsers.value = true
   }
 })
 
@@ -78,8 +81,13 @@ async function submitImport() {
   resultSummary.value = null
   rowErrors.value = []
   try {
-    const result = await importPeopleCsv(props.type, file.value)
+    const result = await importPeopleCsv(props.type, file.value, {
+      createLoginUsers: showLoginOption.value && createLoginUsers.value,
+    })
     resultSummary.value = `Created ${result.created}, updated ${result.updated}, failed ${result.failed}.`
+    if (result.logins_created != null) {
+      resultSummary.value += ` Login accounts created: ${result.logins_created} (default password: password123).`
+    }
     rowErrors.value = result.errors ?? []
     if (result.failed === 0) {
       toast.success('Import complete', resultSummary.value)
@@ -133,6 +141,26 @@ async function submitImport() {
             @change="onFileChange"
           />
           <p v-if="file" class="text-sm text-muted-foreground">Selected: {{ file.name }}</p>
+        </div>
+
+        <div v-if="showLoginOption" class="flex items-start gap-2">
+          <input
+            id="create-login-users"
+            v-model="createLoginUsers"
+            type="checkbox"
+            class="mt-1 size-4 rounded border-input"
+          >
+          <Label for="create-login-users" class="font-normal leading-snug">
+            Create login accounts for teachers (default password
+            <code class="text-xs">password123</code>). They should change it after first sign-in.
+          </Label>
+        </div>
+
+        <div
+          v-if="type === 'students'"
+          class="rounded-md border border-border bg-muted/30 p-3 text-sm text-muted-foreground"
+        >
+          Classes must already exist. Use the exact class name in the <code class="text-xs">class</code> column.
         </div>
 
         <div

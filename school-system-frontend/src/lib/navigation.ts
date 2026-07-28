@@ -103,6 +103,7 @@ export const staffNavigation: NavGroup[] = [
         items: [
           { title: 'Leave Types', href: '/hr/leave-types', capability: 'canManageTeachers' },
           { title: 'Leave Request', href: '/hr/leave', capability: 'canManageTeachers' },
+          { title: 'Staff Tasks', href: '/hr/staff-tasks', capability: 'canManageTeachers' },
         ],
       },
       {
@@ -272,6 +273,7 @@ export const teacherNavigation: NavGroup[] = [
     items: [
       { title: 'Dashboard', href: '/', icon: 'LayoutDashboard', roles: ['teacher'] },
       { title: 'Teaching', href: '/teaching', icon: 'BookOpen', capability: 'isStaff', roles: ['teacher'] },
+      { title: 'My tasks', href: '/teaching?tab=my-tasks', icon: 'ListTodo', capability: 'isStaff', roles: ['teacher'] },
       {
         title: 'Attendance',
         icon: 'ClipboardCheck',

@@ -35,6 +35,7 @@ const props = withDefaults(
     tabs: ModuleHubTab[]
     defaultTab?: string
     ariaLabel?: string
+    badgeCounts?: Record<string, number>
     /**
      * Navigation chrome:
      * - pills: horizontal chip strip (default — admin Finance/People/HR/etc.)
@@ -46,6 +47,7 @@ const props = withDefaults(
     defaultTab: 'overview',
     ariaLabel: 'Module sections',
     navLayout: 'pills',
+    badgeCounts: () => ({}),
   },
 )
 
@@ -127,13 +129,22 @@ watch(
 )
 
 function selectTab(tabId: string) {
+  // Preserve deep-link params (e.g. thread) when staying on messages.
+  const keep: Record<string, unknown> = {}
+  if (tabId === 'messages' && route.query.thread) {
+    keep.thread = Array.isArray(route.query.thread) ? route.query.thread[0] : route.query.thread
+  }
   // Intentional: switching hub tabs clears list filters (status, class_id, etc.)
   // so filters from one module do not bleed into another.
   void router.replace(
     hubLocation(props.routeName, tabId, props.defaultTab, {
-      query: {},
+      query: keep,
     }),
   )
+}
+
+function tabBadge(tabId: string): number {
+  return Number(props.badgeCounts?.[tabId] ?? 0)
 }
 
 watch(
@@ -418,6 +429,13 @@ function shouldAutoCreate(section: { listKey: string }, index: number) {
             >
               <component :is="tab.icon" class="size-4" aria-hidden="true" />
               {{ tab.title }}
+              <span
+                v-if="tabBadge(tab.id) > 0"
+                class="ml-1 inline-flex min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-[10px] font-semibold text-primary-foreground"
+                :aria-label="`${tabBadge(tab.id)} unread`"
+              >
+                {{ tabBadge(tab.id) > 99 ? '99+' : tabBadge(tab.id) }}
+              </span>
             </button>
           </template>
         </nav>
