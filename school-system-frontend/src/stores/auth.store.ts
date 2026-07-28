@@ -7,6 +7,7 @@ import {
   fetchCurrentUser,
   login as loginApi,
   logout as logoutApi,
+  switchSchool as switchSchoolApi,
 } from '@/services/auth.service'
 import { useConfigStore } from '@/stores/config.store'
 import { useNotificationStore } from '@/stores/notification.store'
@@ -146,6 +147,32 @@ export const useAuthStore = defineStore('auth', () => {
     return nextUser
   }
 
+  async function switchSchool(schoolId: number) {
+    loading.value = true
+    try {
+      const payload = await switchSchoolApi(schoolId)
+      queryClient.clear()
+      useConfigStore().reset()
+      useNotificationStore().reset()
+
+      token.value = payload.token
+      user.value = payload.user
+      useNotificationStore().bindSession(payload.user.id)
+      setStoredToken(payload.token)
+
+      const configStore = useConfigStore()
+      if (payload.user.school_id != null) {
+        await configStore.fetchPublicConfig()
+      } else {
+        configStore.markLoadedWithoutSchool()
+      }
+
+      return payload
+    } finally {
+      loading.value = false
+    }
+  }
+
   /** Clear local auth state without calling the API (e.g. expired token / 401). */
   function clearLocalSession() {
     user.value = null
@@ -191,6 +218,7 @@ export const useAuthStore = defineStore('auth', () => {
     bootstrapSession,
     login,
     fetchMe,
+    switchSchool,
     logout,
     clearLocalSession,
     setUser,

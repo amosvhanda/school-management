@@ -4,6 +4,8 @@ export const endpoints = {
     login: '/auth/login',
     logout: '/auth/logout',
     me: '/auth/me',
+    schools: '/auth/schools',
+    switchSchool: '/auth/switch-school',
     platformTerms: '/auth/platform-terms',
     privacyPolicy: '/auth/privacy-policy',
     acceptPlatformTerms: '/auth/accept-platform-terms',

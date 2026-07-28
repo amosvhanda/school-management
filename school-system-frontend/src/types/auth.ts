@@ -20,6 +20,15 @@ export interface ParentChild {
   class: string
 }
 
+export interface AuthSchool {
+  id: number
+  name: string
+  code?: string | null
+  status?: string
+  is_current?: boolean
+  is_default?: boolean
+}
+
 export interface AuthUser {
   id: number
   name: string
@@ -31,6 +40,7 @@ export interface AuthUser {
   avatar_url?: string | null
   status?: string
   school_id?: number | null
+  schools?: AuthSchool[]
   student_id?: number | null
   teacher_id?: number | null
   class_id?: number | null

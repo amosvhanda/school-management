@@ -166,6 +166,8 @@ Route::middleware(['auth:sanctum', 'school.isolated', 'school.licensed'])->group
     // Auth & profile
     Route::post('/auth/logout', [AuthController::class, 'logout']);
     Route::get('/auth/me', [AuthController::class, 'me']);
+    Route::get('/auth/schools', [AuthController::class, 'schools']);
+    Route::post('/auth/switch-school', [AuthController::class, 'switchSchool']);
     Route::get('/user/profile', [ProfileController::class, 'show']);
     Route::put('/user/profile', [ProfileController::class, 'update']);
     Route::post('/user/change-password', [AuthController::class, 'changePassword']);

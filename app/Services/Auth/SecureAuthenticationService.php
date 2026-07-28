@@ -13,6 +13,7 @@ use App\Services\ParentAccessService;
 use App\Services\PermissionService;
 use App\Services\StudentResolutionService;
 use App\Services\TeacherResolutionService;
+use App\Services\Tenancy\TenantSwitchService;
 use Illuminate\Auth\Events\Lockout;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -30,6 +31,7 @@ class SecureAuthenticationService
         private TeacherResolutionService $teacherResolution,
         private StudentResolutionService $studentResolution,
         private GuardianResolutionService $guardianResolution,
+        private TenantSwitchService $tenantSwitch,
     ) {}
 
     /**
@@ -67,10 +69,18 @@ class SecureAuthenticationService
 
         if ($resolvedSchool instanceof School
             && $user->role !== UserRole::SuperAdmin
-            && (int) $user->school_id !== (int) $resolvedSchool->id) {
+            && ! $this->tenantSwitch->userBelongsToSchool($user, (int) $resolvedSchool->id)) {
             throw ValidationException::withMessages([
                 'email' => ['This account does not belong to the school on this domain.'],
             ]);
+        }
+
+        if ($resolvedSchool instanceof School
+            && $user->role !== UserRole::SuperAdmin
+            && (int) $user->school_id !== (int) $resolvedSchool->id) {
+            $user = $this->tenantSwitch->switchTo($user, (int) $resolvedSchool->id);
+        } else {
+            $this->tenantSwitch->ensureMembership($user);
         }
 
         if ($role && $user->roleValue() !== $role) {

@@ -22,6 +22,13 @@ export async function fetchCurrentUser() {
   return unwrapOne<{ user: AuthUser }>(data).user
 }
 
+export async function switchSchool(schoolId: number) {
+  const { data } = await api.post<ApiResponse<LoginResponse>>(endpoints.auth.switchSchool, {
+    school_id: schoolId,
+  })
+  return unwrapOne<LoginResponse>(data)
+}
+
 export interface PlatformTermsPayload {
   version: string
   title: string

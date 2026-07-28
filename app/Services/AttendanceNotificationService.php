@@ -179,16 +179,10 @@ class AttendanceNotificationService
             if (in_array($notification->channel, ['sms', 'both'], true) && ! empty($notification->recipient_phone)) {
                 $smsEnabled = config('services.sms.enabled', false);
                 if ($smsEnabled) {
-                    try {
-                        $smsProvider = config('services.sms.provider', 'log');
-                        if ($smsProvider === 'log') {
-                            Log::info("SMS would be sent to {$notification->recipient_phone}: {$notification->message}");
-                        } else {
-                            Log::info("SMS sent to {$notification->recipient_phone}");
-                        }
-                    } catch (\Exception $e) {
-                        Log::error("Failed to send SMS to {$notification->recipient_phone}: ".$e->getMessage());
-                    }
+                    app(\App\Services\Messaging\SmsService::class)->send(
+                        $notification->recipient_phone,
+                        $notification->message,
+                    );
                 } else {
                     Log::info("SMS disabled - would send to {$notification->recipient_phone}");
                 }

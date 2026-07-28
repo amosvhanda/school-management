@@ -21,6 +21,47 @@ class MessagingAndStorageTest extends TestCase
         $this->assertFalse($sent);
     }
 
+    public function test_sms_service_logs_when_disabled(): void
+    {
+        config(['services.sms.enabled' => false]);
+        Log::shouldReceive('info')->once();
+
+        $sent = app(\App\Services\Messaging\SmsService::class)->send('+263771234567', 'SMS hello');
+
+        $this->assertFalse($sent);
+    }
+
+    public function test_whatsapp_twilio_uses_content_template_when_configured(): void
+    {
+        config([
+            'services.whatsapp.enabled' => true,
+            'services.whatsapp.provider' => 'twilio',
+            'services.whatsapp.twilio_sid' => 'ACtest123',
+            'services.whatsapp.twilio_token' => 'secret',
+            'services.whatsapp.twilio_from' => 'whatsapp:+14155238886',
+            'services.whatsapp.twilio_content_sid' => 'HXtemplate123',
+            'services.whatsapp.twilio_content_variables' => '{"1":"12/1","2":"3pm"}',
+            'services.whatsapp.use_template' => true,
+        ]);
+
+        \Illuminate\Support\Facades\Http::fake([
+            '*' => \Illuminate\Support\Facades\Http::response(['sid' => 'SM123'], 201),
+        ]);
+
+        $sent = app(WhatsAppService::class)->send('+263710939310', 'ignored when template vars set');
+
+        $this->assertTrue($sent);
+        \Illuminate\Support\Facades\Http::assertSentCount(1);
+        \Illuminate\Support\Facades\Http::assertSent(function ($request) {
+            $body = $request->data();
+
+            return str_contains($request->url(), 'api.twilio.com')
+                && ($body['ContentSid'] ?? null) === 'HXtemplate123'
+                && ($body['From'] ?? null) === 'whatsapp:+14155238886'
+                && ($body['To'] ?? null) === 'whatsapp:+263710939310';
+        });
+    }
+
     public function test_tenant_storage_prefixes_upload_directory(): void
     {
         $service = app(TenantStorageService::class);

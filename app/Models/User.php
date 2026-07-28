@@ -45,6 +45,18 @@ class User extends Authenticatable
         return $this->belongsTo(School::class);
     }
 
+    public function schoolMemberships(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(SchoolUserMembership::class);
+    }
+
+    public function schools(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
+    {
+        return $this->belongsToMany(School::class, 'school_user_memberships')
+            ->withPivot('role', 'is_default')
+            ->withTimestamps();
+    }
+
     public function teacher(): \Illuminate\Database\Eloquent\Relations\HasOne
     {
         return $this->hasOne(Teacher::class);

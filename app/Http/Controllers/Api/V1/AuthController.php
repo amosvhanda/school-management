@@ -10,6 +10,7 @@ use App\Http\Requests\Api\V1\Auth\ResetPasswordRequest;
 use App\Http\Resources\Api\V1\UserResource;
 use App\Models\User;
 use App\Services\Auth\SecureAuthenticationService;
+use App\Services\Tenancy\TenantSwitchService;
 use Illuminate\Auth\Events\PasswordReset;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Password;
@@ -18,7 +19,10 @@ use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
 {
-    public function __construct(private SecureAuthenticationService $authService) {}
+    public function __construct(
+        private SecureAuthenticationService $authService,
+        private TenantSwitchService $tenantSwitch,
+    ) {}
 
     public function login(LoginRequest $request)
     {
@@ -35,7 +39,8 @@ class AuthController extends Controller
         return $this->success([
             'user' => array_merge(
                 (new UserResource($user))->resolve(),
-                $context
+                $context,
+                ['schools' => $this->tenantSwitch->availableSchools($user)->all()],
             ),
             'token' => $token,
         ], 'Login successful');
@@ -51,14 +56,46 @@ class AuthController extends Controller
     public function me(Request $request)
     {
         $user = $request->user();
+        $this->tenantSwitch->ensureMembership($user);
         $context = $this->authService->resolveRoleContext($user);
 
         return $this->success([
             'user' => array_merge(
                 (new UserResource($user))->resolve(),
-                $context
+                $context,
+                ['schools' => $this->tenantSwitch->availableSchools($user)->all()],
             ),
         ]);
+    }
+
+    public function schools(Request $request)
+    {
+        $user = $request->user();
+        $this->tenantSwitch->ensureMembership($user);
+
+        return $this->success([
+            'schools' => $this->tenantSwitch->availableSchools($user)->all(),
+        ]);
+    }
+
+    public function switchSchool(Request $request)
+    {
+        $data = $request->validate([
+            'school_id' => ['required', 'integer'],
+        ]);
+
+        $user = $this->tenantSwitch->switchTo($request->user(), (int) $data['school_id']);
+        $token = $this->authService->createApiToken($user);
+        $context = $this->authService->resolveRoleContext($user);
+
+        return $this->success([
+            'user' => array_merge(
+                (new UserResource($user))->resolve(),
+                $context,
+                ['schools' => $this->tenantSwitch->availableSchools($user)->all()],
+            ),
+            'token' => $token,
+        ], 'School context switched');
     }
 
     public function platformTerms()
@@ -97,12 +134,14 @@ class AuthController extends Controller
 
         $user = $request->user();
         $user->acceptCurrentPlatformTerms();
-        $context = $this->authService->resolveRoleContext($user->fresh());
+        $fresh = $user->fresh();
+        $context = $this->authService->resolveRoleContext($fresh);
 
         return $this->success([
             'user' => array_merge(
-                (new UserResource($user->fresh()))->resolve(),
-                $context
+                (new UserResource($fresh))->resolve(),
+                $context,
+                ['schools' => $this->tenantSwitch->availableSchools($fresh)->all()],
             ),
         ], 'Platform terms accepted');
     }

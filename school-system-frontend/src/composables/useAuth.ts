@@ -32,6 +32,7 @@ export function useAuth() {
     login: authStore.login,
     logout: authStore.logout,
     fetchMe: authStore.fetchMe,
+    switchSchool: authStore.switchSchool,
     checkCapability,
     canAccess,
     getDefaultRouteForRole,

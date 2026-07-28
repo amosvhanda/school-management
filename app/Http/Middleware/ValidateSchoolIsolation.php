@@ -28,6 +28,11 @@ class ValidateSchoolIsolation
         }
 
         // Validate school_id in request data matches user's school
+        // Allow tenant switch endpoint to accept a different school_id intentionally.
+        if ($request->is('api/v1/auth/switch-school')) {
+            return $next($request);
+        }
+
         $schoolIdFields = ['school_id', 'student.school_id', 'teacher.school_id', 'class.school_id'];
         
         foreach ($schoolIdFields as $field) {
