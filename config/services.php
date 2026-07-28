@@ -65,6 +65,7 @@ return [
         'initiate_url' => env('PAYNOW_INITIATE_URL', 'https://www.paynow.co.zw/interface/initiatetransaction'),
         'remote_url' => env('PAYNOW_REMOTE_URL', 'https://www.paynow.co.zw/interface/remotetransaction'),
         'timeout' => (int) env('PAYNOW_TIMEOUT', 30),
+        'result_url' => env('PAYNOW_RESULT_URL'),
     ],
 
 ];

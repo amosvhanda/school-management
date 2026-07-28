@@ -288,6 +288,60 @@ class PaynowLiveGatewayTest extends TestCase
         $this->assertFalse($client->verifyHash($payload, 'wrong-key'));
     }
 
+    public function test_live_paynow_uses_configured_result_url(): void
+    {
+        $customResultUrl = 'https://api.staging.example/api/v1/webhooks/payments/paynow';
+        config(['services.paynow.result_url' => $customResultUrl]);
+
+        $integrationKey = 'live-integration-key';
+        $auth = $this->createAuthenticatedUser();
+        $student = Student::factory()->create(['school_id' => $auth['school']->id]);
+        $invoice = Invoice::factory()->create([
+            'school_id' => $auth['school']->id,
+            'student_id' => $student->id,
+            'amount' => 75,
+            'balance' => 75,
+            'status' => 'pending',
+            'currency' => 'USD',
+        ]);
+
+        PaymentGatewayConfig::create([
+            'school_id' => $auth['school']->id,
+            'provider' => 'paynow',
+            'credentials' => [
+                'mode' => 'live',
+                'integration_id' => '12345',
+                'integration_key' => $integrationKey,
+            ],
+            'is_active' => true,
+            'supports_mobile_money' => true,
+        ]);
+
+        Http::fake([
+            config('services.paynow.initiate_url') => function ($request) use ($integrationKey, $customResultUrl) {
+                $this->assertSame($customResultUrl, $request['resulturl']);
+                $fields = [
+                    'status' => 'Ok',
+                    'browserurl' => 'https://www.paynow.co.zw/Payment/ConfirmPayment/999',
+                    'pollurl' => 'https://www.paynow.co.zw/Interface/CheckPayment/?guid=abc-123',
+                ];
+                $fields['hash'] = $this->paynowHash($fields, $integrationKey);
+
+                return Http::response(http_build_query($fields), 200);
+            },
+        ]);
+
+        $this->withHeaders(['Authorization' => 'Bearer '.$auth['token']])
+            ->postJson('/api/v1/platform/payments/initiate', [
+                'invoice_id' => $invoice->id,
+                'student_id' => $student->id,
+                'amount' => 25,
+                'payment_method' => 'card',
+                'provider' => 'paynow',
+            ])
+            ->assertCreated();
+    }
+
     /**
      * @param  array<string, string>  $fields
      */

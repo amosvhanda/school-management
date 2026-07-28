@@ -297,7 +297,7 @@ class PaymentGatewayService
             ];
         }
 
-        $resultUrl = url('/api/v1/webhooks/payments/paynow');
+        $resultUrl = $this->paynowResultUrl();
         $browserReturnUrl = $returnUrl ?: url('/');
         $additionalInfo = $options['additional_info'] ?? ('Invoice #'.$txn->invoice_id);
         $authEmail = $options['payer_email'] ?? null;
@@ -353,5 +353,16 @@ class PaymentGatewayService
                 'paynow_status' => $response['status'] ?? null,
             ],
         ];
+    }
+
+    protected function paynowResultUrl(): string
+    {
+        $configured = config('services.paynow.result_url');
+
+        if (is_string($configured) && trim($configured) !== '') {
+            return rtrim(trim($configured), '/');
+        }
+
+        return url('/api/v1/webhooks/payments/paynow');
     }
 }
