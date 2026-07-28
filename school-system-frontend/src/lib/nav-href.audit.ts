@@ -55,7 +55,7 @@ const HUB_TABS: Record<string, string[]> = {
     'library-members',
     'library-loans',
     'transport',
-    'visitors',
+    'front-office',
     'events',
     'trips',
     'hostels',

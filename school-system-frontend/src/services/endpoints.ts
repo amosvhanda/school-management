@@ -558,6 +558,8 @@ export const endpoints = {
     vault: '/platform/vault',
     scholarships: '/platform/scholarships',
     paymentGateways: '/platform/payment-gateways',
+    initiatePayment: '/platform/payments/initiate',
+    paymentStatus: (reference: string) => `/platform/payments/status/${reference}`,
     refunds: '/platform/refunds',
     behaviorPoints: '/platform/behavior-points',
     interventions: '/platform/interventions',

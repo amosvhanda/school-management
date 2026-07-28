@@ -330,7 +330,7 @@ async function loadOperationsKpis(): Promise<SectionKpi[]> {
       value: String(visitorsToday),
       subtitle: 'Campus sign-ins',
       icon: Users,
-      href: '/operations/visitors',
+      href: '/operations/front-office',
     },
     {
       title: 'Upcoming events',

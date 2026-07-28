@@ -295,6 +295,25 @@ class StudentController extends Controller
         ]);
     }
 
+    public function documents(Request $request, $student)
+    {
+        $this->authorizeModuleAccess(
+            $request,
+            capabilities: ['canManageStudents', 'canManageTeachers'],
+            permissionSlugs: ['students.manage'],
+        );
+
+        $student = $this->findSchoolStudent($request, $student);
+
+        $docs = $student->documents()
+            ->with('uploader:id,name')
+            ->orderByDesc('id')
+            ->get()
+            ->map(fn (StudentDocument $doc) => $this->formatStudentDocument($doc));
+
+        return response()->json(['data' => $docs]);
+    }
+
     public function uploadDocuments(Request $request, $student)
     {
         $this->authorizeModuleAccess(
@@ -303,13 +322,7 @@ class StudentController extends Controller
             permissionSlugs: ['students.manage'],
         );
         $user = $request->user();
-        $query = Student::query();
-
-        if ($user && ! $user->isSuperAdmin() && $user->school_id) {
-            $query->where('school_id', $user->school_id);
-        }
-
-        $student = $query->findOrFail($student);
+        $student = $this->findSchoolStudent($request, $student);
 
         $validator = Validator::make($request->all(), [
             'documents' => 'required|array|min:1',
@@ -330,7 +343,7 @@ class StudentController extends Controller
         foreach ($request->file('documents') as $file) {
             $path = $file->store("schools/{$schoolId}/students/{$student->id}/documents", 'public');
 
-            $uploaded[] = StudentDocument::create([
+            $uploaded[] = $this->formatStudentDocument(StudentDocument::create([
                 'school_id' => $schoolId,
                 'student_id' => $student->id,
                 'uploaded_by' => $user?->id,
@@ -339,13 +352,68 @@ class StudentController extends Controller
                 'path' => $path,
                 'mime_type' => $file->getMimeType(),
                 'size' => $file->getSize(),
-            ]);
+            ]));
         }
 
         return response()->json([
             'message' => count($uploaded).' document(s) uploaded successfully',
             'data' => $uploaded,
         ], 201);
+    }
+
+    public function destroyDocument(Request $request, $student, StudentDocument $document)
+    {
+        $this->authorizeModuleAccess(
+            $request,
+            capabilities: ['canManageStudents', 'canManageTeachers'],
+            permissionSlugs: ['students.manage'],
+        );
+
+        $studentModel = $this->findSchoolStudent($request, $student);
+
+        if ((int) $document->student_id !== (int) $studentModel->id) {
+            abort(404);
+        }
+
+        if ($document->path) {
+            \Illuminate\Support\Facades\Storage::disk('public')->delete($document->path);
+        }
+
+        $document->delete();
+
+        return response()->json(['message' => 'Document deleted']);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    protected function formatStudentDocument(StudentDocument $doc): array
+    {
+        return [
+            'id' => $doc->id,
+            'name' => $doc->name,
+            'type' => $doc->type,
+            'mime_type' => $doc->mime_type,
+            'size' => $doc->size,
+            'url' => $doc->path ? \Illuminate\Support\Facades\Storage::disk('public')->url($doc->path) : null,
+            'uploaded_by' => $doc->uploader ? [
+                'id' => $doc->uploader->id,
+                'name' => $doc->uploader->name,
+            ] : null,
+            'created_at' => $doc->created_at?->toIso8601String(),
+        ];
+    }
+
+    protected function findSchoolStudent(Request $request, $student): Student
+    {
+        $user = $request->user();
+        $query = Student::query();
+
+        if ($user && ! $user->isSuperAdmin() && $user->school_id) {
+            $query->where('school_id', $user->school_id);
+        }
+
+        return $query->findOrFail($student);
     }
 
     public function exams(Request $request, $student)

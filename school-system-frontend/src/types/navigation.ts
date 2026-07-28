@@ -11,6 +11,8 @@ export type NavCapability =
   | 'canManageTransport'
   | 'canManageInventory'
   | 'canManageReception'
+  | 'canManageHealth'
+  | 'canManageHostel'
   | 'isSuperAdmin'
   | 'isParent'
   | 'isStaff'

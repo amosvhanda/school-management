@@ -13,6 +13,11 @@ enum UserRole: string
     case Finance = 'finance';
     case Accounts = 'accounts';
     case ExaminationOfficer = 'examination_officer';
+    case Receptionist = 'receptionist';
+    case Librarian = 'librarian';
+    case Nurse = 'nurse';
+    case TransportManager = 'transport_manager';
+    case HostelManager = 'hostel_manager';
 
     /**
      * Role label exposed to API clients (normalizes school_admin → admin).
@@ -44,7 +49,7 @@ enum UserRole: string
 
     public function canManageStudents(): bool
     {
-        return in_array($this, [self::SuperAdmin, self::Admin, self::SchoolAdmin, self::Teacher], true);
+        return in_array($this, [self::SuperAdmin, self::Admin, self::SchoolAdmin, self::Teacher, self::Nurse], true);
     }
 
     public function canManageTeachers(): bool
@@ -79,12 +84,12 @@ enum UserRole: string
      */
     public function canManageLibrary(): bool
     {
-        return in_array($this, [self::SuperAdmin, self::Admin, self::SchoolAdmin], true);
+        return in_array($this, [self::SuperAdmin, self::Admin, self::SchoolAdmin, self::Librarian], true);
     }
 
     public function canManageTransport(): bool
     {
-        return in_array($this, [self::SuperAdmin, self::Admin, self::SchoolAdmin], true);
+        return in_array($this, [self::SuperAdmin, self::Admin, self::SchoolAdmin, self::TransportManager], true);
     }
 
     public function canManageInventory(): bool
@@ -94,7 +99,17 @@ enum UserRole: string
 
     public function canManageReception(): bool
     {
-        return in_array($this, [self::SuperAdmin, self::Admin, self::SchoolAdmin], true);
+        return in_array($this, [self::SuperAdmin, self::Admin, self::SchoolAdmin, self::Receptionist], true);
+    }
+
+    public function canManageHealth(): bool
+    {
+        return in_array($this, [self::SuperAdmin, self::Admin, self::SchoolAdmin, self::Nurse], true);
+    }
+
+    public function canManageHostel(): bool
+    {
+        return in_array($this, [self::SuperAdmin, self::Admin, self::SchoolAdmin, self::HostelManager], true);
     }
 
     public function capabilities(): array
@@ -113,6 +128,8 @@ enum UserRole: string
             'canManageTransport' => $this->canManageTransport(),
             'canManageInventory' => $this->canManageInventory(),
             'canManageReception' => $this->canManageReception(),
+            'canManageHealth' => $this->canManageHealth(),
+            'canManageHostel' => $this->canManageHostel(),
         ];
     }
 }

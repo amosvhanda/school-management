@@ -4,6 +4,7 @@ import type { ColumnDef } from '@tanstack/vue-table'
 import {
   Building2,
   Copy,
+  DollarSign,
   Key,
   Plus,
   RefreshCw,
@@ -162,6 +163,22 @@ function planLabel(value?: string | null) {
   if (!value) return '—'
   return value.charAt(0).toUpperCase() + value.slice(1)
 }
+
+function formatMoney(amount: number, currency = 'USD') {
+  try {
+    return new Intl.NumberFormat(undefined, { style: 'currency', currency }).format(amount)
+  } catch {
+    return `${currency} ${amount.toFixed(2)}`
+  }
+}
+
+const revenueByPlanSubtitle = computed(() => {
+  const byPlan = summary.value?.revenue?.by_plan
+  if (!byPlan || !Object.keys(byPlan).length) return 'From activated license keys'
+  return Object.entries(byPlan)
+    .map(([plan, amount]) => `${planLabel(plan)} ${formatMoney(amount, summary.value?.revenue?.currency ?? 'USD')}`)
+    .join(' · ')
+})
 
 function schoolNameColumn(): ColumnDef<Record<string, unknown>> {
   return {
@@ -581,6 +598,29 @@ onMounted(loadAll)
           :value="String(summary?.keys.total ?? keys.length)"
           :subtitle="`${summary?.keys.unused ?? 0} unused · ${summary?.keys.active ?? 0} active`"
           :icon="Key"
+        />
+      </section>
+
+      <section aria-labelledby="revenue-kpis" class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        <h2 id="revenue-kpis" class="sr-only">Platform revenue</h2>
+        <KpiCard
+          title="Revenue MTD"
+          :value="formatMoney(summary?.revenue?.mtd ?? 0, summary?.revenue?.currency ?? 'USD')"
+          subtitle="Activated licenses this month"
+          :icon="DollarSign"
+          accent="success"
+        />
+        <KpiCard
+          title="Revenue YTD"
+          :value="formatMoney(summary?.revenue?.ytd ?? 0, summary?.revenue?.currency ?? 'USD')"
+          subtitle="Year to date"
+          :icon="DollarSign"
+        />
+        <KpiCard
+          title="Recognized total"
+          :value="formatMoney(summary?.revenue?.recognized_total ?? 0, summary?.revenue?.currency ?? 'USD')"
+          :subtitle="revenueByPlanSubtitle"
+          :icon="DollarSign"
         />
       </section>
 

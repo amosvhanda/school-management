@@ -74,7 +74,7 @@ class FinancialLedgerService
         float $amount,
         string $method,
         int $schoolId,
-        int $createdBy,
+        ?int $createdBy = null,
         ?string $reference = null,
         ?string $notes = null,
         ?int $incomeHeadId = null,

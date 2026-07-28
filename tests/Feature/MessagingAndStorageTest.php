@@ -62,6 +62,31 @@ class MessagingAndStorageTest extends TestCase
         });
     }
 
+    public function test_whatsapp_test_command_sends_via_log_provider(): void
+    {
+        config([
+            'services.whatsapp.enabled' => true,
+            'services.whatsapp.provider' => 'log',
+        ]);
+
+        Log::shouldReceive('info')->once();
+
+        $this->artisan('whatsapp:test', ['phone' => '+263771234567'])
+            ->expectsOutputToContain('Provider: log')
+            ->expectsOutputToContain('WhatsApp message sent successfully.')
+            ->assertSuccessful();
+    }
+
+    public function test_whatsapp_test_command_reports_failure_when_disabled(): void
+    {
+        config(['services.whatsapp.enabled' => false]);
+        Log::shouldReceive('info')->once();
+
+        $this->artisan('whatsapp:test', ['phone' => '+263771234567'])
+            ->expectsOutputToContain('Enabled: no')
+            ->assertFailed();
+    }
+
     public function test_tenant_storage_prefixes_upload_directory(): void
     {
         $service = app(TenantStorageService::class);

@@ -67,6 +67,36 @@ class RoleSeeder extends Seeder
                 'description' => 'Exam setup, marks approval, and publication',
                 'permission_ids' => [5, 6, 10, 15, 16],
             ],
+            [
+                'name' => 'Receptionist',
+                'slug' => 'receptionist',
+                'description' => 'Front desk — visitor check-in and help desk tickets',
+                'permission_ids' => [5, 10, 26],
+            ],
+            [
+                'name' => 'Librarian',
+                'slug' => 'librarian',
+                'description' => 'Library catalogue, members, and loans',
+                'permission_ids' => [5, 10, 23],
+            ],
+            [
+                'name' => 'School Nurse',
+                'slug' => 'nurse',
+                'description' => 'Clinic visits and student health records',
+                'permission_ids' => [5, 10, 12, 27],
+            ],
+            [
+                'name' => 'Transport Manager',
+                'slug' => 'transport_manager',
+                'description' => 'Fleet, drivers, and bus routes',
+                'permission_ids' => [5, 10, 24],
+            ],
+            [
+                'name' => 'Hostel Manager',
+                'slug' => 'hostel_manager',
+                'description' => 'Boarding houses and room assignments',
+                'permission_ids' => [5, 10, 28],
+            ],
         ];
         foreach ($roles as $r) {
             Role::updateOrCreate(['slug' => $r['slug']], $r);

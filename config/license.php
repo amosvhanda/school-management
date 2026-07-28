@@ -41,4 +41,22 @@ return [
         'quarterly' => 3,
         'annual' => 12,
     ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Default list prices (platform SaaS revenue recognition)
+    |--------------------------------------------------------------------------
+    |
+    | Used when generating license keys without an explicit amount. Currency is
+    | platform-wide for summary reporting.
+    |
+    */
+    'currency' => env('LICENSE_CURRENCY', 'USD'),
+    'prices' => [
+        'lifetime' => (float) env('LICENSE_PRICE_LIFETIME', 2500),
+        'monthly' => (float) env('LICENSE_PRICE_MONTHLY', 49),
+        'quarterly' => (float) env('LICENSE_PRICE_QUARTERLY', 129),
+        'annual' => (float) env('LICENSE_PRICE_ANNUAL', 449),
+        'custom' => (float) env('LICENSE_PRICE_CUSTOM', 0),
+    ],
 ];

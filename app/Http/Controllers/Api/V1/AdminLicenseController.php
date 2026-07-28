@@ -25,6 +25,8 @@ class AdminLicenseController extends Controller
                 'key_prefix' => $key->key_prefix,
                 'plan_type' => $key->plan_type->value,
                 'duration_months' => $key->duration_months,
+                'amount' => $key->amount !== null ? (float) $key->amount : null,
+                'currency' => $key->currency,
                 'status' => $key->status->value,
                 'school' => $key->school ? [
                     'id' => $key->school->id,
@@ -50,6 +52,8 @@ class AdminLicenseController extends Controller
         $data = Validator::make($request->all(), [
             'plan_type' => 'required|string|in:lifetime,monthly,quarterly,annual,custom',
             'duration_months' => 'nullable|integer|min:1|max:120',
+            'amount' => 'nullable|numeric|min:0',
+            'currency' => 'nullable|string|size:3',
             'customer_name' => 'nullable|string|max:255',
             'customer_email' => 'nullable|email|max:255',
             'notes' => 'nullable|string|max:2000',

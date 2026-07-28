@@ -32,12 +32,18 @@ class LicenseService
         }
 
         $plainKey = $this->buildPlainKey();
+        $currency = strtoupper((string) ($data['currency'] ?? config('license.currency', 'USD')));
+        $amount = array_key_exists('amount', $data)
+            ? (float) $data['amount']
+            : (float) config("license.prices.{$planType->value}", 0);
 
         $record = LicenseKey::create([
             'key_prefix' => $this->extractPrefix($plainKey),
             'key_hash' => $this->hashKey($plainKey),
             'plan_type' => $planType,
             'duration_months' => $durationMonths,
+            'amount' => $amount > 0 ? round($amount, 2) : null,
+            'currency' => $currency,
             'status' => LicenseKeyStatus::Unused,
             'customer_name' => $data['customer_name'] ?? null,
             'customer_email' => $data['customer_email'] ?? null,
@@ -74,6 +80,7 @@ class LicenseService
                 'school_id' => $school->id,
                 'status' => LicenseKeyStatus::Active,
                 'activated_at' => now(),
+                'paid_at' => $key->paid_at ?? now(),
                 'expires_at' => $expiresAt,
             ]);
 
@@ -222,7 +229,17 @@ class LicenseService
     }
 
     /**
-     * @return array{schools: array<string, int>, keys: array<string, int>}
+     * @return array{
+     *   schools: array<string, int>,
+     *   keys: array<string, int>,
+     *   revenue: array{
+     *     currency: string,
+     *     mtd: float,
+     *     ytd: float,
+     *     recognized_total: float,
+     *     by_plan: array<string, float>
+     *   }
+     * }
      */
     public function platformSummary(): array
     {
@@ -230,6 +247,36 @@ class LicenseService
             ->selectRaw('status, count(*) as total')
             ->groupBy('status')
             ->pluck('total', 'status');
+
+        $currency = strtoupper((string) config('license.currency', 'USD'));
+        $recognized = LicenseKey::query()
+            ->whereNotNull('paid_at')
+            ->where('amount', '>', 0)
+            ->whereIn('status', [
+                LicenseKeyStatus::Active->value,
+                LicenseKeyStatus::Expired->value,
+            ]);
+
+        $mtd = (clone $recognized)
+            ->where('paid_at', '>=', now()->copy()->startOfMonth())
+            ->sum('amount');
+        $ytd = (clone $recognized)
+            ->where('paid_at', '>=', now()->copy()->startOfYear())
+            ->sum('amount');
+        $total = (clone $recognized)->sum('amount');
+
+        $byPlan = LicenseKey::query()
+            ->selectRaw('plan_type, coalesce(sum(amount), 0) as total')
+            ->whereNotNull('paid_at')
+            ->where('amount', '>', 0)
+            ->whereIn('status', [
+                LicenseKeyStatus::Active->value,
+                LicenseKeyStatus::Expired->value,
+            ])
+            ->groupBy('plan_type')
+            ->pluck('total', 'plan_type')
+            ->map(fn ($value) => round((float) $value, 2))
+            ->all();
 
         return [
             'schools' => [
@@ -249,6 +296,13 @@ class LicenseService
                 'active' => (int) ($keyCounts[LicenseKeyStatus::Active->value] ?? 0),
                 'expired' => (int) ($keyCounts[LicenseKeyStatus::Expired->value] ?? 0),
                 'revoked' => (int) ($keyCounts[LicenseKeyStatus::Revoked->value] ?? 0),
+            ],
+            'revenue' => [
+                'currency' => $currency,
+                'mtd' => round((float) $mtd, 2),
+                'ytd' => round((float) $ytd, 2),
+                'recognized_total' => round((float) $total, 2),
+                'by_plan' => $byPlan,
             ],
         ];
     }

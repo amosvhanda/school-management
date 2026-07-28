@@ -2,12 +2,11 @@ import {
   Building2,
   Bus,
   CalendarHeart,
+  ConciergeBell,
   HeartPulse,
   Library,
-  LifeBuoy,
   Package,
   ShoppingBag,
-  UserCheck,
 } from '@lucide/vue'
 import type { ModuleHubTab } from '@/lib/module-hub'
 
@@ -80,20 +79,23 @@ export const OPERATIONS_HUB_TABS: ModuleHubTab[] = [
     ],
   },
   {
-    id: 'visitors',
-    title: 'Visitors',
-    description: 'Front desk visitor check-in.',
-    icon: UserCheck,
+    id: 'front-office',
+    title: 'Front Office',
+    description: 'Visitor check-in and help desk support.',
+    icon: ConciergeBell,
     capability: 'canManageReception',
-    listKey: 'ops-visitors',
-  },
-  {
-    id: 'help-desk',
-    title: 'Help Desk',
-    description: 'Support tickets for staff and parent issues.',
-    icon: LifeBuoy,
-    capability: 'canManageReception',
-    listKey: 'ops-help-desk',
+    sections: [
+      {
+        listKey: 'ops-visitors',
+        title: 'Visitors',
+        description: 'Sign visitors in and out at the front desk.',
+      },
+      {
+        listKey: 'ops-help-desk',
+        title: 'Help Desk',
+        description: 'Support tickets for staff and parent issues.',
+      },
+    ],
   },
   {
     id: 'events',
@@ -116,7 +118,7 @@ export const OPERATIONS_HUB_TABS: ModuleHubTab[] = [
     title: 'Hostels',
     description: 'Boarding houses and room assignments.',
     icon: Building2,
-    capability: 'canManageTeachers',
+    capability: 'canManageHostel',
     listKey: 'ops-hostels',
   },
   {
@@ -124,7 +126,7 @@ export const OPERATIONS_HUB_TABS: ModuleHubTab[] = [
     title: 'Clinic',
     description: 'Clinic visits and health notes.',
     icon: HeartPulse,
-    capability: 'canManageTeachers',
+    capability: 'canManageHealth',
     listKey: 'ops-health',
   },
 ]

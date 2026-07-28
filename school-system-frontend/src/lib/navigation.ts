@@ -179,7 +179,7 @@ export const staffNavigation: NavGroup[] = [
         title: 'Hostel',
         href: '/operations/hostels',
         icon: 'Building2',
-        capability: 'canManageTeachers',
+        capability: 'canManageHostel',
       },
       {
         title: 'Inventory',
@@ -188,22 +188,16 @@ export const staffNavigation: NavGroup[] = [
         capability: 'canManageInventory',
       },
       {
-        title: 'Visitors',
-        href: '/operations/visitors',
-        icon: 'UserCheck',
-        capability: 'canManageReception',
-      },
-      {
-        title: 'Help Desk',
-        href: '/operations/help-desk',
-        icon: 'LifeBuoy',
+        title: 'Front Office',
+        href: '/operations/front-office',
+        icon: 'ConciergeBell',
         capability: 'canManageReception',
       },
       {
         title: 'Clinic',
         href: '/operations/health',
         icon: 'HeartPulse',
-        capability: 'canManageTeachers',
+        capability: 'canManageHealth',
       },
       {
         title: 'School Trips',

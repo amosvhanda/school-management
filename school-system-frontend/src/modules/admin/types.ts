@@ -29,6 +29,11 @@ export const SYSTEM_ROLE_SLUGS = [
   'finance',
   'accounts',
   'examination_officer',
+  'receptionist',
+  'librarian',
+  'nurse',
+  'transport_manager',
+  'hostel_manager',
 ] as const
 
 export function resourceLabel(resource: string): string {

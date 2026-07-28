@@ -1,6 +1,6 @@
 import type { ListQueryParams } from '@/types/api'
 import { api } from '@/lib/api'
-import { unwrapOne } from '@/lib/api-response'
+import { unwrapOne, unwrapList } from '@/lib/api-response'
 import {
   createRecord,
   deleteRecord,
@@ -177,8 +177,18 @@ export const studentsApi = {
   invoices: (id: number | string) => fetchList(e.students.invoices(id)),
   createInvoice: (id: number | string, payload: Record<string, unknown>) =>
     createRecord(e.students.createInvoice(id), payload),
-  uploadDocuments: (id: number | string, payload: Record<string, unknown>) =>
-    postRecord(e.students.documents(id), payload),
+  documents: (id: number | string) => fetchList(e.students.documents(id)),
+  uploadDocuments: async (id: number | string, files: File[], type?: string) => {
+    const form = new FormData()
+    files.forEach((file) => form.append('documents[]', file))
+    if (type) form.append('type', type)
+    const { data } = await api.post(e.students.documents(id), form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+    return unwrapList(data)
+  },
+  deleteDocument: (id: number | string, documentId: number | string) =>
+    deleteRecord(`${e.students.documents(id)}/${documentId}`),
   exams: (id: number | string) => fetchList(e.students.exams(id)),
   downloadResults: async (id: number | string, format: 'html' | 'csv' = 'html') => {
     const { data } = await api.get(e.students.resultsDownload(id), {
@@ -739,6 +749,13 @@ export const assistantApi = {
 export interface PlatformLicenseSummary {
   schools: { total: number; licensed: number; unlicensed: number; expired: number }
   keys: { total: number; unused: number; active: number; expired: number; revoked: number }
+  revenue?: {
+    currency: string
+    mtd: number
+    ytd: number
+    recognized_total: number
+    by_plan: Record<string, number>
+  }
 }
 
 export interface SchoolLicenseRow {
@@ -854,6 +871,11 @@ export const platformApi = {
   vault: () => fetchList(e.platform.vault),
   scholarships: () => fetchList(e.platform.scholarships),
   paymentGateways: () => fetchList(e.platform.paymentGateways),
+  savePaymentGateway: (payload: Record<string, unknown>) =>
+    createRecord(e.platform.paymentGateways, payload),
+  initiatePayment: (payload: Record<string, unknown>) =>
+    createRecord(e.platform.initiatePayment, payload),
+  paymentStatus: (reference: string) => fetchOne(e.platform.paymentStatus(reference)),
   refunds: () => fetchList(e.platform.refunds),
   behaviorPoints: () => fetchList(e.platform.behaviorPoints),
   storeBehaviorPoint: (payload: Record<string, unknown>) =>

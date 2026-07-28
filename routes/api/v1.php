@@ -130,6 +130,10 @@ Route::get('/auth/privacy-policy', [AuthController::class, 'privacyPolicy']);
 Route::get('/settings/config', [SettingsController::class, 'publicConfig']);
 Route::post('/integrations/token', [ExternalIntegrationController::class, 'token'])
     ->middleware('throttle:login');
+Route::post('/webhooks/payments/{provider}', [\App\Http\Controllers\Api\V1\PaymentWebhookController::class, 'handle'])
+    ->middleware('throttle:60,1');
+Route::get('/webhooks/payments/{provider}/sandbox-checkout', [\App\Http\Controllers\Api\V1\PaymentWebhookController::class, 'sandboxCheckout'])
+    ->middleware('throttle:30,1');
 
 // ─── Authenticated ────────────────────────────────────────────────────────
 Route::middleware(['auth:sanctum', 'school.isolated', 'school.licensed'])->group(function () {
@@ -300,7 +304,9 @@ Route::middleware(['auth:sanctum', 'school.isolated', 'school.licensed'])->group
     Route::get('/students/{student}/transcript', [StudentLifecycleController::class, 'transcript']);
     Route::get('/students/{student}/invoices', [StudentController::class, 'invoices']);
     Route::post('/students/{student}/invoices', [StudentController::class, 'createInvoice']);
+    Route::get('/students/{student}/documents', [StudentController::class, 'documents']);
     Route::post('/students/{student}/documents', [StudentController::class, 'uploadDocuments']);
+    Route::delete('/students/{student}/documents/{document}', [StudentController::class, 'destroyDocument']);
     Route::get('/students/{student}/exams', [StudentController::class, 'exams']);
     Route::get('/students/{student}/results/download', [StudentController::class, 'downloadResults']);
     Route::get('/students/{student}/id-card/print', [StudentController::class, 'printIdCard']);
@@ -749,6 +755,7 @@ Route::middleware(['auth:sanctum', 'school.isolated', 'school.licensed'])->group
         Route::get('/payment-gateways', [PlatformFinanceController::class, 'gatewayConfigs']);
         Route::post('/payment-gateways', [PlatformFinanceController::class, 'storeGatewayConfig']);
         Route::post('/payments/initiate', [PlatformFinanceController::class, 'initiatePayment']);
+        Route::get('/payments/status/{reference}', [\App\Http\Controllers\Api\V1\PaymentWebhookController::class, 'status']);
         Route::get('/fee-penalty-rules', [PlatformFinanceController::class, 'penaltyRules']);
         Route::post('/fee-penalty-rules', [PlatformFinanceController::class, 'storePenaltyRule']);
         Route::get('/refunds', [PlatformFinanceController::class, 'refunds']);

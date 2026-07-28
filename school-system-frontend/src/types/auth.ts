@@ -10,6 +10,11 @@ export type UserRole =
   | 'finance'
   | 'accounts'
   | 'examination_officer'
+  | 'receptionist'
+  | 'librarian'
+  | 'nurse'
+  | 'transport_manager'
+  | 'hostel_manager'
 
 export type UserCapabilities = Record<NavCapability, boolean>
 

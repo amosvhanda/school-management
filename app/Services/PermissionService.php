@@ -182,6 +182,21 @@ class PermissionService
             UserRole::ExaminationOfficer => [
                 'reports.view', 'reports.generate', 'dashboard.view', 'attendance.manage', 'exams.manage',
             ],
+            UserRole::Receptionist => [
+                'reports.view', 'dashboard.view', 'reception.manage',
+            ],
+            UserRole::Librarian => [
+                'reports.view', 'dashboard.view', 'library.manage',
+            ],
+            UserRole::Nurse => [
+                'reports.view', 'dashboard.view', 'health.manage', 'students.manage',
+            ],
+            UserRole::TransportManager => [
+                'reports.view', 'dashboard.view', 'transport.manage',
+            ],
+            UserRole::HostelManager => [
+                'reports.view', 'dashboard.view', 'hostel.manage',
+            ],
             default => ['dashboard.view'],
         };
     }

@@ -10,6 +10,11 @@ export const userRoleOptions = [
   { label: 'Finance', value: 'finance' },
   { label: 'Accounts', value: 'accounts' },
   { label: 'Examination Officer', value: 'examination_officer' },
+  { label: 'Receptionist', value: 'receptionist' },
+  { label: 'Librarian', value: 'librarian' },
+  { label: 'School Nurse', value: 'nurse' },
+  { label: 'Transport Manager', value: 'transport_manager' },
+  { label: 'Hostel Manager', value: 'hostel_manager' },
   { label: 'Parent', value: 'parent' },
   { label: 'Student', value: 'student' },
 ]

@@ -142,18 +142,31 @@ class PlatformFinanceController extends Controller
             'amount' => 'required|numeric|min:0.01',
             'payment_method' => 'required|in:card,mobile_money,bank_transfer',
             'provider' => 'nullable|string',
+            'return_url' => 'nullable|url|max:500',
         ])->validate();
 
-        $txn = $this->gateway->initiate(
-            $schoolId,
-            $data['invoice_id'],
-            $data['student_id'] ?? null,
-            $data['amount'],
-            $data['payment_method'],
-            $data['provider'] ?? 'stripe',
-        );
+        try {
+            $result = $this->gateway->initiate(
+                $schoolId,
+                $data['invoice_id'],
+                $data['student_id'] ?? null,
+                $data['amount'],
+                $data['payment_method'],
+                $data['provider'] ?? 'paynow',
+                $data['return_url'] ?? null,
+            );
+        } catch (\InvalidArgumentException $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
+        }
 
-        return response()->json(['data' => $txn, 'message' => 'Payment initiated'], 201);
+        return response()->json([
+            'data' => [
+                'transaction' => $result['transaction'],
+                'checkout_url' => $result['checkout_url'],
+                'poll_url' => $result['poll_url'],
+            ],
+            'message' => 'Payment initiated',
+        ], 201);
     }
 
     public function penaltyRules(Request $request)
