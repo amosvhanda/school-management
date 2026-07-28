@@ -11,7 +11,6 @@ use App\Models\PaymentGatewayConfig;
 use App\Models\Refund;
 use App\Models\Scholarship;
 use App\Models\ScholarshipApplication;
-use App\Models\Student;
 use App\Services\Platform\PaymentGatewayService;
 use App\Services\Platform\RefundService;
 use Illuminate\Http\Request;
@@ -143,6 +142,9 @@ class PlatformFinanceController extends Controller
             'payment_method' => 'required|in:card,mobile_money,bank_transfer',
             'provider' => 'nullable|string',
             'return_url' => 'nullable|url|max:500',
+            'phone' => 'nullable|string|max:20',
+            'mobile_method' => 'nullable|in:ecocash,onemoney',
+            'payer_email' => 'nullable|email|max:255',
         ])->validate();
 
         try {
@@ -154,6 +156,11 @@ class PlatformFinanceController extends Controller
                 $data['payment_method'],
                 $data['provider'] ?? 'paynow',
                 $data['return_url'] ?? null,
+                [
+                    'phone' => $data['phone'] ?? null,
+                    'mobile_method' => $data['mobile_method'] ?? null,
+                    'payer_email' => $data['payer_email'] ?? null,
+                ],
             );
         } catch (\InvalidArgumentException $e) {
             return response()->json(['message' => $e->getMessage()], 422);
@@ -164,6 +171,7 @@ class PlatformFinanceController extends Controller
                 'transaction' => $result['transaction'],
                 'checkout_url' => $result['checkout_url'],
                 'poll_url' => $result['poll_url'],
+                'instructions' => $result['instructions'],
             ],
             'message' => 'Payment initiated',
         ], 201);

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Contracts\TeachingAssistant;
+use App\Models\AcademicCalendarEntry;
 use App\Models\Announcement;
 use App\Models\Assignment;
 use App\Models\AssignmentSubmission;
@@ -14,7 +15,9 @@ use App\Models\ClassParticipationRecord;
 use App\Models\ClassSubstitution;
 use App\Models\DisciplinaryRecord;
 use App\Models\Exam;
+use App\Models\Grade;
 use App\Models\LeaveRequest;
+use App\Models\LeaveType;
 use App\Models\LessonPlan;
 use App\Models\OnlineLesson;
 use App\Models\ReportCardNarrative;
@@ -28,8 +31,8 @@ use App\Models\TeacherNotification;
 use App\Models\TeachingResource;
 use App\Models\Timetable;
 use App\Models\TimetableChangeRequest;
-use App\Services\Export\ExportService;
 use App\Services\Domain\SchoolDomainRules;
+use App\Services\Export\ExportService;
 use App\Services\PermissionService;
 use App\Services\TeacherResolutionService;
 use Illuminate\Http\Request;
@@ -489,7 +492,31 @@ class TeacherPortalController extends Controller
             ->where('school_id', $schoolId)
             ->orderBy('starts_at')
             ->limit(100)
-            ->get();
+            ->get()
+            ->map(fn (SchoolEvent $event) => [
+                'id' => $event->id,
+                'title' => $event->title,
+                'type' => $event->type,
+                'starts_at' => optional($event->starts_at)?->toIso8601String(),
+                'ends_at' => optional($event->ends_at)?->toIso8601String(),
+                'location' => $event->location,
+                'status' => $event->status,
+            ]);
+
+        $academic = AcademicCalendarEntry::query()
+            ->where('school_id', $schoolId)
+            ->whereDate('start_date', '>=', now()->subMonths(1)->toDateString())
+            ->orderBy('start_date')
+            ->limit(100)
+            ->get()
+            ->map(fn (AcademicCalendarEntry $entry) => [
+                'id' => $entry->id,
+                'title' => $entry->title,
+                'entry_type' => $entry->entry_type,
+                'start_date' => optional($entry->start_date)?->toDateString(),
+                'end_date' => optional($entry->end_date)?->toDateString(),
+                'is_holiday' => (bool) $entry->is_holiday,
+            ]);
 
         $deadlines = Assignment::query()
             ->where('teacher_id', $request->user()->teacher?->id ?? 0)
@@ -500,6 +527,7 @@ class TeacherPortalController extends Controller
 
         return $this->success([
             'events' => $events,
+            'academic_entries' => $academic,
             'assignment_deadlines' => $deadlines,
             'exams' => Exam::query()->where('school_id', $schoolId)->whereDate('exam_date', '>=', now())->limit(30)->get(),
         ]);
@@ -1115,7 +1143,7 @@ class TeacherPortalController extends Controller
 
         $leaveType = null;
         if (! empty($data['leave_type_id'])) {
-            $leaveType = \App\Models\LeaveType::query()
+            $leaveType = LeaveType::query()
                 ->where('school_id', $this->schoolId($request))
                 ->findOrFail($data['leave_type_id']);
         }
@@ -1325,7 +1353,7 @@ class TeacherPortalController extends Controller
             ? tap(collect([(int) $classId]), fn ($ids) => $this->assertTeacherOwnsClass($teacher, $classId))
             : $this->teacherClassIds($teacher);
 
-        $rows = \App\Models\Grade::query()
+        $rows = Grade::query()
             ->whereIn('class_id', $classIds->isEmpty() ? [0] : $classIds->all())
             ->when($teacher->school_id, fn ($q) => $q->where('school_id', $teacher->school_id))
             ->with('student:id,full_name,student_number')

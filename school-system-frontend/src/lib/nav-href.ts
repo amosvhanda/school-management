@@ -34,6 +34,7 @@ const REDIRECT_TARGETS: Record<string, NavTarget> = {
   '/finance/accounting': { path: '/finance', tab: 'income-heads' },
   '/finance/income-heads': { path: '/finance', tab: 'income-heads' },
   '/finance/expense-heads': { path: '/finance', tab: 'expense-heads' },
+  '/finance/budgets': { path: '/finance', tab: 'budgets' },
   '/finance/income': { path: '/finance', tab: 'income' },
   '/finance/expense': { path: '/finance', tab: 'expense' },
   '/finance/procurement': { path: '/finance', tab: 'procurement' },

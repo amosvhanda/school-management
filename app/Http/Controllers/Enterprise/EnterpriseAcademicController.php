@@ -174,10 +174,10 @@ class EnterpriseAcademicController extends Controller
     public function storeCalendarEntry(Request $request)
     {
         $data = Validator::make($request->all(), [
-            'entry_type' => 'required|string',
-            'title' => 'required|string',
+            'entry_type' => 'required|string|max:100',
+            'title' => 'required|string|max:255',
             'start_date' => 'required|date',
-            'end_date' => 'nullable|date',
+            'end_date' => 'nullable|date|after_or_equal:start_date',
             'is_holiday' => 'boolean',
             'term_id' => 'nullable|exists:terms,id',
         ])->validate();
@@ -185,5 +185,30 @@ class EnterpriseAcademicController extends Controller
         $entry = AcademicCalendarEntry::create(array_merge($data, ['school_id' => $request->user()->school_id]));
 
         return response()->json(['data' => $entry], 201);
+    }
+
+    public function updateCalendarEntry(Request $request, int $id)
+    {
+        $entry = AcademicCalendarEntry::where('school_id', $request->user()->school_id)->findOrFail($id);
+        $data = Validator::make($request->all(), [
+            'entry_type' => 'sometimes|required|string|max:100',
+            'title' => 'sometimes|required|string|max:255',
+            'start_date' => 'sometimes|required|date',
+            'end_date' => 'nullable|date|after_or_equal:start_date',
+            'is_holiday' => 'boolean',
+            'term_id' => 'nullable|exists:terms,id',
+        ])->validate();
+
+        $entry->update($data);
+
+        return response()->json(['data' => $entry->fresh(), 'message' => 'Calendar entry updated']);
+    }
+
+    public function destroyCalendarEntry(Request $request, int $id)
+    {
+        $entry = AcademicCalendarEntry::where('school_id', $request->user()->school_id)->findOrFail($id);
+        $entry->delete();
+
+        return response()->json(['message' => 'Calendar entry deleted']);
     }
 }

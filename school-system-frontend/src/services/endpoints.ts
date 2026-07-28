@@ -304,6 +304,10 @@ export const endpoints = {
     list: '/income-heads',
     detail: (id: number | string) => `/income-heads/${id}`,
   },
+  budgets: {
+    list: '/budgets',
+    detail: (id: number | string) => `/budgets/${id}`,
+  },
   expenseHeads: {
     list: '/expense-heads',
     detail: (id: number | string) => `/expense-heads/${id}`,

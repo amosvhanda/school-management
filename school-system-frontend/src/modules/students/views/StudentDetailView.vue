@@ -319,6 +319,7 @@ async function payOnline(inv: Invoice) {
       return_url: window.location.href,
     }) as {
       checkout_url?: string | null
+      instructions?: string | null
       transaction?: { internal_reference?: string }
     }
 
@@ -328,9 +329,10 @@ async function payOnline(inv: Invoice) {
     }
 
     toast.success('Payment initiated', {
-      description: result.transaction?.internal_reference
-        ? `Reference ${result.transaction.internal_reference}`
-        : 'Awaiting gateway confirmation.',
+      description: result.instructions
+        ?? (result.transaction?.internal_reference
+          ? `Reference ${result.transaction.internal_reference}`
+          : 'Awaiting gateway confirmation.'),
     })
     await load()
   } catch (err) {

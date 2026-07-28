@@ -75,6 +75,66 @@ class EnterpriseIntelligenceController extends Controller
         return response()->json(['data' => AlumniRecord::where('school_id', $request->user()->school_id)->orderByDesc('graduation_year')->get()]);
     }
 
+    public function storeAlumni(Request $request)
+    {
+        $data = Validator::make($request->all(), [
+            'student_id' => 'nullable|integer|exists:students,id',
+            'full_name' => 'required|string|max:255',
+            'graduation_year' => 'required|integer|min:1900|max:'.(now()->year + 1),
+            'email' => 'nullable|email',
+            'phone' => 'nullable|string|max:30',
+            'current_occupation' => 'nullable|string|max:255',
+        ])->validate();
+
+        if (! empty($data['student_id'])) {
+            Student::where('school_id', $request->user()->school_id)->findOrFail($data['student_id']);
+        }
+
+        return response()->json([
+            'data' => $this->intelligence->createAlumni($request->user()->school_id, $data),
+            'message' => 'Alumni record created',
+        ], 201);
+    }
+
+    public function updateAlumni(Request $request, int $id)
+    {
+        $alumni = AlumniRecord::where('school_id', $request->user()->school_id)->findOrFail($id);
+        $data = Validator::make($request->all(), [
+            'full_name' => 'sometimes|required|string|max:255',
+            'graduation_year' => 'sometimes|required|integer|min:1900|max:'.(now()->year + 1),
+            'email' => 'nullable|email',
+            'phone' => 'nullable|string|max:30',
+            'current_occupation' => 'nullable|string|max:255',
+        ])->validate();
+
+        return response()->json([
+            'data' => $this->intelligence->updateAlumni($alumni, $data),
+            'message' => 'Alumni record updated',
+        ]);
+    }
+
+    public function destroyAlumni(Request $request, int $id)
+    {
+        $alumni = AlumniRecord::where('school_id', $request->user()->school_id)->findOrFail($id);
+        $alumni->delete();
+
+        return response()->json(['message' => 'Alumni record deleted']);
+    }
+
+    public function recordAlumniEngagement(Request $request, int $id)
+    {
+        $alumni = AlumniRecord::where('school_id', $request->user()->school_id)->findOrFail($id);
+        $data = Validator::make($request->all(), [
+            'type' => 'required|string|max:100',
+            'note' => 'nullable|string|max:1000',
+        ])->validate();
+
+        return response()->json([
+            'data' => $this->intelligence->recordEngagement($alumni, $data['type'], $data['note'] ?? null),
+            'message' => 'Engagement recorded',
+        ], 201);
+    }
+
     public function registerAlumni(Request $request, int $studentId)
     {
         $student = Student::where('school_id', $request->user()->school_id)->findOrFail($studentId);

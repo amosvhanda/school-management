@@ -5,12 +5,16 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Controllers\Controller;
 use App\Models\PaymentGatewayTransaction;
 use App\Services\Platform\PaymentGatewayService;
+use App\Services\Platform\PaynowGatewayClient;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 
 class PaymentWebhookController extends Controller
 {
-    public function __construct(private PaymentGatewayService $gateway) {}
+    public function __construct(
+        private PaymentGatewayService $gateway,
+        private PaynowGatewayClient $paynow,
+    ) {}
 
     public function handle(Request $request, string $provider)
     {
@@ -20,28 +24,33 @@ class PaymentWebhookController extends Controller
             'status' => 'nullable|string',
             'provider_reference' => 'nullable|string',
             'hash' => 'nullable|string',
+            'paynowreference' => 'nullable|string',
         ])->validate();
 
         $internalReference = $data['reference'] ?? $data['ref'];
         $status = strtolower((string) ($data['status'] ?? 'paid'));
 
-        if (! in_array($status, ['paid', 'completed', 'success', 'ok'], true)) {
+        $txn = PaymentGatewayTransaction::where('internal_reference', $internalReference)->firstOrFail();
+        $config = $txn->config;
+        $credentials = $config->credentials ?? [];
+
+        if ($config && ! $this->verifySignature($request, $provider, $credentials)) {
+            return response()->json(['message' => 'Invalid webhook signature'], 403);
+        }
+
+        if (! $this->isSuccessfulStatus($provider, $status)) {
             return response()->json([
                 'message' => 'Webhook ignored — payment not successful.',
                 'status' => $status,
             ]);
         }
 
-        $txn = PaymentGatewayTransaction::where('internal_reference', $internalReference)->firstOrFail();
-        $config = $txn->config;
-
-        if ($config && ! $this->verifySignature($request, $provider, $config->credentials ?? [])) {
-            return response()->json(['message' => 'Invalid webhook signature'], 403);
-        }
-
         $completed = $this->gateway->completeWebhook($internalReference, [
             'provider' => $provider,
-            'reference' => $data['provider_reference'] ?? $request->input('paynowreference') ?? $internalReference,
+            'reference' => $data['provider_reference']
+                ?? $data['paynowreference']
+                ?? $request->input('paynowreference')
+                ?? $internalReference,
             'status' => $status,
             'raw' => $request->except(['hash', 'integration_key', 'key']),
         ]);
@@ -92,6 +101,7 @@ class PaymentWebhookController extends Controller
     public function status(string $reference)
     {
         $txn = PaymentGatewayTransaction::where('internal_reference', $reference)->firstOrFail();
+        $txn = $this->gateway->refreshStatus($txn);
 
         return response()->json([
             'data' => [
@@ -101,6 +111,7 @@ class PaymentWebhookController extends Controller
                 'currency' => $txn->currency,
                 'invoice_id' => $txn->invoice_id,
                 'completed_at' => $txn->completed_at?->toIso8601String(),
+                'instructions' => $txn->provider_response['instructions'] ?? null,
             ],
         ]);
     }
@@ -110,9 +121,24 @@ class PaymentWebhookController extends Controller
      */
     protected function verifySignature(Request $request, string $provider, array $credentials): bool
     {
+        if (strtolower($provider) === 'paynow') {
+            $integrationKey = $credentials['integration_key'] ?? $credentials['key'] ?? null;
+            if (! $integrationKey) {
+                return true;
+            }
+
+            $payload = [];
+            foreach ($request->all() as $key => $value) {
+                if (is_string($value) || is_numeric($value)) {
+                    $payload[strtolower((string) $key)] = (string) $value;
+                }
+            }
+
+            return $this->paynow->verifyHash($payload, (string) $integrationKey);
+        }
+
         $expected = $credentials['webhook_secret'] ?? $credentials['integration_key'] ?? null;
         if (! $expected) {
-            // Sandbox / unconfigured secret — allow (still requires knowing the internal reference).
             return true;
         }
 
@@ -125,5 +151,14 @@ class PaymentWebhookController extends Controller
         }
 
         return hash_equals((string) $expected, $provided);
+    }
+
+    protected function isSuccessfulStatus(string $provider, string $status): bool
+    {
+        if (strtolower($provider) === 'paynow') {
+            return $this->paynow->isPaidStatus($status);
+        }
+
+        return in_array($status, ['paid', 'completed', 'success', 'ok'], true);
     }
 }

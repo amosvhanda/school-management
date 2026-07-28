@@ -916,6 +916,7 @@ export const backendCrudSupport: Record<string, { create: boolean; update: boole
   'finance-fee-groups': { create: true, update: true, delete: true },
   'finance-fee-discounts': { create: true, update: true, delete: true },
   'finance-income-heads': { create: true, update: true, delete: true },
+  'finance-budgets': { create: true, update: true, delete: true },
   'finance-expense-heads': { create: true, update: true, delete: true },
   'finance-income': { create: true, update: true, delete: true },
   'finance-expense': { create: true, update: true, delete: true },
@@ -954,4 +955,6 @@ export const backendCrudSupport: Record<string, { create: boolean; update: boole
   'compliance-incidents': { create: true, update: true, delete: false },
   'compliance-consent': { create: true, update: true, delete: false },
   'settings-custom-fields': { create: true, update: true, delete: true },
+  'enterprise-academic': { create: true, update: true, delete: true },
+  'enterprise-alumni': { create: true, update: true, delete: true },
 }

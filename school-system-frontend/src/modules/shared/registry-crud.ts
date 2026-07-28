@@ -976,6 +976,38 @@ export const moduleCrudRegistry: Record<string, ModuleCrudConfig> = {
       is_active: z.boolean().optional(),
     }),
   ),
+  'finance-budgets': crud(
+    formSection('Budget', [
+      { name: 'name', label: 'Budget name', type: 'text', required: true, colSpan: 2 },
+      { name: 'fiscal_year', label: 'Fiscal year', type: 'text', required: true, placeholder: '2026' },
+      { name: 'department', label: 'Department', type: 'text', placeholder: 'Academics, Operations…' },
+      { name: 'allocated_amount', label: 'Allocated amount', type: 'number', required: true },
+      { name: 'spent_amount', label: 'Spent amount', type: 'number' },
+      { name: 'currency', label: 'Currency', type: 'text', placeholder: 'USD' },
+      {
+        name: 'status',
+        label: 'Status',
+        type: 'select',
+        options: [
+          { label: 'Draft', value: 'draft' },
+          { label: 'Submitted', value: 'submitted' },
+          { label: 'Approved', value: 'approved' },
+          { label: 'Closed', value: 'closed' },
+        ],
+      },
+      { name: 'notes', label: 'Notes', type: 'textarea', colSpan: 2 },
+    ]),
+    z.object({
+      name: z.string().min(1),
+      fiscal_year: z.string().min(1),
+      department: z.string().optional(),
+      allocated_amount: z.coerce.number().min(0),
+      spent_amount: z.coerce.number().min(0).optional(),
+      currency: z.string().optional(),
+      status: z.enum(['draft', 'submitted', 'approved', 'closed']).optional(),
+      notes: z.string().optional(),
+    }),
+  ),
   'finance-expense-heads': crud(
     [
       { name: 'name', label: 'Name', type: 'text', required: true },
@@ -2236,6 +2268,50 @@ export const moduleCrudRegistry: Record<string, ModuleCrudConfig> = {
       content: z.string().min(1, 'Form content is required'),
     }),
     { canEdit: true, canDelete: false },
+  ),
+  'enterprise-academic': crud(
+    formSection('Academic calendar entry', [
+      { name: 'title', label: 'Title', type: 'text', required: true, colSpan: 2 },
+      {
+        name: 'entry_type',
+        label: 'Type',
+        type: 'select',
+        required: true,
+        options: [
+          { label: 'Term', value: 'term' },
+          { label: 'Holiday', value: 'holiday' },
+          { label: 'Exam period', value: 'exam' },
+          { label: 'Event', value: 'event' },
+          { label: 'Other', value: 'other' },
+        ],
+      },
+      { name: 'start_date', label: 'Start date', type: 'date', required: true },
+      { name: 'end_date', label: 'End date', type: 'date' },
+      { name: 'is_holiday', label: 'Holiday / closed day', type: 'checkbox' },
+    ]),
+    z.object({
+      title: z.string().min(1),
+      entry_type: z.string().min(1),
+      start_date: z.string().min(1),
+      end_date: z.string().optional().or(z.literal('')),
+      is_holiday: z.boolean().optional(),
+    }),
+  ),
+  'enterprise-alumni': crud(
+    formSection('Alumni contact', [
+      { name: 'full_name', label: 'Full name', type: 'text', required: true, colSpan: 2 },
+      { name: 'graduation_year', label: 'Graduation year', type: 'number', required: true },
+      { name: 'email', label: 'Email', type: 'email' },
+      { name: 'phone', label: 'Phone', type: 'text' },
+      { name: 'current_occupation', label: 'Current occupation', type: 'text', colSpan: 2 },
+    ]),
+    z.object({
+      full_name: z.string().min(1),
+      graduation_year: z.coerce.number().min(1900).max(2100),
+      email: z.string().email().optional().or(z.literal('')),
+      phone: z.string().optional(),
+      current_occupation: z.string().optional(),
+    }),
   ),
   'settings-custom-fields': crud(
     formSection('Custom field', [

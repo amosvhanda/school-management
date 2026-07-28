@@ -7,6 +7,7 @@ import {
   Layers,
   LineChart,
   Percent,
+  PiggyBank,
   Receipt,
   Scale,
   ShoppingCart,
@@ -88,6 +89,14 @@ export const FINANCE_HUB_TABS: ModuleHubTab[] = [
     description: 'Classify school spending for reporting.',
     icon: BookOpen,
     listKey: 'finance-expense-heads',
+    group: 'Accounts',
+  },
+  {
+    id: 'budgets',
+    title: 'Budgets',
+    description: 'Plan department spend, approve budgets, and track utilisation.',
+    icon: PiggyBank,
+    listKey: 'finance-budgets',
     group: 'Accounts',
   },
   {

@@ -43,6 +43,7 @@ export const moduleEndpoints = {
   feeGroups: e.feeGroups.list,
   feeDiscounts: e.feeDiscounts.list,
   incomeHeads: e.incomeHeads.list,
+  budgets: e.budgets.list,
   expenseHeads: e.expenseHeads.list,
   leaveTypes: e.leaveTypes.list,
   designations: e.designations.list,

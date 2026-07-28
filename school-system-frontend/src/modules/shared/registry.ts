@@ -302,6 +302,20 @@ export const listPageRegistry: Record<string, ListPageConfig> = {
       activeStatusColumn(),
     ],
   },
+  'finance-budgets': {
+    title: 'Budgets',
+    description: 'Department budgets by fiscal year — draft, submit, approve, and track spend.',
+    endpoint: moduleEndpoints.budgets,
+    columns: [
+      textColumn('Name', 'name'),
+      textColumn('Fiscal year', 'fiscal_year'),
+      textColumn('Department', 'department'),
+      textColumn('Allocated', 'allocated_amount'),
+      textColumn('Spent', 'spent_amount'),
+      textColumn('Currency', 'currency'),
+      textColumn('Status', 'status'),
+    ],
+  },
   'finance-expense-heads': {
     title: 'Expense Heads',
     description: 'Chart-of-accounts style labels for money going out.',
@@ -599,7 +613,11 @@ export const listPageRegistry: Record<string, ListPageConfig> = {
 
   'enterprise-finance': { title: 'Enterprise Finance Accounts', endpoint: moduleEndpoints.enterpriseFinance, columns: defaultColumns(['code', 'name', 'type', 'balance']) },
   'enterprise-finance-instalments': { title: 'Instalment Plans', endpoint: moduleEndpoints.enterpriseFinanceInstalments, columns: defaultColumns(['name', 'student_id', 'total', 'status']) },
-  'enterprise-academic': { title: 'Academic Calendar', endpoint: moduleEndpoints.enterpriseAcademic, columns: defaultColumns(['title', 'start_date', 'end_date', 'type']) },
+  'enterprise-academic': {
+    title: 'Academic Calendar',
+    endpoint: moduleEndpoints.enterpriseAcademic,
+    columns: defaultColumns(['title', 'entry_type', 'start_date', 'end_date', 'is_holiday']),
+  },
   'enterprise-exams': { title: 'Question Bank', endpoint: moduleEndpoints.enterpriseExams, columns: defaultColumns(['question', 'subject_id', 'difficulty', 'created_at']) },
   'enterprise-hr': { title: 'Performance Reviews', endpoint: moduleEndpoints.enterpriseHr, columns: defaultColumns(['employee_id', 'period', 'rating', 'created_at']) },
   'enterprise-warnings': {
@@ -640,7 +658,11 @@ export const listPageRegistry: Record<string, ListPageConfig> = {
       },
     ],
   },
-  'enterprise-alumni': { title: 'Alumni', endpoint: moduleEndpoints.enterpriseAlumni, columns: defaultColumns(['full_name', 'graduation_year', 'email', 'status']) },
+  'enterprise-alumni': {
+    title: 'Alumni',
+    endpoint: moduleEndpoints.enterpriseAlumni,
+    columns: defaultColumns(['full_name', 'graduation_year', 'email', 'phone', 'current_occupation']),
+  },
   'enterprise-campaigns': { title: 'Campaigns', endpoint: moduleEndpoints.enterpriseCampaigns, columns: defaultColumns(['name', 'audience', 'status', 'created_at']) },
 
   'platform-licenses': { title: 'Licenses', endpoint: moduleEndpoints.adminLicenses, columns: genericColumns },

@@ -77,15 +77,72 @@ class StudentIntelligenceService
 
     public function registerAlumni(int $schoolId, Student $student, array $data = []): AlumniRecord
     {
+        return AlumniRecord::query()->updateOrCreate(
+            [
+                'school_id' => $schoolId,
+                'student_id' => $student->id,
+            ],
+            [
+                'full_name' => $student->full_name,
+                'graduation_year' => (string) ($data['graduation_year'] ?? now()->year),
+                'email' => $data['email'] ?? null,
+                'phone' => $data['phone'] ?? null,
+                'current_occupation' => $data['current_occupation'] ?? null,
+            ],
+        );
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    public function createAlumni(int $schoolId, array $data): AlumniRecord
+    {
         return AlumniRecord::create([
             'school_id' => $schoolId,
-            'student_id' => $student->id,
-            'full_name' => $student->full_name,
-            'graduation_year' => $data['graduation_year'] ?? now()->year,
+            'student_id' => $data['student_id'] ?? null,
+            'full_name' => $data['full_name'],
+            'graduation_year' => (string) $data['graduation_year'],
             'email' => $data['email'] ?? null,
             'phone' => $data['phone'] ?? null,
             'current_occupation' => $data['current_occupation'] ?? null,
+            'engagement_history' => $data['engagement_history'] ?? [],
         ]);
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    public function updateAlumni(AlumniRecord $alumni, array $data): AlumniRecord
+    {
+        $alumni->fill(collect($data)->only([
+            'full_name',
+            'graduation_year',
+            'email',
+            'phone',
+            'current_occupation',
+        ])->all());
+
+        if (isset($data['graduation_year'])) {
+            $alumni->graduation_year = (string) $data['graduation_year'];
+        }
+
+        $alumni->save();
+
+        return $alumni->fresh();
+    }
+
+    public function recordEngagement(AlumniRecord $alumni, string $type, ?string $note = null): AlumniRecord
+    {
+        $history = $alumni->engagement_history ?? [];
+        $history[] = [
+            'type' => $type,
+            'note' => $note,
+            'at' => now()->toIso8601String(),
+        ];
+
+        $alumni->update(['engagement_history' => $history]);
+
+        return $alumni->fresh();
     }
 
     public function earlyWarnings(int $schoolId): Collection

@@ -10,15 +10,28 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use InvalidArgumentException;
+use RuntimeException;
 
 class PaymentGatewayService
 {
     public function __construct(
         private FinancialLedgerService $ledger,
+        private PaynowGatewayClient $paynow,
     ) {}
 
     /**
-     * @return array{transaction: PaymentGatewayTransaction, checkout_url: string|null, poll_url: string|null}
+     * @param  array{
+     *     phone?: string|null,
+     *     mobile_method?: string|null,
+     *     payer_email?: string|null,
+     *     additional_info?: string|null
+     * }  $options
+     * @return array{
+     *     transaction: PaymentGatewayTransaction,
+     *     checkout_url: string|null,
+     *     poll_url: string|null,
+     *     instructions: string|null
+     * }
      */
     public function initiate(
         int $schoolId,
@@ -28,6 +41,7 @@ class PaymentGatewayService
         string $method,
         string $provider = 'paynow',
         ?string $returnUrl = null,
+        array $options = [],
     ): array {
         $config = PaymentGatewayConfig::where('school_id', $schoolId)
             ->where('provider', $provider)
@@ -62,7 +76,7 @@ class PaymentGatewayService
             ],
         ]);
 
-        $checkout = $this->buildCheckout($txn, $config, $returnUrl);
+        $checkout = $this->buildCheckout($txn, $config, $returnUrl, $options);
 
         $txn->update([
             'provider_reference' => $checkout['provider_reference'] ?? null,
@@ -74,6 +88,7 @@ class PaymentGatewayService
             'transaction' => $txn->fresh(),
             'checkout_url' => $checkout['checkout_url'] ?? null,
             'poll_url' => $checkout['poll_url'] ?? null,
+            'instructions' => $checkout['instructions'] ?? null,
         ];
     }
 
@@ -119,20 +134,76 @@ class PaymentGatewayService
         });
     }
 
+    public function refreshStatus(PaymentGatewayTransaction $txn): PaymentGatewayTransaction
+    {
+        if ($txn->status === 'completed') {
+            return $txn;
+        }
+
+        $config = $txn->config;
+        if (! $config || strtolower((string) $config->provider) !== 'paynow') {
+            return $txn;
+        }
+
+        $credentials = $config->credentials ?? [];
+        $integrationKey = $credentials['integration_key'] ?? $credentials['key'] ?? null;
+        $pollUrl = $txn->provider_response['poll_url'] ?? $txn->provider_response['pollurl'] ?? null;
+
+        if (! $integrationKey || ! is_string($pollUrl) || $pollUrl === '') {
+            return $txn;
+        }
+
+        try {
+            $poll = $this->paynow->poll($pollUrl, (string) $integrationKey);
+        } catch (RuntimeException $e) {
+            Log::warning('Paynow poll failed', [
+                'reference' => $txn->internal_reference,
+                'error' => $e->getMessage(),
+            ]);
+
+            return $txn;
+        }
+
+        if (! $poll['paid']) {
+            return $txn;
+        }
+
+        return $this->completeWebhook($txn->internal_reference, [
+            'provider' => 'paynow',
+            'reference' => $poll['paynowreference'] ?? $txn->provider_reference,
+            'status' => $poll['status'],
+            'poll' => true,
+        ]);
+    }
+
     /**
-     * @return array{checkout_url?: string|null, poll_url?: string|null, provider_reference?: string|null, status?: string, response?: array<string, mixed>}
+     * @param  array{
+     *     phone?: string|null,
+     *     mobile_method?: string|null,
+     *     payer_email?: string|null,
+     *     additional_info?: string|null
+     * }  $options
+     * @return array{
+     *     checkout_url?: string|null,
+     *     poll_url?: string|null,
+     *     instructions?: string|null,
+     *     provider_reference?: string|null,
+     *     status?: string,
+     *     response?: array<string, mixed>
+     * }
      */
     protected function buildCheckout(
         PaymentGatewayTransaction $txn,
         PaymentGatewayConfig $config,
         ?string $returnUrl,
+        array $options = [],
     ): array {
         $provider = strtolower((string) $config->provider);
         $credentials = $config->credentials ?? [];
         $mode = (string) ($credentials['mode'] ?? config('services.payments.mode', 'sandbox'));
 
         if ($provider === 'paynow') {
-            return $this->buildPaynowCheckout($txn, $credentials, $returnUrl, $mode);
+            return $this->buildPaynowCheckout($txn, $credentials, $returnUrl, $mode, $options);
         }
 
         // Generic / Stripe-like placeholder: local sandbox redirect that can be completed via webhook.
@@ -155,18 +226,31 @@ class PaymentGatewayService
 
     /**
      * @param  array<string, mixed>  $credentials
-     * @return array{checkout_url?: string|null, poll_url?: string|null, provider_reference?: string|null, status?: string, response?: array<string, mixed>}
+     * @param  array{
+     *     phone?: string|null,
+     *     mobile_method?: string|null,
+     *     payer_email?: string|null,
+     *     additional_info?: string|null
+     * }  $options
+     * @return array{
+     *     checkout_url?: string|null,
+     *     poll_url?: string|null,
+     *     instructions?: string|null,
+     *     provider_reference?: string|null,
+     *     status?: string,
+     *     response?: array<string, mixed>
+     * }
      */
     protected function buildPaynowCheckout(
         PaymentGatewayTransaction $txn,
         array $credentials,
         ?string $returnUrl,
         string $mode,
+        array $options = [],
     ): array {
         $integrationId = $credentials['integration_id'] ?? $credentials['id'] ?? null;
         $integrationKey = $credentials['integration_key'] ?? $credentials['key'] ?? null;
 
-        // Without live credentials, expose a sandbox checkout that posts back to our webhook.
         if (! $integrationId || ! $integrationKey || $mode === 'sandbox') {
             Log::info('Paynow sandbox checkout initiated', [
                 'reference' => $txn->internal_reference,
@@ -191,16 +275,60 @@ class PaymentGatewayService
             ];
         }
 
-        // Live Paynow HTTP initiate is left as a follow-up; credentials are present so mark pending.
+        $resultUrl = url('/api/v1/webhooks/payments/paynow');
+        $browserReturnUrl = $returnUrl ?: url('/');
+        $additionalInfo = $options['additional_info'] ?? ('Invoice #'.$txn->invoice_id);
+        $authEmail = $options['payer_email'] ?? null;
+        $phone = $options['phone'] ?? null;
+        $mobileMethod = strtolower((string) ($options['mobile_method'] ?? 'ecocash'));
+
+        try {
+            if ($txn->payment_method === 'mobile_money' && is_string($phone) && $phone !== '') {
+                $response = $this->paynow->initiateMobile(
+                    integrationId: (string) $integrationId,
+                    integrationKey: (string) $integrationKey,
+                    reference: $txn->internal_reference,
+                    amount: (float) $txn->amount,
+                    returnUrl: $browserReturnUrl,
+                    resultUrl: $resultUrl,
+                    phone: $phone,
+                    method: $mobileMethod,
+                    additionalInfo: is_string($additionalInfo) ? $additionalInfo : null,
+                    authEmail: is_string($authEmail) ? $authEmail : null,
+                );
+            } else {
+                $response = $this->paynow->initiateWeb(
+                    integrationId: (string) $integrationId,
+                    integrationKey: (string) $integrationKey,
+                    reference: $txn->internal_reference,
+                    amount: (float) $txn->amount,
+                    returnUrl: $browserReturnUrl,
+                    resultUrl: $resultUrl,
+                    additionalInfo: is_string($additionalInfo) ? $additionalInfo : null,
+                    authEmail: is_string($authEmail) ? $authEmail : null,
+                );
+            }
+        } catch (RuntimeException $e) {
+            Log::error('Paynow live initiate failed', [
+                'reference' => $txn->internal_reference,
+                'error' => $e->getMessage(),
+            ]);
+
+            throw new InvalidArgumentException('Paynow could not start the payment: '.$e->getMessage());
+        }
+
         return [
-            'checkout_url' => null,
-            'poll_url' => url('/api/v1/platform/payments/status/'.$txn->internal_reference),
-            'provider_reference' => null,
+            'checkout_url' => $response['browserurl'] ?? null,
+            'poll_url' => $response['pollurl'] ?? url('/api/v1/platform/payments/status/'.$txn->internal_reference),
+            'instructions' => $response['instructions'] ?? null,
+            'provider_reference' => $response['paynowreference'] ?? null,
             'status' => 'pending',
             'response' => [
                 'mode' => 'live',
                 'provider' => 'paynow',
-                'message' => 'Live Paynow credentials configured; complete outbound initiate in a follow-up release.',
+                'poll_url' => $response['pollurl'] ?? null,
+                'instructions' => $response['instructions'] ?? null,
+                'paynow_status' => $response['status'] ?? null,
             ],
         ];
     }

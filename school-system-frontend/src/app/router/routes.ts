@@ -283,6 +283,7 @@ export const staffRoutes: RouteRecordRaw[] = [
   staffHubRedirect('finance/fee-structures', 'finance-fee-structures', 'finance', 'fee-structures', 'overview', 'canManageFinance'),
   staffHubRedirect('finance/income-heads', 'finance-income-heads', 'finance', 'income-heads', 'overview', 'canManageFinance'),
   staffHubRedirect('finance/expense-heads', 'finance-expense-heads', 'finance', 'expense-heads', 'overview', 'canManageFinance'),
+  staffHubRedirect('finance/budgets', 'finance-budgets', 'finance', 'budgets', 'overview', 'canManageFinance'),
   staffHubRedirect('finance/income', 'finance-income', 'finance', 'income', 'overview', 'canManageFinance'),
   staffHubRedirect('finance/expense', 'finance-expense', 'finance', 'expense', 'overview', 'canManageFinance'),
   staffHubRedirect('finance/transactions', 'finance-transactions', 'finance', 'transactions', 'overview', 'canManageFinance'),
