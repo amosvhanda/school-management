@@ -276,3 +276,13 @@ export function employeeRelation(overrides?: Partial<RelationFieldConfig>): Rela
     ...overrides,
   }
 }
+
+export function jobPostingRelation(overrides?: Partial<RelationFieldConfig>): RelationFieldConfig {
+  return {
+    endpoint: moduleEndpoints.recruitmentJobs,
+    createRoute: '/hr?tab=recruitment-jobs&create=1',
+    moduleLabel: 'job posting',
+    params: { status: 'open', all: true },
+    ...overrides,
+  }
+}

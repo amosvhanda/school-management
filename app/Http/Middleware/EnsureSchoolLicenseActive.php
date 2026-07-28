@@ -42,6 +42,13 @@ class EnsureSchoolLicenseActive
 
         $school = School::find($user->school_id);
 
+        if ($school && $school->status === 'deleted') {
+            return response()->json([
+                'message' => 'This school has been deprovisioned.',
+                'code' => 'school_deleted',
+            ], 403);
+        }
+
         if ($school && $school->status !== 'active') {
             return response()->json([
                 'message' => 'This school is currently suspended.',

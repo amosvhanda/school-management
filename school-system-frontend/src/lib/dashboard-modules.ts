@@ -725,6 +725,13 @@ export const STAFF_DASHBOARD_MODULE_GROUPS: DashboardModuleGroup[] = [
         capability: 'canManageReception',
       },
       {
+        title: 'Help desk',
+        description: 'Support tickets',
+        href: '/operations/help-desk',
+        icon: 'LifeBuoy',
+        capability: 'canManageReception',
+      },
+      {
         title: 'Health records',
         description: 'Student health clinic',
         href: '/operations/health',

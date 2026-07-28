@@ -158,10 +158,17 @@ class AttendanceNotificationService
         try {
             if (in_array($notification->channel, ['email', 'both'], true) && ! empty($notification->recipient_email)) {
                 try {
-                    \Illuminate\Support\Facades\Mail::raw($notification->message, function ($message) use ($notification) {
-                        $message->to($notification->recipient_email)
-                            ->subject($notification->subject ?? 'School Notification');
-                    });
+                    $school = $notification->school_id
+                        ? \App\Models\School::find($notification->school_id)
+                        : null;
+                    $mailConfig = app(\App\Services\Tenancy\SchoolMailService::class)->applyForSchool($school);
+
+                    \Illuminate\Support\Facades\Mail::mailer($mailConfig['mailer'])
+                        ->raw($notification->message, function ($message) use ($notification, $mailConfig) {
+                            $message->to($notification->recipient_email)
+                                ->from($mailConfig['from_address'], $mailConfig['from_name'])
+                                ->subject($notification->subject ?? 'School Notification');
+                        });
                     Log::info("Email sent to {$notification->recipient_email}");
                 } catch (\Exception $e) {
                     Log::error("Failed to send email to {$notification->recipient_email}: ".$e->getMessage());
@@ -184,6 +191,18 @@ class AttendanceNotificationService
                     }
                 } else {
                     Log::info("SMS disabled - would send to {$notification->recipient_phone}");
+                }
+            }
+
+            if (in_array($notification->channel, ['whatsapp'], true) && ! empty($notification->recipient_phone)) {
+                $whatsappEnabled = config('services.whatsapp.enabled', false);
+                if ($whatsappEnabled) {
+                    app(\App\Services\Messaging\WhatsAppService::class)->send(
+                        $notification->recipient_phone,
+                        $notification->message,
+                    );
+                } else {
+                    Log::info("WhatsApp disabled - would send to {$notification->recipient_phone}");
                 }
             }
         } catch (\Exception $e) {

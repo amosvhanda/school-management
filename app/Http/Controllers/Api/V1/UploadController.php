@@ -27,7 +27,7 @@ class UploadController extends Controller
         $scoped = $schoolId ? "school-{$schoolId}/{$directory}" : $directory;
 
         return $this->created(
-            $this->uploads->store($request->file('file'), $scoped),
+            $this->uploads->store($request->file('file'), $scoped, 'public', $schoolId),
             'File uploaded'
         );
     }

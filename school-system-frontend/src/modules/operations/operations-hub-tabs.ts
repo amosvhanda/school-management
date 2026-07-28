@@ -4,6 +4,7 @@ import {
   CalendarHeart,
   HeartPulse,
   Library,
+  LifeBuoy,
   Package,
   ShoppingBag,
   UserCheck,
@@ -85,6 +86,14 @@ export const OPERATIONS_HUB_TABS: ModuleHubTab[] = [
     icon: UserCheck,
     capability: 'canManageReception',
     listKey: 'ops-visitors',
+  },
+  {
+    id: 'help-desk',
+    title: 'Help Desk',
+    description: 'Support tickets for staff and parent issues.',
+    icon: LifeBuoy,
+    capability: 'canManageReception',
+    listKey: 'ops-help-desk',
   },
   {
     id: 'events',

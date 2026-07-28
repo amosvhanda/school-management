@@ -607,6 +607,50 @@ export const moduleListMetaRegistry: Record<string, ListPageMeta> = {
       },
     ],
   },
+  'ops-help-desk': {
+    filterMode: 'server',
+    filters: [
+      {
+        key: 'status',
+        label: 'Status',
+        type: 'select',
+        placeholder: 'Any status',
+        options: [
+          { label: 'Open', value: 'open' },
+          { label: 'In progress', value: 'in_progress' },
+          { label: 'Resolved', value: 'resolved' },
+          { label: 'Closed', value: 'closed' },
+        ],
+      },
+      {
+        key: 'priority',
+        label: 'Priority',
+        type: 'select',
+        placeholder: 'Any priority',
+        options: [
+          { label: 'Low', value: 'low' },
+          { label: 'Normal', value: 'normal' },
+          { label: 'High', value: 'high' },
+          { label: 'Urgent', value: 'urgent' },
+        ],
+      },
+      {
+        key: 'category',
+        label: 'Category',
+        type: 'select',
+        placeholder: 'Any category',
+        options: [
+          { label: 'General', value: 'general' },
+          { label: 'IT / systems', value: 'it' },
+          { label: 'Facilities', value: 'facilities' },
+          { label: 'Finance', value: 'finance' },
+          { label: 'Academic', value: 'academic' },
+          { label: 'Transport', value: 'transport' },
+          { label: 'Other', value: 'other' },
+        ],
+      },
+    ],
+  },
   'academics-streams': {
     filterMode: 'server',
     filters: [
@@ -987,6 +1031,41 @@ export const moduleListMetaRegistry: Record<string, ListPageMeta> = {
         options: [
           { label: 'Active', value: '1' },
           { label: 'Inactive', value: '0' },
+        ],
+      },
+    ],
+  },
+  'hr-recruitment-jobs': {
+    filterMode: 'server',
+    filters: [
+      {
+        key: 'status',
+        label: 'Status',
+        type: 'select',
+        placeholder: 'Any status',
+        options: [
+          { label: 'Draft', value: 'draft' },
+          { label: 'Open', value: 'open' },
+          { label: 'Closed', value: 'closed' },
+        ],
+      },
+    ],
+  },
+  'hr-recruitment-applications': {
+    filterMode: 'server',
+    filters: [
+      {
+        key: 'status',
+        label: 'Status',
+        type: 'select',
+        placeholder: 'Any status',
+        options: [
+          { label: 'Submitted', value: 'submitted' },
+          { label: 'Screening', value: 'screening' },
+          { label: 'Interview', value: 'interview' },
+          { label: 'Offered', value: 'offered' },
+          { label: 'Hired', value: 'hired' },
+          { label: 'Rejected', value: 'rejected' },
         ],
       },
     ],

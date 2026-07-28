@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use App\Services\Tenancy\SchoolDomainResolver;
+use App\Services\Tenancy\TenantSessionService;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -18,6 +19,7 @@ class ResolveSchoolFromDomain
         if ($school) {
             $request->attributes->set('currentSchool', $school);
             app()->instance('currentSchool', $school);
+            app(TenantSessionService::class)->applyForRequest($request, $school);
         }
 
         return $next($request);

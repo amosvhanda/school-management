@@ -4,7 +4,9 @@ import { useRoute, RouterLink } from 'vue-router'
 import {
   ArrowLeft,
   Banknote,
+  Camera,
   Download,
+  IdCard,
   Mail,
   MapPin,
   Pencil,
@@ -20,7 +22,7 @@ import FormSheet from '@/components/forms/FormSheet.vue'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import {
   Table,
@@ -45,6 +47,7 @@ import {
 import { studentsApi, financeApi } from '@/services/api.service'
 import StudentJourneyPanel from '@/modules/students/components/StudentJourneyPanel.vue'
 import InvoicePrintSheet from '@/modules/finance/components/InvoicePrintSheet.vue'
+import StudentIdCardSheet from '@/modules/students/components/StudentIdCardSheet.vue'
 import PaymentReceiptSheet from '@/modules/finance/components/PaymentReceiptSheet.vue'
 import { feePaymentPromptForm } from '@/modules/shared/action-prompt-forms'
 
@@ -58,6 +61,7 @@ interface Student {
   gender?: string
   phone?: string
   email?: string
+  photo_url?: string | null
   address?: string
   suburb?: string
   class?: string
@@ -123,6 +127,9 @@ const invoiceOpen = ref(false)
 const invoicePrintOpen = ref(false)
 const invoicePrintLoading = ref(false)
 const invoicePrintData = ref<Record<string, unknown> | null>(null)
+const idCardPrintOpen = ref(false)
+const idCardPrintLoading = ref(false)
+const idCardPrintData = ref<Record<string, unknown> | null>(null)
 const paymentOpen = ref(false)
 const paymentTarget = ref<Invoice | null>(null)
 const paymentFormResetValues = ref<Record<string, unknown> | undefined>()
@@ -136,6 +143,8 @@ const studentFormResetValues = ref<Record<string, unknown> | undefined>()
 const invoiceFormResetValues = ref<Record<string, unknown> | undefined>()
 const studentFormSheetRef = ref<{ applyServerErrors: (error: unknown) => void } | null>(null)
 const invoiceFormSheetRef = ref<{ applyServerErrors: (error: unknown) => void } | null>(null)
+const photoInput = ref<HTMLInputElement | null>(null)
+const uploadingPhoto = ref(false)
 
 const id = String(route.params.id)
 
@@ -148,6 +157,44 @@ const displayName = computed(() =>
 const initials = computed(() =>
   displayName.value.split(' ').map((p) => p[0]).join('').slice(0, 2).toUpperCase(),
 )
+
+const studentPhotoUrl = computed(() => student.value?.photo_url ?? null)
+
+function pickPhoto() {
+  photoInput.value?.click()
+}
+
+async function onPhotoSelected(event: Event) {
+  if (!student.value?.id) return
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  if (!file) return
+
+  if (!file.type.startsWith('image/')) {
+    toast.warning('Invalid file', { description: 'Please choose an image file.' })
+    input.value = ''
+    return
+  }
+  if (file.size > 5 * 1024 * 1024) {
+    toast.warning('File too large', { description: 'Choose an image under 5 MB.' })
+    input.value = ''
+    return
+  }
+
+  uploadingPhoto.value = true
+  try {
+    const result = await studentsApi.uploadPhoto(student.value.id, file)
+    if (student.value) {
+      student.value = { ...student.value, photo_url: result.photo_url }
+    }
+    toast.success('Student photo updated')
+  } catch (err) {
+    toast.error('Could not upload photo', { description: getErrorMessage(err) })
+  } finally {
+    uploadingPhoto.value = false
+    input.value = ''
+  }
+}
 
 const guardianName = computed(() => {
   const g = student.value?.guardian
@@ -195,6 +242,21 @@ async function openInvoicePrint(invoiceId: number) {
     invoicePrintOpen.value = false
   } finally {
     invoicePrintLoading.value = false
+  }
+}
+
+async function openIdCardPrint() {
+  if (!student.value?.id) return
+  idCardPrintOpen.value = true
+  idCardPrintLoading.value = true
+  idCardPrintData.value = null
+  try {
+    idCardPrintData.value = await studentsApi.printIdCard(student.value.id)
+  } catch (err) {
+    toast.error('Could not load ID card', getErrorMessage(err))
+    idCardPrintOpen.value = false
+  } finally {
+    idCardPrintLoading.value = false
   }
 }
 
@@ -380,6 +442,15 @@ onMounted(load)
           v-if="student && !loading"
           variant="outline"
           size="sm"
+          @click="openIdCardPrint"
+        >
+          <IdCard class="mr-1 h-4 w-4" aria-hidden="true" />
+          Print ID card
+        </Button>
+        <Button
+          v-if="student && !loading"
+          variant="outline"
+          size="sm"
           :disabled="downloading"
           @click="downloadResults"
         >
@@ -399,9 +470,30 @@ onMounted(load)
     <template v-else-if="student">
       <Card>
         <CardContent class="flex flex-col gap-6 p-6 sm:flex-row sm:items-center">
-          <Avatar class="h-16 w-16">
-            <AvatarFallback class="text-lg">{{ initials }}</AvatarFallback>
-          </Avatar>
+          <div class="relative shrink-0">
+            <Avatar class="h-16 w-16">
+              <AvatarImage v-if="studentPhotoUrl" :src="studentPhotoUrl" :alt="displayName" />
+              <AvatarFallback class="text-lg">{{ initials }}</AvatarFallback>
+            </Avatar>
+            <button
+              v-if="canEditStudent"
+              type="button"
+              class="absolute -right-1 -bottom-1 flex size-7 items-center justify-center rounded-full border border-border bg-background text-muted-foreground shadow-sm transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60"
+              :disabled="uploadingPhoto"
+              :aria-busy="uploadingPhoto"
+              aria-label="Change student photo"
+              @click="pickPhoto"
+            >
+              <Camera class="size-3.5" aria-hidden="true" />
+            </button>
+            <input
+              ref="photoInput"
+              type="file"
+              accept="image/*"
+              class="sr-only"
+              @change="onPhotoSelected"
+            />
+          </div>
           <div class="flex-1 space-y-1">
             <div class="flex flex-wrap items-center gap-2">
               <h1 class="text-2xl font-semibold tracking-tight">{{ displayName }}</h1>
@@ -703,6 +795,12 @@ onMounted(load)
       v-model:open="invoicePrintOpen"
       :document="invoicePrintData"
       :loading="invoicePrintLoading"
+    />
+
+    <StudentIdCardSheet
+      v-model:open="idCardPrintOpen"
+      :document="idCardPrintData"
+      :loading="idCardPrintLoading"
     />
 
     <PaymentReceiptSheet

@@ -20,6 +20,9 @@ class SystemHealthService
             ->where('updated_at', '>=', now()->subDay())
             ->count();
 
+        $pendingJobs = $this->safeCount('jobs');
+        $failedJobs = $this->safeCount('failed_jobs');
+
         return [
             'status' => $dbOk ? 'healthy' : 'degraded',
             'timestamp' => now()->toIso8601String(),
@@ -28,6 +31,10 @@ class SystemHealthService
             'usage' => [
                 'active_users_24h' => $activeUsers,
                 'error_events_24h' => $errorCount,
+            ],
+            'queues' => [
+                'pending_jobs' => $pendingJobs,
+                'failed_jobs' => $failedJobs,
             ],
             'server' => [
                 'php_version' => PHP_VERSION,
@@ -44,6 +51,19 @@ class SystemHealthService
             return true;
         } catch (\Throwable) {
             return false;
+        }
+    }
+
+    protected function safeCount(string $table): int
+    {
+        try {
+            if (! DB::getSchemaBuilder()->hasTable($table)) {
+                return 0;
+            }
+
+            return (int) DB::table($table)->count();
+        } catch (\Throwable) {
+            return 0;
         }
     }
 }

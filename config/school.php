@@ -58,5 +58,22 @@ return [
       'motto' => ['type' => 'string', 'default' => '', 'public' => true],
       'primary_color' => ['type' => 'string', 'default' => '#FF7A00', 'public' => true],
     ],
+    'mail' => [
+      'enabled' => ['type' => 'boolean', 'default' => false, 'public' => false],
+      'from_address' => ['type' => 'string', 'default' => null, 'public' => false],
+      'from_name' => ['type' => 'string', 'default' => null, 'public' => false],
+      'smtp_host' => ['type' => 'string', 'default' => null, 'public' => false],
+      'smtp_port' => ['type' => 'integer', 'default' => 587, 'public' => false],
+      'smtp_username' => ['type' => 'string', 'default' => null, 'public' => false],
+      'smtp_password' => ['type' => 'encrypted', 'default' => null, 'public' => false],
+      'smtp_encryption' => ['type' => 'string', 'default' => 'tls', 'public' => false],
+    ],
+    'notifications' => [
+      'email_notices' => ['type' => 'boolean', 'default' => true, 'public' => false],
+      'sms_notices' => ['type' => 'boolean', 'default' => false, 'public' => false],
+      'whatsapp_notices' => ['type' => 'boolean', 'default' => false, 'public' => false],
+      'parent_messages' => ['type' => 'boolean', 'default' => true, 'public' => false],
+      'leave_alerts' => ['type' => 'boolean', 'default' => true, 'public' => false],
+    ],
   ],
 ];

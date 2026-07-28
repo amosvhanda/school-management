@@ -13,6 +13,7 @@ class SchoolDomain extends Model
     protected $fillable = [
         'school_id',
         'domain',
+        'verification_token',
         'is_primary',
         'is_verified',
         'status',

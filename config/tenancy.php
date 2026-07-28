@@ -30,4 +30,11 @@ return [
         static fn ($host) => strtolower(trim((string) $host)),
         explode(',', (string) env('TENANCY_IGNORED_HOSTS', 'localhost,127.0.0.1')),
     ))),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Tenant session cookie partitioning
+    |--------------------------------------------------------------------------
+    */
+    'session_partitioning' => (bool) env('TENANCY_SESSION_PARTITIONING', true),
 ];

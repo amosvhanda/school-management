@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\School;
 use App\Models\SchoolSetting;
+use App\Services\Tenancy\TenantCache;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
@@ -11,43 +12,63 @@ class SchoolSettingsService
 {
     public function getAll(School $school, bool $publicOnly = false): array
     {
-        $query = SchoolSetting::withoutGlobalScopes()
-            ->where('school_id', $school->id);
+        $cacheKey = $publicOnly ? 'settings:public' : 'settings:all';
 
-        if ($publicOnly) {
-            $query->where('is_public', true);
-        }
+        return TenantCache::for($school->id)->remember($cacheKey, 300, function () use ($school, $publicOnly) {
+            $query = SchoolSetting::withoutGlobalScopes()
+                ->where('school_id', $school->id);
 
-        $stored = $query->get()->groupBy('group');
-
-        $result = [];
-        foreach (config('school.definitions', []) as $group => $definitions) {
-            $result[$group] = [];
-            foreach ($definitions as $key => $definition) {
-                $storedSetting = $stored->get($group)?->firstWhere('key', $key);
-                $result[$group][$key] = $storedSetting?->casted_value
-                    ?? $definition['default']
-                    ?? $school->{$key} ?? null;
+            if ($publicOnly) {
+                $query->where('is_public', true);
             }
-        }
 
-        foreach ($stored as $group => $items) {
-            if (! isset($result[$group])) {
+            $stored = $query->get()->groupBy('group');
+
+            $result = [];
+            foreach (config('school.definitions', []) as $group => $definitions) {
+                if ($publicOnly) {
+                    $definitions = array_filter(
+                        $definitions,
+                        static fn (array $definition) => (bool) ($definition['public'] ?? false),
+                    );
+                }
+
                 $result[$group] = [];
-            }
-            foreach ($items as $item) {
-                if (! array_key_exists($item->key, $result[$group])) {
-                    $result[$group][$item->key] = $item->casted_value;
+                foreach ($definitions as $key => $definition) {
+                    $storedSetting = $stored->get($group)?->firstWhere('key', $key);
+                    $value = $storedSetting?->casted_value
+                        ?? $definition['default']
+                        ?? $school->{$key} ?? null;
+
+                    if (($definition['type'] ?? null) === 'encrypted' && $value !== null && $value !== '') {
+                        $value = '********';
+                    }
+
+                    $result[$group][$key] = $value;
                 }
             }
-        }
 
-        // Canonical fees currency lives on the school record.
-        if (isset($result['regional'])) {
-            $result['regional']['currency'] = $school->getDefaultCurrency();
-        }
+            foreach ($stored as $group => $items) {
+                if (! isset($result[$group])) {
+                    $result[$group] = [];
+                }
+                foreach ($items as $item) {
+                    if ($publicOnly && ! $item->is_public) {
+                        continue;
+                    }
+                    if (! array_key_exists($item->key, $result[$group])) {
+                        $result[$group][$item->key] = $item->casted_value;
+                    }
+                }
+            }
 
-        return $result;
+            // Canonical fees currency lives on the school record.
+            if (isset($result['regional'])) {
+                $result['regional']['currency'] = $school->getDefaultCurrency();
+            }
+
+            return $result;
+        });
     }
 
     public function get(School $school, string $group, string $key, mixed $default = null): mixed
@@ -76,14 +97,31 @@ class SchoolSettingsService
         if ($group === 'regional' && $key === 'currency') {
             app(SchoolConfigurationService::class)->setSchoolCurrency($school, (string) $value);
 
-            return SchoolSetting::withoutGlobalScopes()
+            $setting = SchoolSetting::withoutGlobalScopes()
                 ->where('school_id', $school->id)
                 ->where('group', 'regional')
                 ->where('key', 'currency')
                 ->firstOrFail();
+
+            $this->forgetCache($school);
+
+            return $setting;
         }
 
-        return DB::transaction(function () use ($school, $group, $key, $value, $type, $isPublic) {
+            // Keep existing encrypted password when blank or masked placeholder is submitted.
+            if ($type === 'encrypted' && ($value === null || $value === '' || $value === '********')) {
+                $existing = SchoolSetting::withoutGlobalScopes()
+                    ->where('school_id', $school->id)
+                    ->where('group', $group)
+                    ->where('key', $key)
+                    ->first();
+
+                if ($existing) {
+                    return $existing;
+                }
+            }
+
+        $setting = DB::transaction(function () use ($school, $group, $key, $value, $type, $isPublic) {
             $setting = SchoolSetting::withoutGlobalScopes()->updateOrCreate(
                 [
                     'school_id' => $school->id,
@@ -101,6 +139,10 @@ class SchoolSettingsService
 
             return $setting->fresh();
         });
+
+        $this->forgetCache($school);
+
+        return $setting;
     }
 
     public function bulkSet(School $school, array $settings): Collection
@@ -131,6 +173,12 @@ class SchoolSettingsService
                 if ($group === 'regional' && $key === 'currency') {
                     $default = $school->getDefaultCurrency();
                 }
+                if ($group === 'mail' && $key === 'from_name' && $default === null) {
+                    $default = $school->name;
+                }
+                if ($group === 'mail' && $key === 'from_address' && $default === null) {
+                    $default = $school->email;
+                }
 
                 $this->set(
                     $school,
@@ -142,6 +190,15 @@ class SchoolSettingsService
                 );
             }
         }
+
+        $this->forgetCache($school);
+    }
+
+    public function forgetCache(School $school): void
+    {
+        $cache = TenantCache::for($school->id);
+        $cache->forget('settings:all');
+        $cache->forget('settings:public');
     }
 
     private function inferType(mixed $value): string

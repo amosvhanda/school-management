@@ -725,6 +725,48 @@ export function mapFormToPayload(
     }
   }
 
+  if (listKey === 'ops-help-desk') {
+    return {
+      subject: String(values.subject ?? '').trim(),
+      description: values.description ? String(values.description).trim() : null,
+      category: values.category ?? 'general',
+      priority: values.priority ?? 'normal',
+      requester_name: String(values.requester_name ?? '').trim(),
+      requester_phone: values.requester_phone ? String(values.requester_phone).trim() : null,
+      requester_email: values.requester_email ? String(values.requester_email).trim() : null,
+      student_id: values.student_id ? Number(values.student_id) : null,
+      assigned_to: values.assigned_to ? Number(values.assigned_to) : null,
+      ...(values.status ? { status: values.status } : {}),
+    }
+  }
+
+  if (listKey === 'hr-recruitment-jobs') {
+    return {
+      title: String(values.title ?? '').trim(),
+      department: values.department ? String(values.department).trim() : null,
+      employment_type: values.employment_type ?? 'full_time',
+      location: values.location ? String(values.location).trim() : null,
+      openings: values.openings != null && values.openings !== '' ? Number(values.openings) : 1,
+      closes_at: values.closes_at || null,
+      status: values.status ?? 'draft',
+      description: values.description ? String(values.description).trim() : null,
+      requirements: values.requirements ? String(values.requirements).trim() : null,
+    }
+  }
+
+  if (listKey === 'hr-recruitment-applications') {
+    return {
+      job_posting_id: values.job_posting_id ? Number(values.job_posting_id) : null,
+      applicant_name: String(values.applicant_name ?? '').trim(),
+      email: values.email ? String(values.email).trim() : null,
+      phone: values.phone ? String(values.phone).trim() : null,
+      resume_url: values.resume_url ? String(values.resume_url).trim() : null,
+      cover_letter: values.cover_letter ? String(values.cover_letter).trim() : null,
+      notes: values.notes ? String(values.notes).trim() : null,
+      ...(values.status ? { status: values.status } : {}),
+    }
+  }
+
   if (listKey === 'ops-events') {
     return {
       title: values.title,
@@ -891,6 +933,9 @@ export const backendCrudSupport: Record<string, { create: boolean; update: boole
   'ops-assets': { create: true, update: true, delete: false },
   'ops-hostels': { create: true, update: true, delete: false },
   'ops-visitors': { create: true, update: false, delete: false },
+  'ops-help-desk': { create: true, update: true, delete: false },
+  'hr-recruitment-jobs': { create: true, update: true, delete: false },
+  'hr-recruitment-applications': { create: true, update: true, delete: false },
   'ops-health': { create: true, update: true, delete: false },
   'ops-events': { create: true, update: true, delete: true },
   'comms-announcements': { create: true, update: true, delete: true },

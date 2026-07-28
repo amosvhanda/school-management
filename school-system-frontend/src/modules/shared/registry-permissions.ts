@@ -80,6 +80,9 @@ function inferPermissions(listKey: string): ModulePermissionConfig {
   if (listKey.startsWith('ops-visitors')) {
     return { create: 'canManageReception', edit: 'canManageReception', delete: 'canManageReception' }
   }
+  if (listKey.startsWith('ops-help-desk')) {
+    return { create: 'canManageReception', edit: 'canManageReception', delete: 'canManageReception' }
+  }
   if (listKey.startsWith('enterprise-exams')) {
     return { create: EXAMS, edit: EXAMS, delete: ADMIN }
   }

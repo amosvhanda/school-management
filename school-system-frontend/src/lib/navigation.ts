@@ -145,6 +145,7 @@ export const staffNavigation: NavGroup[] = [
           { title: 'Employee List', href: '/hr/employees', capability: 'canManageTeachers' },
           { title: 'Payroll', href: '/finance/payroll', capability: 'canManageFinance' },
           { title: 'Designation', href: '/hr/designations', capability: 'canManageTeachers' },
+          { title: 'Recruitment', href: '/hr/recruitment', capability: 'canManageTeachers' },
           { title: 'Department', href: '/academics/departments', capability: 'canManageTeachers' },
           { title: 'Discipline', href: '/hr/discipline', capability: 'canManageStudents' },
           { title: 'Policies', href: '/hr?tab=policies', capability: 'canManageTeachers' },
@@ -190,6 +191,12 @@ export const staffNavigation: NavGroup[] = [
         title: 'Visitors',
         href: '/operations/visitors',
         icon: 'UserCheck',
+        capability: 'canManageReception',
+      },
+      {
+        title: 'Help Desk',
+        href: '/operations/help-desk',
+        icon: 'LifeBuoy',
         capability: 'canManageReception',
       },
       {

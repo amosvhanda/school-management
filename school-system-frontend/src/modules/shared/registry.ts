@@ -17,6 +17,7 @@ import {
   genericColumns,
   guardianColumns,
   healthColumns,
+  helpDeskColumns,
   holidayProgramColumns,
   hostelColumns,
   inventoryColumns,
@@ -31,6 +32,8 @@ import {
   procurementColumns,
   schoolTripColumns,
   procurementVendorColumns,
+  recruitmentApplicationColumns,
+  recruitmentJobColumns,
   statusColumn,
   activeStatusColumn,
   studentColumns,
@@ -435,6 +438,12 @@ export const listPageRegistry: Record<string, ListPageConfig> = {
     createEndpoint: endpoints.visitors.checkIn,
     columns: visitorColumns,
   },
+  'ops-help-desk': {
+    title: 'Help Desk',
+    description: 'Internal support tickets for staff, parents, and student issues.',
+    endpoint: moduleEndpoints.helpDeskTickets,
+    columns: helpDeskColumns,
+  },
   'ops-health': { title: 'Clinic Visits', endpoint: moduleEndpoints.healthVisits, columns: healthColumns },
   'ops-events': { title: 'Events', endpoint: moduleEndpoints.events, columns: eventColumns },
   'ops-school-trips': {
@@ -448,6 +457,18 @@ export const listPageRegistry: Record<string, ListPageConfig> = {
   'comms-threads': { title: 'Message Threads', endpoint: moduleEndpoints.threads, columns: threadColumns },
 
   'hr-leave': { title: 'Leave Requests', endpoint: moduleEndpoints.leaveRequests, columns: leaveColumns },
+  'hr-recruitment-jobs': {
+    title: 'Job Postings',
+    description: 'Open roles and hiring campaigns.',
+    endpoint: moduleEndpoints.recruitmentJobs,
+    columns: recruitmentJobColumns,
+  },
+  'hr-recruitment-applications': {
+    title: 'Applications',
+    description: 'Applicant pipeline from submission to hire.',
+    endpoint: moduleEndpoints.recruitmentApplications,
+    columns: recruitmentApplicationColumns,
+  },
   'hr-leave-types': {
     title: 'Leave Types',
     description: 'Paid and unpaid leave categories with default day allowances.',

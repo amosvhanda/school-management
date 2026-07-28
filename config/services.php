@@ -35,4 +35,17 @@ return [
         ],
     ],
 
+    'sms' => [
+        'enabled' => env('SMS_ENABLED', false),
+        'provider' => env('SMS_PROVIDER', 'log'),
+    ],
+
+    'whatsapp' => [
+        'enabled' => env('WHATSAPP_ENABLED', false),
+        'provider' => env('WHATSAPP_PROVIDER', 'log'),
+        'twilio_sid' => env('WHATSAPP_TWILIO_SID'),
+        'twilio_token' => env('WHATSAPP_TWILIO_TOKEN'),
+        'twilio_from' => env('WHATSAPP_TWILIO_FROM'),
+    ],
+
 ];

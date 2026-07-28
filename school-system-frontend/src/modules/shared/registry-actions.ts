@@ -75,6 +75,54 @@ export const moduleActionsRegistry: Record<string, RowActionConfig[]> = {
       successMessage: 'Leave rejected',
     },
   ],
+  'hr-recruitment-jobs': [
+    {
+      label: 'Close posting',
+      method: 'post',
+      path: (id) => endpoints.recruitment.closeJob(id),
+      when: (row) => String(row.status ?? '').toLowerCase() === 'open',
+      successMessage: 'Job posting closed',
+    },
+  ],
+  'hr-recruitment-applications': [
+    {
+      label: 'Shortlist',
+      method: 'post',
+      path: (id) => endpoints.recruitment.shortlist(id),
+      when: (row) => String(row.status ?? '').toLowerCase() === 'submitted',
+      successMessage: 'Applicant shortlisted',
+    },
+    {
+      label: 'Interview',
+      method: 'post',
+      path: (id) => endpoints.recruitment.interview(id),
+      when: (row) => String(row.status ?? '').toLowerCase() === 'screening',
+      successMessage: 'Moved to interview',
+    },
+    {
+      label: 'Offer',
+      method: 'post',
+      path: (id) => endpoints.recruitment.offer(id),
+      when: (row) => String(row.status ?? '').toLowerCase() === 'interview',
+      successMessage: 'Offer recorded',
+    },
+    {
+      label: 'Hire',
+      method: 'post',
+      path: (id) => endpoints.recruitment.hire(id),
+      when: (row) => String(row.status ?? '').toLowerCase() === 'offered',
+      successMessage: 'Applicant hired',
+    },
+    {
+      label: 'Reject',
+      method: 'post',
+      path: (id) => endpoints.recruitment.reject(id),
+      variant: 'outline',
+      when: (row) => !['hired', 'rejected'].includes(String(row.status ?? '').toLowerCase()),
+      confirmReason: true,
+      successMessage: 'Application rejected',
+    },
+  ],
   'academics-exams': [
     {
       label: 'Publish',
@@ -205,6 +253,22 @@ export const moduleActionsRegistry: Record<string, RowActionConfig[]> = {
       path: (id) => endpoints.visitors.checkOut(id),
       when: (row) => String(row.status ?? '').toLowerCase() === 'checked_in',
       successMessage: 'Visitor checked out',
+    },
+  ],
+  'ops-help-desk': [
+    {
+      label: 'Resolve',
+      method: 'post',
+      path: (id) => endpoints.helpDesk.resolve(id),
+      when: (row) => ['open', 'in_progress'].includes(String(row.status ?? '').toLowerCase()),
+      successMessage: 'Ticket resolved',
+    },
+    {
+      label: 'Close',
+      method: 'post',
+      path: (id) => endpoints.helpDesk.close(id),
+      when: (row) => ['open', 'in_progress', 'resolved'].includes(String(row.status ?? '').toLowerCase()),
+      successMessage: 'Ticket closed',
     },
   ],
   'ops-school-trips': [

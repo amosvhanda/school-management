@@ -825,6 +825,90 @@ export const visitorColumns: ColumnDef<Record<string, unknown>>[] = [
   },
 ]
 
+export const helpDeskColumns: ColumnDef<Record<string, unknown>>[] = [
+  textColumn('Ticket', 'ticket_number'),
+  textColumn('Subject', 'subject'),
+  textColumn('Category', 'category'),
+  textColumn('Priority', 'priority'),
+  textColumn('Requester', 'requester_name'),
+  textColumn('Phone', 'requester_phone'),
+  studentRelationColumn(),
+  {
+    id: 'assigned_to',
+    header: 'Assigned to',
+    cell: ({ row }) => {
+      const assignee = (row.original.assigned_to_user ?? row.original.assignedTo) as Record<string, unknown> | undefined
+      if (assignee && typeof assignee === 'object') {
+        return String(assignee.name ?? assignee.email ?? '—')
+      }
+      return '—'
+    },
+  },
+  dateTimeColumn('Created', 'created_at'),
+  {
+    id: 'status',
+    header: 'Status',
+    cell: ({ row }) => {
+      const status = String(row.original.status ?? '—').replaceAll('_', ' ')
+      const raw = String(row.original.status ?? '').toLowerCase()
+      const variant = statusVariants[raw] ?? 'outline'
+      return h(Badge, { variant }, () => status)
+    },
+  },
+]
+
+export const recruitmentJobColumns: ColumnDef<Record<string, unknown>>[] = [
+  textColumn('Title', 'title'),
+  textColumn('Department', 'department'),
+  textColumn('Type', 'employment_type'),
+  textColumn('Location', 'location'),
+  textColumn('Openings', 'openings'),
+  {
+    id: 'applications_count',
+    header: 'Applications',
+    cell: ({ row }) => String(row.original.applications_count ?? '0'),
+  },
+  dateTimeColumn('Closes', 'closes_at'),
+  {
+    id: 'status',
+    header: 'Status',
+    cell: ({ row }) => {
+      const status = String(row.original.status ?? '—').replaceAll('_', ' ')
+      const raw = String(row.original.status ?? '').toLowerCase()
+      const variant = statusVariants[raw] ?? 'outline'
+      return h(Badge, { variant }, () => status)
+    },
+  },
+]
+
+export const recruitmentApplicationColumns: ColumnDef<Record<string, unknown>>[] = [
+  textColumn('Applicant', 'applicant_name'),
+  textColumn('Email', 'email'),
+  textColumn('Phone', 'phone'),
+  {
+    id: 'job_posting',
+    header: 'Position',
+    cell: ({ row }) => {
+      const job = (row.original.job_posting ?? row.original.jobPosting) as Record<string, unknown> | undefined
+      if (job && typeof job === 'object') {
+        return String(job.title ?? '—')
+      }
+      return '—'
+    },
+  },
+  dateTimeColumn('Applied', 'created_at'),
+  {
+    id: 'status',
+    header: 'Status',
+    cell: ({ row }) => {
+      const status = String(row.original.status ?? '—').replaceAll('_', ' ')
+      const raw = String(row.original.status ?? '').toLowerCase()
+      const variant = statusVariants[raw] ?? 'outline'
+      return h(Badge, { variant }, () => status)
+    },
+  },
+]
+
 export const healthColumns: ColumnDef<Record<string, unknown>>[] = [
   studentRelationColumn(),
   dateColumn('Visit date', 'visit_date'),

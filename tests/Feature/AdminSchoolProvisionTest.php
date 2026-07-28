@@ -162,7 +162,7 @@ class AdminSchoolProvisionTest extends TestCase
 
         Sanctum::actingAs($superAdmin);
         $this
-            ->postJson("/api/v1/admin/schools/{$school->id}/domains/{$domainId}/verify")
+            ->postJson("/api/v1/admin/schools/{$school->id}/domains/{$domainId}/verify?force=1")
             ->assertOk()
             ->assertJsonPath('data.domain.is_verified', true);
 

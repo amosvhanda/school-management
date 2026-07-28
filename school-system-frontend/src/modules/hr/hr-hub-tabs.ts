@@ -1,5 +1,6 @@
 import {
   BadgeCheck,
+  Briefcase,
   ClipboardCheck,
   FileCheck,
   IdCard,
@@ -44,6 +45,25 @@ export const HR_HUB_TABS: ModuleHubTab[] = [
     icon: BadgeCheck,
     capability: 'canManageTeachers',
     listKey: 'hr-leave-types',
+  },
+  {
+    id: 'recruitment',
+    title: 'Recruitment',
+    description: 'Job postings and applicant pipeline.',
+    icon: Briefcase,
+    capability: 'canManageTeachers',
+    sections: [
+      {
+        listKey: 'hr-recruitment-jobs',
+        title: 'Job postings',
+        description: 'Open roles and hiring campaigns.',
+      },
+      {
+        listKey: 'hr-recruitment-applications',
+        title: 'Applications',
+        description: 'Track applicants from submission to hire.',
+      },
+    ],
   },
   {
     id: 'staff-attendance',

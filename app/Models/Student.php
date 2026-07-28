@@ -26,6 +26,7 @@ class Student extends Model
         'national_id',
         'phone',
         'email',
+        'photo_url',
         'address',
         'suburb',
         'class',

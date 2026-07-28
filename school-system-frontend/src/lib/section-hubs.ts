@@ -85,6 +85,7 @@ export const SECTION_HUBS: Record<SectionKey, SectionHubDefinition> = {
     quickLinks: [
       { title: 'Employees', description: 'Non-teaching staff records', href: '/hr?tab=employees', icon: 'Users', capability: 'canManageTeachers' },
       { title: 'Leave requests', description: 'Staff leave queue', href: '/hr?tab=leave', icon: 'Palmtree', capability: 'canManageTeachers' },
+      { title: 'Recruitment', description: 'Job postings and applicants', href: '/hr?tab=recruitment', icon: 'Briefcase', capability: 'canManageTeachers' },
       { title: 'Staff attendance', description: 'Daily teacher and employee register', href: '/hr?tab=staff-attendance', icon: 'ClipboardCheck', capability: 'canManageTeachers' },
       { title: 'Discipline', description: 'Student conduct records', href: '/hr?tab=discipline', icon: 'ShieldAlert', capability: 'canManageStudents' },
       { title: 'Policies', description: 'Compliance policies', href: '/hr?tab=policies', icon: 'Scale', capability: 'canManageTeachers' },
@@ -105,6 +106,7 @@ export const SECTION_HUBS: Record<SectionKey, SectionHubDefinition> = {
       { title: 'Library', description: 'Books and lending', href: '/operations?tab=library-books', icon: 'Library', capability: 'canManageLibrary' },
       { title: 'Transport', description: 'Vehicles, drivers, and routes', href: '/operations?tab=transport', icon: 'Bus', capability: 'canManageTransport' },
       { title: 'Visitors', description: 'Sign-in register', href: '/operations?tab=visitors', icon: 'UserCheck', capability: 'canManageReception' },
+      { title: 'Help desk', description: 'Support tickets', href: '/operations?tab=help-desk', icon: 'LifeBuoy', capability: 'canManageReception' },
       { title: 'Events', description: 'School calendar events', href: '/operations?tab=events', icon: 'CalendarHeart', capability: 'canManageTeachers' },
       { title: 'School trips', description: 'Excursions and parent registration', href: '/operations?tab=trips', icon: 'Bus', capability: 'canManageTeachers' },
       { title: 'Hostels', description: 'Boarding houses and rooms', href: '/operations?tab=hostels', icon: 'Building2', capability: 'canManageTeachers' },

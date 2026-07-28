@@ -180,7 +180,7 @@ export const SETUP_TABS: SetupTab[] = [
     id: 'notifications',
     title: 'Notification',
     description:
-      'Store school preferences for outbound notice channels. Delivery wiring uses these flags as they are enabled.',
+      'Channel preferences plus school email delivery settings for notices, attendance alerts, and queued messages.',
     icon: Bell,
   },
   {

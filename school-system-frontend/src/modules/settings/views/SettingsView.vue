@@ -20,6 +20,15 @@ import SchoolSetupSection from '@/modules/settings/components/SchoolSetupSection
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Checkbox } from '@/components/ui/checkbox'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { useToast } from '@/composables/useToast'
 import { useSchoolProfile } from '@/composables/useSchoolProfile'
@@ -135,6 +144,11 @@ const NOTIFICATION_OPTIONS = [
     description: 'Preference for using SMS for urgent notices when phone numbers are available.',
   },
   {
+    key: 'whatsapp_notices',
+    title: 'Allow WhatsApp notices',
+    description: 'Preference for sending notices via WhatsApp when phone numbers are available.',
+  },
+  {
     key: 'parent_messages',
     title: 'Parent message alerts',
     description: 'Preference for notifying guardians about new staff message threads.',
@@ -151,11 +165,23 @@ type NotificationKey = (typeof NOTIFICATION_OPTIONS)[number]['key']
 const notificationPrefs = ref<Record<NotificationKey, boolean>>({
   email_notices: false,
   sms_notices: false,
+  whatsapp_notices: false,
   parent_messages: false,
   leave_alerts: false,
 })
 const notificationsLoading = ref(false)
 const notificationsSaving = ref(false)
+const mailSaving = ref(false)
+const mailForm = ref({
+  enabled: false,
+  from_address: '',
+  from_name: '',
+  smtp_host: '',
+  smtp_port: '587',
+  smtp_username: '',
+  smtp_password: '',
+  smtp_encryption: 'tls',
+})
 
 const activeSectionMeta = computed(() => {
   switch (activeTab.value) {
@@ -361,6 +387,18 @@ async function loadNotifications() {
     for (const option of NOTIFICATION_OPTIONS) {
       notificationPrefs.value[option.key] = group[option.key] === true
     }
+
+    const mail = settings?.mail ?? {}
+    mailForm.value = {
+      enabled: mail.enabled === true,
+      from_address: String(mail.from_address ?? ''),
+      from_name: String(mail.from_name ?? ''),
+      smtp_host: String(mail.smtp_host ?? ''),
+      smtp_port: String(mail.smtp_port ?? '587'),
+      smtp_username: String(mail.smtp_username ?? ''),
+      smtp_password: '',
+      smtp_encryption: String(mail.smtp_encryption ?? 'tls'),
+    }
   } catch (err) {
     toast.error('Could not load notification settings', getErrorMessage(err))
   } finally {
@@ -384,6 +422,38 @@ async function saveNotifications() {
     toast.error('Save failed', getErrorMessage(err))
   } finally {
     notificationsSaving.value = false
+  }
+}
+
+async function saveMailSettings() {
+  mailSaving.value = true
+  try {
+    const payload: Array<{ group: string; key: string; value: unknown; type?: string }> = [
+      { group: 'mail', key: 'enabled', value: mailForm.value.enabled, type: 'boolean' },
+      { group: 'mail', key: 'from_address', value: mailForm.value.from_address || null },
+      { group: 'mail', key: 'from_name', value: mailForm.value.from_name || null },
+      { group: 'mail', key: 'smtp_host', value: mailForm.value.smtp_host || null },
+      { group: 'mail', key: 'smtp_port', value: Number(mailForm.value.smtp_port || 587), type: 'integer' },
+      { group: 'mail', key: 'smtp_username', value: mailForm.value.smtp_username || null },
+      { group: 'mail', key: 'smtp_encryption', value: mailForm.value.smtp_encryption || 'tls' },
+    ]
+
+    if (mailForm.value.smtp_password.trim()) {
+      payload.push({
+        group: 'mail',
+        key: 'smtp_password',
+        value: mailForm.value.smtp_password,
+        type: 'encrypted',
+      })
+    }
+
+    await schoolApi.updateSettings(payload)
+    mailForm.value.smtp_password = ''
+    toast.success('Email delivery settings saved')
+  } catch (err) {
+    toast.error('Save failed', getErrorMessage(err))
+  } finally {
+    mailSaving.value = false
   }
 }
 
@@ -592,6 +662,83 @@ onMounted(load)
                   {{ notificationsSaving ? 'Saving…' : 'Save notifications' }}
                 </Button>
               </div>
+
+              <section class="space-y-4 border-t pt-6" aria-labelledby="mail-settings-heading">
+                <div class="space-y-1">
+                  <h3 id="mail-settings-heading" class="text-sm font-semibold">Email delivery</h3>
+                  <p class="text-xs text-muted-foreground">
+                    Configure the from-address and optional SMTP server used for school notices and queued emails.
+                  </p>
+                </div>
+
+                <label class="flex items-start gap-3 rounded-xl border border-border/60 px-4 py-3">
+                  <Checkbox
+                    id="mail-enabled"
+                    class="mt-0.5"
+                    :checked="mailForm.enabled"
+                    @update:checked="(checked: boolean | 'indeterminate') => (mailForm.enabled = checked === true)"
+                  />
+                  <span class="space-y-1">
+                    <span class="block text-sm font-medium">Use school SMTP</span>
+                    <span class="block text-xs text-muted-foreground">
+                      When enabled, outbound email uses this school&apos;s SMTP credentials instead of the platform default.
+                    </span>
+                  </span>
+                </label>
+
+                <div class="grid gap-4 sm:grid-cols-2">
+                  <div class="space-y-2">
+                    <Label for="mail-from-name">From name</Label>
+                    <Input id="mail-from-name" v-model="mailForm.from_name" autocomplete="organization" />
+                  </div>
+                  <div class="space-y-2">
+                    <Label for="mail-from-address">From email</Label>
+                    <Input id="mail-from-address" v-model="mailForm.from_address" type="email" autocomplete="email" />
+                  </div>
+                  <div class="space-y-2">
+                    <Label for="mail-smtp-host">SMTP host</Label>
+                    <Input id="mail-smtp-host" v-model="mailForm.smtp_host" autocomplete="off" />
+                  </div>
+                  <div class="space-y-2">
+                    <Label for="mail-smtp-port">SMTP port</Label>
+                    <Input id="mail-smtp-port" v-model="mailForm.smtp_port" inputmode="numeric" />
+                  </div>
+                  <div class="space-y-2">
+                    <Label for="mail-smtp-username">SMTP username</Label>
+                    <Input id="mail-smtp-username" v-model="mailForm.smtp_username" autocomplete="off" />
+                  </div>
+                  <div class="space-y-2">
+                    <Label for="mail-smtp-password">SMTP password</Label>
+                    <Input
+                      id="mail-smtp-password"
+                      v-model="mailForm.smtp_password"
+                      type="password"
+                      autocomplete="new-password"
+                      placeholder="Leave blank to keep current password"
+                    />
+                  </div>
+                  <div class="space-y-2 sm:col-span-2">
+                    <Label for="mail-smtp-encryption">Encryption</Label>
+                    <Select v-model="mailForm.smtp_encryption">
+                      <SelectTrigger id="mail-smtp-encryption">
+                        <SelectValue placeholder="Select encryption" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="tls">TLS</SelectItem>
+                        <SelectItem value="ssl">SSL</SelectItem>
+                        <SelectItem value="none">None</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div class="flex justify-end">
+                  <Button type="button" :disabled="mailSaving" @click="saveMailSettings">
+                    <Save class="mr-2 size-4" aria-hidden="true" />
+                    {{ mailSaving ? 'Saving…' : 'Save email delivery' }}
+                  </Button>
+                </div>
+              </section>
             </template>
           </div>
 

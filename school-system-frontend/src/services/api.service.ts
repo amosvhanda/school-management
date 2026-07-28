@@ -187,6 +187,15 @@ export const studentsApi = {
     })
     return data as Blob
   },
+  printIdCard: (id: number | string) => fetchOne(e.students.idCardPrint(id)),
+  uploadPhoto: async (id: number | string, file: File) => {
+    const form = new FormData()
+    form.append('file', file)
+    const { data } = await api.post(e.students.photo(id), form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+    return unwrapOne<{ photo_url: string; student: Record<string, unknown> }>(data)
+  },
   guardians: (id: number | string) => fetchList(e.students.guardians(id)),
   categories: crud(e.studentCategories.list, e.studentCategories.detail),
 }
@@ -792,6 +801,35 @@ export const platformApi = {
       license_status?: string | null
       login_hint?: string
     }>(e.license.admin.createSchool, payload),
+  getSchool: (id: number | string) =>
+    fetchOne<{
+      school: SchoolLicenseRow & Record<string, unknown>
+      domains: Array<Record<string, unknown>>
+      usage?: Record<string, unknown>
+    }>(e.license.admin.school(id)),
+  updateSchoolStatus: (id: number | string, status: 'active' | 'suspended') =>
+    patchRecord<{ school: SchoolLicenseRow }>(e.license.admin.schoolStatus(id), { status }),
+  deleteSchool: async (id: number | string, payload?: { backup?: boolean }) => {
+    const { data } = await api.delete(e.license.admin.school(id), { data: payload })
+    return unwrapOne(data)
+  },
+  schoolUsage: (id: number | string) => fetchOne<{ usage: Record<string, number | string | null> }>(e.license.admin.schoolUsage(id)),
+  listSchoolBackups: (id: number | string) =>
+    fetchOne<{ backups: Array<Record<string, unknown>> }>(e.license.admin.schoolBackups(id)),
+  createSchoolBackup: (id: number | string) =>
+    createRecord<{ backup: Record<string, unknown> }>(e.license.admin.schoolBackups(id), {}),
+  restoreSchoolBackup: (schoolId: number | string, backupId: number | string) =>
+    postRecord<{ backup: Record<string, unknown> }>(e.license.admin.restoreBackup(schoolId, backupId)),
+  listSchoolDomains: (id: number | string) =>
+    fetchOne<{ domains: Array<Record<string, unknown>> }>(e.license.admin.schoolDomains(id)),
+  addSchoolDomain: (id: number | string, payload: { domain: string; is_primary?: boolean }) =>
+    createRecord<{ domain: Record<string, unknown> }>(e.license.admin.schoolDomains(id), payload),
+  verifySchoolDomain: (schoolId: number | string, domainId: number | string, force = false) =>
+    postRecord<{ domain: Record<string, unknown> }>(
+      `${e.license.admin.verifyDomain(schoolId, domainId)}${force ? '?force=1' : ''}`,
+    ),
+  deleteSchoolDomain: (schoolId: number | string, domainId: number | string) =>
+    deleteRecord(e.license.admin.schoolDomain(schoolId, domainId)),
   licenses: async (params?: ListQueryParams) => {
     const payload = await platformApi.licenseOverview(params)
     return Array.isArray(payload?.keys) ? payload.keys : []

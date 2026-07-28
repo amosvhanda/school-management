@@ -79,6 +79,17 @@ export const endpoints = {
       list: '/admin/licenses',
       schools: '/admin/schools',
       createSchool: '/admin/schools',
+      school: (id: number | string) => `/admin/schools/${id}`,
+      schoolStatus: (id: number | string) => `/admin/schools/${id}/status`,
+      schoolUsage: (id: number | string) => `/admin/schools/${id}/usage`,
+      schoolBackups: (id: number | string) => `/admin/schools/${id}/backups`,
+      restoreBackup: (schoolId: number | string, backupId: number | string) =>
+        `/admin/schools/${schoolId}/backups/${backupId}/restore`,
+      schoolDomains: (id: number | string) => `/admin/schools/${id}/domains`,
+      schoolDomain: (schoolId: number | string, domainId: number | string) =>
+        `/admin/schools/${schoolId}/domains/${domainId}`,
+      verifyDomain: (schoolId: number | string, domainId: number | string) =>
+        `/admin/schools/${schoolId}/domains/${domainId}/verify`,
       revoke: (id: number | string) => `/admin/licenses/${id}/revoke`,
     },
   },
@@ -129,6 +140,8 @@ export const endpoints = {
     documents: (id: number | string) => `/students/${id}/documents`,
     exams: (id: number | string) => `/students/${id}/exams`,
     resultsDownload: (id: number | string) => `/students/${id}/results/download`,
+    idCardPrint: (id: number | string) => `/students/${id}/id-card/print`,
+    photo: (id: number | string) => `/students/${id}/photo`,
     guardians: (id: number | string) => `/students/${id}/guardians`,
   },
   streams: {
@@ -397,6 +410,24 @@ export const endpoints = {
     list: '/visitors',
     checkIn: '/visitors/check-in',
     checkOut: (id: number | string) => `/visitors/${id}/check-out`,
+  },
+  helpDesk: {
+    list: '/help-desk/tickets',
+    detail: (id: number | string) => `/help-desk/tickets/${id}`,
+    resolve: (id: number | string) => `/help-desk/tickets/${id}/resolve`,
+    close: (id: number | string) => `/help-desk/tickets/${id}/close`,
+  },
+  recruitment: {
+    jobs: '/recruitment/jobs',
+    job: (id: number | string) => `/recruitment/jobs/${id}`,
+    closeJob: (id: number | string) => `/recruitment/jobs/${id}/close`,
+    applications: '/recruitment/applications',
+    application: (id: number | string) => `/recruitment/applications/${id}`,
+    shortlist: (id: number | string) => `/recruitment/applications/${id}/shortlist`,
+    interview: (id: number | string) => `/recruitment/applications/${id}/interview`,
+    offer: (id: number | string) => `/recruitment/applications/${id}/offer`,
+    hire: (id: number | string) => `/recruitment/applications/${id}/hire`,
+    reject: (id: number | string) => `/recruitment/applications/${id}/reject`,
   },
   health: {
     profile: (studentId: number | string) => `/health/students/${studentId}/profile`,

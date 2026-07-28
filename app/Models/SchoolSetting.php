@@ -38,6 +38,7 @@ class SchoolSetting extends Model
             'integer', 'number' => is_numeric($this->attributes['value']) ? (int) $this->attributes['value'] : 0,
             'float', 'decimal' => is_numeric($this->attributes['value']) ? (float) $this->attributes['value'] : 0.0,
             'json' => json_decode($this->attributes['value'] ?? 'null', true),
+            'encrypted' => $this->decryptValue($this->attributes['value'] ?? null),
             default => $this->attributes['value'],
         };
     }
@@ -47,7 +48,23 @@ class SchoolSetting extends Model
         $this->value = match ($this->type) {
             'boolean' => $value ? '1' : '0',
             'json' => json_encode($value),
+            'encrypted' => $value === null || $value === ''
+                ? null
+                : \Illuminate\Support\Facades\Crypt::encryptString((string) $value),
             default => (string) $value,
         };
+    }
+
+    private function decryptValue(?string $value): ?string
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        try {
+            return \Illuminate\Support\Facades\Crypt::decryptString($value);
+        } catch (\Throwable) {
+            return null;
+        }
     }
 }

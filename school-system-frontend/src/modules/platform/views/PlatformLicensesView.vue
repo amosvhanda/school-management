@@ -51,6 +51,7 @@ import {
   type PlatformLicenseSummary,
   type SchoolLicenseRow,
 } from '@/services/api.service'
+import PlatformSchoolManageSheet from '@/modules/platform/views/PlatformSchoolManageSheet.vue'
 
 const toast = useToast()
 const loading = ref(true)
@@ -65,6 +66,8 @@ const generating = ref(false)
 const revokingId = ref<number | null>(null)
 const registerOpen = ref(false)
 const registering = ref(false)
+const manageOpen = ref(false)
+const manageSchool = ref<SchoolLicenseRow | null>(null)
 const provisionResult = ref<{
   schoolName: string
   adminEmail: string
@@ -240,6 +243,22 @@ const schoolColumns: ColumnDef<Record<string, unknown>>[] = [
       return prefix ? h('code', { class: 'text-xs' }, prefix) : '—'
     },
   },
+  {
+    id: 'school-actions',
+    header: '',
+    cell: ({ row }) => {
+      const record = row.original as unknown as SchoolLicenseRow
+      return h(
+        Button,
+        {
+          size: 'sm',
+          variant: 'outline',
+          onClick: () => openManageSchool(record),
+        },
+        () => 'Manage',
+      )
+    },
+  },
 ]
 
 const keyColumns = computed<ColumnDef<Record<string, unknown>>[]>(() => {
@@ -334,6 +353,11 @@ async function loadSchools() {
   const payload = await platformApi.schoolsOverview(params)
   schools.value = payload?.schools ?? []
   if (payload?.summary) summary.value = payload.summary
+}
+
+function openManageSchool(record: SchoolLicenseRow) {
+  manageSchool.value = record
+  manageOpen.value = true
 }
 
 async function loadKeys() {
@@ -611,6 +635,12 @@ onMounted(loadAll)
         </TabsContent>
       </Tabs>
     </div>
+
+    <PlatformSchoolManageSheet
+      v-model:open="manageOpen"
+      :school="manageSchool"
+      @changed="loadAll"
+    />
 
     <Dialog v-model:open="registerOpen">
       <DialogContent class="max-h-[90vh] overflow-y-auto sm:max-w-2xl">

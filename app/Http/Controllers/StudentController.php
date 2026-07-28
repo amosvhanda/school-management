@@ -15,6 +15,7 @@ use App\Models\StudentDocument;
 use App\Services\Domain\SchoolDomainRules;
 use App\Services\FinancialLedgerService;
 use App\Services\ParentAccessService;
+use App\Services\FileUploadService;
 use App\Services\StudentAdmissionService;
 use App\Services\StudentPromotionService;
 use Illuminate\Http\Request;
@@ -892,6 +893,95 @@ HTML;
         return response()->json([
             'data' => $result,
             'message' => "Promotion completed: {$result['promoted']} promoted, {$result['repeated']} repeated, {$result['graduated']} graduated",
+        ]);
+    }
+
+    public function uploadPhoto(Request $request, Student $student)
+    {
+        $this->authorizeModuleAccess(
+            $request,
+            capabilities: ['canManageStudents'],
+            permissionSlugs: ['students.manage'],
+        );
+
+        if ($request->user()->school_id && $student->school_id !== $request->user()->school_id) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        $request->validate([
+            'file' => ['required', 'file', 'image', 'max:5120'],
+        ]);
+
+        $schoolId = $student->school_id ?? $request->user()->school_id;
+        $result = app(FileUploadService::class)->store(
+            $request->file('file'),
+            'student-photos',
+            'public',
+            $schoolId,
+        );
+
+        $student->update(['photo_url' => $result['url']]);
+
+        return response()->json([
+            'data' => [
+                'photo_url' => $result['url'],
+                'student' => new \App\Http\Resources\Api\V1\StudentResource($student->fresh()),
+            ],
+            'message' => 'Student photo updated',
+        ]);
+    }
+
+    public function printIdCard(Request $request, Student $student)
+    {
+        $this->authorizeModuleAccess(
+            $request,
+            capabilities: ['canManageStudents', 'canManageTeachers'],
+            permissionSlugs: ['students.manage', 'students.view'],
+        );
+
+        if ($request->user()->school_id && $student->school_id !== $request->user()->school_id) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        $student->load([
+            'classModel:id,name,code',
+            'gradeLevel:id,name,code',
+            'house:id,name',
+            'user:id,avatar_url',
+        ]);
+
+        $school = School::find($student->school_id);
+        $branding = $school
+            ? app(\App\Services\SchoolSettingsService::class)->getAll($school, publicOnly: true)['branding'] ?? []
+            : [];
+
+        return response()->json([
+            'data' => [
+                'document_number' => 'ID-'.str_pad((string) $student->id, 6, '0', STR_PAD_LEFT),
+                'issued_at' => now()->toIso8601String(),
+                'student' => [
+                    'id' => $student->id,
+                    'full_name' => $student->full_name,
+                    'student_number' => $student->student_number,
+                    'class' => $student->classModel?->name ?? $student->class,
+                    'grade_level' => $student->gradeLevel?->name,
+                    'house' => $student->house?->name,
+                    'date_of_birth' => $student->date_of_birth?->toDateString(),
+                    'gender' => $student->gender,
+                    'photo_url' => $student->photo_url ?? $student->user?->avatar_url,
+                ],
+                'school' => [
+                    'id' => $school?->id,
+                    'name' => $branding['school_name'] ?? $school?->name,
+                    'code' => $school?->code,
+                    'address' => $school?->address,
+                    'phone' => $school?->phone,
+                    'email' => $school?->email,
+                    'logo_path' => $school?->logo_path,
+                    'motto' => $branding['motto'] ?? $school?->motto,
+                    'primary_color' => $branding['primary_color'] ?? '#FF7A00',
+                ],
+            ],
         ]);
     }
 }
