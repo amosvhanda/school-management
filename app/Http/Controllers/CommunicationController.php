@@ -3,39 +3,81 @@
 namespace App\Http\Controllers;
 
 use App\Enums\UserRole;
-use App\Models\CommunicationMessage;
 use App\Models\CommunicationThread;
+use App\Models\Student;
 use App\Models\User;
+use App\Services\CommunicationMessagingService;
+use App\Services\ParentAccessService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 
 class CommunicationController extends Controller
 {
+    public function __construct(
+        private CommunicationMessagingService $messaging,
+        private ParentAccessService $parentAccess,
+    ) {}
+
     public function index(Request $request)
     {
         $user = $request->user();
-        $this->assertStaffUser($user);
+        $this->authorizeCommunications($request);
+        $this->messaging->authorizeStaff($user);
 
-        $schoolId = $user->school_id;
-
-        $query = CommunicationThread::query()
-            ->when($schoolId, fn ($q) => $q->where('school_id', $schoolId))
-            ->with(['student:id,full_name,student_number', 'parent:id,name,email', 'staff:id,name']);
-
-        // Teachers only see unassigned + own threads; admins see the full school inbox.
-        if ($user->role === UserRole::Teacher) {
-            $query->where(function ($q) use ($user) {
-                $q->whereNull('staff_user_id')
-                    ->orWhere('staff_user_id', $user->id);
-            });
-        }
+        $query = $this->messaging->appendUnreadCount(
+            $this->messaging->staffInboxQuery($user),
+            (int) $user->id,
+        );
 
         if ($request->filled('status')) {
             $query->where('status', $request->status);
         }
 
-        return response()->json(['data' => $query->orderByDesc('last_message_at')->get()]);
+        if ($request->filled('search')) {
+            $search = $request->string('search')->toString();
+            $query->where(function ($q) use ($search) {
+                $q->where('subject', 'like', "%{$search}%")
+                    ->orWhereHas('parent', fn ($pq) => $pq->where('name', 'like', "%{$search}%")
+                        ->orWhere('email', 'like', "%{$search}%"))
+                    ->orWhereHas('student', fn ($sq) => $sq->where('full_name', 'like', "%{$search}%")
+                        ->orWhere('student_number', 'like', "%{$search}%"));
+            });
+        }
+
+        $query->orderByDesc('last_message_at');
+
+        if ($request->boolean('all')) {
+            return response()->json(['data' => $query->get()]);
+        }
+
+        $perPage = min(max((int) $request->input('per_page', 25), 1), 100);
+        $paginator = $query->paginate($perPage);
+
+        return response()->json([
+            'data' => $paginator->items(),
+            'meta' => [
+                'current_page' => $paginator->currentPage(),
+                'last_page' => $paginator->lastPage(),
+                'per_page' => $paginator->perPage(),
+                'total' => $paginator->total(),
+            ],
+        ]);
+    }
+
+    public function unreadCount(Request $request)
+    {
+        $user = $request->user();
+        $this->authorizeCommunications($request);
+        $this->messaging->authorizeStaff($user);
+
+        $count = $this->messaging->staffInboxQuery($user)
+            ->whereHas('messages', function ($q) use ($user) {
+                $q->whereNull('read_at')->where('sender_id', '!=', $user->id);
+            })
+            ->count();
+
+        return response()->json(['data' => ['unread_threads' => $count]]);
     }
 
     /**
@@ -44,7 +86,8 @@ class CommunicationController extends Controller
     public function parents(Request $request)
     {
         $user = $request->user();
-        $this->assertStaffUser($user);
+        $this->authorizeCommunications($request);
+        $this->messaging->authorizeStaff($user);
 
         $schoolId = $user->school_id;
 
@@ -57,10 +100,47 @@ class CommunicationController extends Controller
         return response()->json(['data' => $parents]);
     }
 
+    public function parentStudents(Request $request, int $parentUserId)
+    {
+        $user = $request->user();
+        $this->authorizeCommunications($request);
+        $this->messaging->authorizeStaff($user);
+
+        $parent = User::query()
+            ->when($user->school_id, fn ($q) => $q->where('school_id', $user->school_id))
+            ->where('role', UserRole::Parent->value)
+            ->findOrFail($parentUserId);
+
+        $ids = $this->parentAccess->accessibleStudentIds($parent);
+        $students = Student::query()
+            ->whereIn('id', $ids)
+            ->when($user->school_id, fn ($q) => $q->where('school_id', $user->school_id))
+            ->orderBy('full_name')
+            ->get(['id', 'full_name', 'student_number', 'class_id']);
+
+        return response()->json(['data' => $students]);
+    }
+
+    public function staff(Request $request)
+    {
+        $user = $request->user();
+        $this->authorizeCommunications($request);
+        $this->messaging->authorizeStaff($user);
+
+        $staff = User::query()
+            ->when($user->school_id, fn ($q) => $q->where('school_id', $user->school_id))
+            ->whereNotIn('role', [UserRole::Parent->value, UserRole::Student->value])
+            ->orderBy('name')
+            ->get(['id', 'name', 'first_name', 'last_name', 'email', 'role']);
+
+        return response()->json(['data' => $staff]);
+    }
+
     public function store(Request $request)
     {
         $user = $request->user();
-        $this->assertStaffUser($user);
+        $this->authorizeCommunications($request);
+        $this->messaging->authorizeStaff($user);
 
         $schoolId = $user->school_id;
 
@@ -95,6 +175,15 @@ class CommunicationController extends Controller
         }
 
         $studentId = $request->filled('student_id') ? (int) $request->student_id : null;
+        if ($studentId) {
+            $linked = $this->parentAccess->accessibleStudentIds($parent);
+            if (! $linked->contains($studentId)) {
+                return response()->json([
+                    'message' => 'Validation failed',
+                    'errors' => ['student_id' => ['Selected student is not linked to this parent.']],
+                ], 422);
+            }
+        }
 
         $thread = CommunicationThread::create([
             'school_id' => $schoolId,
@@ -106,21 +195,18 @@ class CommunicationController extends Controller
             'last_message_at' => now(),
         ]);
 
-        CommunicationMessage::create([
-            'thread_id' => $thread->id,
-            'sender_id' => $user->id,
-            'body' => $request->message,
-        ]);
+        $this->messaging->createMessage($thread, $user, (string) $request->message);
 
         return response()->json([
-            'data' => $thread->load(['student:id,full_name,student_number', 'parent:id,name,email', 'staff:id,name']),
+            'data' => $thread->fresh()->load(['student:id,full_name,student_number', 'parent:id,name,email', 'staff:id,name']),
         ], 201);
     }
 
     public function show(Request $request, int $id)
     {
         $user = $request->user();
-        $this->assertStaffUser($user);
+        $this->authorizeCommunications($request);
+        $this->messaging->authorizeStaff($user);
 
         $schoolId = $user->school_id;
 
@@ -129,7 +215,8 @@ class CommunicationController extends Controller
             ->with(['student', 'parent', 'staff'])
             ->findOrFail($id);
 
-        $this->assertTeacherCanAccessThread($user, $thread);
+        $this->messaging->assertTeacherCanAccessThread($user, $thread);
+        $this->messaging->markThreadReadForViewer($thread, (int) $user->id);
 
         $messages = $thread->messages()
             ->with('sender:id,name,first_name,last_name,role')
@@ -147,7 +234,8 @@ class CommunicationController extends Controller
     public function reply(Request $request, int $id)
     {
         $user = $request->user();
-        $this->assertStaffUser($user);
+        $this->authorizeCommunications($request);
+        $this->messaging->authorizeStaff($user);
 
         $validator = Validator::make($request->all(), [
             'body' => 'required|string',
@@ -163,42 +251,85 @@ class CommunicationController extends Controller
             ->when($schoolId, fn ($q) => $q->where('school_id', $schoolId))
             ->findOrFail($id);
 
-        $this->assertTeacherCanAccessThread($user, $thread);
+        $this->messaging->assertTeacherCanAccessThread($user, $thread);
 
         if ($thread->staff_user_id === null) {
             $thread->update(['staff_user_id' => $user->id]);
         }
 
-        $message = CommunicationMessage::create([
-            'thread_id' => $thread->id,
-            'sender_id' => $user->id,
-            'body' => $request->body,
-        ]);
-
-        $thread->update(['last_message_at' => now(), 'status' => 'open']);
+        $message = $this->messaging->createMessage($thread, $user, (string) $request->body);
 
         return response()->json(['data' => $message->load('sender')], 201);
     }
 
-    private function assertStaffUser(?User $user): void
+    public function update(Request $request, int $id)
     {
-        if (! $user || ! $user->role instanceof UserRole) {
-            abort(403, 'Unauthorized action.');
+        $user = $request->user();
+        $this->authorizeCommunications($request);
+        $this->messaging->authorizeStaff($user);
+
+        $schoolId = $user->school_id;
+
+        $thread = CommunicationThread::query()
+            ->when($schoolId, fn ($q) => $q->where('school_id', $schoolId))
+            ->findOrFail($id);
+
+        $this->messaging->assertTeacherCanAccessThread($user, $thread);
+
+        $validator = Validator::make($request->all(), [
+            'status' => ['sometimes', 'string', Rule::in(['open', 'closed'])],
+            'staff_user_id' => [
+                'sometimes',
+                'nullable',
+                'integer',
+                Rule::exists('users', 'id')->where(fn ($q) => $q->when(
+                    $schoolId,
+                    fn ($inner) => $inner->where('school_id', $schoolId),
+                )),
+            ],
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['message' => 'Validation failed', 'errors' => $validator->errors()], 422);
         }
 
-        if (in_array($user->role, [UserRole::Parent, UserRole::Student], true)) {
-            abort(403, 'Unauthorized action.');
+        if ($request->has('staff_user_id')) {
+            if ($user->role === UserRole::Teacher && (int) $request->staff_user_id !== (int) $user->id && $request->staff_user_id !== null) {
+                abort(403, 'Teachers can only claim threads for themselves.');
+            }
+
+            if ($request->filled('staff_user_id')) {
+                $assignee = User::query()
+                    ->when($schoolId, fn ($q) => $q->where('school_id', $schoolId))
+                    ->find($request->staff_user_id);
+                if (! $assignee || in_array($assignee->role, [UserRole::Parent, UserRole::Student], true)) {
+                    return response()->json([
+                        'message' => 'Validation failed',
+                        'errors' => ['staff_user_id' => ['Selected staff member is invalid.']],
+                    ], 422);
+                }
+            }
+
+            $thread->staff_user_id = $request->input('staff_user_id');
         }
+
+        if ($request->filled('status')) {
+            $thread->status = $request->string('status')->toString();
+        }
+
+        $thread->save();
+
+        return response()->json([
+            'data' => $thread->fresh()->load(['student:id,full_name,student_number', 'parent:id,name,email', 'staff:id,name']),
+        ]);
     }
 
-    private function assertTeacherCanAccessThread(User $user, CommunicationThread $thread): void
+    private function authorizeCommunications(Request $request): void
     {
-        if ($user->role !== UserRole::Teacher) {
-            return;
-        }
-
-        if ($thread->staff_user_id !== null && (int) $thread->staff_user_id !== (int) $user->id) {
-            abort(403, 'Unauthorized action.');
-        }
+        $this->authorizeModuleAccess(
+            $request,
+            capabilities: ['isStaff'],
+            permissionSlugs: ['communications.manage'],
+        );
     }
 }

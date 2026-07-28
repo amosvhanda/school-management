@@ -3,13 +3,14 @@ import { ref, onMounted, computed, h, nextTick, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { z } from 'zod'
 import type { ColumnDef } from '@tanstack/vue-table'
-import { Download, Plus } from '@lucide/vue'
+import { Download, Plus, Upload } from '@lucide/vue'
 import PageLoader from '@/components/feedback/PageLoader.vue'
 import ErrorState from '@/components/feedback/ErrorState.vue'
 import DataTable from '@/components/data-table/DataTable.vue'
 import TableRowActions from '@/components/data-table/TableRowActions.vue'
 import ListFiltersBar from '@/components/data-table/ListFiltersBar.vue'
 import FormSheet from '@/components/forms/FormSheet.vue'
+import CsvImportDialog from '@/components/forms/CsvImportDialog.vue'
 import PageShell from '@/components/layout/PageShell.vue'
 import WorkspaceCard from '@/components/layout/WorkspaceCard.vue'
 import type { FormFieldSchema } from '@/components/forms/useFormBuilder'
@@ -185,6 +186,8 @@ const filterMode = computed(() =>
 const serverPagination = computed(() => listMeta.value?.serverPagination ?? false)
 const perPage = computed(() => listMeta.value?.perPage ?? 25)
 const csvExportEnabled = computed(() => listMeta.value?.csvExport ?? false)
+const csvImportType = computed(() => listMeta.value?.csvImport ?? null)
+const importOpen = ref(false)
 
 const {
   values: filterValues,
@@ -773,6 +776,15 @@ defineExpose({ load, openEdit })
         {{ action.label }}
       </Button>
       <Button
+        v-if="csvImportType"
+        variant="outline"
+        :disabled="loading"
+        @click="importOpen = true"
+      >
+        <Upload class="mr-2 h-4 w-4" aria-hidden="true" />
+        Import CSV
+      </Button>
+      <Button
         v-if="csvExportEnabled"
         variant="outline"
         :disabled="exportLoading || loading"
@@ -903,11 +915,17 @@ defineExpose({ load, openEdit })
       :document="invoicePrintData"
       :loading="invoicePrintLoading"
     />
+    <CsvImportDialog
+      v-if="csvImportType"
+      v-model:open="importOpen"
+      :type="csvImportType"
+      @imported="load"
+    />
   </PageShell>
 
   <section v-else class="space-y-4" :aria-label="title">
     <div
-      v-if="(canCreate && hasForm) || (toolbarActions?.length ?? 0) > 0 || csvExportEnabled"
+      v-if="(canCreate && hasForm) || (toolbarActions?.length ?? 0) > 0 || csvExportEnabled || csvImportType"
       class="flex flex-wrap items-center justify-end gap-2"
     >
       <Button
@@ -919,6 +937,16 @@ defineExpose({ load, openEdit })
         @click="runToolbarAction(action)"
       >
         {{ action.label }}
+      </Button>
+      <Button
+        v-if="csvImportType"
+        variant="outline"
+        size="sm"
+        :disabled="loading"
+        @click="importOpen = true"
+      >
+        <Upload class="mr-2 h-4 w-4" aria-hidden="true" />
+        Import CSV
       </Button>
       <Button
         v-if="csvExportEnabled"
@@ -1043,6 +1071,12 @@ defineExpose({ load, openEdit })
       v-model:open="invoicePrintOpen"
       :document="invoicePrintData"
       :loading="invoicePrintLoading"
+    />
+    <CsvImportDialog
+      v-if="csvImportType"
+      v-model:open="importOpen"
+      :type="csvImportType"
+      @imported="load"
     />
   </section>
 </template>

@@ -34,6 +34,7 @@ interface ThreadRow {
   id: number
   subject?: string
   status?: string
+  unread_count?: number
   student?: { full_name?: string }
 }
 
@@ -110,6 +111,8 @@ async function selectThread(thread: ThreadRow) {
     const data = await parentPortalApi.threadMessages(thread.id)
     messages.value = (data.messages ?? []) as unknown as MessageRow[]
     if (data.thread) activeThread.value = data.thread as unknown as ThreadRow
+    const row = threads.value.find((t) => t.id === thread.id)
+    if (row) row.unread_count = 0
   } catch (err) {
     toast.error('Could not load messages', getErrorMessage(err))
     messages.value = []
@@ -209,7 +212,22 @@ watch(
             :class="activeThread?.id === thread.id ? 'border-primary bg-muted/40' : 'border-transparent'"
             @click="selectThread(thread)"
           >
-            <span class="font-medium line-clamp-1">{{ thread.subject ?? 'No subject' }}</span>
+            <span class="flex items-start justify-between gap-2">
+              <span
+                class="font-medium line-clamp-1"
+                :class="(thread.unread_count ?? 0) > 0 ? 'font-semibold' : ''"
+              >
+                {{ thread.subject ?? 'No subject' }}
+              </span>
+              <Badge
+                v-if="(thread.unread_count ?? 0) > 0"
+                variant="default"
+                class="shrink-0"
+                :aria-label="`${thread.unread_count} unread`"
+              >
+                {{ thread.unread_count }}
+              </Badge>
+            </span>
             <span v-if="thread.student?.full_name" class="text-xs text-muted-foreground">
               Re: {{ thread.student.full_name }}
             </span>

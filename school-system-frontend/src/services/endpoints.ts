@@ -335,6 +335,10 @@ export const endpoints = {
     list: '/employees',
     detail: (id: number | string) => `/employees/${id}`,
   },
+  imports: {
+    template: (type: 'students' | 'teachers' | 'employees') => `/imports/${type}/template`,
+    import: (type: 'students' | 'teachers' | 'employees') => `/imports/${type}`,
+  },
   staffAttendance: {
     list: '/staff-attendance',
     roster: '/staff-attendance/roster',
@@ -458,6 +462,9 @@ export const endpoints = {
   communications: {
     threads: '/communications/threads',
     parents: '/communications/parents',
+    parentStudents: (parentUserId: number | string) => `/communications/parents/${parentUserId}/students`,
+    staff: '/communications/staff',
+    unreadCount: '/communications/threads/unread-count',
     thread: (id: number | string) => `/communications/threads/${id}`,
     reply: (id: number | string) => `/communications/threads/${id}/messages`,
   },

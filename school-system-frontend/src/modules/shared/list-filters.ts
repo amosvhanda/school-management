@@ -41,6 +41,8 @@ export interface ListPageMeta {
   perPage?: number
   /** Show Export CSV in CrudListPage toolbar (exports current filters via all=true when paginated) */
   csvExport?: boolean
+  /** Show Import CSV dialog for people migration (students | teachers | employees) */
+  csvImport?: 'students' | 'teachers' | 'employees'
 }
 
 const recordStatusOptions: ListFilterOption[] = [
@@ -58,6 +60,7 @@ export const moduleListMetaRegistry: Record<string, ListPageMeta> = {
     serverPagination: true,
     perPage: 25,
     csvExport: true,
+    csvImport: 'students',
     filters: [
       {
         key: 'class_id',
@@ -102,6 +105,7 @@ export const moduleListMetaRegistry: Record<string, ListPageMeta> = {
     serverPagination: true,
     perPage: 25,
     csvExport: true,
+    csvImport: 'teachers',
     filters: [
       {
         key: 'status',
@@ -1000,6 +1004,7 @@ export const moduleListMetaRegistry: Record<string, ListPageMeta> = {
     filterMode: 'server',
     serverPagination: true,
     perPage: 25,
+    csvImport: 'employees',
     filters: [
       {
         key: 'status',

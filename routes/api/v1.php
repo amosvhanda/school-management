@@ -15,6 +15,7 @@ use App\Http\Controllers\Api\V1\SchoolController;
 use App\Http\Controllers\Api\V1\SettingsController;
 use App\Http\Controllers\Api\V1\StudentPortalController;
 use App\Http\Controllers\Api\V1\TeacherPortalController;
+use App\Http\Controllers\Api\V1\PeopleImportController;
 use App\Http\Controllers\Api\V1\UploadController;
 use App\Http\Controllers\AssetController;
 use App\Http\Controllers\AssignmentController;
@@ -303,6 +304,10 @@ Route::middleware(['auth:sanctum', 'school.isolated', 'school.licensed', '2fa.en
     Route::post('/students/bulk/invoices', [StudentController::class, 'bulkInvoices']);
     Route::post('/students/bulk/status', [StudentController::class, 'bulkStatus']);
     Route::post('/students/bulk/promote', [StudentController::class, 'bulkPromote']);
+    Route::get('/imports/{type}/template', [PeopleImportController::class, 'template'])
+        ->whereIn('type', ['students', 'teachers', 'employees']);
+    Route::post('/imports/{type}', [PeopleImportController::class, 'import'])
+        ->whereIn('type', ['students', 'teachers', 'employees']);
     Route::get('/students/{student}', [App\Http\Controllers\Api\V1\StudentController::class, 'show']);
     Route::put('/students/{student}', [App\Http\Controllers\Api\V1\StudentController::class, 'update']);
     Route::delete('/students/{student}', [App\Http\Controllers\Api\V1\StudentController::class, 'destroy']);
@@ -574,9 +579,13 @@ Route::middleware(['auth:sanctum', 'school.isolated', 'school.licensed', '2fa.en
     Route::put('/disciplinary-records/{id}', [DisciplinaryRecordController::class, 'update']);
 
     Route::get('/communications/threads', [CommunicationController::class, 'index']);
+    Route::get('/communications/threads/unread-count', [CommunicationController::class, 'unreadCount']);
     Route::get('/communications/parents', [CommunicationController::class, 'parents']);
+    Route::get('/communications/parents/{parentUserId}/students', [CommunicationController::class, 'parentStudents']);
+    Route::get('/communications/staff', [CommunicationController::class, 'staff']);
     Route::post('/communications/threads', [CommunicationController::class, 'store']);
     Route::get('/communications/threads/{id}', [CommunicationController::class, 'show']);
+    Route::patch('/communications/threads/{id}', [CommunicationController::class, 'update']);
     Route::post('/communications/threads/{id}/messages', [CommunicationController::class, 'reply']);
 
     Route::get('/guardians', [GuardianController::class, 'index']);

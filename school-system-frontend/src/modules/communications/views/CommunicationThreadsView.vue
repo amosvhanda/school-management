@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { MessageSquare, Plus, Send } from '@lucide/vue'
 import PageLoader from '@/components/feedback/PageLoader.vue'
 import ErrorState from '@/components/feedback/ErrorState.vue'
-import PageShell from '@/components/layout/PageShell.vue'
+import EmptyState from '@/components/feedback/EmptyState.vue'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -35,14 +35,19 @@ interface ThreadRow {
   subject?: string
   status?: string
   last_message_at?: string
-  student?: { full_name?: string }
-  parent?: { name?: string }
+  unread_count?: number
+  staff_user_id?: number | null
+  student_id?: number | null
+  student?: { full_name?: string; student_number?: string }
+  parent?: { name?: string; email?: string }
+  staff?: { id?: number; name?: string }
 }
 
 interface MessageRow {
   id: number
   body?: string
   created_at?: string
+  read_at?: string | null
   sender?: { name?: string; first_name?: string; last_name?: string; role?: string }
 }
 
@@ -54,6 +59,21 @@ interface ParentOption {
   email?: string
 }
 
+interface StudentOption {
+  id: number
+  full_name?: string
+  student_number?: string
+}
+
+interface StaffOption {
+  id: number
+  name?: string
+  first_name?: string
+  last_name?: string
+  email?: string
+  role?: string
+}
+
 const toast = useToast()
 const threads = ref<ThreadRow[]>([])
 const messages = ref<MessageRow[]>([])
@@ -63,20 +83,35 @@ const messagesLoading = ref(false)
 const error = ref<string | null>(null)
 const replyBody = ref('')
 const sending = ref(false)
+const updating = ref(false)
+
+const search = ref('')
+const statusFilter = ref<'all' | 'open' | 'closed'>('open')
 
 const composeOpen = ref(false)
 const parents = ref<ParentOption[]>([])
+const parentStudents = ref<StudentOption[]>([])
+const staffOptions = ref<StaffOption[]>([])
 const parentsLoading = ref(false)
+const studentsLoading = ref(false)
 const composeParentId = ref('')
+const composeStudentId = ref('')
 const composeSubject = ref('')
 const composeMessage = ref('')
 const composing = ref(false)
+const assignStaffId = ref('')
 
 const activeTitle = computed(() => activeThread.value?.subject ?? 'Select a thread')
+const isClosed = computed(() => (activeThread.value?.status ?? 'open') === 'closed')
 
 function parentLabel(parent: ParentOption): string {
   const name = parent.name ?? [parent.first_name, parent.last_name].filter(Boolean).join(' ')
   return parent.email ? `${name || 'Parent'} · ${parent.email}` : name || `Parent #${parent.id}`
+}
+
+function staffLabel(staff: StaffOption): string {
+  const name = staff.name ?? [staff.first_name, staff.last_name].filter(Boolean).join(' ')
+  return staff.role ? `${name || 'Staff'} (${staff.role})` : name || `Staff #${staff.id}`
 }
 
 function senderName(msg: MessageRow): string {
@@ -89,8 +124,23 @@ async function loadThreads() {
   loading.value = true
   error.value = null
   try {
-    threads.value = await commsApi.threads.list() as ThreadRow[]
-    if (threads.value.length && !activeThread.value) {
+    const params: Record<string, string | number | boolean> = {
+      per_page: 50,
+    }
+    if (statusFilter.value !== 'all') params.status = statusFilter.value
+    if (search.value.trim()) params.search = search.value.trim()
+
+    threads.value = (await commsApi.threads.list(params)) as ThreadRow[]
+
+    if (activeThread.value) {
+      const refreshed = threads.value.find((t) => t.id === activeThread.value?.id)
+      if (refreshed) activeThread.value = refreshed
+      else if (threads.value.length) await selectThread(threads.value[0])
+      else {
+        activeThread.value = null
+        messages.value = []
+      }
+    } else if (threads.value.length) {
       await selectThread(threads.value[0])
     }
   } catch (err) {
@@ -102,6 +152,7 @@ async function loadThreads() {
 
 async function selectThread(thread: ThreadRow) {
   activeThread.value = thread
+  assignStaffId.value = thread.staff_user_id ? String(thread.staff_user_id) : '__none__'
   messagesLoading.value = true
   try {
     const data = await commsApi.threads.get(thread.id) as {
@@ -109,7 +160,12 @@ async function selectThread(thread: ThreadRow) {
       messages?: MessageRow[]
     }
     messages.value = data.messages ?? []
-    if (data.thread) activeThread.value = data.thread
+    if (data.thread) {
+      activeThread.value = data.thread
+      assignStaffId.value = data.thread.staff_user_id ? String(data.thread.staff_user_id) : '__none__'
+    }
+    const row = threads.value.find((t) => t.id === thread.id)
+    if (row) row.unread_count = 0
   } catch (err) {
     toast.error('Could not load messages', getErrorMessage(err))
     messages.value = []
@@ -134,6 +190,41 @@ async function sendReply() {
   }
 }
 
+async function setStatus(status: 'open' | 'closed') {
+  if (!activeThread.value) return
+  updating.value = true
+  try {
+    const updated = await commsApi.threads.update(activeThread.value.id, { status }) as ThreadRow
+    activeThread.value = { ...activeThread.value, ...updated }
+    toast.success(status === 'closed' ? 'Thread closed' : 'Thread reopened')
+    await loadThreads()
+  } catch (err) {
+    toast.error('Could not update thread', getErrorMessage(err))
+  } finally {
+    updating.value = false
+  }
+}
+
+async function assignStaff() {
+  if (!activeThread.value) return
+  updating.value = true
+  try {
+    const payload = {
+      staff_user_id: assignStaffId.value && assignStaffId.value !== '__none__'
+        ? Number(assignStaffId.value)
+        : null,
+    }
+    const updated = await commsApi.threads.update(activeThread.value.id, payload) as ThreadRow
+    activeThread.value = { ...activeThread.value, ...updated }
+    toast.success(assignStaffId.value ? 'Thread assigned' : 'Assignment cleared')
+    await loadThreads()
+  } catch (err) {
+    toast.error('Could not assign thread', getErrorMessage(err))
+  } finally {
+    updating.value = false
+  }
+}
+
 async function loadParents() {
   if (parents.value.length) return
   parentsLoading.value = true
@@ -146,10 +237,38 @@ async function loadParents() {
   }
 }
 
+async function loadStaffOptions() {
+  if (staffOptions.value.length) return
+  try {
+    staffOptions.value = (await commsApi.staff()) as StaffOption[]
+  } catch (err) {
+    toast.error('Could not load staff', getErrorMessage(err))
+  }
+}
+
+async function loadParentStudents(parentId: string) {
+  parentStudents.value = []
+  composeStudentId.value = '__none__'
+  if (!parentId) return
+  studentsLoading.value = true
+  try {
+    parentStudents.value = (await commsApi.parentStudents(Number(parentId))) as StudentOption[]
+    if (parentStudents.value.length === 1) {
+      composeStudentId.value = String(parentStudents.value[0].id)
+    }
+  } catch (err) {
+    toast.error('Could not load children', getErrorMessage(err))
+  } finally {
+    studentsLoading.value = false
+  }
+}
+
 async function openCompose() {
   composeParentId.value = ''
+  composeStudentId.value = '__none__'
   composeSubject.value = ''
   composeMessage.value = ''
+  parentStudents.value = []
   composeOpen.value = true
   await loadParents()
 }
@@ -160,11 +279,15 @@ async function submitCompose() {
   }
   composing.value = true
   try {
-    await commsApi.threads.create({
+    const payload: Record<string, unknown> = {
       parent_user_id: Number(composeParentId.value),
       subject: composeSubject.value.trim(),
       message: composeMessage.value.trim(),
-    })
+    }
+    if (composeStudentId.value && composeStudentId.value !== '__none__') {
+      payload.student_id = Number(composeStudentId.value)
+    }
+    await commsApi.threads.create(payload)
     composeOpen.value = false
     toast.success('Message sent')
     await loadThreads()
@@ -175,23 +298,56 @@ async function submitCompose() {
   }
 }
 
-onMounted(loadThreads)
+let searchTimer: ReturnType<typeof setTimeout> | null = null
+watch(search, () => {
+  if (searchTimer) clearTimeout(searchTimer)
+  searchTimer = setTimeout(() => {
+    void loadThreads()
+  }, 300)
+})
+
+watch(statusFilter, () => {
+  void loadThreads()
+})
+
+watch(composeParentId, (id) => {
+  void loadParentStudents(id)
+})
+
+onMounted(async () => {
+  await Promise.all([loadThreads(), loadStaffOptions()])
+})
 </script>
 
 <template>
-  <PageShell
-    title="Message threads"
-    description="Respond to parent communications"
-    max-width="wide"
-  >
-    <template #actions>
-      <Button type="button" @click="openCompose">
-        <Plus class="h-4 w-4" aria-hidden="true" />
+  <section class="space-y-4" aria-label="Message threads">
+    <div class="flex flex-wrap items-center justify-between gap-2">
+      <div class="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+        <Label for="thread-search" class="sr-only">Search threads</Label>
+        <Input
+          id="thread-search"
+          v-model="search"
+          placeholder="Search subject, parent, or student…"
+          class="max-w-sm"
+        />
+        <Select v-model="statusFilter">
+          <SelectTrigger class="w-[140px]" aria-label="Filter by status">
+            <SelectValue placeholder="Status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="open">Open</SelectItem>
+            <SelectItem value="closed">Closed</SelectItem>
+            <SelectItem value="all">All</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+      <Button type="button" size="sm" @click="openCompose">
+        <Plus class="mr-2 h-4 w-4" aria-hidden="true" />
         New message
       </Button>
-    </template>
+    </div>
 
-    <PageLoader v-if="loading" />
+    <PageLoader v-if="loading" label="Loading messages" />
     <ErrorState v-else-if="error" :description="error" @retry="loadThreads" />
 
     <div v-else class="grid gap-4 lg:grid-cols-[minmax(240px,320px)_1fr]">
@@ -208,28 +364,95 @@ onMounted(loadThreads)
             :class="activeThread?.id === thread.id ? 'border-primary bg-muted/40' : 'border-transparent'"
             @click="selectThread(thread)"
           >
-            <span class="font-medium line-clamp-1">{{ thread.subject ?? 'No subject' }}</span>
+            <span class="flex items-start justify-between gap-2">
+              <span class="font-medium line-clamp-1" :class="(thread.unread_count ?? 0) > 0 ? 'font-semibold' : ''">
+                {{ thread.subject ?? 'No subject' }}
+              </span>
+              <Badge
+                v-if="(thread.unread_count ?? 0) > 0"
+                variant="default"
+                class="shrink-0"
+                :aria-label="`${thread.unread_count} unread`"
+              >
+                {{ thread.unread_count }}
+              </Badge>
+            </span>
             <span class="text-xs text-muted-foreground">
               {{ thread.student?.full_name ?? thread.parent?.name ?? 'Parent message' }}
             </span>
             <span v-if="thread.last_message_at" class="text-xs text-muted-foreground">
               {{ formatDateTime(thread.last_message_at) }}
             </span>
-            <Badge variant="outline" class="w-fit capitalize">{{ thread.status ?? 'open' }}</Badge>
+            <div class="flex flex-wrap gap-1">
+              <Badge variant="outline" class="w-fit capitalize">{{ thread.status ?? 'open' }}</Badge>
+              <Badge v-if="!thread.staff_user_id" variant="secondary" class="w-fit">Unassigned</Badge>
+            </div>
           </button>
-          <p v-if="!threads.length" class="p-4 text-sm text-muted-foreground">No message threads yet.</p>
+          <EmptyState
+            v-if="!threads.length"
+            variant="embedded"
+            title="No threads"
+            description="No message threads match this filter."
+          />
         </CardContent>
       </Card>
 
       <Card class="flex h-[min(70vh,640px)] flex-col overflow-hidden">
         <CardHeader class="border-b pb-3">
-          <CardTitle class="flex items-center gap-2 text-base">
-            <MessageSquare class="h-4 w-4" aria-hidden="true" />
-            {{ activeTitle }}
-          </CardTitle>
+          <div class="flex flex-wrap items-start justify-between gap-2">
+            <CardTitle class="flex items-center gap-2 text-base">
+              <MessageSquare class="h-4 w-4" aria-hidden="true" />
+              {{ activeTitle }}
+            </CardTitle>
+            <div v-if="activeThread" class="flex flex-wrap gap-2">
+              <Button
+                v-if="!isClosed"
+                type="button"
+                size="sm"
+                variant="outline"
+                :disabled="updating"
+                @click="setStatus('closed')"
+              >
+                Close
+              </Button>
+              <Button
+                v-else
+                type="button"
+                size="sm"
+                variant="outline"
+                :disabled="updating"
+                @click="setStatus('open')"
+              >
+                Reopen
+              </Button>
+            </div>
+          </div>
+          <div v-if="activeThread" class="mt-3 flex flex-wrap items-end gap-2">
+            <div class="min-w-[180px] flex-1 space-y-1">
+              <Label for="assign-staff">Assigned staff</Label>
+              <Select v-model="assignStaffId">
+                <SelectTrigger id="assign-staff">
+                  <SelectValue placeholder="Unassigned" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">Unassigned</SelectItem>
+                  <SelectItem
+                    v-for="member in staffOptions"
+                    :key="member.id"
+                    :value="String(member.id)"
+                  >
+                    {{ staffLabel(member) }}
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <Button type="button" size="sm" variant="secondary" :disabled="updating" @click="assignStaff">
+              Save assignment
+            </Button>
+          </div>
         </CardHeader>
         <CardContent class="flex flex-1 flex-col gap-4 overflow-hidden p-4">
-          <PageLoader v-if="messagesLoading" />
+          <PageLoader v-if="messagesLoading" label="Loading conversation" />
           <template v-else-if="activeThread">
             <div class="flex-1 space-y-3 overflow-y-auto" aria-live="polite">
               <article
@@ -250,7 +473,7 @@ onMounted(loadThreads)
               <Textarea
                 id="reply-body"
                 v-model="replyBody"
-                placeholder="Type your reply…"
+                :placeholder="isClosed ? 'Reopen by sending a reply…' : 'Type your reply…'"
                 rows="3"
                 class="min-h-[80px] flex-1"
               />
@@ -269,7 +492,7 @@ onMounted(loadThreads)
       <DialogContent class="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>New message</DialogTitle>
-          <DialogDescription>Start a conversation with a parent.</DialogDescription>
+          <DialogDescription>Start a conversation with a parent about a specific child when possible.</DialogDescription>
         </DialogHeader>
         <form class="space-y-4" @submit.prevent="submitCompose">
           <div class="space-y-2">
@@ -293,6 +516,26 @@ onMounted(loadThreads)
             </p>
           </div>
           <div class="space-y-2">
+            <Label for="compose-student">Student (optional)</Label>
+            <Select v-model="composeStudentId" :disabled="!composeParentId || studentsLoading">
+              <SelectTrigger id="compose-student">
+                <SelectValue
+                  :placeholder="studentsLoading ? 'Loading children…' : 'Select a student'"
+                />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none__">No specific student</SelectItem>
+                <SelectItem
+                  v-for="student in parentStudents"
+                  :key="student.id"
+                  :value="String(student.id)"
+                >
+                  {{ student.full_name }}{{ student.student_number ? ` · ${student.student_number}` : '' }}
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div class="space-y-2">
             <Label for="compose-subject">Subject</Label>
             <Input id="compose-subject" v-model="composeSubject" placeholder="Message subject" maxlength="255" />
           </div>
@@ -312,12 +555,12 @@ onMounted(loadThreads)
               type="submit"
               :disabled="composing || !composeParentId || !composeSubject.trim() || !composeMessage.trim()"
             >
-              <Send class="h-4 w-4" aria-hidden="true" />
+              <Send class="mr-2 h-4 w-4" aria-hidden="true" />
               Send message
             </Button>
           </DialogFooter>
         </form>
       </DialogContent>
     </Dialog>
-  </PageShell>
+  </section>
 </template>

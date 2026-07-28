@@ -532,11 +532,17 @@ export const hrApi = {
 export const commsApi = {
   announcements: crud(e.announcements.list, e.announcements.detail),
   parents: (params?: ListQueryParams) => fetchList(e.communications.parents, params),
+  parentStudents: (parentUserId: number | string) =>
+    fetchList(e.communications.parentStudents(parentUserId)),
+  staff: (params?: ListQueryParams) => fetchList(e.communications.staff, params),
+  unreadCount: () => fetchOne<{ unread_threads: number }>(e.communications.unreadCount),
   threads: {
     list: (params?: ListQueryParams) => fetchList(e.communications.threads, params),
     get: (id: number | string) => fetchOne(e.communications.thread(id)),
     create: (payload: Record<string, unknown>) =>
       postRecord(e.communications.threads, payload),
+    update: (id: number | string, payload: Record<string, unknown>) =>
+      patchRecord(e.communications.thread(id), payload),
     reply: (id: number | string, payload: Record<string, unknown>) =>
       postRecord(e.communications.reply(id), payload),
   },
