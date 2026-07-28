@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\V1;
 use App\Enums\UserRole;
 use App\Models\Announcement;
 use App\Models\Assignment;
+use App\Models\AssignmentSubmission;
 use App\Models\Attendance;
 use App\Models\Exam;
 use App\Models\ExamResult;
@@ -12,13 +13,19 @@ use App\Models\Grade;
 use App\Models\Invoice;
 use App\Models\Student;
 use App\Models\Timetable;
+use App\Services\FileUploadService;
 use App\Services\StudentResolutionService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
+use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 
 class StudentPortalController extends Controller
 {
-    public function __construct(private StudentResolutionService $students) {}
+    public function __construct(
+        private StudentResolutionService $students,
+        private FileUploadService $uploads,
+    ) {}
 
     public function dashboard(Request $request)
     {
@@ -59,6 +66,8 @@ class StudentPortalController extends Controller
             ->limit(8)
             ->get(['id', 'title', 'subject', 'due_date', 'total_marks', 'status']);
 
+        $openAssignments = $this->attachSubmissions($openAssignments, $student->id);
+
         $announcements = Announcement::query()
             ->where('school_id', $schoolId)
             ->where('is_active', true)
@@ -95,7 +104,7 @@ class StudentPortalController extends Controller
                 'balance' => (float) $student->balance,
                 'open_invoices' => $openInvoices->count(),
                 'upcoming_exams' => $upcomingExams->count(),
-                'open_assignments' => $openAssignments->count(),
+                'open_assignments' => count($openAssignments),
                 'absent_last_30' => Attendance::query()
                     ->where('student_id', $student->id)
                     ->where('status', 'absent')
@@ -200,7 +209,91 @@ class StudentPortalController extends Controller
             ->limit(100)
             ->get();
 
-        return $this->success($rows);
+        return $this->success($this->attachSubmissions($rows, $student->id));
+    }
+
+    public function showAssignment(Request $request, int $id)
+    {
+        $student = $this->requireStudent($request);
+        $schoolId = (int) $request->user()->school_id;
+
+        $assignment = $this->assignmentsForStudent($student, $schoolId)
+            ->findOrFail($id);
+
+        $submission = AssignmentSubmission::query()
+            ->where('assignment_id', $assignment->id)
+            ->where('student_id', $student->id)
+            ->first();
+
+        return $this->success([
+            'assignment' => $assignment,
+            'submission' => $submission,
+        ]);
+    }
+
+    public function submitAssignment(Request $request, int $id)
+    {
+        $student = $this->requireStudent($request);
+        $schoolId = (int) $request->user()->school_id;
+
+        $assignment = $this->assignmentsForStudent($student, $schoolId)
+            ->findOrFail($id);
+
+        $data = $request->validate([
+            'content' => ['nullable', 'string', 'max:20000'],
+            'file' => ['nullable', 'file', 'max:10240', 'mimes:pdf,doc,docx,txt,jpg,jpeg,png,webp'],
+        ]);
+
+        if (empty($data['content']) && ! $request->hasFile('file')) {
+            throw ValidationException::withMessages([
+                'content' => ['Provide written work or attach a file before submitting.'],
+            ]);
+        }
+
+        $existing = AssignmentSubmission::query()
+            ->where('assignment_id', $assignment->id)
+            ->where('student_id', $student->id)
+            ->first();
+
+        if ($existing && in_array($existing->status, ['submitted', 'graded'], true)) {
+            throw ValidationException::withMessages([
+                'assignment' => ['This assignment has already been submitted.'],
+            ]);
+        }
+
+        $fileUrl = $existing?->file_url;
+        if ($request->hasFile('file')) {
+            $upload = $this->uploads->store(
+                $request->file('file'),
+                'assignments/submissions',
+                'public',
+                $schoolId,
+            );
+            $fileUrl = $upload['url'];
+        }
+
+        $submission = AssignmentSubmission::query()->updateOrCreate(
+            [
+                'assignment_id' => $assignment->id,
+                'student_id' => $student->id,
+            ],
+            [
+                'school_id' => $schoolId,
+                'content' => $data['content'] ?? $existing?->content,
+                'file_url' => $fileUrl,
+                'status' => 'submitted',
+                'submitted_at' => now(),
+                'score' => null,
+                'teacher_comment' => null,
+                'graded_at' => null,
+                'returned_at' => null,
+            ],
+        );
+
+        return $this->created([
+            'assignment' => $assignment->fresh(),
+            'submission' => $submission->fresh(),
+        ], 'Assignment submitted');
     }
 
     public function announcements(Request $request)
@@ -236,6 +329,35 @@ class StudentPortalController extends Controller
             })
             ->orderBy('due_date')
             ->orderByDesc('id');
+    }
+
+    /**
+     * @param  Collection<int, Assignment>  $assignments
+     * @return list<array<string, mixed>>
+     */
+    protected function attachSubmissions($assignments, int $studentId): array
+    {
+        if ($assignments->isEmpty()) {
+            return [];
+        }
+
+        $submissions = AssignmentSubmission::query()
+            ->where('student_id', $studentId)
+            ->whereIn('assignment_id', $assignments->pluck('id'))
+            ->get()
+            ->keyBy('assignment_id');
+
+        return $assignments->map(function (Assignment $assignment) use ($submissions) {
+            $submission = $submissions->get($assignment->id);
+
+            return array_merge($assignment->toArray(), [
+                'submission_status' => $submission?->status,
+                'submission_score' => $submission?->score,
+                'submitted_at' => $submission?->submitted_at?->toIso8601String(),
+                'teacher_comment' => $submission?->teacher_comment,
+                'submission_file_url' => $submission?->file_url,
+            ]);
+        })->values()->all();
     }
 
     /**

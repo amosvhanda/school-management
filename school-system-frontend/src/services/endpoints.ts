@@ -60,6 +60,8 @@ export const endpoints = {
     fees: '/student-portal/fees',
     timetable: '/student-portal/timetable',
     assignments: '/student-portal/assignments',
+    assignment: (id: number | string) => `/student-portal/assignments/${id}`,
+    submitAssignment: (id: number | string) => `/student-portal/assignments/${id}/submit`,
     announcements: '/student-portal/announcements',
   },
   school: {

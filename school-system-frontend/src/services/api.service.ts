@@ -149,6 +149,16 @@ export const studentPortalApi = {
   fees: () => fetchOne(e.studentPortal.fees),
   timetable: () => fetchOne(e.studentPortal.timetable),
   assignments: () => fetchOne(e.studentPortal.assignments),
+  assignment: (id: number | string) => fetchOne(e.studentPortal.assignment(id)),
+  submitAssignment: async (id: number | string, payload: { content?: string; file?: File | null }) => {
+    const form = new FormData()
+    if (payload.content) form.append('content', payload.content)
+    if (payload.file) form.append('file', payload.file)
+    const { data } = await api.post(e.studentPortal.submitAssignment(id), form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+    return (data as { data?: unknown }).data ?? data
+  },
   announcements: () => fetchOne(e.studentPortal.announcements),
 }
 

@@ -24,6 +24,16 @@ import ErrorState from '@/components/feedback/ErrorState.vue'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { Label } from '@/components/ui/label'
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+} from '@/components/ui/sheet'
+import { Textarea } from '@/components/ui/textarea'
 import {
   Table,
   TableBody,
@@ -51,6 +61,12 @@ const invoiceRows = ref<Array<Record<string, unknown>>>([])
 const assignmentRows = ref<Array<Record<string, unknown>>>([])
 const announcementRows = ref<Array<Record<string, unknown>>>([])
 const expandedAnnouncementId = ref<number | string | null>(null)
+const assignmentSheetOpen = ref(false)
+const selectedAssignment = ref<Record<string, unknown> | null>(null)
+const submitContent = ref('')
+const submitFile = ref<File | null>(null)
+const submitting = ref(false)
+const submitError = ref('')
 
 const section = computed(() => {
   if (route.path === '/student/performance') return 'performance'
@@ -360,6 +376,63 @@ function assignmentDueTone(row: Record<string, unknown>): 'danger' | 'warning' |
   if (days < 0) return 'danger'
   if (days <= 7) return 'warning'
   return 'neutral'
+}
+
+function submissionLabel(status: unknown): string {
+  const value = String(status ?? '').trim()
+  if (!value) return 'Not submitted'
+  const labels: Record<string, string> = {
+    submitted: 'Submitted',
+    graded: 'Graded',
+    returned: 'Returned',
+    resubmit: 'Resubmit requested',
+  }
+  return labels[value] ?? value
+}
+
+function canSubmitAssignment(status: unknown): boolean {
+  const value = String(status ?? '').trim()
+  return !value || value === 'returned' || value === 'resubmit'
+}
+
+function openAssignmentSheet(row: Record<string, unknown>) {
+  selectedAssignment.value = row
+  submitContent.value = ''
+  submitFile.value = null
+  submitError.value = ''
+  assignmentSheetOpen.value = true
+}
+
+function onSubmitFileChange(event: Event) {
+  const input = event.target as HTMLInputElement
+  submitFile.value = input.files?.[0] ?? null
+}
+
+async function handleSubmitAssignment() {
+  const assignment = selectedAssignment.value
+  const id = assignment?.id
+  if (id == null) return
+
+  if (!submitContent.value.trim() && !submitFile.value) {
+    submitError.value = 'Add written work or attach a file before submitting.'
+    return
+  }
+
+  submitting.value = true
+  submitError.value = ''
+  try {
+    await studentPortalApi.submitAssignment(id as number | string, {
+      content: submitContent.value.trim() || undefined,
+      file: submitFile.value,
+    })
+    assignmentSheetOpen.value = false
+    toast.success('Assignment submitted')
+    await loadStudentPortal()
+  } catch (err) {
+    submitError.value = getErrorMessage(err, 'Unable to submit assignment.')
+  } finally {
+    submitting.value = false
+  }
 }
 
 function announcementTypeLabel(type: unknown): string {
@@ -844,8 +917,9 @@ onMounted(loadStudentPortal)
               <TableHead>Title</TableHead>
               <TableHead>Subject</TableHead>
               <TableHead>Due</TableHead>
-              <TableHead>Marks</TableHead>
-              <TableHead>Status</TableHead>
+              <TableHead>Submission</TableHead>
+              <TableHead class="text-right">Score</TableHead>
+              <TableHead class="w-[100px]">Action</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -863,9 +937,22 @@ onMounted(loadStudentPortal)
                   {{ assignmentDueLabel(row) }}
                 </span>
               </TableCell>
-              <TableCell class="tabular-nums">{{ row.total_marks ?? '—' }}</TableCell>
-              <TableCell class="capitalize">
-                <Badge variant="outline">{{ row.status ?? 'open' }}</Badge>
+              <TableCell>
+                <Badge variant="outline">{{ submissionLabel(row.submission_status) }}</Badge>
+              </TableCell>
+              <TableCell class="text-right tabular-nums">
+                <span v-if="row.submission_score != null">{{ row.submission_score }}</span>
+                <span v-else class="text-muted-foreground">—</span>
+              </TableCell>
+              <TableCell>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  @click="openAssignmentSheet(row)"
+                >
+                  {{ canSubmitAssignment(row.submission_status) ? 'Submit' : 'View' }}
+                </Button>
               </TableCell>
             </TableRow>
           </TableBody>
@@ -933,5 +1020,94 @@ onMounted(loadStudentPortal)
         />
       </Card>
     </section>
+
+    <Sheet v-model:open="assignmentSheetOpen">
+      <SheetContent class="flex w-full flex-col sm:max-w-lg">
+        <SheetHeader>
+          <SheetTitle>{{ selectedAssignment?.title ?? 'Assignment' }}</SheetTitle>
+          <SheetDescription>
+            {{ assignmentDueLabel(selectedAssignment ?? {}) }}
+            <span v-if="selectedAssignment?.total_marks != null">
+              · Max {{ selectedAssignment.total_marks }} marks
+            </span>
+          </SheetDescription>
+        </SheetHeader>
+
+        <div class="flex-1 space-y-4 overflow-y-auto py-4">
+          <p
+            v-if="selectedAssignment?.description"
+            class="whitespace-pre-wrap text-sm text-muted-foreground"
+          >
+            {{ selectedAssignment.description }}
+          </p>
+
+          <div
+            v-if="selectedAssignment?.submission_status === 'graded' || selectedAssignment?.submission_status === 'returned'"
+            class="space-y-2 rounded-md border bg-muted/40 p-3"
+            role="status"
+          >
+            <p class="text-sm font-medium">Teacher feedback</p>
+            <p v-if="selectedAssignment.submission_score != null" class="text-sm tabular-nums">
+              Score: {{ selectedAssignment.submission_score }}
+            </p>
+            <p
+              v-if="selectedAssignment.teacher_comment"
+              class="whitespace-pre-wrap text-sm"
+            >
+              {{ selectedAssignment.teacher_comment }}
+            </p>
+            <a
+              v-if="selectedAssignment.submission_file_url"
+              :href="String(selectedAssignment.submission_file_url)"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="text-sm text-primary underline-offset-4 hover:underline"
+            >
+              View submitted file
+            </a>
+          </div>
+
+          <template v-if="canSubmitAssignment(selectedAssignment?.submission_status)">
+            <div class="space-y-2">
+              <Label for="assignment-content">Your work</Label>
+              <Textarea
+                id="assignment-content"
+                v-model="submitContent"
+                rows="6"
+                placeholder="Type your answer or notes here…"
+                :disabled="submitting"
+              />
+            </div>
+            <div class="space-y-2">
+              <Label for="assignment-file">Attachment (optional)</Label>
+              <input
+                id="assignment-file"
+                type="file"
+                accept=".pdf,.doc,.docx,.txt,.jpg,.jpeg,.png,.webp"
+                class="block w-full text-sm file:mr-4 file:rounded-md file:border-0 file:bg-primary file:px-3 file:py-2 file:text-sm file:font-medium file:text-primary-foreground"
+                :disabled="submitting"
+                @change="onSubmitFileChange"
+              />
+              <p class="text-xs text-muted-foreground">PDF, Word, or images up to 10 MB.</p>
+            </div>
+            <p v-if="submitError" class="text-sm text-destructive" role="alert">{{ submitError }}</p>
+          </template>
+        </div>
+
+        <SheetFooter v-if="canSubmitAssignment(selectedAssignment?.submission_status)" class="gap-2 sm:gap-0">
+          <Button
+            type="button"
+            variant="outline"
+            :disabled="submitting"
+            @click="assignmentSheetOpen = false"
+          >
+            Cancel
+          </Button>
+          <Button type="button" :disabled="submitting" @click="handleSubmitAssignment">
+            {{ submitting ? 'Submitting…' : 'Submit assignment' }}
+          </Button>
+        </SheetFooter>
+      </SheetContent>
+    </Sheet>
   </div>
 </template>

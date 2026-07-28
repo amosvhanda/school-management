@@ -522,6 +522,8 @@ Route::middleware(['auth:sanctum', 'school.isolated', 'school.licensed'])->group
         Route::get('/fees', [StudentPortalController::class, 'fees']);
         Route::get('/timetable', [StudentPortalController::class, 'timetable']);
         Route::get('/assignments', [StudentPortalController::class, 'assignments']);
+        Route::get('/assignments/{id}', [StudentPortalController::class, 'showAssignment']);
+        Route::post('/assignments/{id}/submit', [StudentPortalController::class, 'submitAssignment']);
         Route::get('/announcements', [StudentPortalController::class, 'announcements']);
     });
 
