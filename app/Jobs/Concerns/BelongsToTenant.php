@@ -22,4 +22,12 @@ trait BelongsToTenant
     {
         return $this->schoolId;
     }
+
+    /**
+     * Shared tenant queue — workers should listen to tenant alongside default.
+     */
+    public function viaQueue(): ?string
+    {
+        return $this->schoolId ? 'tenant' : null;
+    }
 }

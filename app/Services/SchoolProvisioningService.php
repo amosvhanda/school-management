@@ -125,6 +125,7 @@ class SchoolProvisioningService
             $this->configService->initializeDefaultGradingScale($school, $data['grading_scale'] ?? null);
             $this->settingsService->seedDefaults($school);
             $this->terminologyService->seedDefaults($school);
+            app(\Database\Seeders\EduDashParityDefaultsSeeder::class)->seedForSchool($school);
 
             return [
                 'school' => $school->fresh(),

@@ -40,11 +40,14 @@ return Application::configure(basePath: dirname(__DIR__))
             'school.licensed' => \App\Http\Middleware\EnsureSchoolLicenseActive::class,
             'super_admin' => \App\Http\Middleware\EnsureSuperAdmin::class,
             'school.domain' => \App\Http\Middleware\ResolveSchoolFromDomain::class,
+            'capability' => \App\Http\Middleware\EnsureCapability::class,
+            'permission' => \App\Http\Middleware\EnsurePermission::class,
         ]);
 
         $middleware->api(append: [
             \App\Http\Middleware\ResolveSchoolFromDomain::class,
             \App\Http\Middleware\CaptureAuditContext::class,
+            \App\Http\Middleware\SecurityHeaders::class,
         ]);
 
         $middleware->throttleApi();

@@ -42,7 +42,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    command: php artisan queue:work --verbose --tries=3 --timeout=120
+    command: php artisan queue:work --queue=webhooks,notifications,tenant,default --verbose --tries=3 --timeout=120
     env_file:
       - .env
     depends_on:

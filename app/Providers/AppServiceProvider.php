@@ -25,7 +25,12 @@ class AppServiceProvider extends ServiceProvider
             config(['cache.default' => 'file']);
         }
 
-        Model::preventLazyLoading($this->app->isLocal() && ! $this->app->runningInConsole());
+        // Catch N+1s in local and when PREVENT_LAZY_LOADING=true (CI/staging).
+        $preventLazy = (! $this->app->runningInConsole()) && (
+            $this->app->isLocal()
+            || filter_var(env('PREVENT_LAZY_LOADING', false), FILTER_VALIDATE_BOOL)
+        );
+        Model::preventLazyLoading($preventLazy);
         Model::preventSilentlyDiscardingAttributes($this->app->isLocal() && ! $this->app->runningInConsole());
 
         if ($this->app->isProduction()) {

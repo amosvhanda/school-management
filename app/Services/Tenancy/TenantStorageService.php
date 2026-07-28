@@ -6,6 +6,7 @@ class TenantStorageService
 {
     /**
      * Prefix a storage directory with the tenant school scope when missing.
+     * Legacy schools/{id}/… paths are rewritten to school-{id}/….
      */
     public function scopedDirectory(?int $schoolId, string $directory): string
     {
@@ -21,9 +22,14 @@ class TenantStorageService
             return $directory;
         }
 
-        // Legacy path used in a few document uploads.
-        if (str_starts_with($directory, "schools/{$schoolId}/")) {
-            return $directory;
+        // Rewrite legacy schools/{id}/… to school-{id}/…
+        $legacy = "schools/{$schoolId}/";
+        if (str_starts_with($directory, $legacy)) {
+            return $prefix.'/'.substr($directory, strlen($legacy));
+        }
+
+        if ($directory === "schools/{$schoolId}") {
+            return $prefix;
         }
 
         return "{$prefix}/{$directory}";

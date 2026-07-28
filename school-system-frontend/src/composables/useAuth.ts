@@ -30,6 +30,7 @@ export function useAuth() {
     displayName,
     initialize: authStore.initialize,
     login: authStore.login,
+    completeTwoFactorChallenge: authStore.completeTwoFactorChallenge,
     logout: authStore.logout,
     fetchMe: authStore.fetchMe,
     switchSchool: authStore.switchSchool,

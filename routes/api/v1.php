@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\V1\AdminLicenseController;
 use App\Http\Controllers\Api\V1\AdminSchoolController;
 use App\Http\Controllers\Api\V1\AssistantController;
 use App\Http\Controllers\Api\V1\AuthController;
+use App\Http\Controllers\Api\V1\TwoFactorAuthController;
 use App\Http\Controllers\Api\V1\LicenseController;
 use App\Http\Controllers\Api\V1\PaymentWebhookController;
 use App\Http\Controllers\Api\V1\ProfileController;
@@ -118,6 +119,8 @@ use Illuminate\Support\Facades\Route;
 // ─── Public (rate-limited per Fortify starter-kit) ─────────────────────────
 Route::post('/auth/login', [AuthController::class, 'login'])
     ->middleware('throttle:login');
+Route::post('/auth/two-factor/challenge', [TwoFactorAuthController::class, 'challenge'])
+    ->middleware('throttle:login');
 Route::post('/auth/forgot-password', [AuthController::class, 'forgotPassword'])
     ->middleware('throttle:password-reset');
 Route::post('/auth/reset-password', [AuthController::class, 'resetPassword'])
@@ -174,12 +177,18 @@ Route::middleware(['auth:sanctum', 'school.isolated', 'school.licensed'])->group
     Route::get('/auth/me', [AuthController::class, 'me']);
     Route::get('/auth/schools', [AuthController::class, 'schools']);
     Route::post('/auth/switch-school', [AuthController::class, 'switchSchool']);
+    Route::get('/auth/two-factor', [TwoFactorAuthController::class, 'status']);
+    Route::post('/auth/two-factor', [TwoFactorAuthController::class, 'enable']);
+    Route::post('/auth/two-factor/confirm', [TwoFactorAuthController::class, 'confirm']);
+    Route::delete('/auth/two-factor', [TwoFactorAuthController::class, 'disable']);
+    Route::post('/auth/two-factor/recovery-codes', [TwoFactorAuthController::class, 'recoveryCodes']);
     Route::get('/user/profile', [ProfileController::class, 'show']);
     Route::put('/user/profile', [ProfileController::class, 'update']);
     Route::post('/user/change-password', [AuthController::class, 'changePassword']);
 
     // Generic staff file upload (resources, homework, avatars, report cards).
-    Route::post('/uploads', [UploadController::class, 'store']);
+    Route::post('/uploads', [UploadController::class, 'store'])
+        ->middleware('capability:isStaff');
 
     // Teacher portal (scoped to the authenticated teacher).
     Route::prefix('teacher-portal')->group(function () {
@@ -673,12 +682,12 @@ Route::middleware(['auth:sanctum', 'school.isolated', 'school.licensed'])->group
     Route::put('/hostels/{id}', [HostelController::class, 'update']);
     Route::post('/hostels/{id}/rooms', [HostelController::class, 'storeRoom']);
     Route::post('/hostels/allocations', [HostelController::class, 'allocate']);
-    Route::get('/library/books', [LibraryController::class, 'books']);
-    Route::post('/library/books', [LibraryController::class, 'storeBook']);
-    Route::put('/library/books/{id}', [LibraryController::class, 'updateBook']);
-    Route::delete('/library/books/{id}', [LibraryController::class, 'destroyBook']);
-    Route::get('/library/loans', [LibraryController::class, 'loans']);
-    Route::post('/library/loans', [LibraryController::class, 'borrow']);
+    Route::get('/library/books', [LibraryController::class, 'books'])->middleware('capability:canManageLibrary,isStaff');
+    Route::post('/library/books', [LibraryController::class, 'storeBook'])->middleware('capability:canManageLibrary');
+    Route::put('/library/books/{id}', [LibraryController::class, 'updateBook'])->middleware('capability:canManageLibrary');
+    Route::delete('/library/books/{id}', [LibraryController::class, 'destroyBook'])->middleware('capability:canManageLibrary');
+    Route::get('/library/loans', [LibraryController::class, 'loans'])->middleware('capability:canManageLibrary,isStaff');
+    Route::post('/library/loans', [LibraryController::class, 'borrow'])->middleware('capability:canManageLibrary');
     Route::post('/library/loans/{id}/return', [LibraryController::class, 'returnBook']);
     Route::get('/library/members', [LibraryMemberController::class, 'index']);
     Route::get('/library/members/{id}', [LibraryMemberController::class, 'show']);

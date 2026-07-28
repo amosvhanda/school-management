@@ -10,6 +10,7 @@ import {
   FormMessage,
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import AuthFormShell from '@/components/auth/AuthFormShell.vue'
@@ -37,11 +38,14 @@ const props = defineProps<{
 
 const router = useRouter()
 const route = useRoute()
-const { login, logout } = useAuth()
+const { login, completeTwoFactorChallenge, logout } = useAuth()
 const configStore = useConfigStore()
 const toast = useToast()
 const isDev = computed(() => import.meta.env.DEV)
 const quickLoginRole = ref<string | null>(null)
+const challengeToken = ref<string | null>(null)
+const twoFactorCode = ref('')
+const verifyingTwoFactor = ref(false)
 const tenantBrandName = computed(() => {
   const branding = configStore.settings?.branding
   const name =
@@ -66,7 +70,9 @@ const { submit, isSubmitting, setValues } = useFormApiSubmit({
     await completeLogin(values.email, values.password)
   },
   onSuccess: () => {
-    toast.success('Signed in successfully')
+    if (!challengeToken.value) {
+      toast.success('Signed in successfully')
+    }
   },
   onError: (message) => {
     toast.error('Login failed', message)
@@ -75,6 +81,17 @@ const { submit, isSubmitting, setValues } = useFormApiSubmit({
 
 async function completeLogin(email: string, password: string) {
   const result = await login(email, password)
+
+  if (result.two_factor_required && result.challenge_token) {
+    challengeToken.value = result.challenge_token
+    twoFactorCode.value = ''
+    toast.success('Enter your authenticator code to finish signing in')
+    return
+  }
+
+  if (!result.user) {
+    throw new Error('Login response was incomplete.')
+  }
 
   if (
     !isStaffDashboardRole(result.user.role)
@@ -102,6 +119,44 @@ async function completeLogin(email: string, password: string) {
   )
 
   await router.push(redirect)
+}
+
+async function verifyTwoFactor() {
+  if (!challengeToken.value || !twoFactorCode.value.trim()) {
+    toast.error('Enter the 6-digit code from your authenticator app')
+    return
+  }
+
+  verifyingTwoFactor.value = true
+  try {
+    const result = await completeTwoFactorChallenge(challengeToken.value, twoFactorCode.value.trim())
+    challengeToken.value = null
+    if (!result.user) {
+      throw new Error('Two-factor response was incomplete.')
+    }
+
+    if (result.user.platform_terms_accepted === false) {
+      await router.push({ name: 'platform-terms-accept' })
+      return
+    }
+
+    const redirect = resolvePostLoginRedirect(
+      result.user,
+      typeof route.query.redirect === 'string' ? route.query.redirect : null,
+      (path) => router.resolve(path),
+    )
+    toast.success('Signed in successfully')
+    await router.push(redirect)
+  } catch (err) {
+    toast.error('Verification failed', err instanceof Error ? err.message : 'Invalid code')
+  } finally {
+    verifyingTwoFactor.value = false
+  }
+}
+
+function cancelTwoFactor() {
+  challengeToken.value = null
+  twoFactorCode.value = ''
 }
 
 function fillAccount(account: DemoAccount) {
@@ -169,6 +224,43 @@ onMounted(() => {
       </template>
 
       <form
+        v-if="challengeToken"
+        class="space-y-6"
+        :aria-busy="verifyingTwoFactor"
+        novalidate
+        @submit.prevent="verifyTwoFactor"
+      >
+        <div class="space-y-1.5 text-center md:text-left">
+          <h1 class="font-heading text-2xl font-semibold tracking-tight">Two-factor authentication</h1>
+          <p class="text-sm text-muted-foreground">
+            Enter the 6-digit code from your authenticator app, or a recovery code.
+          </p>
+        </div>
+        <div class="space-y-2">
+          <Label for="two-factor-code" :class="formLabelClass">Authentication code</Label>
+          <Input
+            id="two-factor-code"
+            v-model="twoFactorCode"
+            inputmode="numeric"
+            autocomplete="one-time-code"
+            placeholder="123456"
+            :disabled="verifyingTwoFactor"
+            :class="formInputClass"
+          />
+        </div>
+        <div class="flex flex-col gap-2 sm:flex-row">
+          <Button type="submit" :class="formButtonClass" :disabled="verifyingTwoFactor">
+            <Loader2 v-if="verifyingTwoFactor" class="mr-2 size-4 animate-spin" aria-hidden="true" />
+            Verify and continue
+          </Button>
+          <Button type="button" variant="outline" :disabled="verifyingTwoFactor" @click="cancelTwoFactor">
+            Back
+          </Button>
+        </div>
+      </form>
+
+      <form
+        v-else
         v-auto-animate="formFieldsAnimateOptions"
         class="space-y-6"
         :aria-busy="isSubmitting"

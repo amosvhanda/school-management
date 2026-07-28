@@ -16,13 +16,18 @@ class EduDashParityDefaultsSeeder extends Seeder
     public function run(): void
     {
         School::query()->each(function (School $school) {
-            $this->seedLeaveTypes($school);
-            $this->seedStudentCategories($school);
-            $this->seedCurrencies($school);
-            $this->seedLanguages($school);
-            $this->seedDesignations($school);
-            $this->seedCertificateTemplates($school);
+            $this->seedForSchool($school);
         });
+    }
+
+    public function seedForSchool(School $school): void
+    {
+        $this->seedLeaveTypes($school);
+        $this->seedStudentCategories($school);
+        $this->seedCurrencies($school);
+        $this->seedLanguages($school);
+        $this->seedDesignations($school);
+        $this->seedCertificateTemplates($school);
     }
 
     private function seedLeaveTypes(School $school): void

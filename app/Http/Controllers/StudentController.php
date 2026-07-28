@@ -339,19 +339,25 @@ class StudentController extends Controller
 
         $schoolId = $student->school_id;
         $uploaded = [];
+        $uploads = app(FileUploadService::class);
 
         foreach ($request->file('documents') as $file) {
-            $path = $file->store("schools/{$schoolId}/students/{$student->id}/documents", 'public');
+            $stored = $uploads->store(
+                $file,
+                "students/{$student->id}/documents",
+                'public',
+                $schoolId,
+            );
 
             $uploaded[] = $this->formatStudentDocument(StudentDocument::create([
                 'school_id' => $schoolId,
                 'student_id' => $student->id,
                 'uploaded_by' => $user?->id,
-                'name' => $file->getClientOriginalName(),
+                'name' => $stored['name'],
                 'type' => $request->input('type'),
-                'path' => $path,
-                'mime_type' => $file->getMimeType(),
-                'size' => $file->getSize(),
+                'path' => $stored['path'],
+                'mime_type' => $stored['mime'] ?? $file->getMimeType(),
+                'size' => $stored['size'],
             ]));
         }
 

@@ -64,6 +64,21 @@ export interface AuthUser {
 }
 
 export interface LoginResponse {
-  user: AuthUser
-  token: string
+  user?: AuthUser
+  token?: string
+  two_factor_required?: boolean
+  challenge_token?: string
+}
+
+export interface TwoFactorStatus {
+  enabled: boolean
+  confirmed: boolean
+}
+
+export interface TwoFactorEnableResponse {
+  enabled: boolean
+  confirmed: boolean
+  qr_code_svg?: string
+  setup_key?: string
+  recovery_codes?: string[]
 }

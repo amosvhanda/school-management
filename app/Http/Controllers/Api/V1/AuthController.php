@@ -33,6 +33,15 @@ class AuthController extends Controller
             $request->role
         );
 
+        if ($user->two_factor_secret && $user->two_factor_confirmed_at) {
+            $challengeToken = app(TwoFactorAuthController::class)->issueChallengeToken($user);
+
+            return $this->success([
+                'two_factor_required' => true,
+                'challenge_token' => $challengeToken,
+            ], 'Two-factor authentication required');
+        }
+
         $token = $this->authService->createApiToken($user);
         $context = $this->authService->resolveRoleContext($user);
 

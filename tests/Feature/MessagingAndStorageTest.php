@@ -93,7 +93,8 @@ class MessagingAndStorageTest extends TestCase
 
         $this->assertSame('school-5/uploads', $service->scopedDirectory(5, 'uploads'));
         $this->assertSame('school-5/uploads', $service->scopedDirectory(5, 'school-5/uploads'));
-        $this->assertSame('schools/5/students/1/docs', $service->scopedDirectory(5, 'schools/5/students/1/docs'));
+        $this->assertSame('school-5/students/1/docs', $service->scopedDirectory(5, 'schools/5/students/1/docs'));
+        $this->assertSame('school-5', $service->scopedDirectory(5, 'schools/5'));
     }
 
     public function test_file_upload_service_applies_tenant_prefix(): void

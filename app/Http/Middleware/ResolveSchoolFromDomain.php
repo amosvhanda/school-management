@@ -19,6 +19,7 @@ class ResolveSchoolFromDomain
         if ($school) {
             $request->attributes->set('currentSchool', $school);
             app()->instance('currentSchool', $school);
+            config(['tenancy.current_school_id' => $school->id]);
             app(TenantSessionService::class)->applyForRequest($request, $school);
         }
 
