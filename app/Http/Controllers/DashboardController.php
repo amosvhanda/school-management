@@ -14,15 +14,42 @@ use App\Models\Payroll;
 use App\Models\User;
 use App\Models\Transaction;
 use App\Enums\UserRole;
+use App\Services\PermissionService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class DashboardController extends Controller
 {
+    private function authorizeDashboard(Request $request): void
+    {
+        $this->authorizeModuleAccess(
+            $request,
+            capabilities: ['isStaff'],
+            permissionSlugs: [],
+        );
+    }
+
+    private function canSeeFinance(Request $request): bool
+    {
+        $user = $request->user();
+        if (! $user) {
+            return false;
+        }
+
+        $service = app(PermissionService::class);
+
+        return $service->hasCapability($user, 'canManageFinance')
+            || $service->hasPermission($user, 'finance.manage')
+            || $service->hasCapability($user, 'canManageTeachers');
+    }
+
     public function kpis(Request $request)
     {
+        $this->authorizeDashboard($request);
+
         $schoolId = $request->user()?->school_id;
         $today = now()->toDateString();
+        $canFinance = $this->canSeeFinance($request);
 
         $studentQuery = Student::query()->when($schoolId, fn ($q) => $q->where('school_id', $schoolId));
         $teacherQuery = Teacher::query()->when($schoolId, fn ($q) => $q->where('school_id', $schoolId));
@@ -41,9 +68,15 @@ class DashboardController extends Controller
         $totalParents = (clone $userQuery)->where('role', UserRole::Parent)->count();
         $totalUsers = (clone $userQuery)->count();
 
-        $outstandingFees = (clone $invoiceQuery)->where('status', '!=', 'paid')->sum('balance');
-        $paymentsToday = (clone $paymentQuery)->whereDate('date', $today)->where('status', 'completed')->sum('amount');
-        $totalRevenue = (clone $paymentQuery)->where('status', 'completed')->sum('amount');
+        $outstandingFees = $canFinance
+            ? (clone $invoiceQuery)->where('status', '!=', 'paid')->sum('balance')
+            : 0;
+        $paymentsToday = $canFinance
+            ? (clone $paymentQuery)->whereDate('date', $today)->where('status', 'completed')->sum('amount')
+            : 0;
+        $totalRevenue = $canFinance
+            ? (clone $paymentQuery)->where('status', 'completed')->sum('amount')
+            : 0;
 
         $attendanceToday = (clone $attendanceQuery)->whereDate('date', $today)->get();
         $attendanceSummary = [
@@ -58,10 +91,10 @@ class DashboardController extends Controller
         $currentMonth = now()->month;
         $currentYear = now()->year;
         $payrollMonthQuery = (clone $payrollQuery)->where('month', $currentMonth)->where('year', $currentYear);
-        $payrollTotal = (clone $payrollMonthQuery)->sum('gross_salary');
-        $payrollPaid = (clone $payrollMonthQuery)->sum('amount_paid');
-        $payrollPending = (clone $payrollMonthQuery)->where('status', 'pending')->sum('net_salary');
-        $payrollPartial = (clone $payrollMonthQuery)->where('status', 'partial')->sum('net_salary');
+        $payrollTotal = $canFinance ? (clone $payrollMonthQuery)->sum('gross_salary') : 0;
+        $payrollPaid = $canFinance ? (clone $payrollMonthQuery)->sum('amount_paid') : 0;
+        $payrollPending = $canFinance ? (clone $payrollMonthQuery)->where('status', 'pending')->sum('net_salary') : 0;
+        $payrollPartial = $canFinance ? (clone $payrollMonthQuery)->where('status', 'partial')->sum('net_salary') : 0;
 
         $thisMonthStudents = (clone $studentQuery)->whereMonth('created_at', $currentMonth)->whereYear('created_at', $currentYear)->count();
         $lastMonthStudents = (clone $studentQuery)->whereMonth('created_at', now()->subMonth()->month)->whereYear('created_at', now()->subMonth()->year)->count();
@@ -69,8 +102,12 @@ class DashboardController extends Controller
             ? (($thisMonthStudents - $lastMonthStudents) / $lastMonthStudents) * 100
             : 0;
 
-        $thisMonthPayments = (clone $paymentQuery)->whereMonth('date', $currentMonth)->whereYear('date', $currentYear)->sum('amount');
-        $lastMonthPayments = (clone $paymentQuery)->whereMonth('date', now()->subMonth()->month)->whereYear('date', now()->subMonth()->year)->sum('amount');
+        $thisMonthPayments = $canFinance
+            ? (clone $paymentQuery)->whereMonth('date', $currentMonth)->whereYear('date', $currentYear)->sum('amount')
+            : 0;
+        $lastMonthPayments = $canFinance
+            ? (clone $paymentQuery)->whereMonth('date', now()->subMonth()->month)->whereYear('date', now()->subMonth()->year)->sum('amount')
+            : 0;
         $paymentsGrowth = $lastMonthPayments > 0
             ? (($thisMonthPayments - $lastMonthPayments) / $lastMonthPayments) * 100
             : 0;
@@ -130,8 +167,11 @@ class DashboardController extends Controller
 
     public function activity(Request $request)
     {
+        $this->authorizeDashboard($request);
+
         $days = (int) $request->get('days', 30);
         $schoolId = $request->user()?->school_id;
+        $canFinance = $this->canSeeFinance($request);
 
         $startDate = now()->subDays($days - 1)->startOfDay();
         $endDate = now()->endOfDay();
@@ -144,13 +184,15 @@ class DashboardController extends Controller
             ->get()
             ->keyBy(fn ($row) => $row->date->toDateString());
 
-        $payments = Payment::query()
-            ->when($schoolId, fn ($q) => $q->where('school_id', $schoolId))
-            ->whereBetween('date', [$startDate, $endDate])
-            ->selectRaw('date, count(*) as total')
-            ->groupBy('date')
-            ->get()
-            ->keyBy(fn ($row) => $row->date->toDateString());
+        $payments = $canFinance
+            ? Payment::query()
+                ->when($schoolId, fn ($q) => $q->where('school_id', $schoolId))
+                ->whereBetween('date', [$startDate, $endDate])
+                ->selectRaw('date, count(*) as total')
+                ->groupBy('date')
+                ->get()
+                ->keyBy(fn ($row) => $row->date->toDateString())
+            : collect();
 
         $data = [];
         for ($i = 0; $i < $days; $i++) {
@@ -171,19 +213,24 @@ class DashboardController extends Controller
 
     public function monthlyStats(Request $request)
     {
+        $this->authorizeDashboard($request);
+
         $schoolId = $request->user()?->school_id;
+        $canFinance = $this->canSeeFinance($request);
         $months = collect(range(0, 11))->map(fn ($offset) => now()->subMonths(11 - $offset));
 
         $data = [];
 
         foreach ($months as $month) {
             $label = $month->format('M');
-            $revenue = Payment::query()
-                ->when($schoolId, fn ($q) => $q->where('school_id', $schoolId))
-                ->where('status', 'completed')
-                ->whereMonth('date', $month->month)
-                ->whereYear('date', $month->year)
-                ->sum('amount');
+            $revenue = $canFinance
+                ? Payment::query()
+                    ->when($schoolId, fn ($q) => $q->where('school_id', $schoolId))
+                    ->where('status', 'completed')
+                    ->whereMonth('date', $month->month)
+                    ->whereYear('date', $month->year)
+                    ->sum('amount')
+                : 0;
 
             $users = User::query()
                 ->when($schoolId, fn ($q) => $q->where('school_id', $schoolId))
@@ -191,15 +238,19 @@ class DashboardController extends Controller
                 ->whereYear('created_at', $month->year)
                 ->count();
 
-            $transactions = Transaction::query()
-                ->when($schoolId, fn ($q) => $q->where('school_id', $schoolId))
-                ->whereMonth('created_at', $month->month)
-                ->whereYear('created_at', $month->year)
-                ->count();
+            $transactions = $canFinance
+                ? Transaction::query()
+                    ->when($schoolId, fn ($q) => $q->where('school_id', $schoolId))
+                    ->whereMonth('created_at', $month->month)
+                    ->whereYear('created_at', $month->year)
+                    ->count()
+                : 0;
 
-            $data[] = ['month' => $label, 'value' => (float) $revenue, 'category' => 'Revenue'];
+            if ($canFinance) {
+                $data[] = ['month' => $label, 'value' => (float) $revenue, 'category' => 'Revenue'];
+                $data[] = ['month' => $label, 'value' => (int) $transactions, 'category' => 'Transactions'];
+            }
             $data[] = ['month' => $label, 'value' => (int) $users, 'category' => 'Users'];
-            $data[] = ['month' => $label, 'value' => (int) $transactions, 'category' => 'Transactions'];
         }
 
         return response()->json([
@@ -209,40 +260,47 @@ class DashboardController extends Controller
 
     public function recentActivity(Request $request)
     {
+        $this->authorizeDashboard($request);
+
         $limit = (int) $request->get('limit', 10);
         $schoolId = $request->user()?->school_id;
+        $canFinance = $this->canSeeFinance($request);
 
-        $payments = Payment::query()
-            ->when($schoolId, fn ($q) => $q->where('school_id', $schoolId))
-            ->with('student:id,full_name')
-            ->orderByDesc('created_at')
-            ->limit($limit)
-            ->get()
-            ->map(fn ($p) => [
-                'id' => "payment-{$p->id}",
-                'type' => 'payment',
-                'action' => $p->status === 'completed' ? 'completed' : $p->status,
-                'user' => $p->student?->full_name ?? 'Student',
-                'description' => "Payment of {$p->currency} {$p->amount}",
-                'timestamp' => $p->created_at?->toIso8601String(),
-                'status' => $p->status === 'completed' ? 'success' : 'warning',
-            ]);
+        $payments = $canFinance
+            ? Payment::query()
+                ->when($schoolId, fn ($q) => $q->where('school_id', $schoolId))
+                ->with('student:id,full_name')
+                ->orderByDesc('created_at')
+                ->limit($limit)
+                ->get()
+                ->map(fn ($p) => [
+                    'id' => "payment-{$p->id}",
+                    'type' => 'payment',
+                    'action' => $p->status === 'completed' ? 'completed' : $p->status,
+                    'user' => $p->student?->full_name ?? 'Student',
+                    'description' => "Payment of {$p->currency} {$p->amount}",
+                    'timestamp' => $p->created_at?->toIso8601String(),
+                    'status' => $p->status === 'completed' ? 'success' : 'warning',
+                ])
+            : collect();
 
-        $invoices = Invoice::query()
-            ->when($schoolId, fn ($q) => $q->where('school_id', $schoolId))
-            ->with('student:id,full_name')
-            ->orderByDesc('created_at')
-            ->limit($limit)
-            ->get()
-            ->map(fn ($i) => [
-                'id' => "invoice-{$i->id}",
-                'type' => 'invoice',
-                'action' => 'created',
-                'user' => $i->student?->full_name ?? 'Student',
-                'description' => "Invoice {$i->invoice_number} created",
-                'timestamp' => $i->created_at?->toIso8601String(),
-                'status' => 'info',
-            ]);
+        $invoices = $canFinance
+            ? Invoice::query()
+                ->when($schoolId, fn ($q) => $q->where('school_id', $schoolId))
+                ->with('student:id,full_name')
+                ->orderByDesc('created_at')
+                ->limit($limit)
+                ->get()
+                ->map(fn ($i) => [
+                    'id' => "invoice-{$i->id}",
+                    'type' => 'invoice',
+                    'action' => 'created',
+                    'user' => $i->student?->full_name ?? 'Student',
+                    'description' => "Invoice {$i->invoice_number} created",
+                    'timestamp' => $i->created_at?->toIso8601String(),
+                    'status' => 'info',
+                ])
+            : collect();
 
         $students = Student::query()
             ->when($schoolId, fn ($q) => $q->where('school_id', $schoolId))

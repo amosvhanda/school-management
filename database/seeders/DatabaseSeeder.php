@@ -8,17 +8,20 @@ class DatabaseSeeder extends Seeder
 {
     /**
      * Seed the application's database.
-     * Order: Schools → Roles → Users → Teachers → GradeLevels → Classes → Subjects → Rooms →
-     *        GradingScales → Terms → Students → Enrollment → Guardian → ParentStudent →
-     *        TeacherAssignments → Timetable → Attendance → Grades → Fee Structures →
-     *        Invoices → Payments → Transactions → Payroll → Settings → ReportTemplates →
-     *        Assignments → EnrollmentApplications → Announcements → Exams → ExamResults →
-     *        Tests → TestResults.
      *
-     * IMPORTANT: Order matters for relationships!
+     * Production: only ProductionSeeder (school + roles + admin) unless SEED_DEMO_DATA=true.
+     * Local/testing: full demo ERP dataset (+ DemoDataSeeder extras).
      */
     public function run(): void
     {
+        $forceDemo = filter_var(env('SEED_DEMO_DATA', false), FILTER_VALIDATE_BOOL);
+
+        if (app()->environment('production') && ! $forceDemo) {
+            $this->call(ProductionSeeder::class);
+
+            return;
+        }
+
         $this->call([
             // 1. Core entities (no dependencies)
             SchoolSeeder::class,
@@ -124,7 +127,7 @@ class DatabaseSeeder extends Seeder
             TeacherPortalSeeder::class,
         ]);
 
-        if (app()->environment(['local', 'testing']) || filter_var(env('SEED_DEMO_DATA', false), FILTER_VALIDATE_BOOL)) {
+        if (app()->environment(['local', 'testing']) || $forceDemo) {
             $this->call(DemoDataSeeder::class);
         }
     }

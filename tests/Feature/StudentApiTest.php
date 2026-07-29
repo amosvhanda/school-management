@@ -227,7 +227,7 @@ class StudentApiTest extends TestCase
         $response->assertOk()
             ->assertJsonPath('message', 'Student deleted successfully');
 
-        $this->assertDatabaseMissing('students', [
+        $this->assertSoftDeleted('students', [
             'id' => $student->id,
         ]);
     }

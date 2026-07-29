@@ -266,7 +266,7 @@ class PaymentApiTest extends TestCase
         $response->assertOk()
             ->assertJsonPath('message', 'Payment deleted successfully');
 
-        $this->assertDatabaseMissing('payments', [
+        $this->assertSoftDeleted('payments', [
             'id' => $payment->id,
         ]);
     }

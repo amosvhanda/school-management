@@ -1,5 +1,8 @@
 /**
- * Demo credentials for local/testing — seeded by database/seeders/UserSeeder.php
+ * Demo credentials for local/testing only.
+ * Seeded by database/seeders/UserSeeder.php — never enabled in production builds
+ * (LoginView only renders these when import.meta.env.DEV is true).
+ *
  * Run: php artisan db:seed --class=UserSeeder
  */
 export interface DemoAccount {

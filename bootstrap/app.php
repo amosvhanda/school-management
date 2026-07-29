@@ -36,6 +36,14 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->statefulApi();
 
+        $trustedProxies = env('TRUSTED_PROXIES');
+        if (is_string($trustedProxies) && $trustedProxies !== '') {
+            $at = $trustedProxies === '*'
+                ? '*'
+                : array_values(array_filter(array_map('trim', explode(',', $trustedProxies))));
+            $middleware->trustProxies(at: $at);
+        }
+
         $middleware->validateCsrfTokens(except: [
             'api/*',
             'sanctum/csrf-cookie',
