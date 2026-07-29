@@ -13,6 +13,7 @@ use App\Models\ClassParticipationRecord;
 use App\Models\ClassSubstitution;
 use App\Models\DisciplinaryRecord;
 use App\Models\Exam;
+use App\Models\Grade;
 use App\Models\LeaveRequest;
 use App\Models\LessonPlan;
 use App\Models\OnlineLesson;
@@ -27,8 +28,8 @@ use App\Models\TeacherNotification;
 use App\Models\TeachingResource;
 use App\Models\Timetable;
 use App\Models\TimetableChangeRequest;
-use App\Services\Export\ExportService;
 use App\Services\Domain\SchoolDomainRules;
+use App\Services\Export\ExportService;
 use App\Services\PermissionService;
 use App\Services\TeacherResolutionService;
 use Illuminate\Http\Request;
@@ -761,7 +762,7 @@ class TeacherPortalController extends Controller
             'teacher_id' => $teacher->id,
             'lesson_type' => $data['lesson_type'] ?? 'live',
             'status' => $data['status'] ?? 'scheduled',
-            // Stub meeting URL when live lesson has none — real video later.
+            // Placeholder room URL until a live video provider is wired.
             'meeting_url' => $data['meeting_url'] ?? (($data['lesson_type'] ?? 'live') === 'live'
                 ? 'https://meet.example.local/room/'.uniqid('lesson_')
                 : null),
@@ -1229,7 +1230,7 @@ class TeacherPortalController extends Controller
             ? tap(collect([(int) $classId]), fn ($ids) => $this->assertTeacherOwnsClass($teacher, $classId))
             : $this->teacherClassIds($teacher);
 
-        $rows = \App\Models\Grade::query()
+        $rows = Grade::query()
             ->whereIn('class_id', $classIds->isEmpty() ? [0] : $classIds->all())
             ->when($teacher->school_id, fn ($q) => $q->where('school_id', $teacher->school_id))
             ->with('student:id,full_name,student_number')

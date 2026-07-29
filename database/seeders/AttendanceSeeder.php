@@ -13,42 +13,80 @@ class AttendanceSeeder extends Seeder
     public function run(): void
     {
         $admin = User::where('role', 'admin')->first();
-        if (!$admin) {
+        if (! $admin) {
             return;
         }
 
         $statuses = ['present', 'present', 'present', 'present', 'absent', 'late', 'excused'];
 
         foreach (range(0, 6) as $daysAgo) {
-            $date = now()->subDays($daysAgo)->format('Y-m-d');
+            $date = now()->subDays($daysAgo)->toDateString();
+
             foreach (Student::where('status', 'active')->get() as $student) {
-                if (!$student->school_id) {
+                if (! $student->school_id) {
                     continue;
                 }
-                $classModel = ClassModel::with('teacher')
-                    ->where('school_id', $student->school_id)
-                    ->where('name', $student->class)
-                    ->first();
-                $teacher = $classModel?->teacher;
+
+                $classModel = $this->resolveClass($student);
+                if (! $classModel) {
+                    continue;
+                }
+
+                $teacher = $classModel->teacher;
                 $status = $statuses[array_rand($statuses)];
-                $att = Attendance::where('student_id', $student->id)->whereDate('date', $date)->first();
-                $updatePayload = [
-                    'class_id' => $classModel?->id,
+
+                $payload = [
                     'teacher_id' => $teacher?->id,
                     'status' => $status,
                     'time_in' => in_array($status, ['present', 'late'], true) ? '07:30:00' : null,
                     'marked_by' => $admin->id,
                     'school_id' => $student->school_id,
                 ];
-                if ($att) {
-                    $att->update($updatePayload);
-                } else {
-                    Attendance::create(array_merge(
-                        ['student_id' => $student->id, 'date' => $date],
-                        $updatePayload
-                    ));
+
+                // Match by calendar day — Eloquent's date cast stores midnight
+                // datetimes, so equality on "Y-m-d" misses existing rows and
+                // re-seeding then hits the (student_id, date, class_id) unique key.
+                $existing = Attendance::query()
+                    ->where('student_id', $student->id)
+                    ->where('class_id', $classModel->id)
+                    ->whereDate('date', $date)
+                    ->first();
+
+                if ($existing) {
+                    $existing->update($payload);
+
+                    continue;
                 }
+
+                Attendance::create([
+                    'student_id' => $student->id,
+                    'date' => $date,
+                    'class_id' => $classModel->id,
+                    ...$payload,
+                ]);
             }
         }
+    }
+
+    private function resolveClass(Student $student): ?ClassModel
+    {
+        if ($student->class_id) {
+            $byId = ClassModel::with('teacher')
+                ->where('school_id', $student->school_id)
+                ->where('id', $student->class_id)
+                ->first();
+            if ($byId) {
+                return $byId;
+            }
+        }
+
+        if (! $student->class) {
+            return null;
+        }
+
+        return ClassModel::with('teacher')
+            ->where('school_id', $student->school_id)
+            ->where('name', $student->class)
+            ->first();
     }
 }
