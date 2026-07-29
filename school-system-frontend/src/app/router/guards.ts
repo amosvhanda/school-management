@@ -26,6 +26,14 @@ export function createRouteGuards(router: Router) {
     }
 
     if (to.meta.requiresAuth && authStore.user) {
+      const needsPasswordChange = authStore.user.must_change_password === true
+      if (needsPasswordChange && !to.meta.allowWithoutPasswordChange) {
+        return { name: 'force-change-password', query: { redirect: to.fullPath } }
+      }
+      if (!needsPasswordChange && to.name === 'force-change-password') {
+        return authStore.defaultRoute
+      }
+
       const needsTerms = authStore.user.platform_terms_accepted === false
       if (needsTerms && !to.meta.allowWithoutTerms) {
         return { name: 'platform-terms-accept', query: { redirect: to.fullPath } }

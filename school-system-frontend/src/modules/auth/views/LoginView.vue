@@ -68,6 +68,15 @@ async function completeLogin(email: string, password: string) {
     throw new Error('Your account role cannot access this application.')
   }
 
+  if (result.user.must_change_password === true) {
+    const next = typeof route.query.redirect === 'string' ? route.query.redirect : undefined
+    await router.push({
+      name: 'force-change-password',
+      query: next && next !== '/password/change' ? { redirect: next } : undefined,
+    })
+    return
+  }
+
   if (result.user.platform_terms_accepted === false) {
     const next = typeof route.query.redirect === 'string' ? route.query.redirect : undefined
     await router.push({

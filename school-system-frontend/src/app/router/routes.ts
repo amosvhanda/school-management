@@ -84,13 +84,19 @@ export const publicRoutes: RouteRecordRaw[] = [
     path: 'terms/accept',
     name: 'platform-terms-accept',
     component: () => import('@/modules/auth/views/PlatformTermsAcceptView.vue'),
-    meta: { requiresAuth: true, allowWithoutTerms: true },
+    meta: { requiresAuth: true, allowWithoutTerms: true, allowWithoutPasswordChange: true },
+  },
+  {
+    path: 'password/change',
+    name: 'force-change-password',
+    component: () => import('@/modules/auth/views/ForceChangePasswordView.vue'),
+    meta: { requiresAuth: true, allowWithoutTerms: true, allowWithoutPasswordChange: true },
   },
   {
     path: 'license/activate',
     name: 'license-activate',
     component: () => import('@/modules/auth/views/LicenseActivateView.vue'),
-    meta: { requiresAuth: true, allowWithoutTerms: true },
+    meta: { requiresAuth: true, allowWithoutTerms: true, allowWithoutPasswordChange: true },
   },
 ]
 

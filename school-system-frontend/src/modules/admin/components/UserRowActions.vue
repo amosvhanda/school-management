@@ -54,10 +54,16 @@ async function toggleStatus() {
 
 async function resetPassword() {
   try {
-    await usersApi.resetPassword(props.user.id, {})
+    const result = (await usersApi.resetPassword(props.user.id, {})) as {
+      temporary_password?: string
+      message?: string
+    }
+    const temporaryPassword = result?.temporary_password
     toast({
       title: 'Password reset successful',
-      description: 'The user temporary password has been set to password123.',
+      description: temporaryPassword
+        ? `Temporary password: ${temporaryPassword}. Share it securely — it will not be shown again.`
+        : 'A temporary password was generated for this user.',
     })
   } catch (err) {
     toast({

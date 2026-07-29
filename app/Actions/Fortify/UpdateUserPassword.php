@@ -6,7 +6,6 @@ use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
-use Illuminate\Validation\ValidationException;
 use Laravel\Fortify\Contracts\UpdatesUserPasswords;
 
 class UpdateUserPassword implements UpdatesUserPasswords
@@ -33,6 +32,7 @@ class UpdateUserPassword implements UpdatesUserPasswords
 
         $user->forceFill([
             'password' => $input['password'],
+            'must_change_password' => false,
         ])->save();
 
         $user->tokens()->delete();
