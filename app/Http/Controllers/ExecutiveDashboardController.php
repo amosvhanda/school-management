@@ -17,8 +17,19 @@ use Illuminate\Http\Request;
 
 class ExecutiveDashboardController extends Controller
 {
+    private function authorizeExecutiveDashboard(Request $request): void
+    {
+        $this->authorizeModuleAccess(
+            $request,
+            capabilities: ['canManageTeachers'],
+            permissionSlugs: ['reports.view', 'dashboard.view'],
+        );
+    }
+
     public function index(Request $request)
     {
+        $this->authorizeExecutiveDashboard($request);
+
         $schoolId = $request->user()->school_id;
         $today = now()->toDateString();
 

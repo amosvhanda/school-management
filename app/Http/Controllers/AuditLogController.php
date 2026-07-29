@@ -107,12 +107,10 @@ class AuditLogController extends Controller
 
     protected function authorizeAuditAccess(Request $request): void
     {
-        $user = $request->user();
-
-        $allowed = $user?->role instanceof UserRole
-            ? $user->role->canViewAuditLogs()
-            : in_array($user?->role, ['super_admin', 'admin', 'school_admin', 'finance', 'accounts'], true);
-
-        abort_unless($allowed, 403, 'You do not have permission to view audit logs.');
+        $this->authorizeModuleAccess(
+            $request,
+            capabilities: ['canViewAuditLogs'],
+            permissionSlugs: ['audit.view'],
+        );
     }
 }

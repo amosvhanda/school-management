@@ -98,4 +98,23 @@ class RolePermissionEnforcementTest extends TestCase
             ->getJson('/api/v1/library/books')
             ->assertForbidden();
     }
+
+    public function test_teacher_without_operations_permission_cannot_access_hostels_or_procurement(): void
+    {
+        $auth = $this->createAuthenticatedUser(role: 'teacher');
+        $headers = ['Authorization' => 'Bearer '.$auth['token']];
+
+        $this->withHeaders($headers)->getJson('/api/v1/hostels')->assertForbidden();
+        $this->withHeaders($headers)->getJson('/api/v1/procurement/requisitions')->assertForbidden();
+        $this->withHeaders($headers)->getJson('/api/v1/assets')->assertForbidden();
+    }
+
+    public function test_teacher_without_compliance_permission_cannot_manage_consent_forms(): void
+    {
+        $auth = $this->createAuthenticatedUser(role: 'teacher');
+
+        $this->withHeaders(['Authorization' => 'Bearer '.$auth['token']])
+            ->getJson('/api/v1/consent-forms')
+            ->assertForbidden();
+    }
 }

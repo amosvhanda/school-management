@@ -29,13 +29,36 @@ class PlatformDocumentController extends Controller
         private ExamVaultService $vault,
     ) {}
 
+    private function authorizePlatformDocs(Request $request): void
+    {
+        $this->authorizeModuleAccess(
+            $request,
+            capabilities: ['canManageTeachers'],
+            permissionSlugs: ['settings.manage', 'compliance.manage'],
+        );
+    }
+
+    private function authorizePlatformDocSign(Request $request): void
+    {
+        $this->authorizeModuleAccess(
+            $request,
+            capabilities: ['isStaff'],
+            permissionSlugs: ['dashboard.view'],
+        );
+    }
+
+
     public function documents(Request $request): JsonResponse
     {
+        $this->authorizePlatformDocs($request);
+
         return response()->json(['data' => $this->signing->listForSchool($this->platformSchoolId($request))]);
     }
 
     public function createDocument(CreateSignableDocumentRequest $request): JsonResponse
     {
+        $this->authorizePlatformDocs($request);
+
         $schoolId = $this->requirePlatformSchoolId($request);
         $data = $request->validated();
 
@@ -47,6 +70,8 @@ class PlatformDocumentController extends Controller
 
     public function signDocument(Request $request, int $id): JsonResponse
     {
+        $this->authorizePlatformDocSign($request);
+
         $doc = $this->scopeToPlatformSchool(SignableDocument::query(), $request)->findOrFail($id);
         $signature = $this->signing->sign($doc, $request->user(), $request->input('signer_role'));
 
@@ -55,6 +80,8 @@ class PlatformDocumentController extends Controller
 
     public function issueCertificate(IssueCertificateRequest $request): JsonResponse
     {
+        $this->authorizePlatformDocs($request);
+
         $schoolId = $this->requirePlatformSchoolId($request);
         $data = $request->validated();
 
@@ -85,6 +112,8 @@ class PlatformDocumentController extends Controller
 
     public function certificates(Request $request): JsonResponse
     {
+        $this->authorizePlatformDocs($request);
+
         $certs = $this->scopeToPlatformSchool(Certificate::query(), $request)
             ->with(['student:id,full_name', 'school:id,name,code'])
             ->orderByDesc('issued_at')
@@ -96,6 +125,8 @@ class PlatformDocumentController extends Controller
 
     public function vaultStore(StoreExamVaultRequest $request): JsonResponse
     {
+        $this->authorizePlatformDocs($request);
+
         $schoolId = $this->requirePlatformSchoolId($request);
         $data = $request->validated();
 
@@ -111,6 +142,8 @@ class PlatformDocumentController extends Controller
 
     public function vaultRetrieve(Request $request, int $id): JsonResponse
     {
+        $this->authorizePlatformDocs($request);
+
         $doc = $this->scopeToPlatformSchool(SecureDocument::query(), $request)->findOrFail($id);
 
         return response()->json(['data' => $this->vault->retrieve($doc, $request->user())]);
@@ -118,6 +151,8 @@ class PlatformDocumentController extends Controller
 
     public function vaultIndex(Request $request): JsonResponse
     {
+        $this->authorizePlatformDocs($request);
+
         $docs = $this->scopeToPlatformSchool(SecureDocument::query(), $request)
             ->select(['id', 'title', 'vault_type', 'exam_id', 'uploaded_by', 'school_id', 'created_at'])
             ->with('school:id,name,code')

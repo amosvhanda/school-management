@@ -14,8 +14,19 @@ use Illuminate\Validation\ValidationException;
 
 class HostelController extends Controller
 {
+    private function authorizeHostel(Request $request): void
+    {
+        $this->authorizeModuleAccess(
+            $request,
+            capabilities: ['canManageTeachers'],
+            permissionSlugs: ['operations.manage'],
+        );
+    }
+
     public function index(Request $request)
     {
+        $this->authorizeHostel($request);
+
         $query = Hostel::where('school_id', $request->user()->school_id)->with(['rooms.beds']);
 
         if ($request->filled('gender')) {
@@ -33,6 +44,8 @@ class HostelController extends Controller
 
     public function store(Request $request)
     {
+        $this->authorizeHostel($request);
+
         $data = $request->validate([
             'name' => 'required|string|max:255',
             'gender' => 'nullable|string|in:male,female,mixed',
@@ -46,6 +59,8 @@ class HostelController extends Controller
 
     public function update(Request $request, int $id)
     {
+        $this->authorizeHostel($request);
+
         $hostel = Hostel::where('school_id', $request->user()->school_id)->findOrFail($id);
 
         $data = $request->validate([
@@ -62,6 +77,8 @@ class HostelController extends Controller
 
     public function storeRoom(Request $request, int $hostelId)
     {
+        $this->authorizeHostel($request);
+
         // Enforce tenancy immediately
         $hostel = Hostel::where('school_id', $request->user()->school_id)->findOrFail($hostelId);
 
@@ -102,6 +119,8 @@ class HostelController extends Controller
 
     public function allocate(Request $request)
     {
+        $this->authorizeHostel($request);
+
         $schoolId = $request->user()->school_id;
 
         // Custom validation to cleanly catch scope issues before executing business logic

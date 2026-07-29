@@ -17,10 +17,30 @@ use Illuminate\Validation\ValidationException;
 
 class PlatformStaffController extends Controller
 {
+    private function authorizePlatformStaffStudents(Request $request): void
+    {
+        $this->authorizeModuleAccess(
+            $request,
+            capabilities: ['canManageStudents', 'isStaff'],
+            permissionSlugs: ['students.manage', 'hr.manage'],
+        );
+    }
+
+    private function authorizePlatformStaffFeed(Request $request): void
+    {
+        $this->authorizeModuleAccess(
+            $request,
+            capabilities: ['isStaff'],
+            permissionSlugs: ['dashboard.view', 'hr.manage'],
+        );
+    }
+
     use ResolvesPlatformSchoolScope;
 
     public function behaviorPoints(Request $request, ?int $studentId = null)
     {
+        $this->authorizePlatformStaffStudents($request);
+
         $query = $this->scopeToPlatformSchool(BehaviorPoint::query(), $request)
             ->with(['student:id,full_name', 'school:id,name,code']);
 
@@ -33,6 +53,8 @@ class PlatformStaffController extends Controller
 
     public function storeBehaviorPoint(Request $request)
     {
+        $this->authorizePlatformStaffStudents($request);
+
         $schoolId = $this->requirePlatformSchoolId($request);
         $data = Validator::make($request->all(), [
             'school_id' => 'nullable|integer|exists:schools,id',
@@ -60,6 +82,8 @@ class PlatformStaffController extends Controller
 
     public function behaviorSummary(Request $request, int $studentId)
     {
+        $this->authorizePlatformStaffStudents($request);
+
         $schoolId = $this->platformSchoolId($request);
         $studentQuery = Student::query()->when($schoolId, fn ($q) => $q->where('school_id', $schoolId));
         $studentQuery->findOrFail($studentId);
@@ -70,6 +94,8 @@ class PlatformStaffController extends Controller
 
     public function interventions(Request $request, ?int $studentId = null)
     {
+        $this->authorizePlatformStaffStudents($request);
+
         $query = $this->scopeToPlatformSchool(StudentIntervention::query(), $request)
             ->with(['student:id,full_name', 'school:id,name,code']);
 
@@ -82,6 +108,8 @@ class PlatformStaffController extends Controller
 
     public function storeIntervention(Request $request)
     {
+        $this->authorizePlatformStaffStudents($request);
+
         $schoolId = $this->requirePlatformSchoolId($request);
         $data = Validator::make($request->all(), [
             'school_id' => 'nullable|integer|exists:schools,id',
@@ -113,6 +141,8 @@ class PlatformStaffController extends Controller
 
     public function tasks(Request $request)
     {
+        $this->authorizePlatformStaffFeed($request);
+
         $query = $this->scopeToPlatformSchool(StaffTask::query(), $request)
             ->with([
                 'school:id,name,code',
@@ -144,6 +174,8 @@ class PlatformStaffController extends Controller
 
     public function storeTask(Request $request)
     {
+        $this->authorizePlatformStaffFeed($request);
+
         $schoolId = $this->requirePlatformSchoolId($request);
         $data = Validator::make($request->all(), [
             'school_id' => 'nullable|integer|exists:schools,id',
@@ -184,6 +216,8 @@ class PlatformStaffController extends Controller
 
     public function updateTask(Request $request, int $id)
     {
+        $this->authorizePlatformStaffFeed($request);
+
         $task = $this->scopeToPlatformSchool(StaffTask::query(), $request)->findOrFail($id);
         $data = Validator::make($request->all(), [
             'status' => 'nullable|in:pending,in_progress,completed,cancelled',
@@ -211,6 +245,8 @@ class PlatformStaffController extends Controller
 
     public function feed(Request $request)
     {
+        $this->authorizePlatformStaffFeed($request);
+
         $posts = $this->scopeToPlatformSchool(StaffFeedPost::query(), $request)
             ->with(['author:id,name', 'comments.author:id,name', 'school:id,name,code'])
             ->orderByDesc('created_at')
@@ -222,6 +258,8 @@ class PlatformStaffController extends Controller
 
     public function postFeed(Request $request)
     {
+        $this->authorizePlatformStaffFeed($request);
+
         $schoolId = $this->requirePlatformSchoolId($request);
         $data = Validator::make($request->all(), [
             'school_id' => 'nullable|integer|exists:schools,id',
@@ -243,6 +281,8 @@ class PlatformStaffController extends Controller
 
     public function commentFeed(Request $request, int $id)
     {
+        $this->authorizePlatformStaffFeed($request);
+
         $post = $this->scopeToPlatformSchool(StaffFeedPost::query(), $request)->findOrFail($id);
         $data = Validator::make($request->all(), ['body' => 'required|string'])->validate();
 

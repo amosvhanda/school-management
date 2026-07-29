@@ -8,8 +8,19 @@ use Illuminate\Http\Request;
 
 class ComplianceController extends Controller
 {
+    private function authorizeCompliance(Request $request): void
+    {
+        $this->authorizeModuleAccess(
+            $request,
+            capabilities: ['canManageTeachers'],
+            permissionSlugs: ['compliance.manage'],
+        );
+    }
+
     public function policies(Request $request)
     {
+        $this->authorizeCompliance($request);
+
         $query = Policy::where('school_id', $request->user()->school_id);
 
         if ($request->filled('status')) {
@@ -21,6 +32,8 @@ class ComplianceController extends Controller
 
     public function storePolicy(Request $request)
     {
+        $this->authorizeCompliance($request);
+
         $data = $request->validate([
             'title' => 'required|string|max:255',
             'category' => 'nullable|string',
@@ -40,6 +53,8 @@ class ComplianceController extends Controller
 
     public function updatePolicy(Request $request, int $id)
     {
+        $this->authorizeCompliance($request);
+
         $policy = Policy::where('school_id', $request->user()->school_id)->findOrFail($id);
 
         $data = $request->validate([
@@ -58,6 +73,8 @@ class ComplianceController extends Controller
 
     public function incidents(Request $request)
     {
+        $this->authorizeCompliance($request);
+
         $query = IncidentReport::where('school_id', $request->user()->school_id)->with('reporter:id,name');
 
         if ($request->filled('status')) {
@@ -71,6 +88,8 @@ class ComplianceController extends Controller
 
     public function storeIncident(Request $request)
     {
+        $this->authorizeCompliance($request);
+
         $data = $request->validate([
             'category' => 'required|string|max:255',
             'severity' => 'nullable|string|in:low,medium,high,critical',
@@ -88,6 +107,8 @@ class ComplianceController extends Controller
 
     public function updateIncident(Request $request, int $id)
     {
+        $this->authorizeCompliance($request);
+
         $incident = IncidentReport::where('school_id', $request->user()->school_id)->findOrFail($id);
 
         $data = $request->validate([

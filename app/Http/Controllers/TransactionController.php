@@ -8,8 +8,19 @@ use Illuminate\Http\Request;
 
 class TransactionController extends Controller
 {
+    private function authorizeTransactions(Request $request): void
+    {
+        $this->authorizeModuleAccess(
+            $request,
+            capabilities: ['canManageFinance'],
+            permissionSlugs: ['transactions.view', 'finance.manage'],
+        );
+    }
+
     public function index(Request $request)
     {
+        $this->authorizeTransactions($request);
+
         $schoolId = $request->user()?->school_id;
         $query = Transaction::with(['student', 'payroll.teacher'])
             ->when($schoolId, fn ($q) => $q->where('school_id', $schoolId));
@@ -65,6 +76,8 @@ class TransactionController extends Controller
 
     public function summary(Request $request)
     {
+        $this->authorizeTransactions($request);
+
         $schoolId = $request->user()?->school_id;
         $query = Transaction::where('status', 'completed')
             ->when($schoolId, fn ($q) => $q->where('school_id', $schoolId));

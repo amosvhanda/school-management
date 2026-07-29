@@ -19,13 +19,26 @@ use Illuminate\Support\Str;
 
 class EnterpriseGovernanceController extends Controller
 {
+    private function authorizeEnterpriseGovernance(Request $request): void
+    {
+        $this->authorizeModuleAccess(
+            $request,
+            capabilities: ['canManageTeachers'],
+            permissionSlugs: ['hr.manage', 'compliance.manage', 'settings.manage'],
+        );
+    }
+
     public function performanceReviews(Request $request)
     {
+        $this->authorizeEnterpriseGovernance($request);
+
         return response()->json(['data' => PerformanceReview::where('school_id', $request->user()->school_id)->limit(100)->get()]);
     }
 
     public function storePerformanceReview(Request $request)
     {
+        $this->authorizeEnterpriseGovernance($request);
+
         $data = Validator::make($request->all(), [
             'staff_user_id' => 'required|exists:users,id',
             'period' => 'required|string',
@@ -39,11 +52,15 @@ class EnterpriseGovernanceController extends Controller
 
     public function contracts(Request $request)
     {
+        $this->authorizeEnterpriseGovernance($request);
+
         return response()->json(['data' => StaffContract::where('school_id', $request->user()->school_id)->get()]);
     }
 
     public function storeContract(Request $request)
     {
+        $this->authorizeEnterpriseGovernance($request);
+
         $data = Validator::make($request->all(), [
             'user_id' => 'required|exists:users,id',
             'contract_type' => 'required|string',
@@ -57,11 +74,15 @@ class EnterpriseGovernanceController extends Controller
 
     public function certifications(Request $request)
     {
+        $this->authorizeEnterpriseGovernance($request);
+
         return response()->json(['data' => StaffCertification::where('school_id', $request->user()->school_id)->get()]);
     }
 
     public function storeCertification(Request $request)
     {
+        $this->authorizeEnterpriseGovernance($request);
+
         $data = Validator::make($request->all(), [
             'user_id' => 'required|exists:users,id',
             'certification_name' => 'required|string',
@@ -75,11 +96,15 @@ class EnterpriseGovernanceController extends Controller
 
     public function complianceRequirements(Request $request)
     {
+        $this->authorizeEnterpriseGovernance($request);
+
         return response()->json(['data' => ComplianceRequirement::where('school_id', $request->user()->school_id)->get()]);
     }
 
     public function storeComplianceRequirement(Request $request)
     {
+        $this->authorizeEnterpriseGovernance($request);
+
         $data = Validator::make($request->all(), [
             'authority' => 'required|string',
             'requirement_code' => 'required|string',
@@ -92,11 +117,15 @@ class EnterpriseGovernanceController extends Controller
 
     public function connectors(Request $request)
     {
+        $this->authorizeEnterpriseGovernance($request);
+
         return response()->json(['data' => IntegrationConnector::where('school_id', $request->user()->school_id)->get()]);
     }
 
     public function storeConnector(Request $request)
     {
+        $this->authorizeEnterpriseGovernance($request);
+
         $data = Validator::make($request->all(), [
             'provider' => 'required|string',
             'connector_type' => 'required|in:payment,sms,lms,accounting,government',
@@ -112,11 +141,15 @@ class EnterpriseGovernanceController extends Controller
 
     public function abacPolicies(Request $request)
     {
+        $this->authorizeEnterpriseGovernance($request);
+
         return response()->json(['data' => AbacPolicy::where('school_id', $request->user()->school_id)->get()]);
     }
 
     public function storeAbacPolicy(Request $request)
     {
+        $this->authorizeEnterpriseGovernance($request);
+
         $data = Validator::make($request->all(), [
             'name' => 'required|string',
             'resource' => 'required|string',
@@ -129,11 +162,15 @@ class EnterpriseGovernanceController extends Controller
 
     public function groupPolicies(Request $request)
     {
+        $this->authorizeEnterpriseGovernance($request);
+
         return response()->json(['data' => GroupPolicy::where('parent_school_id', $request->user()->school_id)->get()]);
     }
 
     public function storeGroupPolicy(Request $request)
     {
+        $this->authorizeEnterpriseGovernance($request);
+
         $data = Validator::make($request->all(), [
             'policy_code' => 'required|string',
             'name' => 'required|string',
@@ -146,11 +183,15 @@ class EnterpriseGovernanceController extends Controller
 
     public function crossSchoolTransfers(Request $request)
     {
+        $this->authorizeEnterpriseGovernance($request);
+
         return response()->json(['data' => CrossSchoolTransfer::where('from_school_id', $request->user()->school_id)->orWhere('to_school_id', $request->user()->school_id)->limit(100)->get()]);
     }
 
     public function requestTransfer(Request $request)
     {
+        $this->authorizeEnterpriseGovernance($request);
+
         $data = Validator::make($request->all(), [
             'student_id' => 'required|exists:students,id',
             'to_school_id' => 'required|exists:schools,id',
@@ -166,6 +207,8 @@ class EnterpriseGovernanceController extends Controller
 
     public function storeWebhook(Request $request)
     {
+        $this->authorizeEnterpriseGovernance($request);
+
         $data = Validator::make($request->all(), [
             'event_type' => 'required|string',
             'target_url' => 'required|url',

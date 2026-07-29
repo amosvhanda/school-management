@@ -16,11 +16,23 @@ class GuardianController extends Controller
 {
     public function __construct(protected GuardianService $guardianService) {}
 
+    private function authorizeGuardians(Request $request): void
+    {
+        $this->authorizeModuleAccess(
+            $request,
+            capabilities: ['canManageStudents', 'canManageTeachers'],
+            permissionSlugs: ['students.manage'],
+        );
+    }
+
+
     /**
      * Get all guardians for the school
      */
     public function index(Request $request): JsonResponse
     {
+        $this->authorizeGuardians($request);
+
         $schoolId = $request->user()->school_id;
 
         $guardians = Guardian::where('school_id', $schoolId)
@@ -35,6 +47,8 @@ class GuardianController extends Controller
      */
     public function show(Request $request, int $id): JsonResponse
     {
+        $this->authorizeGuardians($request);
+
         $schoolId = $request->user()->school_id;
         $guardian = Guardian::where('school_id', $schoolId)
             ->with(['students', 'user'])
@@ -48,6 +62,8 @@ class GuardianController extends Controller
      */
     public function students(Request $request, int $id): JsonResponse
     {
+        $this->authorizeGuardians($request);
+
         $schoolId = $request->user()->school_id;
 
         // Enforce boundary scope check on the parent entity first
@@ -63,6 +79,8 @@ class GuardianController extends Controller
      */
     public function forStudent(Request $request, int $student): JsonResponse
     {
+        $this->authorizeGuardians($request);
+
         $schoolId = $request->user()->school_id;
 
         // Enforce boundary scope check on the child entity first
@@ -78,6 +96,8 @@ class GuardianController extends Controller
      */
     public function store(StoreGuardianRequest $request): JsonResponse
     {
+        $this->authorizeGuardians($request);
+
         $schoolId = $request->user()->school_id;
         $validated = $request->validated();
         $studentId = isset($validated['student_id']) ? (int) $validated['student_id'] : null;
@@ -101,6 +121,8 @@ class GuardianController extends Controller
      */
     public function update(UpdateGuardianRequest $request, int $id): JsonResponse
     {
+        $this->authorizeGuardians($request);
+
         $schoolId = $request->user()->school_id;
         $guardian = Guardian::where('school_id', $schoolId)->findOrFail($id);
 
@@ -136,6 +158,8 @@ class GuardianController extends Controller
      */
     public function linkToStudent(LinkGuardianStudentRequest $request, int $id): JsonResponse
     {
+        $this->authorizeGuardians($request);
+
         $schoolId = $request->user()->school_id;
         $guardian = Guardian::where('school_id', $schoolId)->findOrFail($id);
 

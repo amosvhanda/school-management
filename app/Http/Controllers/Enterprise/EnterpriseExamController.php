@@ -20,13 +20,36 @@ class EnterpriseExamController extends Controller
         private WorkflowEnterpriseService $workflows,
     ) {}
 
+    private function authorizeEnterpriseExamManage(Request $request): void
+    {
+        $this->authorizeModuleAccess(
+            $request,
+            capabilities: ['canManageExaminations'],
+            permissionSlugs: ['exams.manage'],
+        );
+    }
+
+    private function authorizeEnterpriseExamEntry(Request $request): void
+    {
+        $this->authorizeModuleAccess(
+            $request,
+            capabilities: ['canManageExaminations', 'canEnterExamResults', 'isStaff'],
+            permissionSlugs: ['exams.manage', 'exams.enter_results'],
+        );
+    }
+
+
     public function questions(Request $request)
     {
+        $this->authorizeEnterpriseExamManage($request);
+
         return response()->json(['data' => QuestionBankItem::where('school_id', $request->user()->school_id)->limit(100)->get()]);
     }
 
     public function storeQuestion(Request $request)
     {
+        $this->authorizeEnterpriseExamManage($request);
+
         $data = Validator::make($request->all(), [
             'subject_id' => 'nullable|exists:subjects,id',
             'question_text' => 'required|string',
@@ -43,6 +66,8 @@ class EnterpriseExamController extends Controller
 
     public function generatePaper(Request $request)
     {
+        $this->authorizeEnterpriseExamManage($request);
+
         $data = Validator::make($request->all(), [
             'subject_id' => 'required|exists:subjects,id',
             'count' => 'required|integer|min:1|max:50',
@@ -61,6 +86,8 @@ class EnterpriseExamController extends Controller
 
     public function startCbt(Request $request)
     {
+        $this->authorizeEnterpriseExamEntry($request);
+
         $data = Validator::make($request->all(), [
             'student_id' => 'required|exists:students,id',
             'question_ids' => 'required|array|min:1',
@@ -81,6 +108,8 @@ class EnterpriseExamController extends Controller
 
     public function submitCbt(Request $request, int $id)
     {
+        $this->authorizeEnterpriseExamEntry($request);
+
         $session = CbtExamSession::where('school_id', $request->user()->school_id)->findOrFail($id);
         $data = Validator::make($request->all(), [
             'answers' => 'required|array',
@@ -93,6 +122,8 @@ class EnterpriseExamController extends Controller
 
     public function antiCheatLog(Request $request, int $sessionId)
     {
+        $this->authorizeEnterpriseExamEntry($request);
+
         $data = Validator::make($request->all(), ['event_type' => 'required|string', 'metadata' => 'nullable|array'])->validate();
         $this->exams->logAntiCheat($sessionId, $data['event_type'], $data['metadata'] ?? null);
 
@@ -101,11 +132,15 @@ class EnterpriseExamController extends Controller
 
     public function remarkRequests(Request $request)
     {
+        $this->authorizeEnterpriseExamManage($request);
+
         return response()->json(['data' => RemarkRequest::where('school_id', $request->user()->school_id)->limit(100)->get()]);
     }
 
     public function requestRemark(Request $request)
     {
+        $this->authorizeEnterpriseExamEntry($request);
+
         $data = Validator::make($request->all(), [
             'exam_result_id' => 'required|exists:exam_results,id',
             'student_id' => 'required|exists:students,id',
@@ -117,11 +152,15 @@ class EnterpriseExamController extends Controller
 
     public function delegations(Request $request)
     {
+        $this->authorizeEnterpriseExamManage($request);
+
         return response()->json(['data' => WorkflowDelegation::where('school_id', $request->user()->school_id)->get()]);
     }
 
     public function storeDelegation(Request $request)
     {
+        $this->authorizeEnterpriseExamManage($request);
+
         $data = Validator::make($request->all(), [
             'delegator_id' => 'required|exists:users,id',
             'delegate_id' => 'required|exists:users,id',
