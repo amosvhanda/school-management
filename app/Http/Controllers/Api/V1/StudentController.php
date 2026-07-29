@@ -14,6 +14,7 @@ use App\Services\GuardianService;
 use App\Services\StudentAdmissionService;
 use App\Services\StudentPlacementService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Spatie\QueryBuilder\AllowedFilter;
 
 class StudentController extends Controller
@@ -77,114 +78,144 @@ class StudentController extends Controller
         $guardian = $request->input('guardian', []);
         $schoolId = $request->user()->school_id;
 
-        $student = Student::create([
-            'first_name' => $request->firstName,
-            'last_name' => $request->surname,
-            'full_name' => trim($request->firstName.' '.$request->surname),
-            'student_number' => $this->admissionService->generateStudentNumber((int) $schoolId),
-            'class' => $request->class,
-            'class_id' => $request->class_id,
-            'stream_id' => $request->input('stream_id'),
-            'house_id' => $request->input('house_id'),
-            'grade_level_id' => $request->grade_level_id,
-            'date_of_birth' => $request->dateOfBirth,
-            'gender' => $request->gender,
-            'phone' => $request->phone,
-            'email' => $request->email,
-            'address' => $request->address,
-            'suburb' => $request->suburb,
-            'school' => $request->school,
-            'status' => 'active',
-            'school_id' => $schoolId,
-            'guardian_first_name' => $guardian['firstName'] ?? $guardian['first_name'] ?? null,
-            'guardian_last_name' => $guardian['surname'] ?? $guardian['last_name'] ?? null,
-            'guardian_phone' => $guardian['phone'] ?? null,
-            'guardian_email' => $guardian['email'] ?? null,
-            'guardian_relationship' => $guardian['relationship'] ?? null,
-        ]);
-
-        if ($request->filled('custom_fields')) {
-            $this->customFieldService->validateAndSync(
-                $student,
-                CustomField::ENTITY_STUDENT,
-                $request->input('custom_fields', [])
-            );
-        }
-
-        $this->syncStudentGuardian(
-            $student,
-            $guardian,
-            $request->input('guardian_id'),
-            $schoolId,
-        );
-
-        if ($request->filled('class_id')) {
-            $academicYear = (string) ($request->input('academic_year')
-                ?? $request->user()?->school?->academic_year
-                ?? date('Y'));
-            $this->placementService->place($student->fresh(), [
-                'class_id' => (int) $request->class_id,
+        $student = DB::transaction(function () use ($request, $guardian, $schoolId) {
+            $student = Student::create([
+                'first_name' => $request->firstName,
+                'last_name' => $request->surname,
+                'full_name' => trim($request->firstName.' '.$request->surname),
+                'student_number' => $this->admissionService->generateStudentNumber((int) $schoolId),
+                'class' => $request->class,
+                'class_id' => $request->class_id,
                 'stream_id' => $request->input('stream_id'),
                 'house_id' => $request->input('house_id'),
-                'academic_year' => $academicYear,
-                'reason' => 'admission',
-                'apply_fees' => false,
-            ], $request->user()?->id);
-        }
+                'grade_level_id' => $request->grade_level_id,
+                'date_of_birth' => $request->dateOfBirth,
+                'gender' => $request->gender,
+                'phone' => $request->phone,
+                'email' => $request->email,
+                'address' => $request->address,
+                'suburb' => $request->suburb,
+                'school' => $request->school,
+                'status' => 'active',
+                'school_id' => $schoolId,
+                'guardian_first_name' => $guardian['firstName'] ?? $guardian['first_name'] ?? null,
+                'guardian_last_name' => $guardian['surname'] ?? $guardian['last_name'] ?? null,
+                'guardian_phone' => $guardian['phone'] ?? null,
+                'guardian_email' => $guardian['email'] ?? null,
+                'guardian_relationship' => $guardian['relationship'] ?? null,
+            ]);
+
+            if ($request->filled('custom_fields')) {
+                $this->customFieldService->validateAndSync(
+                    $student,
+                    CustomField::ENTITY_STUDENT,
+                    $request->input('custom_fields', [])
+                );
+            }
+
+            $this->syncStudentGuardian(
+                $student,
+                $guardian,
+                $request->input('guardian_id'),
+                $schoolId,
+            );
+
+            if ($request->filled('class_id')) {
+                $academicYear = (string) ($request->input('academic_year')
+                    ?? $request->user()?->school?->academic_year
+                    ?? date('Y'));
+                $this->placementService->place($student->fresh(), [
+                    'class_id' => (int) $request->class_id,
+                    'stream_id' => $request->input('stream_id'),
+                    'house_id' => $request->input('house_id'),
+                    'academic_year' => $academicYear,
+                    'reason' => 'admission',
+                    'apply_fees' => false,
+                ], $request->user()?->id);
+            }
+
+            return $student->fresh()->load(['guardians', 'classModel', 'stream', 'house']);
+        });
 
         return $this->created(
-            new StudentResource($student->fresh()->load(['guardians', 'classModel', 'stream', 'house'])),
+            new StudentResource($student),
             'Student created successfully',
         );
     }
 
     public function update(UpdateStudentRequest $request, Student $student)
     {
-        if ($request->has('firstName') || $request->has('surname')) {
-            $student->first_name = $request->firstName ?? $student->first_name;
-            $student->last_name = $request->surname ?? $student->last_name;
-            $student->full_name = trim($student->first_name.' '.$student->last_name);
-        }
+        $previousClassId = $student->class_id;
 
-        $student->fill($request->only(['class', 'class_id', 'grade_level_id', 'phone', 'email', 'address', 'suburb', 'status']));
+        $student = DB::transaction(function () use ($request, $student, $previousClassId) {
+            if ($request->has('firstName') || $request->has('surname')) {
+                $student->first_name = $request->firstName ?? $student->first_name;
+                $student->last_name = $request->surname ?? $student->last_name;
+                $student->full_name = trim($student->first_name.' '.$student->last_name);
+            }
 
-        if ($request->has('dateOfBirth')) {
-            $student->date_of_birth = $request->dateOfBirth;
-        }
-        if ($request->has('gender')) {
-            $student->gender = $request->gender;
-        }
+            // class_id changes go through placement so enrollments stay consistent.
+            $fill = $request->only(['grade_level_id', 'phone', 'email', 'address', 'suburb', 'status']);
+            if (! $request->filled('class_id') || (int) $request->class_id === (int) $previousClassId) {
+                $fill = array_merge($fill, $request->only(['class', 'class_id']));
+            }
+            $student->fill($fill);
 
-        $guardian = $request->input('guardian', []);
-        if ($guardian !== []) {
-            $student->guardian_first_name = $guardian['firstName'] ?? $guardian['first_name'] ?? $student->guardian_first_name;
-            $student->guardian_last_name = $guardian['surname'] ?? $guardian['last_name'] ?? $student->guardian_last_name;
-            $student->guardian_phone = $guardian['phone'] ?? $student->guardian_phone;
-            $student->guardian_email = $guardian['email'] ?? $student->guardian_email;
-            $student->guardian_relationship = $guardian['relationship'] ?? $student->guardian_relationship;
-        }
+            if ($request->has('dateOfBirth')) {
+                $student->date_of_birth = $request->dateOfBirth;
+            }
+            if ($request->has('gender')) {
+                $student->gender = $request->gender;
+            }
 
-        $student->save();
+            $guardian = $request->input('guardian', []);
+            if ($guardian !== []) {
+                $student->guardian_first_name = $guardian['firstName'] ?? $guardian['first_name'] ?? $student->guardian_first_name;
+                $student->guardian_last_name = $guardian['surname'] ?? $guardian['last_name'] ?? $student->guardian_last_name;
+                $student->guardian_phone = $guardian['phone'] ?? $student->guardian_phone;
+                $student->guardian_email = $guardian['email'] ?? $student->guardian_email;
+                $student->guardian_relationship = $guardian['relationship'] ?? $student->guardian_relationship;
+            }
 
-        if ($request->has('custom_fields')) {
-            $this->customFieldService->validateAndSync(
-                $student,
-                CustomField::ENTITY_STUDENT,
-                $request->input('custom_fields', [])
-            );
-        }
+            $student->save();
 
-        if ($request->has('guardian_id') || $guardian !== []) {
-            $this->syncStudentGuardian(
-                $student,
-                $guardian,
-                $request->input('guardian_id'),
-                $request->user()->school_id,
-            );
-        }
+            if ($request->has('custom_fields')) {
+                $this->customFieldService->validateAndSync(
+                    $student,
+                    CustomField::ENTITY_STUDENT,
+                    $request->input('custom_fields', [])
+                );
+            }
+
+            if ($request->has('guardian_id') || $guardian !== []) {
+                $this->syncStudentGuardian(
+                    $student,
+                    $guardian,
+                    $request->input('guardian_id'),
+                    $request->user()->school_id,
+                );
+            }
+
+            if ($request->filled('class_id') && (int) $request->class_id !== (int) $previousClassId) {
+                $academicYear = (string) ($request->input('academic_year')
+                    ?? $request->user()?->school?->academic_year
+                    ?? date('Y'));
+                $this->placementService->place($student->fresh(), [
+                    'class_id' => (int) $request->class_id,
+                    'stream_id' => $request->input('stream_id', $student->stream_id),
+                    'house_id' => $request->input('house_id', $student->house_id),
+                    'academic_year' => $academicYear,
+                    'reason' => 'transfer',
+                    'apply_fees' => false,
+                    'force_transfer' => true,
+                ], $request->user()?->id);
+            }
+
+            return $student->fresh()->load('guardians');
+        });
 
         return $this->success(
-            new StudentResource($student->fresh()->load('guardians')),
+            new StudentResource($student),
             'Student updated successfully',
         );
     }
