@@ -4,13 +4,15 @@ namespace App\Http\Requests\Api\V1\Student;
 
 use App\Http\Requests\Api\V1\ApiFormRequest;
 use App\Models\ClassModel;
+use App\Models\Student;
 use App\Rules\ZimbabweMobileNumber;
+use Illuminate\Validation\Rule;
 
 class StoreStudentRequest extends ApiFormRequest
 {
     public function authorize(): bool
     {
-        return (bool) $this->user()?->can('create', \App\Models\Student::class);
+        return (bool) $this->user()?->can('create', Student::class);
     }
 
     protected function prepareForValidation(): void
@@ -33,12 +35,29 @@ class StoreStudentRequest extends ApiFormRequest
 
     public function rules(): array
     {
+        $schoolId = $this->user()?->school_id;
+
         return [
             'firstName' => ['required', 'string', 'max:255'],
             'surname' => ['required', 'string', 'max:255'],
             'class' => ['required_without:class_id', 'nullable', 'string'],
-            'class_id' => ['required_without:class', 'nullable', 'integer', 'exists:classes,id'],
-            'grade_level_id' => ['nullable', 'integer', 'exists:grade_levels,id'],
+            'class_id' => [
+                'required_without:class',
+                'nullable',
+                'integer',
+                Rule::exists('classes', 'id')->when(
+                    $schoolId !== null,
+                    fn ($rule) => $rule->where('school_id', $schoolId)
+                ),
+            ],
+            'grade_level_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('grade_levels', 'id')->when(
+                    $schoolId !== null,
+                    fn ($rule) => $rule->where('school_id', $schoolId)
+                ),
+            ],
             'dateOfBirth' => ['nullable', 'date'],
             'gender' => ['nullable', 'string', 'in:male,female,other'],
             'phone' => ZimbabweMobileNumber::optional(),
@@ -51,7 +70,14 @@ class StoreStudentRequest extends ApiFormRequest
             'guardian.phone' => ZimbabweMobileNumber::optional(),
             'guardian.email' => ['nullable', 'email'],
             'guardian.relationship' => ['nullable', 'string', 'max:100'],
-            'guardian_id' => ['nullable', 'integer', 'exists:guardians,id'],
+            'guardian_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('guardians', 'id')->when(
+                    $schoolId !== null,
+                    fn ($rule) => $rule->where('school_id', $schoolId)
+                ),
+            ],
             'custom_fields' => ['nullable', 'array'],
         ];
     }
