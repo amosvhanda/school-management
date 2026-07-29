@@ -8,8 +8,8 @@ use App\Models\School;
 use App\Models\Student;
 use App\Models\User;
 use App\Services\Domain\SchoolDomainRules;
+use App\Support\TemporaryPassword;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Hash;
 
 class StudentAdmissionService
 {
@@ -72,13 +72,17 @@ class StudentAdmissionService
 
             // Create user account for student if email provided
             if (! empty($studentData['email'])) {
+                $providedPassword = ! empty($studentData['password']);
                 $user = User::create([
                     'name' => $student->full_name,
                     'first_name' => $student->first_name,
                     'last_name' => $student->last_name,
                     'email' => $studentData['email'],
                     'phone' => $student->phone,
-                    'password' => Hash::make($studentData['password'] ?? 'password123'),
+                    'password' => $providedPassword
+                        ? (string) $studentData['password']
+                        : TemporaryPassword::generate(),
+                    'must_change_password' => ! $providedPassword,
                     'role' => 'student',
                     'school_id' => $schoolId,
                 ]);

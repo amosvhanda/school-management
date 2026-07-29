@@ -276,6 +276,12 @@ class StudentController extends Controller
 
     public function invoices(Request $request, $student)
     {
+        $this->authorizeModuleAccess(
+            $request,
+            capabilities: ['canManageFinance'],
+            permissionSlugs: ['finance.manage', 'transactions.view'],
+        );
+
         $user = $request->user();
         $query = Student::with('invoices');
 
@@ -609,8 +615,8 @@ HTML;
     {
         $this->authorizeModuleAccess(
             $request,
-            capabilities: ['canManageStudents', 'canManageTeachers'],
-            permissionSlugs: ['students.manage'],
+            capabilities: ['canManageFinance'],
+            permissionSlugs: ['finance.manage'],
         );
         $user = $request->user();
         $query = Student::query();
@@ -692,8 +698,8 @@ HTML;
     {
         $this->authorizeModuleAccess(
             $request,
-            capabilities: ['canManageStudents', 'canManageTeachers'],
-            permissionSlugs: ['students.manage'],
+            capabilities: ['canManageFinance'],
+            permissionSlugs: ['finance.manage'],
         );
         $validator = Validator::make($request->all(), [
             'studentIds' => 'required|array',

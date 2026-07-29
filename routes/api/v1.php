@@ -11,8 +11,8 @@ use App\Http\Controllers\Api\V1\LicenseController;
 use App\Http\Controllers\Api\V1\ProfileController;
 use App\Http\Controllers\Api\V1\SchoolController;
 use App\Http\Controllers\Api\V1\SettingsController;
-use App\Http\Controllers\Api\V1\TeacherPortalController;
 use App\Http\Controllers\Api\V1\StudentPortalController;
+use App\Http\Controllers\Api\V1\TeacherPortalController;
 use App\Http\Controllers\Api\V1\UploadController;
 use App\Http\Controllers\AssetController;
 use App\Http\Controllers\AssignmentController;
@@ -113,7 +113,7 @@ Route::post('/integrations/token', [ExternalIntegrationController::class, 'token
     ->middleware('throttle:login');
 
 // ─── Authenticated ────────────────────────────────────────────────────────
-Route::middleware(['auth:sanctum', 'school.isolated', 'school.licensed'])->group(function () {
+Route::middleware(['auth:sanctum', 'password.changed', 'school.isolated', 'school.licensed'])->group(function () {
 
     // License (accessible even when expired — middleware excludes these paths)
     Route::get('/license/status', [LicenseController::class, 'status']);

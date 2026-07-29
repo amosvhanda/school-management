@@ -10,6 +10,12 @@ use Illuminate\Support\Str;
 
 class PaymentGatewayService
 {
+    /**
+     * Record a gateway payment attempt.
+     *
+     * This persists an "initiated" transaction only — no EcoCash/Stripe/Paynow
+     * provider API call is made here yet. Webhook completion still settles the row.
+     */
     public function initiate(
         int $schoolId,
         int $invoiceId,

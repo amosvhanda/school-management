@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Teacher;
 use App\Models\Subject;
+use App\Models\Teacher;
 use App\Services\StaffNumberService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
@@ -11,16 +11,17 @@ use Illuminate\Support\Facades\Validator;
 class TeacherController extends Controller
 {
     public function __construct(private StaffNumberService $staffNumbers) {}
+
     public function index(Request $request)
     {
         $query = Teacher::query();
 
         if ($request->has('search')) {
             $search = $request->search;
-            $query->where(function($q) use ($search) {
+            $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('email', 'like', "%{$search}%")
-                  ->orWhere('employee_id', 'like', "%{$search}%");
+                    ->orWhere('email', 'like', "%{$search}%")
+                    ->orWhere('employee_id', 'like', "%{$search}%");
             });
         }
 
@@ -73,7 +74,7 @@ class TeacherController extends Controller
             'email' => 'required|email|unique:teachers,email',
             'phone' => 'nullable|string|max:20',
             'subject' => ['nullable', 'string', function ($attribute, $value, $fail) use ($validSubjects) {
-                if ($value && !in_array($value, $validSubjects)) {
+                if ($value && ! in_array($value, $validSubjects)) {
                     $fail('The selected subject is not valid. Please select from the globally configured subjects.');
                 }
             }],
@@ -122,10 +123,10 @@ class TeacherController extends Controller
 
         $validator = Validator::make($request->all(), [
             'name' => 'sometimes|string|max:255',
-            'email' => 'sometimes|email|unique:teachers,email,' . $id,
+            'email' => 'sometimes|email|unique:teachers,email,'.$id,
             'phone' => 'nullable|string|max:20',
             'subject' => ['nullable', 'string', function ($attribute, $value, $fail) use ($validSubjects) {
-                if ($value && !in_array($value, $validSubjects)) {
+                if ($value && ! in_array($value, $validSubjects)) {
                     $fail('The selected subject is not valid. Please select from the globally configured subjects.');
                 }
             }],
@@ -141,7 +142,7 @@ class TeacherController extends Controller
 
         $teacher->fill($request->only([
             'name', 'email', 'phone', 'subject', 'department',
-            'employee_id', 'qualification', 'joining_date', 'status', 'address'
+            'employee_id', 'qualification', 'joining_date', 'status', 'address',
         ]));
         $teacher->save();
 
@@ -153,6 +154,12 @@ class TeacherController extends Controller
 
     public function updateStatus(Request $request, $id)
     {
+        $this->authorizeModuleAccess(
+            $request,
+            capabilities: ['canManageTeachers'],
+            permissionSlugs: ['users.edit'],
+        );
+
         $validator = Validator::make($request->all(), [
             'status' => 'required|string|in:active,on_leave,inactive',
         ]);
@@ -164,7 +171,13 @@ class TeacherController extends Controller
             ], 422);
         }
 
-        $teacher = Teacher::findOrFail($id);
+        $query = Teacher::query();
+        $user = $request->user();
+        if ($user && ! $user->isSuperAdmin() && $user->school_id) {
+            $query->where('school_id', $user->school_id);
+        }
+
+        $teacher = $query->findOrFail($id);
         $teacher->status = $request->status;
         $teacher->save();
 

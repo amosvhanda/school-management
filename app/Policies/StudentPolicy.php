@@ -57,6 +57,6 @@ class StudentPolicy
     public function delete(User $user, Student $student): bool
     {
         return $this->belongsToSameSchool($user, $student->school_id)
-            && $user->hasCapability('canManageTeachers');
+            && $user->hasCapability('canManageStudents');
     }
 }
