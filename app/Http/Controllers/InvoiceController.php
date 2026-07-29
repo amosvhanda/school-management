@@ -214,12 +214,30 @@ class InvoiceController extends Controller
             ], 422);
         }
 
-        $invoice->fill($request->only(['description', 'amount', 'due_date']));
-        $invoice->balance = max(0, round((float) $invoice->amount - (float) $invoice->amount_paid, 2));
-        $invoice->status = $this->ledgerService->resolveInvoiceStatus($invoice);
-        $invoice->save();
+        if ($request->filled('description')) {
+            $invoice->description = $request->input('description');
+        }
+        if ($request->filled('due_date')) {
+            $invoice->due_date = $request->input('due_date');
+        }
 
-        return (new InvoiceResource($invoice))
+        if ($request->has('amount') && (float) $request->amount !== (float) $invoice->amount) {
+            try {
+                $invoice = $this->ledgerService->adjustInvoiceAmount(
+                    $invoice,
+                    (float) $request->amount,
+                    $request->user()?->id,
+                );
+            } catch (\InvalidArgumentException $e) {
+                return response()->json(['message' => $e->getMessage()], 422);
+            }
+        } else {
+            $invoice->balance = max(0, round((float) $invoice->amount - (float) $invoice->amount_paid, 2));
+            $invoice->status = $this->ledgerService->resolveInvoiceStatus($invoice);
+            $invoice->save();
+        }
+
+        return (new InvoiceResource($invoice->fresh()))
             ->additional(['message' => 'Invoice updated successfully']);
     }
 }

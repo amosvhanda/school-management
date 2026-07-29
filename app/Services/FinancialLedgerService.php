@@ -2,9 +2,11 @@
 
 namespace App\Services;
 
+use App\Exceptions\DomainException;
 use App\Models\FeeStructure;
 use App\Models\Invoice;
 use App\Models\Payment;
+use App\Models\School;
 use App\Models\Student;
 use App\Models\Transaction;
 use Illuminate\Support\Collection;
@@ -17,7 +19,7 @@ class FinancialLedgerService
 
     public function schoolCurrency(int $schoolId): string
     {
-        $school = \App\Models\School::find($schoolId);
+        $school = School::find($schoolId);
 
         return $school?->getDefaultCurrency() ?? $school?->currency ?? 'USD';
     }
@@ -89,7 +91,7 @@ class FinancialLedgerService
             }
 
             if ($amount > (float) $invoice->balance + 0.001) {
-                throw \App\Exceptions\DomainException::make(
+                throw DomainException::make(
                     'payment_exceeds_balance',
                     'Fee payment exceeds outstanding balance.',
                     ['amount' => [
@@ -320,6 +322,58 @@ class FinancialLedgerService
         }
 
         return $transaction;
+    }
+
+    /**
+     * Adjust an unpaid/partial invoice amount and keep the student balance in sync.
+     */
+    public function adjustInvoiceAmount(Invoice $invoice, float $newAmount, ?int $actorId = null): Invoice
+    {
+        if (in_array($invoice->status, ['paid'], true)) {
+            throw new InvalidArgumentException('Paid invoices cannot be edited.');
+        }
+
+        $newAmount = round($newAmount, 2);
+        if ($newAmount < (float) $invoice->amount_paid) {
+            throw new InvalidArgumentException('Invoice amount cannot be less than amount already paid.');
+        }
+
+        $oldAmount = (float) $invoice->amount;
+        $delta = round($newAmount - $oldAmount, 2);
+
+        return DB::transaction(function () use ($invoice, $newAmount, $delta, $actorId) {
+            $locked = Invoice::query()->lockForUpdate()->findOrFail($invoice->id);
+            $student = Student::query()->lockForUpdate()->find($locked->student_id);
+
+            $locked->amount = $newAmount;
+            $locked->balance = max(0, round($newAmount - (float) $locked->amount_paid, 2));
+            $locked->status = $this->resolveInvoiceStatus($locked);
+            $locked->save();
+
+            if ($delta !== 0.0 && $student) {
+                $newBalance = round((float) $student->balance + $delta, 2);
+                $student->update(['balance' => max(0, $newBalance)]);
+
+                Transaction::create([
+                    'school_id' => $locked->school_id,
+                    'student_id' => $locked->student_id,
+                    'invoice_id' => $locked->id,
+                    'type' => $delta > 0 ? 'fee_adjustment_debit' : 'fee_adjustment_credit',
+                    'category' => 'student',
+                    'description' => 'Invoice amount adjustment: '.$locked->invoice_number,
+                    'reference' => $locked->invoice_number,
+                    'invoice_number' => $locked->invoice_number,
+                    'debit' => $delta > 0 ? abs($delta) : 0,
+                    'credit' => $delta < 0 ? abs($delta) : 0,
+                    'balance' => max(0, $newBalance),
+                    'currency' => $locked->currency,
+                    'status' => 'completed',
+                    'created_by' => $actorId,
+                ]);
+            }
+
+            return $locked->fresh();
+        });
     }
 
     public function postPaymentCredit(Payment $payment, ?int $createdBy = null): Transaction
