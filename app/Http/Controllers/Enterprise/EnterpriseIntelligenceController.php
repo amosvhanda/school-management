@@ -25,7 +25,7 @@ class EnterpriseIntelligenceController extends Controller
         $this->authorizeModuleAccess(
             $request,
             capabilities: ['canManageTeachers'],
-            permissionSlugs: ['reports.view', 'enrollment.manage'],
+            permissionSlugs: ['enrollment.manage', 'settings.manage'],
         );
     }
 

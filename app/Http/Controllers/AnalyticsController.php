@@ -18,7 +18,7 @@ class AnalyticsController extends Controller
         $this->authorizeModuleAccess(
             $request,
             capabilities: ['canManageTeachers'],
-            permissionSlugs: ['reports.view'],
+            permissionSlugs: ['settings.manage'],
         );
     }
 

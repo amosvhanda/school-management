@@ -22,7 +22,7 @@ class ExecutiveDashboardController extends Controller
         $this->authorizeModuleAccess(
             $request,
             capabilities: ['canManageTeachers'],
-            permissionSlugs: ['reports.view', 'dashboard.view'],
+            permissionSlugs: ['settings.manage'],
         );
     }
 
