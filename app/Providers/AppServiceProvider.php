@@ -7,6 +7,7 @@ use App\Services\Ai\StubTeachingAssistant;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -30,6 +31,11 @@ class AppServiceProvider extends ServiceProvider
 
         if ($this->app->isProduction()) {
             DB::prohibitDestructiveCommands();
+        }
+
+        if (filter_var(env('FORCE_HTTPS', false), FILTER_VALIDATE_BOOL)
+            || ($this->app->isProduction() && str_starts_with((string) config('app.url'), 'https://'))) {
+            URL::forceScheme('https');
         }
 
         ResetPassword::createUrlUsing(function (object $user, string $token) {

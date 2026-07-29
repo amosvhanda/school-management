@@ -16,11 +16,31 @@ use Illuminate\Support\Facades\DB;
 
 class TestController extends Controller
 {
+    private function authorizeTestsRead(Request $request): void
+    {
+        $this->authorizeModuleAccess(
+            $request,
+            capabilities: ['canManageExaminations', 'canEnterExamResults', 'isStaff'],
+            permissionSlugs: ['exams.manage', 'exams.enter_results'],
+        );
+    }
+
+    private function authorizeTestsManage(Request $request): void
+    {
+        $this->authorizeModuleAccess(
+            $request,
+            capabilities: ['canManageExaminations', 'canManageTeachers'],
+            permissionSlugs: ['exams.manage'],
+        );
+    }
+
     /**
      * Get all tests for the school
      */
     public function index(Request $request)
     {
+        $this->authorizeTestsRead($request);
+
         $user = $request->user();
         $schoolId = $user->school_id;
 
@@ -59,6 +79,8 @@ class TestController extends Controller
      */
     public function show(Request $request, Test $test)
     {
+        $this->authorizeTestsRead($request);
+
         $schoolId = $request->user()->school_id;
 
         $test->load(['classModel', 'subject', 'teacher', 'term', 'testResults.student']);
@@ -80,6 +102,8 @@ class TestController extends Controller
      */
     public function store(Request $request)
     {
+        $this->authorizeTestsManage($request);
+
         $user = $request->user();
         $schoolId = $user->school_id;
 
@@ -164,6 +188,8 @@ class TestController extends Controller
      */
     public function update(Request $request, Test $test)
     {
+        $this->authorizeTestsManage($request);
+
         $user = $request->user();
         $schoolId = $user->school_id;
 
@@ -236,6 +262,8 @@ class TestController extends Controller
      */
     public function destroy(Request $request, Test $test)
     {
+        $this->authorizeTestsManage($request);
+
         // Delete test results
         $test->testResults()->delete();
 
@@ -251,6 +279,8 @@ class TestController extends Controller
      */
     public function recordResults(Request $request, Test $test)
     {
+        $this->authorizeTestsRead($request);
+
         $user = $request->user();
         $schoolId = $user->school_id;
 

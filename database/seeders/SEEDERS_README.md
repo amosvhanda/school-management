@@ -6,6 +6,16 @@ Seeders populate the database with **tenant-safe**, **relational** data. Every r
 
 **All seeders are idempotent**: re-running `php artisan db:seed` updates existing rows or skips creates where appropriate; no duplicate inserts or foreign-key errors.
 
+## Production
+
+Use `ProductionSeeder` only (see `docs/PRODUCTION.md`):
+
+```bash
+php artisan db:seed --class=ProductionSeeder --force
+```
+
+Full `db:seed` loads demo ERP data and must not run in production unless `SEED_DEMO_DATA=true` is intentionally set.
+
 ## Execution Order
 
 ```

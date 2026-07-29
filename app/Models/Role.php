@@ -2,10 +2,12 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\Auditable;
 use Illuminate\Database\Eloquent\Model;
 
 class Role extends Model
 {
+    use Auditable;
     protected $fillable = ['name', 'slug', 'description', 'permission_ids'];
 
     protected function casts(): array

@@ -784,10 +784,7 @@ class TeacherPortalController extends Controller
             'teacher_id' => $teacher->id,
             'lesson_type' => $data['lesson_type'] ?? 'live',
             'status' => $data['status'] ?? 'scheduled',
-            // Placeholder room URL until a live video provider is wired.
-            'meeting_url' => $data['meeting_url'] ?? (($data['lesson_type'] ?? 'live') === 'live'
-                ? 'https://meet.example.local/room/'.uniqid('lesson_')
-                : null),
+            'meeting_url' => $data['meeting_url'] ?? null,
             ...collect($data)->except(['lesson_type', 'status', 'meeting_url'])->all(),
         ]);
 
