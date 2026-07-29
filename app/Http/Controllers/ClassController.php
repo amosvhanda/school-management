@@ -9,6 +9,15 @@ use Illuminate\Validation\Rule;
 
 class ClassController extends Controller
 {
+    private function authorizeAcademicManage(Request $request): void
+    {
+        $this->authorizeModuleAccess(
+            $request,
+            capabilities: ['canManageTeachers'],
+            permissionSlugs: ['academics.manage'],
+        );
+    }
+
     public function index(Request $request)
     {
         $schoolId = $request->user()?->school_id;
@@ -55,6 +64,8 @@ class ClassController extends Controller
 
     public function store(Request $request)
     {
+        $this->authorizeAcademicManage($request);
+
         $schoolId = $request->user()?->school_id;
 
         $validator = Validator::make($request->all(), [
@@ -101,6 +112,8 @@ class ClassController extends Controller
 
     public function update(Request $request, ClassModel $class)
     {
+        $this->authorizeAcademicManage($request);
+
         if ($request->user()?->school_id && $class->school_id !== $request->user()->school_id) {
             abort(403, 'Unauthorized action.');
         }
@@ -143,6 +156,8 @@ class ClassController extends Controller
 
     public function destroy(Request $request, ClassModel $class)
     {
+        $this->authorizeAcademicManage($request);
+
         if ($request->user()?->school_id && $class->school_id !== $request->user()->school_id) {
             abort(403, 'Unauthorized action.');
         }

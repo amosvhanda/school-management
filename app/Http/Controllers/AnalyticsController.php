@@ -13,8 +13,19 @@ use Illuminate\Support\Facades\DB;
 
 class AnalyticsController extends Controller
 {
+    private function authorizeAnalytics(Request $request): void
+    {
+        $this->authorizeModuleAccess(
+            $request,
+            capabilities: ['canManageTeachers'],
+            permissionSlugs: ['settings.manage'],
+        );
+    }
+
     public function index(Request $request)
     {
+        $this->authorizeAnalytics($request);
+
         $schoolId = $request->user()->school_id;
 
         $classPerformance = Grade::query()

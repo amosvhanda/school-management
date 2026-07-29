@@ -26,13 +26,27 @@ class PlatformOperationsController extends Controller
         private ExternalApiService $externalApi,
     ) {}
 
+    private function authorizePlatformOps(Request $request): void
+    {
+        $this->authorizeModuleAccess(
+            $request,
+            capabilities: ['canManageTeachers'],
+            permissionSlugs: ['operations.manage', 'settings.manage'],
+        );
+    }
+
+
     public function liveDashboard(Request $request)
     {
+        $this->authorizePlatformOps($request);
+
         return response()->json(['data' => $this->operations->liveFeed($this->platformSchoolId($request))]);
     }
 
     public function resolveAlert(Request $request, int $id)
     {
+        $this->authorizePlatformOps($request);
+
         $alert = $this->scopeToPlatformSchool(
             OperationsAlert::query()->whereNull('resolved_at'),
             $request,
@@ -44,6 +58,8 @@ class PlatformOperationsController extends Controller
 
     public function predictiveAnalytics(Request $request)
     {
+        $this->authorizePlatformOps($request);
+
         $schoolId = $this->requirePlatformSchoolId($request);
 
         return response()->json([
@@ -56,11 +72,15 @@ class PlatformOperationsController extends Controller
 
     public function systemHealth(Request $request)
     {
+        $this->authorizePlatformOps($request);
+
         return response()->json(['data' => $this->health->snapshot($this->platformSchoolId($request))]);
     }
 
     public function verifyAuditIntegrity(Request $request)
     {
+        $this->authorizePlatformOps($request);
+
         $schoolId = $this->requirePlatformSchoolId($request);
 
         return response()->json([
@@ -70,6 +90,8 @@ class PlatformOperationsController extends Controller
 
     public function apiClients(Request $request)
     {
+        $this->authorizePlatformOps($request);
+
         $rows = $this->scopeToPlatformSchool(ApiClient::query(), $request)
             ->with('school:id,name,code')
             ->select(['id', 'name', 'client_id', 'scopes', 'is_active', 'last_used_at', 'school_id', 'created_at'])
@@ -80,6 +102,8 @@ class PlatformOperationsController extends Controller
 
     public function createApiClient(Request $request)
     {
+        $this->authorizePlatformOps($request);
+
         $schoolId = $this->requirePlatformSchoolId($request);
         $data = Validator::make($request->all(), [
             'school_id' => 'nullable|integer|exists:schools,id',

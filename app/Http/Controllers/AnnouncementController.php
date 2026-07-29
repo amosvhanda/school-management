@@ -11,11 +11,23 @@ class AnnouncementController extends Controller
 {
     public function __construct(private ParentNotificationService $parentNotifications) {}
 
+    private function authorizeAnnouncements(Request $request): void
+    {
+        $this->authorizeModuleAccess(
+            $request,
+            capabilities: ['isStaff'],
+            permissionSlugs: ['communications.manage'],
+        );
+    }
+
+
     /**
      * List announcements for staff management (includes hidden/inactive).
      */
     public function index(Request $request)
     {
+        $this->authorizeAnnouncements($request);
+
         $user = $request->user();
         $schoolId = $user?->isSuperAdmin() ? null : $user?->school_id;
         $limit = min((int) $request->get('limit', 200), 500);
@@ -60,6 +72,8 @@ class AnnouncementController extends Controller
 
     public function show(Request $request, $id)
     {
+        $this->authorizeAnnouncements($request);
+
         $user = $request->user();
         $schoolId = $user?->isSuperAdmin() ? null : $user?->school_id;
 
@@ -73,6 +87,8 @@ class AnnouncementController extends Controller
 
     public function store(Request $request)
     {
+        $this->authorizeAnnouncements($request);
+
         $validator = Validator::make($request->all(), [
             'title' => 'required|string|max:255',
             'message' => 'required|string',
@@ -113,6 +129,8 @@ class AnnouncementController extends Controller
 
     public function update(Request $request, $id)
     {
+        $this->authorizeAnnouncements($request);
+
         $user = $request->user();
         $schoolId = $user?->isSuperAdmin() ? null : $user?->school_id;
 
@@ -161,6 +179,8 @@ class AnnouncementController extends Controller
 
     public function destroy($id)
     {
+        $this->authorizeAnnouncements(request());
+
         $user = request()->user();
         $schoolId = $user?->isSuperAdmin() ? null : $user?->school_id;
 

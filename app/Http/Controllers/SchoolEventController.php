@@ -7,6 +7,15 @@ use Illuminate\Http\Request;
 
 class SchoolEventController extends Controller
 {
+    private function authorizeEventManage(Request $request): void
+    {
+        $this->authorizeModuleAccess(
+            $request,
+            capabilities: ['canManageTeachers'],
+            permissionSlugs: ['communications.manage', 'academics.manage'],
+        );
+    }
+
     public function index(Request $request)
     {
         $query = SchoolEvent::where('school_id', $request->user()->school_id);
@@ -26,6 +35,8 @@ class SchoolEventController extends Controller
 
     public function store(Request $request)
     {
+        $this->authorizeEventManage($request);
+
         $data = $request->validate([
             'title' => 'required|string|max:255',
             'type' => 'nullable|string|max:100',
@@ -46,6 +57,8 @@ class SchoolEventController extends Controller
 
     public function update(Request $request, int $id)
     {
+        $this->authorizeEventManage($request);
+
         $event = SchoolEvent::where('school_id', $request->user()->school_id)->findOrFail($id);
 
         $data = $request->validate([

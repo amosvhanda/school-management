@@ -9,11 +9,22 @@ use Illuminate\Validation\Rule;
 
 class AssignmentController extends Controller
 {
+    private function authorizeAssignments(Request $request): void
+    {
+        $this->authorizeModuleAccess(
+            $request,
+            capabilities: ['isStaff', 'canManageStudents'],
+            permissionSlugs: ['students.manage', 'dashboard.view'],
+        );
+    }
+
     /**
      * Get all assignments (scoped to user's school)
      */
     public function index(Request $request)
     {
+        $this->authorizeAssignments($request);
+
         $user = $request->user();
         $schoolId = $user?->isSuperAdmin() ? null : $user?->school_id;
         $teacherId = $request->get('teacher_id');
@@ -73,6 +84,8 @@ class AssignmentController extends Controller
      */
     public function show($id)
     {
+        $this->authorizeAssignments(request());
+
         $user = request()->user();
         $schoolId = $user?->isSuperAdmin() ? null : $user?->school_id;
 
@@ -106,6 +119,8 @@ class AssignmentController extends Controller
      */
     public function store(Request $request)
     {
+        $this->authorizeAssignments($request);
+
         $user = $request->user();
         if ($user->school_id === null) {
             return response()->json(['message' => 'User must belong to a school to create assignments.'], 403);
@@ -186,6 +201,8 @@ class AssignmentController extends Controller
      */
     public function update(Request $request, $id)
     {
+        $this->authorizeAssignments($request);
+
         $user = $request->user();
         $schoolId = $user?->isSuperAdmin() ? null : $user?->school_id;
         $q = DB::table('assignments')->where('id', $id);
@@ -261,6 +278,8 @@ class AssignmentController extends Controller
      */
     public function destroy($id)
     {
+        $this->authorizeAssignments(request());
+
         $user = request()->user();
         $schoolId = $user?->isSuperAdmin() ? null : $user?->school_id;
         $q = DB::table('assignments')->where('id', $id);

@@ -17,8 +17,29 @@ class EnterpriseAcademicController extends Controller
 {
     public function __construct(private AcademicEnterpriseService $academic) {}
 
+    private function authorizeEnterpriseAcademicManage(Request $request): void
+    {
+        $this->authorizeModuleAccess(
+            $request,
+            capabilities: ['canManageTeachers'],
+            permissionSlugs: ['academics.manage'],
+        );
+    }
+
+    private function authorizeEnterpriseAcademicStaff(Request $request): void
+    {
+        $this->authorizeModuleAccess(
+            $request,
+            capabilities: ['isStaff', 'canEnterExamResults'],
+            permissionSlugs: ['academics.manage', 'exams.enter_results', 'dashboard.view'],
+        );
+    }
+
+
     public function curriculum(Request $request)
     {
+        $this->authorizeEnterpriseAcademicStaff($request);
+
         $items = CurriculumVersion::where('school_id', $request->user()->school_id)
             ->with('subject:id,name')
             ->orderByDesc('version_number')
@@ -30,6 +51,8 @@ class EnterpriseAcademicController extends Controller
 
     public function publishCurriculum(Request $request)
     {
+        $this->authorizeEnterpriseAcademicManage($request);
+
         $data = Validator::make($request->all(), [
             'subject_id' => 'required|exists:subjects,id',
             'academic_year' => 'required|string',
@@ -46,6 +69,8 @@ class EnterpriseAcademicController extends Controller
 
     public function recordOutcome(Request $request)
     {
+        $this->authorizeEnterpriseAcademicStaff($request);
+
         $data = Validator::make($request->all(), [
             'student_id' => 'required|exists:students,id',
             'subject_id' => 'required|exists:subjects,id',
@@ -67,11 +92,15 @@ class EnterpriseAcademicController extends Controller
 
     public function assessmentCategories(Request $request)
     {
+        $this->authorizeEnterpriseAcademicStaff($request);
+
         return response()->json(['data' => AssessmentCategory::where('school_id', $request->user()->school_id)->get()]);
     }
 
     public function storeAssessmentCategory(Request $request)
     {
+        $this->authorizeEnterpriseAcademicManage($request);
+
         $data = Validator::make($request->all(), [
             'name' => 'required|string',
             'type' => 'required|in:ca,project,quiz,exam',
@@ -86,6 +115,8 @@ class EnterpriseAcademicController extends Controller
 
     public function recordAssessment(Request $request)
     {
+        $this->authorizeEnterpriseAcademicStaff($request);
+
         $data = Validator::make($request->all(), [
             'student_id' => 'required|exists:students,id',
             'subject_id' => 'required|exists:subjects,id',
@@ -107,6 +138,8 @@ class EnterpriseAcademicController extends Controller
 
     public function weightedGrade(Request $request, int $studentId, int $subjectId)
     {
+        $this->authorizeEnterpriseAcademicStaff($request);
+
         Student::where('school_id', $request->user()->school_id)->findOrFail($studentId);
 
         return response()->json(['data' => $this->academic->calculateWeightedGrade($studentId, $subjectId, $request->integer('term_id') ?: null)]);
@@ -114,6 +147,8 @@ class EnterpriseAcademicController extends Controller
 
     public function gpaRanking(Request $request)
     {
+        $this->authorizeEnterpriseAcademicManage($request);
+
         return response()->json([
             'data' => $this->academic->calculateGpaAndRank(
                 $request->user()->school_id,
@@ -124,6 +159,8 @@ class EnterpriseAcademicController extends Controller
 
     public function storeGradebookRule(Request $request)
     {
+        $this->authorizeEnterpriseAcademicManage($request);
+
         $data = Validator::make($request->all(), [
             'subject_id' => 'nullable|exists:subjects,id',
             'grade_level_id' => 'nullable|exists:grade_levels,id',
@@ -138,6 +175,8 @@ class EnterpriseAcademicController extends Controller
 
     public function checkPrerequisites(Request $request, int $studentId, int $subjectId)
     {
+        $this->authorizeEnterpriseAcademicStaff($request);
+
         Student::where('school_id', $request->user()->school_id)->findOrFail($studentId);
 
         return response()->json(['data' => $this->academic->checkPrerequisites($studentId, $subjectId)]);
@@ -145,11 +184,15 @@ class EnterpriseAcademicController extends Controller
 
     public function promotionRules(Request $request)
     {
+        $this->authorizeEnterpriseAcademicStaff($request);
+
         return response()->json(['data' => PromotionRule::where('school_id', $request->user()->school_id)->get()]);
     }
 
     public function storePromotionRule(Request $request)
     {
+        $this->authorizeEnterpriseAcademicManage($request);
+
         $data = Validator::make($request->all(), [
             'name' => 'required|string',
             'conditions' => 'required|array',
@@ -161,6 +204,8 @@ class EnterpriseAcademicController extends Controller
 
     public function evaluatePromotion(Request $request, int $studentId)
     {
+        $this->authorizeEnterpriseAcademicManage($request);
+
         Student::where('school_id', $request->user()->school_id)->findOrFail($studentId);
 
         return response()->json(['data' => ['action' => $this->academic->evaluatePromotionRules($request->user()->school_id, $studentId)]]);
@@ -168,11 +213,15 @@ class EnterpriseAcademicController extends Controller
 
     public function calendar(Request $request)
     {
+        $this->authorizeEnterpriseAcademicStaff($request);
+
         return response()->json(['data' => $this->academic->calendar($request->user()->school_id, $request->get('year'))]);
     }
 
     public function storeCalendarEntry(Request $request)
     {
+        $this->authorizeEnterpriseAcademicManage($request);
+
         $data = Validator::make($request->all(), [
             'entry_type' => 'required|string',
             'title' => 'required|string',

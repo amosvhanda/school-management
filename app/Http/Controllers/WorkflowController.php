@@ -12,8 +12,29 @@ class WorkflowController extends Controller
 {
     public function __construct(private WorkflowService $workflows) {}
 
+    private function authorizeWorkflow(Request $request): void
+    {
+        $this->authorizeModuleAccess(
+            $request,
+            capabilities: ['isStaff'],
+            permissionSlugs: ['dashboard.view'],
+        );
+    }
+
+    private function authorizeWorkflowHistory(Request $request): void
+    {
+        $this->authorizeModuleAccess(
+            $request,
+            capabilities: ['canManageTeachers'],
+            permissionSlugs: ['settings.manage', 'operations.manage'],
+        );
+    }
+
+
     public function pending(Request $request)
     {
+        $this->authorizeWorkflow($request);
+
         $items = $this->workflows->pendingForUser($request->user())
             ->load(['definition.steps', 'initiator:id,name,email', 'subject', 'approvals.approver']);
 
@@ -24,6 +45,8 @@ class WorkflowController extends Controller
 
     public function show(Request $request, int $id)
     {
+        $this->authorizeWorkflow($request);
+
         $instance = WorkflowInstance::query()
             ->where('school_id', $request->user()->school_id)
             ->with(['definition.steps', 'approvals.approver', 'initiator', 'subject'])
@@ -34,6 +57,8 @@ class WorkflowController extends Controller
 
     public function approve(Request $request, int $id)
     {
+        $this->authorizeWorkflow($request);
+
         $instance = WorkflowInstance::where('school_id', $request->user()->school_id)->findOrFail($id);
         $updated = $this->workflows->approve($instance, $request->user(), $request->input('comments'));
         $updated->load(['definition.steps', 'approvals.approver', 'initiator', 'subject']);
@@ -46,6 +71,8 @@ class WorkflowController extends Controller
 
     public function reject(Request $request, int $id)
     {
+        $this->authorizeWorkflow($request);
+
         $validator = Validator::make($request->all(), [
             'comments' => 'required|string|max:2000',
         ]);
@@ -69,6 +96,8 @@ class WorkflowController extends Controller
 
     public function history(Request $request)
     {
+        $this->authorizeWorkflowHistory($request);
+
         $query = WorkflowInstance::query()
             ->where('school_id', $request->user()->school_id)
             ->with(['definition.steps', 'initiator:id,name,email', 'subject', 'approvals.approver'])

@@ -13,8 +13,20 @@ class ConsentFormController extends Controller
 {
     public function __construct(private ParentAccessService $parentAccess) {}
 
+    private function authorizeConsentForms(Request $request): void
+    {
+        $this->authorizeModuleAccess(
+            $request,
+            capabilities: ['canManageTeachers'],
+            permissionSlugs: ['compliance.manage'],
+        );
+    }
+
+
     public function index(Request $request)
     {
+        $this->authorizeConsentForms($request);
+
         return response()->json([
             'data' => ConsentForm::where('school_id', $request->user()->school_id)
                 ->when($request->filled('status'), fn ($q) => $q->where('status', $request->string('status')))
@@ -25,6 +37,8 @@ class ConsentFormController extends Controller
 
     public function store(Request $request)
     {
+        $this->authorizeConsentForms($request);
+
         $data = $request->validate([
             'title' => 'required|string|max:255',
             'content' => 'required|string',
@@ -44,6 +58,8 @@ class ConsentFormController extends Controller
 
     public function update(Request $request, int $id)
     {
+        $this->authorizeConsentForms($request);
+
         $form = ConsentForm::where('school_id', $request->user()->school_id)->findOrFail($id);
 
         $data = $request->validate([

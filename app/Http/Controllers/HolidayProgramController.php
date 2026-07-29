@@ -15,8 +15,20 @@ class HolidayProgramController extends Controller
 {
     public function __construct(private HolidayProgramService $holidayService) {}
 
+    private function authorizeHolidayPrograms(Request $request): void
+    {
+        $this->authorizeModuleAccess(
+            $request,
+            capabilities: ['canManageTeachers'],
+            permissionSlugs: ['operations.manage'],
+        );
+    }
+
+
     public function index(Request $request)
     {
+        $this->authorizeHolidayPrograms($request);
+
         $programs = HolidayProgram::where('school_id', $request->user()->school_id)
             ->orderByDesc('start_date')
             ->get();
@@ -26,6 +38,8 @@ class HolidayProgramController extends Controller
 
     public function store(Request $request)
     {
+        $this->authorizeHolidayPrograms($request);
+
         $data = $request->validate([
             'name' => 'required|string|max:255',
             'academic_year' => 'nullable|string|max:9',
@@ -50,6 +64,8 @@ class HolidayProgramController extends Controller
 
     public function update(Request $request, int $id)
     {
+        $this->authorizeHolidayPrograms($request);
+
         $program = HolidayProgram::where('school_id', $request->user()->school_id)->findOrFail($id);
 
         $data = $request->validate([
@@ -78,6 +94,8 @@ class HolidayProgramController extends Controller
 
     public function enrollments(Request $request, int $id)
     {
+        $this->authorizeHolidayPrograms($request);
+
         $program = HolidayProgram::where('school_id', $request->user()->school_id)->findOrFail($id);
         $enrollments = HolidayEnrollment::where('holiday_program_id', $program->id)
             ->with(['student', 'invoice'])
@@ -88,6 +106,8 @@ class HolidayProgramController extends Controller
 
     public function enroll(Request $request, int $id)
     {
+        $this->authorizeHolidayPrograms($request);
+
         $schoolId = $request->user()->school_id;
         $program = HolidayProgram::where('school_id', $schoolId)->findOrFail($id);
 
@@ -115,6 +135,8 @@ class HolidayProgramController extends Controller
 
     public function recordAttendance(Request $request, int $id)
     {
+        $this->authorizeHolidayPrograms($request);
+
         $schoolId = $request->user()->school_id;
         $program = HolidayProgram::where('school_id', $schoolId)->findOrFail($id);
 
@@ -168,6 +190,8 @@ class HolidayProgramController extends Controller
 
     public function attendance(Request $request, int $id)
     {
+        $this->authorizeHolidayPrograms($request);
+
         $program = HolidayProgram::where('school_id', $request->user()->school_id)->findOrFail($id);
         $records = HolidayAttendance::where('holiday_program_id', $program->id)
             ->with('student')

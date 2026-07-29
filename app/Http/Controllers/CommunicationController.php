@@ -11,8 +11,19 @@ use Illuminate\Support\Facades\Validator;
 
 class CommunicationController extends Controller
 {
+    private function authorizeCommunications(Request $request): void
+    {
+        $this->authorizeModuleAccess(
+            $request,
+            capabilities: ['isStaff'],
+            permissionSlugs: ['communications.manage'],
+        );
+    }
+
     public function index(Request $request)
     {
+        $this->authorizeCommunications($request);
+
         $user = $request->user();
         $this->assertStaffUser($user);
 
@@ -39,6 +50,8 @@ class CommunicationController extends Controller
 
     public function show(Request $request, int $id)
     {
+        $this->authorizeCommunications($request);
+
         $user = $request->user();
         $this->assertStaffUser($user);
 
@@ -66,6 +79,8 @@ class CommunicationController extends Controller
 
     public function reply(Request $request, int $id)
     {
+        $this->authorizeCommunications($request);
+
         $user = $request->user();
         $this->assertStaffUser($user);
 

@@ -22,6 +22,16 @@ class SettingsController extends Controller
         private CustomFieldService $customFieldService,
     ) {}
 
+    private function authorizeSettingsManage(Request $request): void
+    {
+        $this->authorizeModuleAccess(
+            $request,
+            capabilities: ['canManageTeachers'],
+            permissionSlugs: ['settings.manage'],
+        );
+    }
+
+
     public function schoolSettings(Request $request)
     {
         $school = School::findOrFail($request->user()->school_id);
@@ -31,6 +41,7 @@ class SettingsController extends Controller
 
     public function updateSchoolSettings(UpdateSchoolSettingsRequest $request)
     {
+        $this->authorizeSettingsManage(request());
         $school = School::findOrFail($request->user()->school_id);
         $this->settingsService->bulkSet($school, $request->validated('settings'));
 
@@ -74,6 +85,7 @@ class SettingsController extends Controller
 
     public function updateTerminology(UpdateTerminologyRequest $request)
     {
+        $this->authorizeSettingsManage(request());
         $school = School::findOrFail($request->user()->school_id);
         $locale = $request->get('locale', 'en');
 
@@ -104,6 +116,7 @@ class SettingsController extends Controller
 
     public function storeCustomField(StoreCustomFieldRequest $request)
     {
+        $this->authorizeSettingsManage(request());
         $school = School::findOrFail($request->user()->school_id);
         $field = $this->customFieldService->create($school, $request->validated());
 
@@ -112,6 +125,7 @@ class SettingsController extends Controller
 
     public function updateCustomField(UpdateCustomFieldRequest $request, CustomField $customField)
     {
+        $this->authorizeSettingsManage(request());
         $field = $this->customFieldService->update($customField, $request->validated());
 
         return $this->success(new CustomFieldResource($field), 'Custom field updated successfully');
@@ -119,6 +133,7 @@ class SettingsController extends Controller
 
     public function destroyCustomField(CustomField $customField)
     {
+        $this->authorizeSettingsManage(request());
         $this->authorize('delete', $customField);
         $customField->delete();
 
