@@ -6,6 +6,7 @@ use App\Exceptions\DomainException;
 use App\Http\Concerns\HandlesResourceQueries;
 use App\Http\Resources\Api\V1\AttendanceResource;
 use App\Models\Attendance;
+use App\Models\AttendanceSession;
 use App\Models\ClassModel;
 use App\Models\Student;
 use App\Models\TeacherAssignment;
@@ -107,6 +108,7 @@ class AttendanceController extends Controller
             'class_id' => 'required', // Can be string (class name) or integer (class ID)
             'date' => 'required|date',
             'overwrite' => 'nullable|boolean',
+            'force' => 'nullable|boolean',
             'records' => 'required|array',
             'records.*.student_id' => 'required|exists:students,id',
             'records.*.status' => 'required|string|in:present,absent,late,excused,sick,left_early',
@@ -171,6 +173,12 @@ class AttendanceController extends Controller
         $normalizedDate = $request->date('date')->toDateString();
         $normalizedClassId = is_numeric($classId) ? (int) $classId : null;
         $allowOverwrite = $request->boolean('overwrite', true);
+        $this->assertAttendanceRegisterEditable(
+            schoolId: (int) $schoolId,
+            classId: $normalizedClassId,
+            date: $normalizedDate,
+            request: $request,
+        );
         $domainRules = app(SchoolDomainRules::class);
         $studentIds = collect($request->records)->pluck('student_id')->map(fn ($id) => (int) $id)->all();
         $studentsById = Student::query()
@@ -261,6 +269,8 @@ class AttendanceController extends Controller
                     'subject_id' => $record['subject_id'] ?? null,
                     'lesson_type' => $record['lesson_type'] ?? null,
                 ],
+                allowLockedUpdate: $request->boolean('force')
+                    && app(PermissionService::class)->hasCapability($user, 'canManageTeachers'),
             );
 
             // Send notification if student is absent
@@ -281,6 +291,51 @@ class AttendanceController extends Controller
     }
 
     /**
+     * Locked registers cannot be rewritten via overwrite:true.
+     * School admins may pass force=true to correct a locked day.
+     */
+    private function assertAttendanceRegisterEditable(
+        int $schoolId,
+        ?int $classId,
+        string $date,
+        Request $request,
+    ): void {
+        $user = $request->user();
+        $canForce = $request->boolean('force')
+            && $user
+            && app(PermissionService::class)->hasCapability($user, 'canManageTeachers');
+
+        if ($canForce) {
+            return;
+        }
+
+        $sessionLocked = AttendanceSession::query()
+            ->where('school_id', $schoolId)
+            ->when($classId !== null, fn ($q) => $q->where('class_id', $classId))
+            ->whereDate('date', $date)
+            ->whereNotNull('locked_at')
+            ->exists();
+
+        $rowLocked = Attendance::query()
+            ->where('school_id', $schoolId)
+            ->when($classId !== null, fn ($q) => $q->where('class_id', $classId))
+            ->whereDate('date', $date)
+            ->whereNotNull('locked_at')
+            ->exists();
+
+        if (! $sessionLocked && ! $rowLocked) {
+            return;
+        }
+
+        throw DomainException::make(
+            'attendance_locked',
+            'This attendance register is locked and cannot be changed.',
+            ['date' => ['Attendance for '.$date.' is locked. Ask an administrator if a correction is required.']],
+            423,
+        );
+    }
+
+    /**
      * Upsert attendance without tripping the unique index when legacy rows
      * (null class_id / school_id) exist or the school global scope hides a match.
      */
@@ -290,6 +345,7 @@ class AttendanceController extends Controller
         string $date,
         ?int $classId,
         array $values,
+        bool $allowLockedUpdate = false,
     ): Attendance {
         $payload = array_merge($values, [
             'school_id' => $schoolId,
@@ -298,10 +354,11 @@ class AttendanceController extends Controller
             'class_id' => $classId,
         ]);
 
-        return DB::transaction(function () use ($schoolId, $studentId, $date, $classId, $payload) {
+        return DB::transaction(function () use ($schoolId, $studentId, $date, $classId, $payload, $allowLockedUpdate) {
             $existing = $this->findAttendanceForUpsert($schoolId, $studentId, $date, $classId, lock: true);
 
             if ($existing) {
+                $this->assertRowUnlocked($existing, $date, $allowLockedUpdate);
                 $existing->update($payload);
 
                 return $existing->fresh();
@@ -312,6 +369,7 @@ class AttendanceController extends Controller
             } catch (UniqueConstraintViolationException $e) {
                 $retry = $this->findAttendanceForUpsert($schoolId, $studentId, $date, $classId, lock: true);
                 if ($retry) {
+                    $this->assertRowUnlocked($retry, $date, $allowLockedUpdate);
                     $retry->update($payload);
 
                     return $retry->fresh();
@@ -320,6 +378,20 @@ class AttendanceController extends Controller
                 throw $e;
             }
         });
+    }
+
+    private function assertRowUnlocked(Attendance $row, string $date, bool $allowLockedUpdate): void
+    {
+        if ($allowLockedUpdate || $row->locked_at === null) {
+            return;
+        }
+
+        throw DomainException::make(
+            'attendance_locked',
+            'This attendance register is locked and cannot be changed.',
+            ['date' => ['Attendance for '.$date.' is locked.']],
+            423,
+        );
     }
 
     private function findAttendanceForUpsert(
