@@ -374,6 +374,7 @@ async function loadAtRisk() {
 async function loadRegister() {
   if (!selectedClassId.value) {
     registerRows.value = []
+    registerLocked.value = false
     return
   }
 
