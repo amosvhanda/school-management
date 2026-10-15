@@ -5,7 +5,6 @@ namespace App\Http\Controllers;
 use App\Enums\UserRole;
 use App\Http\Resources\Api\V1\StudentResource;
 use App\Models\ClassModel;
-use App\Models\Exam;
 use App\Models\School;
 use App\Models\Student;
 use App\Models\StudentDocument;
@@ -13,6 +12,7 @@ use App\Services\Domain\SchoolDomainRules;
 use App\Services\FileUploadService;
 use App\Services\ParentAccessService;
 use App\Services\StudentAdmissionService;
+use App\Services\Students\StudentAcademicService;
 use App\Services\Students\StudentBulkActionService;
 use App\Services\Students\StudentDocumentService;
 use App\Services\Students\StudentIdCardService;
@@ -35,6 +35,7 @@ class StudentController extends Controller
         private StudentIdCardService $idCards,
         private StudentInvoiceService $studentInvoices,
         private StudentBulkActionService $bulkActions,
+        private StudentAcademicService $academic,
     ) {}
 
     /**
@@ -624,57 +625,14 @@ class StudentController extends Controller
     ) {
         $user = $request->user();
 
-        if (
-            $user &&
-            in_array(
-                $user->role,
-                [
-                    UserRole::Student,
-                    UserRole::Parent,
-                ],
-                true
-            )
-        ) {
-            $studentModel =
-                $this->parentAccess
-                    ->assertCanAccessStudent(
-                        $user,
-                        (int) $student
-                    );
+        if ($user && in_array($user->role, [UserRole::Student, UserRole::Parent], true)) {
+            $studentModel = $this->parentAccess->assertCanAccessStudent($user, (int) $student);
         } else {
-            $studentModel =
-                $this->findSchoolStudent(
-                    $request,
-                    $student
-                );
+            $studentModel = $this->findSchoolStudent($request, $student);
         }
 
-        $studentModel->load([
-            'grades',
-            'attendance',
-        ]);
-
-        $grades =
-            $studentModel->grades;
-
-        $averageScore =
-            $grades->avg('score');
-
-        $totalGrades =
-            $grades->count();
-
         return response()->json([
-            'data' => [
-                'student' => $studentModel,
-
-                'grades' => $grades,
-
-                'attendance' => $studentModel->attendance,
-
-                'average_score' => $averageScore,
-
-                'total_grades' => $totalGrades,
-            ],
+            'data' => $this->academic->performanceSummary($studentModel),
         ]);
     }
 
@@ -820,131 +778,19 @@ class StudentController extends Controller
         Request $request,
         $student
     ) {
-        $studentModel =
-            $this->parentAccess
-                ->assertCanAccessStudent(
-                    $request->user(),
-                    (int) $student
-                );
+        $studentModel = $this->parentAccess->assertCanAccessStudent(
+            $request->user(),
+            (int) $student
+        );
 
-        $viewerIsLearner =
-            in_array(
-                $request->user()->role,
-                [
-                    UserRole::Student,
-                    UserRole::Parent,
-                ],
-                true
-            );
-
-        $examsQuery =
-            Exam::where(
-                'school_id',
-                $studentModel->school_id
-            )
-                ->where(
-                    'grade_level_id',
-                    $studentModel->grade_level_id
-                )
-                ->with([
-                    'term',
-                    'gradeLevel',
-                    'subject',
-                    'examResults' => function ($q) use (
-                        $studentModel
-                    ) {
-                        $q->where(
-                            'student_id',
-                            $studentModel->id
-                        );
-                    },
-                ])
-                ->orderBy(
-                    'exam_date',
-                    'desc'
-                );
-
-        if ($viewerIsLearner) {
-            $examsQuery->where(
-                function ($q) {
-                    $q->where(
-                        'is_published',
-                        true
-                    )
-                        ->orWhereNotNull(
-                            'results_approved_at'
-                        );
-                }
-            );
-        }
-
-        $formattedExams =
-            $examsQuery
-                ->get()
-                ->map(
-                    function ($exam) use (
-                        $viewerIsLearner
-                    ) {
-                        $result =
-                            $exam->examResults
-                                ->first();
-
-                        $showResult =
-                            $result &&
-                            (
-                                ! $viewerIsLearner ||
-                                $exam->is_published ||
-                                $exam->results_approved_at
-                            );
-
-                        return [
-                            'id' => $exam->id,
-
-                            'name' => $exam->name,
-
-                            'description' => $exam->description,
-
-                            'subject' => $exam->subject->name
-                                ?? null,
-
-                            'exam_date' => $exam->exam_date,
-
-                            'start_time' => $exam->start_time,
-
-                            'end_time' => $exam->end_time,
-
-                            'total_marks' => $exam->total_marks,
-
-                            'passing_marks' => $exam->passing_marks,
-
-                            'term' => $exam->term->name
-                                ?? null,
-
-                            'academic_year' => $exam->academic_year,
-
-                            'is_published' => (bool)
-                                $exam->is_published,
-
-                            'result' => $showResult
-                                    ? [
-                                        'marks_obtained' => $result
-                                            ->marks_obtained,
-
-                                        'percentage' => $result
-                                            ->percentage,
-
-                                        'grade' => $result->grade,
-
-                                        'remarks' => $result
-                                            ->remarks,
-                                    ]
-                                    : null,
-                        ];
-                    }
-                );
+        $viewerIsLearner = in_array(
+            $request->user()->role,
+            [UserRole::Student, UserRole::Parent],
+            true
+        );
 
         return response()->json([
-            'data' => $formattedExams,
+            'data' => $this->academic->examsForStudent($studentModel, $viewerIsLearner),
         ]);
     }
 
