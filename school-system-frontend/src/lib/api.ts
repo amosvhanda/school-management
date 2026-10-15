@@ -90,6 +90,19 @@ api.interceptors.request.use((config) => {
     startRequestProgress()
   }
 
+  // FormData must use multipart with a browser-generated boundary.
+  // Never leave application/json or a bare "multipart/form-data" Content-Type.
+  if (typeof FormData !== 'undefined' && config.data instanceof FormData) {
+    const headers = config.headers
+    if (headers && typeof headers.delete === 'function') {
+      headers.delete('Content-Type')
+      headers.delete('content-type')
+    } else if (headers) {
+      delete (headers as Record<string, unknown>)['Content-Type']
+      delete (headers as Record<string, unknown>)['content-type']
+    }
+  }
+
   const token = getStoredToken()
   if (token) {
     config.headers.Authorization = `Bearer ${token}`

@@ -1,6 +1,6 @@
 import type { ListQueryParams } from '@/types/api'
 import { api } from '@/lib/api'
-import { unwrapOne, unwrapList } from '@/lib/api-response'
+import { assertDownloadBlob, unwrapOne, unwrapList } from '@/lib/api-response'
 import {
   createRecord,
   deleteRecord,
@@ -63,9 +63,8 @@ export const uploadsApi = {
     const form = new FormData()
     form.append('file', file)
     if (directory) form.append('directory', directory)
-    const { data } = await api.post(e.uploads, form, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    })
+    // Leave Content-Type unset so axios/browser add the multipart boundary.
+    const { data } = await api.post(e.uploads, form)
     return unwrapOne<UploadedFileMeta>(data)
   },
 }
@@ -154,9 +153,7 @@ export const studentPortalApi = {
     const form = new FormData()
     if (payload.content) form.append('content', payload.content)
     if (payload.file) form.append('file', payload.file)
-    const { data } = await api.post(e.studentPortal.submitAssignment(id), form, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    })
+    const { data } = await api.post(e.studentPortal.submitAssignment(id), form)
     return (data as { data?: unknown }).data ?? data
   },
   announcements: () => fetchOne(e.studentPortal.announcements),
@@ -196,13 +193,24 @@ export const studentsApi = {
   createInvoice: (id: number | string, payload: Record<string, unknown>) =>
     createRecord(e.students.createInvoice(id), payload),
   documents: (id: number | string) => fetchList(e.students.documents(id)),
+  documentsIndex: async (params?: ListQueryParams) => {
+    const { data } = await api.get(e.students.documentsIndex, { params })
+    return data as {
+      data: Record<string, unknown>[]
+      meta?: Record<string, unknown>
+      counts?: Record<string, number>
+    }
+  },
+  promotionPreview: (params?: ListQueryParams) =>
+    fetchOne<{ eligible: number; academic_year?: string; next_academic_year?: string }>(
+      e.students.promotionPreview,
+      params,
+    ),
   uploadDocuments: async (id: number | string, files: File[], type?: string) => {
     const form = new FormData()
-    files.forEach((file) => form.append('documents[]', file))
+    files.forEach((file, index) => form.append(`documents[${index}]`, file))
     if (type) form.append('type', type)
-    const { data } = await api.post(e.students.documents(id), form, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    })
+    const { data } = await api.post(e.students.documents(id), form)
     return unwrapList(data)
   },
   deleteDocument: (id: number | string, documentId: number | string) =>
@@ -213,17 +221,16 @@ export const studentsApi = {
       params: { format },
       responseType: 'blob',
     })
-    return data as Blob
+    return assertDownloadBlob(data as Blob)
   },
-  printIdCard: (id: number | string) => fetchOne(e.students.idCardPrint(id)),
+  printIdCard: (id: number | string) =>
+    fetchOne<Record<string, unknown>>(e.students.idCardPrint(id)),
   bulkPrintIdCards: (studentIds: Array<number | string>) =>
     postRecord(e.students.idCardsBulkPrint, { student_ids: studentIds }),
   uploadPhoto: async (id: number | string, file: File) => {
     const form = new FormData()
     form.append('file', file)
-    const { data } = await api.post(e.students.photo(id), form, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    })
+    const { data } = await api.post(e.students.photo(id), form)
     return unwrapOne<{ photo_url: string; student: Record<string, unknown> }>(data)
   },
   guardians: (id: number | string) => fetchList(e.students.guardians(id)),
@@ -271,6 +278,8 @@ export const enrollmentApi = {
     updateRecord(e.enrollment.approve(id), payload ?? {}),
   reject: (id: number | string, payload?: Record<string, unknown>) =>
     updateRecord(e.enrollment.reject(id), payload ?? { notes: 'Rejected' }),
+  updateStatus: (id: number | string, payload: Record<string, unknown>) =>
+    updateRecord(e.enrollment.status(id), payload),
 }
 
 export const usersApi = {
@@ -339,7 +348,8 @@ export const academicsApi = {
     list: (params?: ListQueryParams) => fetchList(e.attendance.list, params),
     record: (payload: Record<string, unknown>) => createRecord(e.attendance.list, payload),
     todaySummary: () => fetchOne(e.attendance.todaySummary),
-    studentSummary: (id: number | string) => fetchOne(e.attendance.studentSummary(id)),
+    studentSummary: (id: number | string, params?: ListQueryParams) =>
+      fetchOne(e.attendance.studentSummary(id), params),
     classReport: (id: number | string) => fetchOne(e.attendance.classReport(id)),
     clearClass: async (classId: number | string, date: string) => {
       const { data } = await api.delete(e.attendance.clearClass(classId, date))
@@ -897,6 +907,7 @@ export const platformApi = {
   policyRules: () => fetchList(e.platform.policyRules),
   workflowDefinitions: () => fetchList(e.platform.workflowDefinitions),
   branchTree: () => fetchOne(e.platform.branchTree),
+  createBranch: (payload: Record<string, unknown>) => createRecord(e.platform.branches, payload),
   retentionPolicies: () => fetchList(e.platform.retentionPolicies),
   maskingRules: () => fetchList(e.platform.maskingRules),
   documents: (params?: ListQueryParams) => fetchList(e.platform.documents, params),

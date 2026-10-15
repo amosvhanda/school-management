@@ -3,7 +3,7 @@ import { ref, onMounted, computed, h, nextTick, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { z } from 'zod'
 import type { ColumnDef } from '@tanstack/vue-table'
-import { Download, Plus, Upload } from '@lucide/vue'
+import { Plus, Upload } from '@lucide/vue'
 import PageLoader from '@/components/feedback/PageLoader.vue'
 import ErrorState from '@/components/feedback/ErrorState.vue'
 import DataTable from '@/components/data-table/DataTable.vue'
@@ -12,7 +12,11 @@ import ListFiltersBar from '@/components/data-table/ListFiltersBar.vue'
 import FormSheet from '@/components/forms/FormSheet.vue'
 import CsvImportDialog from '@/components/forms/CsvImportDialog.vue'
 import PageShell from '@/components/layout/PageShell.vue'
+import ListPageActions from '@/components/layout/ListPageActions.vue'
 import WorkspaceCard from '@/components/layout/WorkspaceCard.vue'
+import { useAcademicYearFilter } from '@/composables/useAcademicYearFilter'
+import { listWorkspaceTitle } from '@/lib/list-page-chrome'
+import { pageBreadcrumbs } from '@/lib/page-meta'
 import type { FormFieldSchema } from '@/components/forms/useFormBuilder'
 import { useDataTable } from '@/components/data-table/useDataTable'
 import { Button } from '@/components/ui/button'
@@ -70,6 +74,8 @@ const props = defineProps<{
   staged?: boolean
   /** Render inside a parent layout without PageShell (e.g. school setup workspace). */
   embedded?: boolean
+  /** Breadcrumb segments after Dashboard (standalone pages only). */
+  breadcrumbs?: string[]
   /**
    * When embedded, parent decides whether to open the create sheet on mount.
    * Standalone pages still honour `?create=1`.
@@ -83,6 +89,7 @@ const toast = useToast()
 const route = useRoute()
 const router = useRouter()
 const { currency: schoolCurrency, loadSchool } = useSchoolProfile()
+const { academicYear } = useAcademicYearFilter()
 const rows = ref<Record<string, unknown>[]>([])
 const loading = ref(true)
 const error = ref<string | null>(null)
@@ -115,8 +122,22 @@ const createLabel = computed(() => {
   if (props.listKey === 'students') return 'Add Student'
   if (props.listKey === 'teachers') return 'Add Teacher'
   if (props.listKey === 'guardians') return 'Add Guardian'
+  if (props.listKey === 'ops-help-desk') return 'Add Message'
   return 'Add new'
 })
+
+const shellBreadcrumbs = computed(() => {
+  if (props.breadcrumbs?.length) {
+    return pageBreadcrumbs(...props.breadcrumbs)
+  }
+  return pageBreadcrumbs(props.title)
+})
+
+const workspaceListTitle = computed(() => listWorkspaceTitle(props.title))
+
+function printList() {
+  window.print()
+}
 const searchPlaceholder = computed(() => {
   if (props.listKey === 'students') return 'Search name, admission number…'
   return `Search ${props.title.toLowerCase()}…`
@@ -807,49 +828,55 @@ defineExpose({ load, openEdit })
 </script>
 
 <template>
-  <PageShell v-if="!embedded" :title="title" :description="subtitle" max-width="wide">
+  <PageShell
+    v-if="!embedded"
+    :title="title"
+    :description="subtitle"
+    :breadcrumbs="shellBreadcrumbs.slice(1)"
+    max-width="wide"
+  >
     <template #actions>
-      <Button
-        v-for="action in toolbarActions"
-        :key="action.label"
-        variant="outline"
-        :disabled="!!actionLoading"
-        @click="runToolbarAction(action)"
+      <ListPageActions
+        :loading="loading"
+        :export-loading="exportLoading"
+        :show-export="csvExportEnabled"
+        :show-create="canCreate && hasForm"
+        :create-label="createLabel"
+        @refresh="load()"
+        @print="printList"
+        @export="exportCsv"
+        @create="openCreate"
       >
-        {{ action.label }}
-      </Button>
-      <Button
-        v-if="csvImportType"
-        variant="outline"
-        :disabled="loading"
-        @click="importOpen = true"
-      >
-        <Upload class="mr-2 h-4 w-4" aria-hidden="true" />
-        Import CSV
-      </Button>
-      <Button
-        v-if="csvExportEnabled"
-        variant="outline"
-        :disabled="exportLoading || loading"
-        @click="exportCsv"
-      >
-        <Download class="mr-2 h-4 w-4" aria-hidden="true" />
-        {{ exportLoading ? 'Exporting…' : 'Export CSV' }}
-      </Button>
-      <Button v-if="canCreate && hasForm" @click="openCreate">
-        <Plus class="mr-2 h-4 w-4" aria-hidden="true" />
-        {{ createLabel }}
-      </Button>
+        <template #extra>
+          <Button
+            v-for="action in toolbarActions"
+            :key="action.label"
+            variant="outline"
+            class="rounded-xl"
+            :disabled="!!actionLoading"
+            @click="runToolbarAction(action)"
+          >
+            {{ action.label }}
+          </Button>
+          <Button
+            v-if="csvImportType"
+            variant="outline"
+            class="rounded-xl"
+            :disabled="loading"
+            @click="importOpen = true"
+          >
+            <Upload class="mr-2 h-4 w-4" aria-hidden="true" />
+            Import CSV
+          </Button>
+        </template>
+      </ListPageActions>
     </template>
 
     <PageLoader v-if="loading" :label="`Loading ${title}`" />
     <ErrorState v-else-if="error" :description="error" @retry="load" />
     <WorkspaceCard
       v-else
-      :title="title"
-      :description="subtitle"
-      meta-label="Records"
-      :meta-value="serverPagination ? serverTotal : tableRows.length"
+      :title="workspaceListTitle"
       flush
     >
       <DataTable
@@ -874,6 +901,12 @@ defineExpose({ load, openEdit })
           />
         </template>
         <template #toolbar>
+          <span
+            v-if="academicYear"
+            class="inline-flex h-9 items-center rounded-xl border border-border/80 bg-card px-3 text-xs font-medium text-muted-foreground"
+          >
+            Academic Year: {{ academicYear }}
+          </span>
           <slot name="toolbar" />
         </template>
       </DataTable>

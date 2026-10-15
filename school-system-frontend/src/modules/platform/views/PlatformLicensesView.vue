@@ -573,7 +573,9 @@ onMounted(loadAll)
   <PageShell
     title="Licenses"
     description="All registered schools and license keys — see who is licensed, unlicensed, or expired."
-   max-width="wide">
+    :breadcrumbs="['Platform', 'Licenses']"
+    max-width="wide"
+  >
     <template #actions>
       <Button variant="outline" :disabled="loading" @click="loadAll">
         <RefreshCw class="size-4" aria-hidden="true" />

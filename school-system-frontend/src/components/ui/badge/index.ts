@@ -11,6 +11,8 @@ export const badgeVariants = cva(
         default: 'bg-primary text-primary-foreground [a]:hover:bg-primary/80',
         secondary: 'bg-secondary text-secondary-foreground [a]:hover:bg-secondary/80',
         destructive: 'bg-destructive/10 [a]:hover:bg-destructive/20 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40 text-destructive dark:bg-destructive/20',
+        success: 'bg-[color-mix(in_oklch,var(--success)_18%,transparent)] text-[var(--success)] dark:bg-[color-mix(in_oklch,var(--success)_22%,transparent)]',
+        warning: 'bg-[color-mix(in_oklch,var(--warning)_20%,transparent)] text-[var(--warning)] dark:bg-[color-mix(in_oklch,var(--warning)_24%,transparent)]',
         outline: 'border-border text-foreground [a]:hover:bg-muted [a]:hover:text-muted-foreground',
         ghost: 'hover:bg-muted hover:text-muted-foreground dark:hover:bg-muted/50',
         link: 'text-primary underline-offset-4 hover:underline',

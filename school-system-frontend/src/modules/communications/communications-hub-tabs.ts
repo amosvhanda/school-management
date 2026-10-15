@@ -1,4 +1,4 @@
-import { Megaphone, MessageSquare } from '@lucide/vue'
+import { Inbox, Megaphone, MessageSquare } from '@lucide/vue'
 import type { ModuleHubTab } from '@/lib/module-hub'
 
 export const COMMUNICATIONS_HUB_TABS: ModuleHubTab[] = [
@@ -15,6 +15,14 @@ export const COMMUNICATIONS_HUB_TABS: ModuleHubTab[] = [
     description: 'Staff and parent conversation threads.',
     icon: MessageSquare,
     component: () => import('@/modules/communications/views/CommunicationThreadsView.vue'),
+  },
+  {
+    id: 'contact-messages',
+    title: 'Contact Messages',
+    description: 'Support inbox — phone, email, and walk-in enquiries logged as tickets.',
+    icon: Inbox,
+    capability: 'canManageReception',
+    component: () => import('@/modules/communications/views/ContactMessagesView.vue'),
   },
 ]
 

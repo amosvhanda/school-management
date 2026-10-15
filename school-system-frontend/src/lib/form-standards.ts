@@ -9,10 +9,14 @@ export type FormSheetSize = 'md' | 'lg' | 'xl'
 
 export type FormSheetColumns = 1 | 2 | 3
 
+/**
+ * Shared dialog widths so every CRUD form feels the same width band.
+ * md = tiny prompts only; lg = standard CRUD; xl = wizards / dense forms.
+ */
 export const formSheetSizeClass: Record<FormSheetSize, string> = {
-  md: 'sm:max-w-md',
-  lg: 'sm:max-w-xl',
-  xl: 'sm:max-w-2xl',
+  md: 'sm:max-w-lg',
+  lg: 'sm:max-w-2xl',
+  xl: 'sm:max-w-3xl',
 }
 
 /** Count interactive inputs (guardian block ≈ several fields). */
@@ -26,7 +30,7 @@ export function countFormInputs(fields: FormFieldSchema[]): number {
 
 /**
  * Pick dialog width from form complexity.
- * Short → md, typical CRUD → lg, wizards / dense forms → xl.
+ * Keep CRUD forms on the same width (lg) unless they are wizards or tiny prompts.
  */
 export function resolveFormSheetSize(
   fields: FormFieldSchema[],
@@ -36,49 +40,59 @@ export function resolveFormSheetSize(
   if (fields.some((field) => field.type === 'guardian-section')) return 'xl'
 
   const count = countFormInputs(fields)
-  if (count <= 4) return 'md'
-  if (count <= 12) return 'lg'
-  return 'xl'
+  // Tiny confirmations only — most create/edit sheets share `lg` so layouts match.
+  if (count <= 2) return 'md'
+  return 'lg'
 }
 
-/** Narrow dialogs use a single column so fields are not cramped. */
+/**
+ * Standard application form layout is always 2 columns from `sm` up.
+ * Only explicit md prompts stay single-column.
+ */
 export function resolveFormSheetColumns(size: FormSheetSize): FormSheetColumns {
   return size === 'md' ? 1 : 2
 }
 
-/** Premium micro-typography for form labels (Stripe / Linear style). */
+/** PreSkool-style field labels: readable sentence case above each control. */
 export const formLabelClass =
-  'text-xs font-semibold uppercase tracking-wider text-muted-foreground'
+  'text-sm font-medium leading-none text-foreground'
 
-/** Fluid inputs aligned with shadcn focus rings. */
+/** Fluid inputs aligned with shadcn focus rings — fixed height for alignment. */
 export const formInputClass =
-  'w-full focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-0'
+  'h-10 w-full focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-0'
 
 export const formTextareaClass =
-  'w-full min-h-[88px] resize-y focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-0'
+  'w-full min-h-[96px] resize-y focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-0'
 
 export const formSelectTriggerClass =
-  'w-full focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-0'
+  'h-10 w-full focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-0'
 
 /** Section headings inside multi-step / grouped forms. */
 export const formSectionLegendClass =
-  'mb-4 w-full border-b border-border/60 pb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground'
+  'mb-4 w-full border-b border-border/60 pb-3 text-sm font-semibold tracking-tight text-foreground'
+
+/** Shared sheet/card header title + description. */
+export const formSheetTitleClass = 'text-lg font-medium tracking-tight text-foreground'
+export const formSheetDescriptionClass = 'text-sm leading-relaxed text-muted-foreground'
 
 /** Tactile button feedback for primary actions. */
 export const formButtonClass = 'transition-all duration-200 active:scale-[0.98]'
 
-/** Surfaces match shadcn Card / Dialog (ring, not soft shadow). */
-export const formSurfaceClass = 'ring-1 ring-foreground/10'
+/** Surfaces match shadcn Card (soft elevation + border ring). */
+export const formSurfaceClass = 'shadow-[var(--shadow-soft)] ring-1 ring-border/80'
 
-/** Responsive grid — never fixed widths on fields. */
+/**
+ * Responsive grid — identical gap + columns everywhere FormBuilder is used.
+ * Never use ad-hoc grids for standard application forms.
+ */
 export function formGridClass(columns: FormSheetColumns = 2): string {
-  if (columns === 1) return 'grid grid-cols-1 gap-4'
-  if (columns === 3) return 'grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3'
-  return 'grid grid-cols-1 gap-4 sm:grid-cols-2'
+  if (columns === 1) return 'grid grid-cols-1 gap-x-4 gap-y-5'
+  if (columns === 3) return 'grid grid-cols-1 gap-x-4 gap-y-5 sm:grid-cols-2 lg:grid-cols-3'
+  return 'grid grid-cols-1 gap-x-4 gap-y-5 sm:grid-cols-2'
 }
 
 /** Reserved space so error messages do not shift layout. */
-export const formMessageAreaClass = 'min-h-[1.125rem]'
+export const formMessageAreaClass = 'min-h-[1.25rem]'
 
 export const genderOptions = [
   { label: 'Male', value: 'male' },

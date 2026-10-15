@@ -146,6 +146,30 @@ export const staffRoutes: RouteRecordRaw[] = [
     meta: { capability: 'canManageStudents' },
   },
   {
+    path: 'students/create',
+    name: 'student-create',
+    component: () => import('@/modules/students/views/AddStudentView.vue'),
+    meta: { capability: 'canManageStudents' },
+  },
+  {
+    path: 'students/promotion',
+    name: 'student-promotion',
+    component: () => import('@/modules/students/views/StudentPromotionView.vue'),
+    meta: { capability: 'canManageStudents' },
+  },
+  {
+    path: 'students/attendance-history',
+    name: 'student-attendance-history',
+    component: () => import('@/modules/students/views/AttendanceHistoryView.vue'),
+    meta: { capability: 'canManageStudents' },
+  },
+  {
+    path: 'students/documents',
+    name: 'student-documents-vault',
+    component: () => import('@/modules/students/views/StudentDocumentVaultView.vue'),
+    meta: { capability: 'canManageStudents' },
+  },
+  {
     path: 'teachers',
     name: 'teachers',
     component: () => import('@/modules/teachers/views/TeachersView.vue'),
@@ -400,6 +424,12 @@ export const staffRoutes: RouteRecordRaw[] = [
     path: 'admin',
     name: 'admin',
     component: () => import('@/modules/admin/views/AdminHubView.vue'),
+    meta: { capability: 'canManageTeachers' },
+  },
+  {
+    path: 'admin/branch-management',
+    name: 'branch-management',
+    component: () => import('@/modules/admin/views/BranchManagementView.vue'),
     meta: { capability: 'canManageTeachers' },
   },
   staffHubRedirect('admin/users', 'admin-users', 'admin', 'users', 'users', 'canManageTeachers'),

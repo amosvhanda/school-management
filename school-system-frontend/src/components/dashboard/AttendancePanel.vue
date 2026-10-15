@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
 import { Separator } from '@/components/ui/separator'
 import { formatDate } from '@/lib/format'
+import { STATUS_TONE_DOT } from '@/lib/ui-status'
 import type { AttendanceSummary } from '@/types/dashboard'
 
 const props = withDefaults(defineProps<{
@@ -25,11 +26,11 @@ const rate = computed(() => {
 })
 
 const segments = computed(() => [
-  { label: 'Present', value: props.summary.present, color: 'bg-emerald-500', text: 'text-emerald-600 dark:text-emerald-400' },
-  { label: 'Absent', value: props.summary.absent, color: 'bg-destructive', text: 'text-destructive' },
-  { label: 'Late', value: props.summary.late, color: 'bg-amber-500', text: 'text-amber-600 dark:text-amber-400' },
-  { label: 'Half day', value: props.summary.half_day ?? 0, color: 'bg-violet-500', text: 'text-violet-600 dark:text-violet-400' },
-  { label: 'Excused', value: props.summary.excused, color: 'bg-sky-500', text: 'text-sky-600 dark:text-sky-400' },
+  { label: 'Present', value: props.summary.present, color: STATUS_TONE_DOT.success, text: 'text-chart-2' },
+  { label: 'Absent', value: props.summary.absent, color: STATUS_TONE_DOT.danger, text: 'text-destructive' },
+  { label: 'Late', value: props.summary.late, color: STATUS_TONE_DOT.warning, text: 'text-chart-3' },
+  { label: 'Half day', value: props.summary.half_day ?? 0, color: STATUS_TONE_DOT.accent, text: 'text-primary' },
+  { label: 'Excused', value: props.summary.excused, color: STATUS_TONE_DOT.info, text: 'text-chart-4' },
 ])
 </script>
 

@@ -21,26 +21,28 @@ withDefaults(
 <template>
   <div
     :class="cn(
-      'flex flex-col items-center justify-center gap-2 text-center',
-      variant === 'default' && 'rounded-2xl border border-dashed border-border/80 bg-card p-12 shadow-[var(--shadow-soft)]',
+      'flex flex-col items-center justify-center gap-3 text-center',
+      variant === 'default' && 'rounded-2xl border border-dashed border-border/70 bg-card/80 p-10 shadow-[var(--shadow-soft)] sm:p-12',
       variant === 'embedded' && 'px-6 py-12',
       $props.class,
     )"
     role="status"
   >
     <div
-      class="mb-1 flex size-10 items-center justify-center rounded-full bg-muted text-muted-foreground"
+      class="flex size-12 items-center justify-center rounded-2xl bg-primary/10 text-primary ring-1 ring-primary/15"
       aria-hidden="true"
     >
       <component :is="icon ?? Inbox" class="size-5" />
     </div>
-    <h3 class="text-base font-semibold tracking-tight text-foreground">
-      {{ title ?? 'No records found' }}
-    </h3>
-    <p class="max-w-md text-sm text-muted-foreground">
-      {{ description ?? 'There is nothing to show here yet.' }}
-    </p>
-    <div v-if="$slots.default" class="mt-2">
+    <div class="space-y-1.5">
+      <h3 class="text-base font-semibold tracking-tight text-foreground">
+        {{ title ?? 'No records found' }}
+      </h3>
+      <p class="max-w-md text-sm leading-relaxed text-muted-foreground">
+        {{ description ?? 'There is nothing to show here yet.' }}
+      </p>
+    </div>
+    <div v-if="$slots.default" class="mt-1">
       <slot />
     </div>
   </div>

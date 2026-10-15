@@ -423,9 +423,27 @@ class AttendanceController extends Controller
             ->where('school_id', $schoolId)
             ->findOrFail($id);
 
-        $attendance = Attendance::where('student_id', $student->id)
-            ->where('school_id', $schoolId)
-            ->get();
+        $query = Attendance::where('student_id', $student->id)
+            ->where('school_id', $schoolId);
+
+        if ($request->filled('from')) {
+            $query->whereDate('date', '>=', $request->input('from'));
+        }
+        if ($request->filled('to')) {
+            $query->whereDate('date', '<=', $request->input('to'));
+        }
+        if ($request->filled('month')) {
+            $month = (string) $request->input('month'); // YYYY-MM
+            try {
+                $start = \Carbon\Carbon::createFromFormat('Y-m', $month)->startOfMonth();
+                $end = $start->copy()->endOfMonth();
+                $query->whereBetween('date', [$start->toDateString(), $end->toDateString()]);
+            } catch (\Throwable) {
+                // ignore invalid month
+            }
+        }
+
+        $attendance = $query->orderBy('date')->get();
 
         $summary = [
             'total_days' => $attendance->count(),
@@ -433,9 +451,20 @@ class AttendanceController extends Controller
             'absent' => $attendance->where('status', 'absent')->count(),
             'late' => $attendance->where('status', 'late')->count(),
             'excused' => $attendance->where('status', 'excused')->count(),
+            'on_leave' => $attendance->where('status', 'on_leave')->count()
+                + $attendance->where('status', 'leave')->count(),
             'attendance_rate' => $attendance->count() > 0
                 ? ($attendance->where('status', 'present')->count() / $attendance->count()) * 100
                 : 0,
+            'present_rate' => $attendance->count() > 0
+                ? round(($attendance->where('status', 'present')->count() / $attendance->count()) * 100, 1)
+                : 0,
+            'records' => $attendance->map(fn ($row) => [
+                'id' => $row->id,
+                'date' => $row->date?->toDateString() ?? $row->date,
+                'status' => $row->status,
+                'check_in_at' => $row->check_in_at ?? null,
+            ])->values()->all(),
         ];
 
         return response()->json([

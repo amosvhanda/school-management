@@ -146,7 +146,7 @@ async function loadAcademicsKpis(): Promise<SectionKpi[]> {
       value: String(kpis?.totalClasses ?? 0),
       subtitle: `${kpis?.activeStudents ?? 0} active students`,
       icon: BookOpen,
-      href: '/settings?tab=classes',
+      href: '/academics/setup',
     },
     {
       title: 'Grade records',
@@ -299,7 +299,7 @@ async function loadHrKpis(): Promise<SectionKpi[]> {
       value: String(policies.length),
       subtitle: 'Compliance documents',
       icon: Building2,
-      href: '/hr?tab=policies',
+      href: '/compliance',
     },
   ]
 }
@@ -330,7 +330,7 @@ async function loadOperationsKpis(): Promise<SectionKpi[]> {
       value: String(visitorsToday),
       subtitle: 'Campus sign-ins',
       icon: Users,
-      href: '/operations/front-office',
+      href: '/operations/visitors',
     },
     {
       title: 'Upcoming events',

@@ -46,6 +46,7 @@ import { toast } from 'vue-sonner'
 import { getErrorMessage } from '@/lib/api-response'
 import { formatMoney } from '@/lib/finance-constants'
 import { cn } from '@/lib/utils'
+import { STATUS_TONE_BADGE, STATUS_TONE_ICON } from '@/lib/ui-status'
 import { financeApi } from '@/services/api.service'
 import { payrollProcessPromptForm } from '@/modules/shared/action-prompt-forms'
 
@@ -218,16 +219,10 @@ function employeeSubtitle(row: PayrollRow) {
 
 function statusClass(status?: string) {
   const s = String(status ?? '').toLowerCase()
-  if (s === 'paid') {
-    return 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300'
-  }
-  if (s === 'partial') {
-    return 'border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200'
-  }
-  if (s === 'cancelled') {
-    return 'border-border bg-muted text-muted-foreground'
-  }
-  return 'border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200'
+  if (s === 'paid') return STATUS_TONE_BADGE.success
+  if (s === 'partial' || s === 'pending') return STATUS_TONE_BADGE.warning
+  if (s === 'cancelled') return STATUS_TONE_BADGE.neutral
+  return STATUS_TONE_BADGE.warning
 }
 
 function canProcess(row: PayrollRow) {
@@ -367,8 +362,9 @@ onMounted(load)
 
 <template>
   <PageShell
-    title="Payroll Management"
+    title="Payroll management"
     description="Manage staff salaries, allowances, and payment processing"
+    :breadcrumbs="['Finance', 'Payroll']"
     max-width="wide"
   >
     <template #actions>
@@ -443,7 +439,7 @@ onMounted(load)
               </p>
               <p class="text-xs text-muted-foreground">Out of {{ kpis.totalEmployees }} total</p>
             </div>
-            <div class="flex size-10 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-600">
+            <div :class="cn('flex size-10 items-center justify-center rounded-xl', STATUS_TONE_ICON.success)">
               <Users class="size-5" aria-hidden="true" />
             </div>
           </CardContent>
@@ -455,12 +451,12 @@ onMounted(load)
               <p class="text-xs font-medium tracking-wide text-muted-foreground uppercase">
                 Pending Payments
               </p>
-              <p class="text-2xl font-semibold tabular-nums tracking-tight text-amber-600">
+              <p class="text-2xl font-semibold tabular-nums tracking-tight text-chart-3">
                 {{ kpis.pending }}
               </p>
               <p class="text-xs text-muted-foreground">Awaiting processing</p>
             </div>
-            <div class="flex size-10 items-center justify-center rounded-xl bg-amber-500/10 text-amber-600">
+            <div :class="cn('flex size-10 items-center justify-center rounded-xl', STATUS_TONE_ICON.warning)">
               <AlertCircle class="size-5" aria-hidden="true" />
             </div>
           </CardContent>

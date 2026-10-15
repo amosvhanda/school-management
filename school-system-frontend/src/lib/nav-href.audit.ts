@@ -43,6 +43,8 @@ const HUB_TABS: Record<string, string[]> = {
     'leave',
     'leave-types',
     'staff-attendance',
+    'staff-tasks',
+    'recruitment',
     'discipline',
     'policies',
     'incidents',
@@ -81,6 +83,7 @@ const HUB_TABS: Record<string, string[]> = {
     'languages',
     'designations',
     'notifications',
+    'custom-fields',
   ],
 }
 
@@ -92,6 +95,7 @@ const knownPaths = new Set<string>([
 function collectHrefs(items: NavItem[], out: string[] = []): string[] {
   for (const item of items) {
     if (item.href) out.push(item.href)
+    if (item.createHref) out.push(item.createHref)
     if (item.items?.length) collectHrefs(item.items, out)
   }
   return out

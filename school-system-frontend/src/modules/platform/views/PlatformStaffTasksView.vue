@@ -315,6 +315,7 @@ onMounted(load)
   <PageShell
     title="Staff tasks"
     description="Assign and track operational work across schools — reports, follow-ups, and overdue actions."
+    :breadcrumbs="['Platform', 'Staff tasks']"
     max-width="wide"
   >
     <template #actions>

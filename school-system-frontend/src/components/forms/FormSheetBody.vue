@@ -192,7 +192,7 @@ const skeletonCount = computed(() => (props.size === 'md' ? 3 : 4))
       </div>
     </div>
 
-    <SheetFooter class="shrink-0 gap-2 border-t border-muted/60 bg-background px-6 py-4">
+    <SheetFooter class="shrink-0 flex-row justify-end gap-2 border-t border-border/60 bg-background px-6 py-4 sm:space-x-0">
       <Button
         type="button"
         variant="outline"
@@ -216,7 +216,7 @@ const skeletonCount = computed(() => (props.size === 'md' ? 3 : 4))
 
       <Button
         type="submit"
-        :class="formButtonClass"
+        :class="cn(formButtonClass, 'min-w-[8rem]')"
         :disabled="busy()"
         :aria-busy="busy()"
       >

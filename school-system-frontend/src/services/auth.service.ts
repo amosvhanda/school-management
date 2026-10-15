@@ -1,8 +1,16 @@
 import { api } from '@/lib/api'
 import { unwrapOne } from '@/lib/api-response'
+import { normalizeAuthUser } from '@/lib/auth-user'
 import type { ApiResponse, LicenseStatus } from '@/types/api'
 import type { AuthUser, LoginResponse, TwoFactorEnableResponse, TwoFactorStatus } from '@/types/auth'
 import { endpoints } from './endpoints'
+
+function withNormalizedUser(payload: LoginResponse): LoginResponse {
+  if (!payload.user) {
+    return payload
+  }
+  return { ...payload, user: normalizeAuthUser(payload.user) }
+}
 
 export async function login(email: string, password: string, role?: string) {
   const { data } = await api.post<ApiResponse<LoginResponse>>(endpoints.auth.login, {
@@ -10,7 +18,7 @@ export async function login(email: string, password: string, role?: string) {
     password,
     ...(role ? { role } : {}),
   })
-  return unwrapOne<LoginResponse>(data)
+  return withNormalizedUser(unwrapOne<LoginResponse>(data))
 }
 
 export async function challengeTwoFactor(challengeToken: string, code: string) {
@@ -18,7 +26,7 @@ export async function challengeTwoFactor(challengeToken: string, code: string) {
     challenge_token: challengeToken,
     code,
   })
-  return unwrapOne<LoginResponse>(data)
+  return withNormalizedUser(unwrapOne<LoginResponse>(data))
 }
 
 export async function fetchTwoFactorStatus() {
@@ -51,14 +59,14 @@ export async function logout() {
 
 export async function fetchCurrentUser() {
   const { data } = await api.get<ApiResponse<{ user: AuthUser }>>(endpoints.auth.me)
-  return unwrapOne<{ user: AuthUser }>(data).user
+  return normalizeAuthUser(unwrapOne<{ user: AuthUser }>(data).user)
 }
 
 export async function switchSchool(schoolId: number) {
   const { data } = await api.post<ApiResponse<LoginResponse>>(endpoints.auth.switchSchool, {
     school_id: schoolId,
   })
-  return unwrapOne<LoginResponse>(data)
+  return withNormalizedUser(unwrapOne<LoginResponse>(data))
 }
 
 export interface PlatformTermsPayload {

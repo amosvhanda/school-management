@@ -7,10 +7,16 @@ export interface DemoAccount {
   role: string
   email: string
   password: string
+  /** Demo avatar (matches PreskoolUiDemoSeeder user avatars). */
+  avatarUrl: string
   /** Whether this app allows sign-in for this role */
   webAccess: boolean
   /** Where the user lands after login */
   destination?: string
+}
+
+function demoAvatar(email: string): string {
+  return `https://i.pravatar.cc/128?u=${encodeURIComponent(email)}`
 }
 
 export const DEMO_ACCOUNTS: DemoAccount[] = [
@@ -19,6 +25,7 @@ export const DEMO_ACCOUNTS: DemoAccount[] = [
     role: 'admin',
     email: 'admin@school.co.zw',
     password: 'admin123',
+    avatarUrl: demoAvatar('admin@school.co.zw'),
     webAccess: true,
     destination: 'Staff dashboard',
   },
@@ -27,6 +34,7 @@ export const DEMO_ACCOUNTS: DemoAccount[] = [
     role: 'teacher',
     email: 'teacher@school.co.zw',
     password: 'teacher123',
+    avatarUrl: demoAvatar('teacher@school.co.zw'),
     webAccess: true,
     destination: 'Staff dashboard',
   },
@@ -35,6 +43,7 @@ export const DEMO_ACCOUNTS: DemoAccount[] = [
     role: 'finance',
     email: 'finance@school.co.zw',
     password: 'finance123',
+    avatarUrl: demoAvatar('finance@school.co.zw'),
     webAccess: true,
     destination: 'Finance modules',
   },
@@ -43,6 +52,7 @@ export const DEMO_ACCOUNTS: DemoAccount[] = [
     role: 'accounts',
     email: 'accounts@school.co.zw',
     password: 'accounts123',
+    avatarUrl: demoAvatar('accounts@school.co.zw'),
     webAccess: true,
     destination: 'Finance & audit',
   },
@@ -51,6 +61,7 @@ export const DEMO_ACCOUNTS: DemoAccount[] = [
     role: 'examination_officer',
     email: 'exam@school.co.zw',
     password: 'exam123',
+    avatarUrl: demoAvatar('exam@school.co.zw'),
     webAccess: true,
     destination: 'Exams & gradebook',
   },
@@ -59,6 +70,7 @@ export const DEMO_ACCOUNTS: DemoAccount[] = [
     role: 'parent',
     email: 'parent@school.co.zw',
     password: 'parent123',
+    avatarUrl: demoAvatar('parent@school.co.zw'),
     webAccess: true,
     destination: 'Parent portal',
   },
@@ -67,6 +79,7 @@ export const DEMO_ACCOUNTS: DemoAccount[] = [
     role: 'super_admin',
     email: 'super@school.co.zw',
     password: 'super123',
+    avatarUrl: demoAvatar('super@school.co.zw'),
     webAccess: true,
     destination: 'Super admin portal',
   },
@@ -75,6 +88,7 @@ export const DEMO_ACCOUNTS: DemoAccount[] = [
     role: 'student',
     email: 'student@school.co.zw',
     password: 'student123',
+    avatarUrl: demoAvatar('student@school.co.zw'),
     webAccess: true,
     destination: 'Student portal',
   },

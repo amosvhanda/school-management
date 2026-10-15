@@ -218,6 +218,7 @@ watch(
   <PageShell
     title="Messages"
     description="Contact the school about your children"
+    :breadcrumbs="['Parent portal', 'Messages']"
     max-width="wide"
   >
     <template #actions>

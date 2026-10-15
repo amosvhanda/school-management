@@ -8,6 +8,7 @@ use App\Http\Resources\Api\V1\SchoolResource;
 use App\Models\School;
 use App\Services\SchoolConfigurationService;
 use App\Services\SchoolProvisioningService;
+use App\Services\SchoolSettingsService;
 use Illuminate\Http\Request;
 
 class SchoolController extends Controller
@@ -15,6 +16,7 @@ class SchoolController extends Controller
     public function __construct(
         private SchoolProvisioningService $provisioning,
         private SchoolConfigurationService $configuration,
+        private SchoolSettingsService $settingsService,
     ) {}
 
     public function register(RegisterSchoolRequest $request)
@@ -56,6 +58,11 @@ class SchoolController extends Controller
 
         if ($currency !== null && $currency !== '') {
             $this->configuration->setSchoolCurrency($school->fresh(), (string) $currency);
+        }
+
+        $fresh = $school->fresh();
+        if ($fresh instanceof School) {
+            $this->settingsService->syncFromSchoolUpdate($fresh, $data);
         }
 
         return $this->success(new SchoolResource($school->fresh()), 'School updated successfully');

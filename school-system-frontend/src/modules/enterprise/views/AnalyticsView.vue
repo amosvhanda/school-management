@@ -74,6 +74,7 @@ onMounted(load)
   <PageShell
     title="School analytics"
     description="Cross-section insights — open a section hub for focused KPIs and shortcuts"
+    :breadcrumbs="['Enterprise', 'Analytics']"
     max-width="wide"
   >
     <section aria-labelledby="section-hub-links" class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">

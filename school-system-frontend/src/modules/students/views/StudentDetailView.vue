@@ -1,42 +1,46 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, ref } from 'vue'
-import { useRoute, RouterLink } from 'vue-router'
+import { useRoute } from 'vue-router'
 import {
-  ArrowLeft,
   Banknote,
+  BookOpen,
+  CalendarCheck2,
+  CalendarDays,
   Camera,
+  ChevronDown,
+  ClipboardList,
   Download,
   FileText,
+  Home,
   IdCard,
   Mail,
-  MapPin,
+  MessageCircle,
   Pencil,
   Phone,
-  Plus,
   Printer,
-  Trash2,
-  User,
+  QrCode,
+  Shield,
+  UserPlus,
   Users,
+  Wallet,
 } from '@lucide/vue'
 import PageLoader from '@/components/feedback/PageLoader.vue'
 import ErrorState from '@/components/feedback/ErrorState.vue'
 import FormSheet from '@/components/forms/FormSheet.vue'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
 import { useToast } from '@/composables/useToast'
 import { useAuth } from '@/composables/useAuth'
-import { getErrorMessage } from '@/lib/api-response'
+import {
+  getErrorMessage,
+  getValidationErrors,
+  messageFromBlobError,
+  triggerBrowserDownload,
+} from '@/lib/api-response'
+import { resolveMediaUrl, withCacheBust } from '@/lib/media-url'
+import { badgeVariantForStatus, STATUS_TONE_ICON } from '@/lib/ui-status'
 import { formatDate } from '@/lib/format'
 import { mapFormToPayload, mapRowToFormValues } from '@/modules/shared/crud-mappers'
 import { preloadRelationFields } from '@/lib/relation-options'
@@ -47,15 +51,50 @@ import {
   studentInvoiceSchema,
 } from '@/modules/students/student-form'
 import { studentsApi, financeApi, platformApi } from '@/services/api.service'
-import StudentJourneyPanel from '@/modules/students/components/StudentJourneyPanel.vue'
+import StudentInsightCard from '@/modules/students/components/StudentInsightCard.vue'
+import StudentMetricRing from '@/modules/students/components/StudentMetricRing.vue'
+import StudentProfileSideCards from '@/modules/students/components/StudentProfileSideCards.vue'
+import StudentOverviewPanel from '@/modules/students/components/profile/StudentOverviewPanel.vue'
+import StudentDocumentsPanel from '@/modules/students/components/profile/StudentDocumentsPanel.vue'
+import StudentAcademicsPanel from '@/modules/students/components/profile/StudentAcademicsPanel.vue'
+import StudentAttendancePanel from '@/modules/students/components/profile/StudentAttendancePanel.vue'
+import StudentFeesPanel from '@/modules/students/components/profile/StudentFeesPanel.vue'
+import StudentExamsPanel from '@/modules/students/components/profile/StudentExamsPanel.vue'
+import StudentHealthPanel from '@/modules/students/components/profile/StudentHealthPanel.vue'
+import StudentDisciplinePanel from '@/modules/students/components/profile/StudentDisciplinePanel.vue'
+import StudentTimelinePanel from '@/modules/students/components/profile/StudentTimelinePanel.vue'
+import StudentTimetablePanel from '@/modules/students/components/profile/StudentTimetablePanel.vue'
+import StudentShellPanels from '@/modules/students/components/profile/StudentShellPanels.vue'
 import InvoicePrintSheet from '@/modules/finance/components/InvoicePrintSheet.vue'
 import StudentIdCardSheet from '@/modules/students/components/StudentIdCardSheet.vue'
+import StudentProfileOverflowMenu from '@/modules/students/components/StudentProfileOverflowMenu.vue'
 import PaymentReceiptSheet from '@/modules/finance/components/PaymentReceiptSheet.vue'
 import { feePaymentPromptForm } from '@/modules/shared/action-prompt-forms'
+import {
+  STUDENT_PROFILE_TABS,
+  profileTabTriggerClass,
+  studentProfileMoreTabs,
+  studentProfilePrimaryTabs,
+  type StudentProfileTabId,
+} from '@/modules/students/student-profile-tabs'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import { cn } from '@/lib/utils'
+import PageShell from '@/components/layout/PageShell.vue'
+
+interface NamedRelation {
+  id?: number
+  name?: string
+}
 
 interface Student {
   id: number
   student_number?: string
+  roll_number?: string | number | null
   full_name?: string
   first_name?: string
   last_name?: string
@@ -67,9 +106,15 @@ interface Student {
   address?: string
   suburb?: string
   class?: string
+  class_model?: NamedRelation & { form?: string | null }
+  stream?: NamedRelation & { code?: string | null }
+  house?: NamedRelation
+  grade_level?: NamedRelation
+  student_category?: NamedRelation
   status?: string
   balance?: number
   currency?: string
+  created_at?: string
   guardian?: {
     id?: number
     first_name?: string
@@ -160,11 +205,26 @@ const uploadingPhoto = ref(false)
 const documents = ref<StudentDocumentRow[]>([])
 const documentsLoading = ref(false)
 const documentsError = ref<string | null>(null)
+const lifecycle = ref<Record<string, unknown> | null>(null)
 const documentInput = ref<HTMLInputElement | null>(null)
 const uploadingDocuments = ref(false)
 const deletingDocumentId = ref<number | null>(null)
 const documentType = ref('birth_certificate')
 const initiatingOnlinePaymentId = ref<number | null>(null)
+const profileTab = ref<StudentProfileTabId>(
+  (typeof route.query.tab === 'string' &&
+  STUDENT_PROFILE_TABS.some((t) => t.id === route.query.tab)
+    ? route.query.tab
+    : 'overview') as StudentProfileTabId,
+)
+
+function goToProfileTab(tab: StudentProfileTabId) {
+  profileTab.value = tab
+}
+
+const primaryProfileTabs = studentProfilePrimaryTabs()
+const moreProfileTabs = studentProfileMoreTabs()
+const moreTabActive = computed(() => moreProfileTabs.some((tab) => tab.id === profileTab.value))
 
 const DOCUMENT_TYPE_OPTIONS = [
   { label: 'Birth certificate', value: 'birth_certificate' },
@@ -182,14 +242,37 @@ const displayName = computed(() =>
   ?? 'Student',
 )
 
+const profileDescription = computed(() => {
+  const s = student.value
+  if (!s) return 'Learner profile, attendance, fees, and documents.'
+  const parts = [
+    s.student_number ? `Adm. ${s.student_number}` : '',
+    s.class_model?.name || s.class || '',
+  ].filter(Boolean)
+  return parts.join(' · ') || 'Learner profile, attendance, fees, and documents.'
+})
+
 const initials = computed(() =>
   displayName.value.split(' ').map((p) => p[0]).join('').slice(0, 2).toUpperCase(),
 )
 
-const studentPhotoUrl = computed(() => student.value?.photo_url ?? null)
+const photoPreviewUrl = ref<string | null>(null)
+const photoCacheToken = ref(0)
+
+const studentPhotoUrl = computed(() => {
+  if (photoPreviewUrl.value) return photoPreviewUrl.value
+  return withCacheBust(student.value?.photo_url, photoCacheToken.value)
+})
 
 function pickPhoto() {
+  if (uploadingPhoto.value) return
   photoInput.value?.click()
+}
+
+function firstValidationMessage(err: unknown): string | null {
+  const errors = getValidationErrors(err)
+  const first = Object.values(errors)[0]
+  return Array.isArray(first) && first[0] ? String(first[0]) : null
 }
 
 async function onPhotoSelected(event: Event) {
@@ -199,7 +282,7 @@ async function onPhotoSelected(event: Event) {
   if (!file) return
 
   if (!file.type.startsWith('image/')) {
-    toast.warning('Invalid file', 'Please choose an image file.')
+    toast.warning('Invalid file', 'Please choose an image file (JPG, PNG, or WebP).')
     input.value = ''
     return
   }
@@ -209,17 +292,33 @@ async function onPhotoSelected(event: Event) {
     return
   }
 
+  const localPreview = URL.createObjectURL(file)
+  photoPreviewUrl.value = localPreview
   uploadingPhoto.value = true
   try {
     const result = await studentsApi.uploadPhoto(student.value.id, file)
+    const nextUrl = resolveMediaUrl(result.photo_url) ?? result.photo_url
+    photoCacheToken.value = Date.now()
     if (student.value) {
-      student.value = { ...student.value, photo_url: result.photo_url }
+      const fromServer = (result.student ?? {}) as Partial<Student>
+      student.value = {
+        ...student.value,
+        ...fromServer,
+        photo_url: nextUrl,
+      }
     }
     toast.success('Student photo updated')
   } catch (err) {
-    toast.error('Could not upload photo', getErrorMessage(err))
+    toast.error(
+      'Could not upload photo',
+      firstValidationMessage(err) ?? getErrorMessage(err, 'Upload failed. Try a smaller JPG or PNG.'),
+    )
   } finally {
     uploadingPhoto.value = false
+    if (photoPreviewUrl.value === localPreview) {
+      photoPreviewUrl.value = null
+      URL.revokeObjectURL(localPreview)
+    }
     input.value = ''
   }
 }
@@ -255,8 +354,219 @@ function formatMoney(amount?: number, currency = 'USD') {
   return `${currency} ${Number(amount ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}`
 }
 
-function invoiceTotal(inv: Invoice) {
-  return inv.amount ?? inv.total
+const classLabel = computed(() => {
+  const s = student.value
+  if (!s) return '—'
+  const className = s.class_model?.name || s.class || ''
+  const stream = s.stream?.name || s.stream?.code || ''
+  return [className, stream].filter(Boolean).join(' · ') || 'Unassigned'
+})
+
+const houseName = computed(() => student.value?.house?.name ?? '—')
+const categoryName = computed(() => student.value?.student_category?.name ?? '')
+const gradeLevelName = computed(() => student.value?.grade_level?.name ?? '—')
+const rollNumber = computed(() => {
+  const roll = student.value?.roll_number
+  return roll != null && String(roll).trim() !== '' ? String(roll) : '—'
+})
+
+const ageYears = computed(() => {
+  const dob = student.value?.date_of_birth
+  if (!dob) return null
+  const birth = new Date(dob)
+  if (Number.isNaN(birth.getTime())) return null
+  const today = new Date()
+  let age = today.getFullYear() - birth.getFullYear()
+  const m = today.getMonth() - birth.getMonth()
+  if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age -= 1
+  return age >= 0 && age < 120 ? age : null
+})
+
+const attendanceStats = computed(() => {
+  const rows = performance.value?.attendance ?? []
+  if (!rows.length) return { percent: 0, present: 0, total: 0, label: '—' }
+  const present = rows.filter((r) => {
+    const status = String(r.status ?? '').toLowerCase()
+    return status === 'present' || status === 'late' || status === 'half_day'
+  }).length
+  const percent = Math.round((present / rows.length) * 100)
+  return { percent, present, total: rows.length, label: `${percent}%` }
+})
+
+const academicScore = computed(() => {
+  const avg = performance.value?.average_score
+  if (avg == null || Number.isNaN(Number(avg))) return null
+  return Number(avg)
+})
+
+const academicLabel = computed(() =>
+  academicScore.value != null ? academicScore.value.toFixed(1) : '—',
+)
+
+const perfIndex = computed(() => {
+  if (academicScore.value == null) return attendanceStats.value.percent || 0
+  return Math.round((academicScore.value + attendanceStats.value.percent) / 2)
+})
+
+const profileCompletion = computed(() => {
+  const s = student.value
+  if (!s) return 0
+  const checks = [
+    Boolean(s.first_name),
+    Boolean(s.last_name),
+    Boolean(s.date_of_birth),
+    Boolean(s.gender),
+    Boolean(s.phone || s.email),
+    Boolean(s.address || s.suburb),
+    Boolean(s.class || s.class_model),
+    Boolean(s.photo_url),
+    Boolean(guardianName.value),
+    Boolean(s.student_number),
+  ]
+  return Math.round((checks.filter(Boolean).length / checks.length) * 100)
+})
+
+const feeBalance = computed(() => Number(student.value?.balance ?? 0))
+const feePaid = computed(() => feeBalance.value <= 0)
+const feeHint = computed(() => {
+  if (feePaid.value) return 'All clear'
+  return `Due · ${formatMoney(feeBalance.value, student.value?.currency)}`
+})
+
+const statusIsActive = computed(() => String(student.value?.status ?? '').toLowerCase() === 'active')
+
+const featureTags = computed(() => {
+  const tags: Array<{ label: string; class: string }> = []
+  if (categoryName.value) {
+    tags.push({
+      label: categoryName.value,
+      class: STATUS_TONE_ICON.accent,
+    })
+  }
+  if (feePaid.value) {
+    tags.push({
+      label: 'Fees clear',
+      class: STATUS_TONE_ICON.success,
+    })
+  } else if (feeBalance.value > 0) {
+    tags.push({
+      label: 'Fee pending',
+      class: STATUS_TONE_ICON.danger,
+    })
+  }
+  if (linkedGuardians.value.length) {
+    tags.push({
+      label: 'Parent portal',
+      class: STATUS_TONE_ICON.info,
+    })
+  }
+  return tags
+})
+
+const insightCards = computed(() => [
+  {
+    title: 'Attendance',
+    value: attendanceStats.value.label,
+    hint: attendanceStats.value.total
+      ? `${attendanceStats.value.present}/${attendanceStats.value.total} recent`
+      : 'No records yet',
+    icon: CalendarDays,
+    tone: 'success' as const,
+  },
+  {
+    title: 'Academic',
+    value: academicLabel.value === '—' ? '—' : `${academicLabel.value}%`,
+    hint: performance.value?.total_grades
+      ? `${performance.value.total_grades} grades`
+      : 'No grades yet',
+    icon: BookOpen,
+    tone: 'info' as const,
+  },
+  {
+    title: 'Behavior',
+    value: statusIsActive.value ? 'Good' : 'Review',
+    hint: 'Conduct summary',
+    icon: Shield,
+    tone: statusIsActive.value ? 'success' as const : 'warning' as const,
+  },
+  {
+    title: 'Fee status',
+    value: feePaid.value ? 'Paid' : 'Pending',
+    hint: feeHint.value,
+    hintTone: feePaid.value ? 'success' as const : 'danger' as const,
+    icon: Banknote,
+    tone: feePaid.value ? 'success' as const : 'danger' as const,
+  },
+  {
+    title: 'Guardians',
+    value: String(linkedGuardians.value.length || 0),
+    hint: guardianName.value ?? 'None linked',
+    icon: Users,
+    tone: 'default' as const,
+  },
+  {
+    title: 'Documents',
+    value: String(documents.value.length),
+    hint: documents.value.length ? 'On file' : 'None uploaded',
+    icon: FileText,
+    tone: 'info' as const,
+  },
+  {
+    title: 'House',
+    value: houseName.value,
+    hint: 'House allocation',
+    icon: Home,
+    tone: 'warning' as const,
+  },
+  {
+    title: 'Class',
+    value: classLabel.value,
+    hint: gradeLevelName.value !== '—' ? gradeLevelName.value : 'Current class',
+    icon: ClipboardList,
+    tone: 'default' as const,
+  },
+])
+
+function printPage() {
+  document.body.classList.add('printing-student-profile')
+  const cleanup = () => {
+    document.body.classList.remove('printing-student-profile')
+    window.removeEventListener('afterprint', cleanup)
+  }
+  window.addEventListener('afterprint', cleanup)
+  window.setTimeout(cleanup, 1500)
+  window.print()
+}
+
+function buildLocalIdCardPayload(s: Student): Record<string, unknown> {
+  const className =
+    s.class_model?.name
+    ?? s.class
+    ?? null
+  const padded = String(s.id).padStart(6, '0')
+  return {
+    document_number: `ID-${padded}`,
+    issued_at: new Date().toISOString(),
+    student: {
+      id: s.id,
+      full_name:
+        s.full_name
+        || [s.first_name, s.last_name].filter(Boolean).join(' ')
+        || 'Student',
+      student_number: s.student_number ?? null,
+      class: className,
+      grade_level: s.grade_level?.name ?? null,
+      house: s.house?.name ?? null,
+      date_of_birth: s.date_of_birth ?? null,
+      gender: s.gender ?? null,
+      photo_url: s.photo_url ?? null,
+    },
+    school: {
+      name: 'School',
+      motto: null,
+      primary_color: '#3D5EE1',
+    },
+  }
 }
 
 async function openInvoicePrint(invoiceId: number) {
@@ -281,8 +591,9 @@ async function openIdCardPrint() {
   try {
     idCardPrintData.value = (await studentsApi.printIdCard(student.value.id)) as Record<string, unknown>
   } catch (err) {
-    toast.error('Could not load ID card', getErrorMessage(err))
-    idCardPrintOpen.value = false
+    // Fall back to the already-loaded profile so staff can still print an ID card offline.
+    idCardPrintData.value = buildLocalIdCardPayload(student.value)
+    toast.error('Using profile data', getErrorMessage(err, 'Could not load branded ID card from the server.'))
   } finally {
     idCardPrintLoading.value = false
   }
@@ -383,25 +694,20 @@ async function onRecordPayment(values: Record<string, unknown>) {
 }
 
 function statusVariant(status?: string) {
-  if (status === 'active' || status === 'paid') return 'default'
-  if (status === 'pending' || status === 'partial') return 'secondary'
-  return 'destructive'
+  return badgeVariantForStatus(status)
 }
 
 async function downloadResults() {
   downloading.value = true
   try {
     const blob = await studentsApi.downloadResults(id, 'html')
-    const number = student.value?.student_number ?? 'student'
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = `${number}_report_card.html`
-    link.click()
-    URL.revokeObjectURL(url)
+    const safeName = String(student.value?.full_name ?? student.value?.student_number ?? 'student')
+      .replace(/[^A-Za-z0-9_-]+/g, '_')
+      .replace(/^_+|_+$/g, '') || 'student'
+    triggerBrowserDownload(blob, `${safeName}_report_card.html`)
     toast.success('Report card downloaded')
   } catch (err) {
-    toast.error('Download failed', getErrorMessage(err))
+    toast.error('Download failed', await messageFromBlobError(err, 'Could not download report card.'))
   } finally {
     downloading.value = false
   }
@@ -411,9 +717,15 @@ async function load() {
   loading.value = true
   error.value = null
   try {
-    student.value = await studentsApi.get(id) as Student
+    const loaded = await studentsApi.get(id) as Student
+    student.value = {
+      ...loaded,
+      photo_url: resolveMediaUrl(loaded.photo_url) ?? loaded.photo_url,
+    }
+    photoCacheToken.value = Date.now()
     performance.value = await studentsApi.performance(id) as PerformanceData
     invoices.value = await studentsApi.invoices(id) as Invoice[]
+    void loadLifecycle()
     void loadDocuments()
   } catch (err) {
     error.value = getErrorMessage(err, 'Failed to load student')
@@ -422,15 +734,152 @@ async function load() {
   }
 }
 
-async function loadDocuments() {
-  if (!canEditStudent.value) {
-    documents.value = []
-    return
+async function loadLifecycle() {
+  try {
+    lifecycle.value = await studentsApi.lifecycle(id) as Record<string, unknown>
+  } catch {
+    lifecycle.value = null
   }
+}
+
+const primaryTransport = computed(() => {
+  const rows = lifecycle.value?.transport
+  if (!Array.isArray(rows) || !rows.length) return null
+  return (rows[0] ?? null) as Record<string, unknown> | null
+})
+
+const hostelAllocation = computed(() => {
+  const row = lifecycle.value?.hostel
+  return row && typeof row === 'object' ? (row as Record<string, unknown>) : null
+})
+
+const subjectPackage = computed(() => {
+  const placement = lifecycle.value?.placement as Record<string, unknown> | undefined
+  const pkg = placement?.subject_package
+  if (!Array.isArray(pkg)) return [] as Array<{ subject?: string; is_core?: boolean; code?: string }>
+  return pkg as Array<{ subject?: string; is_core?: boolean; code?: string }>
+})
+
+const coreSubjects = computed(() =>
+  subjectPackage.value.filter((s) => s.is_core && s.subject).map((s) => String(s.subject)),
+)
+
+const electiveSubjects = computed(() =>
+  subjectPackage.value.filter((s) => !s.is_core && s.subject).map((s) => String(s.subject)),
+)
+
+const gradeSubjects = computed(() => {
+  const grades = performance.value?.grades ?? []
+  const names = [...new Set(grades.map((g) => String(g.subject ?? '').trim()).filter(Boolean))]
+  return names
+})
+
+const displayCoreSubjects = computed(() =>
+  coreSubjects.value.length ? coreSubjects.value : gradeSubjects.value,
+)
+
+const overviewFields = computed(() => ({
+  admissionNo: student.value?.student_number,
+  rollNo: rollNumber.value,
+  classLabel: classLabel.value,
+  gradeLevel: gradeLevelName.value,
+  house: houseName.value,
+  category: categoryName.value,
+  fullName: displayName.value,
+  dateOfBirth: student.value?.date_of_birth,
+  ageLabel: ageYears.value != null ? `${ageYears.value} yrs` : '—',
+  gender: student.value?.gender,
+  phone: student.value?.phone,
+  email: student.value?.email,
+  address: [student.value?.address, student.value?.suburb].filter(Boolean).join(', ') || '—',
+  status: student.value?.status,
+  joined: student.value?.created_at ? formatDate(student.value.created_at) : '—',
+  balanceLabel: formatMoney(student.value?.balance, student.value?.currency),
+  batch: null as string | null,
+  academicYear: null as string | null,
+  classTeacher: null as string | null,
+}))
+
+const timelineEvents = computed(() => {
+  const events: Array<{
+    id: string
+    date?: string | null
+    title: string
+    description?: string
+    tone: 'success' | 'warning' | 'info' | 'danger' | 'neutral' | 'accent'
+    icon: typeof FileText
+  }> = []
+
+  if (student.value?.created_at) {
+    events.push({
+      id: 'admission',
+      date: student.value.created_at,
+      title: 'Admission completed',
+      description: `${displayName.value} enrolled${classLabel.value !== 'Unassigned' ? ` in ${classLabel.value}` : ''}.`,
+      tone: 'accent',
+      icon: UserPlus,
+    })
+  }
+
+  for (const doc of documents.value.slice(0, 5)) {
+    events.push({
+      id: `doc-${doc.id}`,
+      date: doc.created_at,
+      title: 'Document uploaded',
+      description: doc.name ?? String(doc.type ?? 'File'),
+      tone: 'info',
+      icon: FileText,
+    })
+  }
+
+  for (const inv of invoices.value.slice(0, 5)) {
+    events.push({
+      id: `inv-${inv.id}`,
+      date: inv.due_date,
+      title: 'Fee invoice generated',
+      description: `${inv.invoice_number ?? `#${inv.id}`} · ${formatMoney(inv.amount ?? inv.total, inv.currency)}`,
+      tone: 'warning',
+      icon: Wallet,
+    })
+  }
+
+  for (const [i, grade] of (performance.value?.grades ?? []).slice(0, 5).entries()) {
+    events.push({
+      id: `grade-${i}`,
+      date: null,
+      title: 'Grade recorded',
+      description: `${grade.subject ?? 'Subject'} — ${grade.score ?? '—'} (${grade.grade ?? '—'})`,
+      tone: 'success',
+      icon: ClipboardList,
+    })
+  }
+
+  for (const [i, row] of (performance.value?.attendance ?? []).slice(0, 3).entries()) {
+    if (String(row.status ?? '').toLowerCase() !== 'present') continue
+    events.push({
+      id: `att-${i}`,
+      date: row.date,
+      title: 'Attendance marked',
+      description: `Status: ${row.status}`,
+      tone: 'success',
+      icon: CalendarCheck2,
+    })
+  }
+
+  return events
+})
+
+const classId = computed(() => student.value?.class_model?.id ?? null)
+
+async function loadDocuments() {
   documentsLoading.value = true
   documentsError.value = null
   try {
-    documents.value = await studentsApi.documents(id) as StudentDocumentRow[]
+    const rows = await studentsApi.documents(id) as StudentDocumentRow[]
+    documents.value = rows.map((row) => ({
+      ...row,
+      url: resolveMediaUrl(row.url) ?? row.url,
+    }))
   } catch (err) {
     documentsError.value = getErrorMessage(err, 'Failed to load documents')
   } finally {
@@ -447,13 +896,24 @@ async function onDocumentsSelected(event: Event) {
   const files = Array.from(input.files ?? [])
   if (!files.length) return
 
+  const maxBytes = 10 * 1024 * 1024
+  const tooLarge = files.find((file) => file.size > maxBytes)
+  if (tooLarge) {
+    toast.warning('File too large', `"${tooLarge.name}" exceeds the 10 MB limit.`)
+    input.value = ''
+    return
+  }
+
   uploadingDocuments.value = true
   try {
     await studentsApi.uploadDocuments(id, files, documentType.value)
     toast.success(files.length === 1 ? 'Document uploaded' : `${files.length} documents uploaded`)
     await loadDocuments()
   } catch (err) {
-    toast.error('Upload failed', getErrorMessage(err))
+    toast.error(
+      'Upload failed',
+      firstValidationMessage(err) ?? getErrorMessage(err, 'Could not upload document(s).'),
+    )
   } finally {
     uploadingDocuments.value = false
     input.value = ''
@@ -471,13 +931,6 @@ async function removeDocument(doc: StudentDocumentRow) {
   } finally {
     deletingDocumentId.value = null
   }
-}
-
-function formatFileSize(bytes?: number | null) {
-  if (!bytes || bytes < 1) return '—'
-  if (bytes < 1024) return `${bytes} B`
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
 
 async function openEdit() {
@@ -521,17 +974,19 @@ async function onSaveStudent(values: Record<string, unknown>) {
 async function onCreateInvoice(values: Record<string, unknown>) {
   saving.value = true
   try {
+    // StudentController::createInvoice expects camelCase dueDate + numeric relation ids.
+    const dueDate = String(values.dueDate ?? '').trim().slice(0, 10)
     const payload: Record<string, unknown> = {
-      dueDate: values.dueDate,
+      dueDate,
       apply_discounts: values.apply_discounts !== false,
       combine_group: values.combine_group === true,
     }
     if (values.fee_group_id) {
       payload.fee_group_id = Number(values.fee_group_id)
-      if (values.description) payload.description = values.description
+      if (values.description) payload.description = String(values.description).trim()
     } else {
-      payload.description = values.description
-      payload.amount = values.amount
+      payload.description = values.description ? String(values.description).trim() : undefined
+      payload.amount = values.amount != null && values.amount !== '' ? Number(values.amount) : undefined
       if (values.fee_structure_id) {
         payload.fee_structure_id = Number(values.fee_structure_id)
       }
@@ -553,440 +1008,443 @@ onMounted(load)
 </script>
 
 <template>
-  <div class="mx-auto w-full max-w-[1600px] space-y-6 pb-8">
-    <div class="flex items-center justify-between gap-3">
-      <Button variant="ghost" size="sm" as-child>
-        <RouterLink to="/students">
-          <ArrowLeft class="mr-1 h-4 w-4" />
-          Back to students
-        </RouterLink>
-      </Button>
-      <div class="flex flex-wrap gap-2">
-        <Button
-          v-if="student && !loading"
-          variant="outline"
-          size="sm"
-          @click="openIdCardPrint"
-        >
-          <IdCard class="mr-1 h-4 w-4" aria-hidden="true" />
-          Print ID card
+  <PageShell
+    data-student-profile-print
+    root-class="print:max-w-none"
+    title="Student profile"
+    :description="profileDescription"
+    :breadcrumbs="['Students', 'Profile']"
+    back-to="/students"
+    back-label="Back to students"
+  >
+    <template
+      v-if="student && !loading"
+      #actions
+    >
+      <div class="flex flex-wrap items-center gap-2 print:hidden">
+        <Button type="button" v-if="canEditStudent" class="rounded-xl" @click="openEdit">
+          <Pencil class="mr-1.5 size-4" aria-hidden="true" />
+          Edit Student
+        </Button>
+        <Button type="button" variant="outline" class="rounded-xl" @click="printPage">
+          <Printer class="mr-1.5 size-4" aria-hidden="true" />
+          Print
         </Button>
         <Button
-          v-if="student && !loading"
+          type="button"
           variant="outline"
-          size="sm"
+          class="rounded-xl"
           :disabled="downloading"
+          :aria-busy="downloading"
           @click="downloadResults"
         >
-          <Download class="mr-1 h-4 w-4" aria-hidden="true" />
-          Download report card
+          <Download class="mr-1.5 size-4" aria-hidden="true" />
+          {{ downloading ? 'Downloading…' : 'Download' }}
         </Button>
-        <Button v-if="student && !loading && canEditStudent" variant="outline" size="sm" @click="openEdit">
-          <Pencil class="mr-1 h-4 w-4" />
-          Edit student
+        <Button
+          type="button"
+          variant="outline"
+          class="rounded-xl"
+          :disabled="idCardPrintLoading"
+          :aria-busy="idCardPrintLoading"
+          @click="openIdCardPrint"
+        >
+          <IdCard class="mr-1.5 size-4" aria-hidden="true" />
+          {{ idCardPrintLoading ? 'Loading…' : 'ID Card' }}
         </Button>
+        <StudentProfileOverflowMenu
+          :student-id="id"
+          :student-name="displayName"
+          :student-email="student.email"
+          :admission-no="student.student_number"
+          :can-manage="canEditStudent"
+          @navigate="goToProfileTab"
+          @refreshed="load"
+        />
       </div>
-    </div>
+    </template>
 
     <PageLoader v-if="loading" />
     <ErrorState v-else-if="error" :description="error" @retry="load" />
 
     <template v-else-if="student">
-      <Card>
-        <CardContent class="flex flex-col gap-6 p-6 sm:flex-row sm:items-center">
-          <div class="relative shrink-0">
-            <Avatar class="h-16 w-16">
-              <AvatarImage v-if="studentPhotoUrl" :src="studentPhotoUrl" :alt="displayName" />
-              <AvatarFallback class="text-lg">{{ initials }}</AvatarFallback>
-            </Avatar>
-            <button
-              v-if="canEditStudent"
-              type="button"
-              class="absolute -right-1 -bottom-1 flex size-7 items-center justify-center rounded-full border border-border bg-background text-muted-foreground shadow-sm transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60"
-              :disabled="uploadingPhoto"
-              :aria-busy="uploadingPhoto"
-              aria-label="Change student photo"
-              @click="pickPhoto"
-            >
-              <Camera class="size-3.5" aria-hidden="true" />
-            </button>
-            <input
-              ref="photoInput"
-              type="file"
-              accept="image/*"
-              class="sr-only"
-              @change="onPhotoSelected"
+      <!-- Hero -->
+      <section
+        class="rounded-2xl bg-card shadow-[var(--shadow-soft)] ring-1 ring-border/70 dark:ring-border/50"
+        aria-label="Student summary"
+      >
+        <div class="flex flex-col gap-6 p-5 xl:flex-row xl:items-start xl:p-6">
+          <div class="flex min-w-0 flex-1 flex-col gap-4 sm:flex-row sm:items-start">
+            <div class="relative shrink-0">
+              <Avatar class="size-24 rounded-2xl shadow-sm ring-2 ring-background sm:size-28">
+                <AvatarImage
+                  v-if="studentPhotoUrl"
+                  :key="studentPhotoUrl"
+                  :src="studentPhotoUrl"
+                  :alt="displayName"
+                  class="rounded-2xl object-cover"
+                />
+                <AvatarFallback class="rounded-2xl bg-primary/10 text-2xl font-semibold text-primary">
+                  {{ initials }}
+                </AvatarFallback>
+              </Avatar>
+              <span
+                class="absolute bottom-1 left-1 size-3.5 rounded-full border-2 border-card"
+                :class="statusIsActive ? 'bg-chart-2' : 'bg-muted-foreground'"
+                :title="student.status ?? 'status'"
+                aria-hidden="true"
+              />
+              <button
+                v-if="canEditStudent"
+                type="button"
+                class="absolute bottom-1 right-1 flex size-8 items-center justify-center rounded-full border border-border bg-background/95 text-muted-foreground shadow-sm backdrop-blur-sm transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60 print:hidden"
+                :disabled="uploadingPhoto"
+                :aria-busy="uploadingPhoto"
+                :aria-label="uploadingPhoto ? 'Uploading photo' : 'Change student photo'"
+                @click="pickPhoto"
+              >
+                <Camera class="size-3.5" aria-hidden="true" />
+              </button>
+              <span
+                v-if="uploadingPhoto"
+                class="absolute inset-0 flex items-center justify-center rounded-2xl bg-background/55 text-xs font-medium text-foreground backdrop-blur-[1px]"
+                role="status"
+              >
+                Uploading…
+              </span>
+              <input
+                ref="photoInput"
+                type="file"
+                accept="image/jpeg,image/png,image/webp,image/gif,.jpg,.jpeg,.png,.webp,.gif"
+                class="sr-only"
+                tabindex="-1"
+                @change="onPhotoSelected"
+              />
+            </div>
+
+            <div class="min-w-0 flex-1 space-y-3">
+              <div class="flex flex-wrap items-center gap-2">
+                <h2 class="truncate text-xl font-semibold tracking-tight sm:text-2xl">{{ displayName }}</h2>
+                <Badge
+                  :variant="statusIsActive ? 'success' : statusVariant(student.status)"
+                  class="capitalize"
+                >
+                  {{ student.status ?? 'unknown' }}
+                </Badge>
+              </div>
+              <dl class="grid min-w-0 grid-cols-1 gap-x-4 gap-y-2 text-sm text-muted-foreground sm:grid-cols-2">
+                <div class="min-w-0 space-y-0.5 sm:col-span-2">
+                  <dt class="text-xs font-medium text-foreground/70">Admission #</dt>
+                  <dd class="break-words font-medium tabular-nums text-foreground">
+                    {{ student.student_number ?? '—' }}
+                  </dd>
+                </div>
+                <div class="min-w-0 space-y-0.5">
+                  <dt class="text-xs font-medium text-foreground/70">Roll #</dt>
+                  <dd class="font-medium tabular-nums text-foreground">{{ rollNumber }}</dd>
+                </div>
+                <div class="min-w-0 space-y-0.5 sm:col-span-2">
+                  <dt class="text-xs font-medium text-foreground/70">Class</dt>
+                  <dd class="break-words font-medium text-foreground">{{ classLabel }}</dd>
+                </div>
+                <div class="min-w-0 space-y-0.5">
+                  <dt class="text-xs font-medium text-foreground/70">House</dt>
+                  <dd class="break-words font-medium text-foreground">{{ houseName }}</dd>
+                </div>
+              </dl>
+              <div v-if="featureTags.length" class="flex flex-wrap gap-1.5">
+                <span
+                  v-for="tag in featureTags"
+                  :key="tag.label"
+                  :class="cn('inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold', tag.class)"
+                >
+                  {{ tag.label }}
+                </span>
+              </div>
+              <div class="space-y-1.5 pt-1">
+                <div class="flex items-center justify-between gap-2 text-xs">
+                  <span class="font-medium text-muted-foreground">Profile completion</span>
+                  <span class="font-semibold tabular-nums text-chart-2">{{ profileCompletion }}%</span>
+                </div>
+                <div
+                  class="h-2 overflow-hidden rounded-full bg-muted"
+                  role="progressbar"
+                  :aria-valuenow="profileCompletion"
+                  aria-valuemin="0"
+                  aria-valuemax="100"
+                  :aria-label="`Profile ${profileCompletion}% complete`"
+                >
+                  <div
+                    class="h-full rounded-full bg-chart-2 transition-all duration-500"
+                    :style="{ width: `${profileCompletion}%` }"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="flex w-full shrink-0 flex-col items-stretch gap-4 sm:flex-row sm:items-center sm:justify-between xl:w-auto xl:flex-col xl:items-end">
+          <div class="flex flex-wrap items-center justify-center gap-4 sm:gap-6 xl:justify-end">
+            <StudentMetricRing
+              label="Attendance"
+              :value-label="attendanceStats.label"
+              :percent="attendanceStats.percent || (attendanceStats.total ? 0 : 0)"
+              tone="success"
+            />
+            <StudentMetricRing
+              label="Academic"
+              :value-label="academicLabel"
+              :percent="academicScore ?? 0"
+              tone="primary"
+            />
+            <StudentMetricRing
+              label="Perf. Index"
+              :value-label="String(perfIndex || '—')"
+              :percent="perfIndex"
+              tone="warning"
             />
           </div>
-          <div class="flex-1 space-y-1">
-            <p class="text-xs text-muted-foreground">Dashboard / Students / {{ displayName }}</p>
-            <div class="flex flex-wrap items-center gap-2">
-              <h1 class="font-heading text-2xl font-semibold tracking-tight md:text-3xl">{{ displayName }}</h1>
-              <Badge :variant="statusVariant(student.status)">{{ student.status ?? 'unknown' }}</Badge>
-            </div>
-            <p class="text-muted-foreground">
-              {{ student.student_number }} · {{ student.class ?? 'No class assigned' }}
-            </p>
-            <p v-if="student.balance" class="text-sm font-medium">
-              Balance: {{ formatMoney(student.balance, student.currency) }}
-            </p>
-          </div>
-        </CardContent>
-      </Card>
 
-      <div class="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader class="pb-2">
-            <CardDescription>Date of birth</CardDescription>
-            <CardTitle class="text-base">{{ formatDate(student.date_of_birth) }}</CardTitle>
-          </CardHeader>
-        </Card>
-        <Card>
-          <CardHeader class="pb-2">
-            <CardDescription>Gender</CardDescription>
-            <CardTitle class="text-base capitalize">{{ student.gender ?? '—' }}</CardTitle>
-          </CardHeader>
-        </Card>
-        <Card>
-          <CardHeader class="pb-2">
-            <CardDescription>Phone</CardDescription>
-            <CardTitle class="flex items-center gap-1 text-base">
-              <Phone class="h-3.5 w-3.5 text-muted-foreground" />
-              {{ student.phone ?? '—' }}
-            </CardTitle>
-          </CardHeader>
-        </Card>
-        <Card>
-          <CardHeader class="pb-2">
-            <CardDescription>Email</CardDescription>
-            <CardTitle class="flex items-center gap-1 text-base">
-              <Mail class="h-3.5 w-3.5 text-muted-foreground" />
-              {{ student.email ?? '—' }}
-            </CardTitle>
-          </CardHeader>
-        </Card>
-      </div>
-
-      <div class="grid gap-4 lg:grid-cols-3">
-        <Card class="lg:col-span-2">
-          <CardHeader>
-            <CardTitle class="flex items-center gap-2">
-              <User class="h-4 w-4" />
-              Contact & address
-            </CardTitle>
-          </CardHeader>
-          <CardContent class="space-y-2 text-sm">
-            <p v-if="student.address" class="flex items-start gap-2">
-              <MapPin class="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
-              {{ student.address }}{{ student.suburb ? `, ${student.suburb}` : '' }}
-            </p>
-            <p v-else class="text-muted-foreground">No address on file</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle class="flex items-center gap-2">
-              <Users class="h-4 w-4" />
-              Guardians
-            </CardTitle>
-            <CardDescription>Linked from the guardian register</CardDescription>
-          </CardHeader>
-          <CardContent class="space-y-4 text-sm">
-            <div v-if="!linkedGuardians.length" class="text-muted-foreground">
-              No guardian linked yet. Edit the student to select or register one.
-            </div>
+          <div class="flex flex-row items-center justify-center gap-3 sm:justify-end xl:flex-col xl:items-end">
             <div
-              v-for="guardian in linkedGuardians"
-              :key="String(guardian.id ?? guardian.full_name)"
-              class="rounded-lg border p-3"
+              class="flex size-20 items-center justify-center rounded-2xl bg-muted/50 text-muted-foreground ring-1 ring-border/50"
+              aria-hidden="true"
+              title="Student QR"
             >
-              <div class="flex items-start justify-between gap-2">
-                <p class="font-medium">
-                  {{ guardian.full_name ?? ('first_name' in guardian ? [guardian.first_name, guardian.last_name].filter(Boolean).join(' ') : '') }}
-                </p>
-                <Badge v-if="guardian.pivot?.is_primary" variant="secondary">Primary</Badge>
-              </div>
-              <p v-if="guardian.pivot?.relationship ?? guardian.relationship" class="mt-1 capitalize text-muted-foreground">
-                {{ guardian.pivot?.relationship ?? guardian.relationship }}
-              </p>
-              <p v-if="guardian.phone" class="mt-2">{{ guardian.phone }}</p>
-              <p v-if="guardian.email">{{ guardian.email }}</p>
+              <QrCode class="size-10 opacity-70" />
+            </div>
+            <div class="flex gap-1.5 print:hidden">
               <Button
-                v-if="guardian.id"
-                variant="link"
-                class="mt-2 h-auto p-0"
+                v-if="student.phone"
+                variant="outline"
+                size="icon"
+                class="size-9 rounded-full"
                 as-child
               >
-                <RouterLink :to="{ name: 'guardians' }">View in guardians</RouterLink>
+                <a :href="`tel:${student.phone}`" :aria-label="`Call ${displayName}`">
+                  <Phone class="size-4" />
+                </a>
+              </Button>
+              <Button
+                v-if="student.phone"
+                variant="outline"
+                size="icon"
+                class="size-9 rounded-full"
+                as-child
+              >
+                <a
+                  :href="`https://wa.me/${String(student.phone).replace(/\D/g, '')}`"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  :aria-label="`WhatsApp ${displayName}`"
+                >
+                  <MessageCircle class="size-4" />
+                </a>
+              </Button>
+              <Button
+                v-if="student.email"
+                variant="outline"
+                size="icon"
+                class="size-9 rounded-full"
+                as-child
+              >
+                <a :href="`mailto:${student.email}`" :aria-label="`Email ${displayName}`">
+                  <Mail class="size-4" />
+                </a>
               </Button>
             </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      <Tabs default-value="journey">
-        <TabsList class="flex h-auto flex-wrap gap-1">
-          <TabsTrigger value="journey">Journey</TabsTrigger>
-          <TabsTrigger value="performance">Performance</TabsTrigger>
-          <TabsTrigger value="fees">Fees & invoices</TabsTrigger>
-          <TabsTrigger value="documents">Documents</TabsTrigger>
-          <TabsTrigger value="attendance">Attendance</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="journey" class="mt-4">
-          <StudentJourneyPanel :student-id="id" @refreshed="load" />
-        </TabsContent>
-
-        <TabsContent value="performance" class="space-y-4">
-          <div class="grid gap-4 sm:grid-cols-2">
-            <Card>
-              <CardHeader class="pb-2">
-                <CardDescription>Average score</CardDescription>
-                <CardTitle class="text-2xl">
-                  {{ performance?.average_score != null ? Number(performance.average_score).toFixed(1) : '—' }}%
-                </CardTitle>
-              </CardHeader>
-            </Card>
-            <Card>
-              <CardHeader class="pb-2">
-                <CardDescription>Total grades recorded</CardDescription>
-                <CardTitle class="text-2xl">{{ performance?.total_grades ?? 0 }}</CardTitle>
-              </CardHeader>
-            </Card>
           </div>
-          <Card>
-            <CardHeader><CardTitle>Grade history</CardTitle></CardHeader>
-            <CardContent>
-              <Table v-if="performance?.grades?.length">
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Subject</TableHead>
-                    <TableHead>Term</TableHead>
-                    <TableHead>Score</TableHead>
-                    <TableHead>Grade</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  <TableRow v-for="(grade, i) in performance.grades" :key="i">
-                    <TableCell>{{ grade.subject ?? '—' }}</TableCell>
-                    <TableCell>{{ grade.term ?? '—' }}</TableCell>
-                    <TableCell>{{ grade.score ?? '—' }}</TableCell>
-                    <TableCell>{{ grade.grade ?? '—' }}</TableCell>
-                  </TableRow>
-                </TableBody>
-              </Table>
-              <p v-else class="text-sm text-muted-foreground">No grades recorded yet.</p>
-            </CardContent>
-          </Card>
-        </TabsContent>
+          </div>
+        </div>
+      </section>
 
-        <TabsContent value="fees">
-          <Card>
-            <CardHeader class="flex flex-row items-center justify-between space-y-0">
-              <div>
-                <CardTitle>Invoices</CardTitle>
-                <CardDescription>Fee invoices and outstanding balances</CardDescription>
-              </div>
-              <Button v-if="canCreateInvoice" size="sm" @click="openInvoice">
-                <Plus class="mr-1 h-4 w-4" />
-                New invoice
-              </Button>
-            </CardHeader>
-            <CardContent>
-              <Table v-if="invoices.length">
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Invoice #</TableHead>
-                    <TableHead>Total</TableHead>
-                    <TableHead>Balance</TableHead>
-                    <TableHead>Due</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead class="w-24">
-                      <span class="sr-only">Actions</span>
-                    </TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  <TableRow v-for="inv in invoices" :key="inv.id">
-                    <TableCell>{{ inv.invoice_number ?? '—' }}</TableCell>
-                    <TableCell>{{ formatMoney(invoiceTotal(inv), inv.currency) }}</TableCell>
-                    <TableCell>{{ formatMoney(inv.balance, inv.currency) }}</TableCell>
-                    <TableCell>{{ formatDate(inv.due_date) }}</TableCell>
-                    <TableCell>
-                      <Badge :variant="statusVariant(inv.status)">{{ inv.status ?? '—' }}</Badge>
-                    </TableCell>
-                    <TableCell>
-                      <div class="flex flex-wrap justify-end gap-2">
-                        <Button
-                          v-if="canCreateInvoice && canRecordPayment(inv)"
-                          variant="outline"
-                          size="sm"
-                          :aria-label="`Record payment for invoice ${inv.invoice_number ?? inv.id}`"
-                          @click="openRecordPayment(inv)"
-                        >
-                          <Banknote class="h-4 w-4" aria-hidden="true" />
-                          <span class="sr-only sm:not-sr-only sm:ml-1">Record</span>
-                        </Button>
-                        <Button
-                          v-if="canCreateInvoice && canRecordPayment(inv)"
-                          variant="secondary"
-                          size="sm"
-                          :disabled="initiatingOnlinePaymentId === inv.id"
-                          :aria-busy="initiatingOnlinePaymentId === inv.id"
-                          :aria-label="`Pay online for invoice ${inv.invoice_number ?? inv.id}`"
-                          @click="payOnline(inv)"
-                        >
-                          Pay online
-                        </Button>
-                        <Button
-                          v-if="canCreateInvoice"
-                          variant="outline"
-                          size="sm"
-                          :aria-label="`Print invoice ${inv.invoice_number ?? inv.id}`"
-                          @click="openInvoicePrint(inv.id)"
-                        >
-                          <Printer class="h-4 w-4" aria-hidden="true" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                </TableBody>
-              </Table>
-              <p v-else class="text-sm text-muted-foreground">No invoices for this student.</p>
-            </CardContent>
-          </Card>
-        </TabsContent>
+      <!-- Insight strip -->
+      <section
+        class="flex gap-3 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        aria-label="Student insights"
+      >
+        <StudentInsightCard
+          v-for="card in insightCards"
+          :key="card.title"
+          :title="card.title"
+          :value="card.value"
+          :hint="card.hint"
+          :icon="card.icon"
+          :tone="card.tone"
+          :hint-tone="card.hintTone"
+        />
+      </section>
 
-        <TabsContent value="documents" class="mt-4">
-          <Card>
-            <CardHeader class="flex flex-col gap-4 space-y-0 sm:flex-row sm:items-start sm:justify-between">
-              <div>
-                <CardTitle class="flex items-center gap-2">
-                  <FileText class="h-4 w-4" aria-hidden="true" />
-                  Student documents
-                </CardTitle>
-                <CardDescription>Birth certificates, IDs, medical notes, and other files.</CardDescription>
-              </div>
-              <div v-if="canEditStudent" class="flex flex-wrap items-end gap-2">
-                <div class="space-y-1">
-                  <label for="student-document-type" class="text-xs font-medium text-muted-foreground">Type</label>
-                  <select
-                    id="student-document-type"
-                    v-model="documentType"
-                    class="flex h-9 w-full min-w-[10rem] rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      <!-- Side cards + tabbed workspace -->
+      <div class="grid gap-6 xl:grid-cols-[minmax(0,20rem)_minmax(0,1fr)] 2xl:grid-cols-[minmax(0,22rem)_minmax(0,1fr)]">
+        <div class="xl:sticky xl:top-24 xl:self-start">
+          <StudentProfileSideCards
+            :guardians="linkedGuardians as any"
+            :transport="primaryTransport"
+            :hostel="hostelAllocation"
+          />
+        </div>
+
+        <div class="min-w-0 space-y-6">
+          <input
+            ref="documentInput"
+            type="file"
+            multiple
+            accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,application/pdf,image/*"
+            class="sr-only"
+            @change="onDocumentsSelected"
+          />
+
+          <Tabs v-model="profileTab">
+            <TabsList
+              class="!h-auto !min-h-0 flex w-full flex-wrap content-start items-center justify-start gap-x-1.5 gap-y-2 overflow-visible rounded-full bg-card p-1.5 shadow-[var(--shadow-soft)] ring-1 ring-border/70 group-data-horizontal/tabs:!h-auto dark:ring-border/50"
+              aria-label="Student profile sections"
+            >
+              <TabsTrigger
+                v-for="tab in primaryProfileTabs"
+                :key="tab.id"
+                :value="tab.id"
+                :class="profileTabTriggerClass"
+              >
+                <component :is="tab.icon" class="size-3.5 shrink-0" aria-hidden="true" />
+                <span class="whitespace-nowrap">{{ tab.label }}</span>
+              </TabsTrigger>
+              <DropdownMenu v-if="moreProfileTabs.length">
+                <DropdownMenuTrigger as-child>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    :class="cn(profileTabTriggerClass, moreTabActive && 'border-primary/40 bg-primary/10 text-primary')"
+                    aria-label="More profile sections"
                   >
-                    <option
-                      v-for="option in DOCUMENT_TYPE_OPTIONS"
-                      :key="option.value"
-                      :value="option.value"
-                    >
-                      {{ option.label }}
-                    </option>
-                  </select>
-                </div>
-                <Button
-                  size="sm"
-                  :disabled="uploadingDocuments"
-                  :aria-busy="uploadingDocuments"
-                  @click="pickDocuments"
-                >
-                  <Plus class="mr-1 h-4 w-4" aria-hidden="true" />
-                  {{ uploadingDocuments ? 'Uploading…' : 'Upload' }}
-                </Button>
-                <input
-                  ref="documentInput"
-                  type="file"
-                  multiple
-                  accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,application/pdf,image/*"
-                  class="sr-only"
-                  @change="onDocumentsSelected"
-                />
-              </div>
-            </CardHeader>
-            <CardContent>
-              <PageLoader v-if="documentsLoading" label="Loading documents" />
-              <ErrorState
-                v-else-if="documentsError"
-                :description="documentsError"
-                @retry="loadDocuments"
-              />
-              <Table v-else-if="documents.length">
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Type</TableHead>
-                    <TableHead>Size</TableHead>
-                    <TableHead>Uploaded</TableHead>
-                    <TableHead class="w-28">
-                      <span class="sr-only">Actions</span>
-                    </TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  <TableRow v-for="doc in documents" :key="doc.id">
-                    <TableCell class="font-medium">{{ doc.name ?? '—' }}</TableCell>
-                    <TableCell class="capitalize">{{ (doc.type ?? 'other').replaceAll('_', ' ') }}</TableCell>
-                    <TableCell>{{ formatFileSize(doc.size) }}</TableCell>
-                    <TableCell>{{ formatDate(doc.created_at) }}</TableCell>
-                    <TableCell>
-                      <div class="flex justify-end gap-2">
-                        <Button
-                          v-if="doc.url"
-                          variant="outline"
-                          size="sm"
-                          as-child
-                        >
-                          <a :href="doc.url" target="_blank" rel="noopener noreferrer">
-                            <Download class="h-4 w-4" aria-hidden="true" />
-                            <span class="sr-only">Download {{ doc.name }}</span>
-                          </a>
-                        </Button>
-                        <Button
-                          v-if="canEditStudent"
-                          variant="outline"
-                          size="sm"
-                          :disabled="deletingDocumentId === doc.id"
-                          :aria-label="`Delete ${doc.name ?? 'document'}`"
-                          @click="removeDocument(doc)"
-                        >
-                          <Trash2 class="h-4 w-4" aria-hidden="true" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                </TableBody>
-              </Table>
-              <p v-else class="text-sm text-muted-foreground">No documents uploaded yet.</p>
-            </CardContent>
-          </Card>
-        </TabsContent>
+                    <span class="whitespace-nowrap">More</span>
+                    <ChevronDown class="size-3.5 shrink-0" aria-hidden="true" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" class="max-h-80 overflow-y-auto">
+                  <DropdownMenuItem
+                    v-for="tab in moreProfileTabs"
+                    :key="tab.id"
+                    :disabled="tab.locked"
+                    @select="goToProfileTab(tab.id)"
+                  >
+                    <component :is="tab.icon" class="mr-2 size-4 shrink-0" aria-hidden="true" />
+                    {{ tab.label }}
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </TabsList>
 
-        <TabsContent value="attendance">
-          <Card>
-            <CardHeader><CardTitle>Recent attendance</CardTitle></CardHeader>
-            <CardContent>
-              <Table v-if="performance?.attendance?.length">
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Status</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  <TableRow v-for="(record, i) in performance.attendance.slice(0, 20)" :key="i">
-                    <TableCell>{{ formatDate(record.date) }}</TableCell>
-                    <TableCell>
-                      <Badge :variant="statusVariant(record.status)">{{ record.status ?? '—' }}</Badge>
-                    </TableCell>
-                  </TableRow>
-                </TableBody>
-              </Table>
-              <p v-else class="text-sm text-muted-foreground">No attendance records yet.</p>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+            <TabsContent value="overview" class="mt-4">
+              <StudentOverviewPanel
+                :fields="overviewFields"
+                :core-subjects="displayCoreSubjects"
+                :elective-subjects="electiveSubjects"
+              />
+            </TabsContent>
+
+            <TabsContent value="attendance" class="mt-4">
+              <StudentAttendancePanel
+                :student-id="id"
+                :recent="performance?.attendance"
+              />
+            </TabsContent>
+
+            <TabsContent value="academics" class="mt-4">
+              <StudentAcademicsPanel
+                :average-score="performance?.average_score"
+                :total-grades="performance?.total_grades"
+                :grades="performance?.grades"
+              />
+            </TabsContent>
+
+            <TabsContent value="exams" class="mt-4">
+              <StudentExamsPanel
+                :student-id="id"
+                :average-score="performance?.average_score"
+                :grades="performance?.grades"
+                :downloading="downloading"
+                @download-report="downloadResults"
+                @print="downloadResults"
+              />
+            </TabsContent>
+
+            <TabsContent value="fees" class="mt-4">
+              <StudentFeesPanel
+                :invoices="invoices"
+                :currency="student.currency"
+                :can-manage="canCreateInvoice"
+                :initiating-payment-id="initiatingOnlinePaymentId"
+                @create="openInvoice"
+                @pay="payOnline"
+                @record="openRecordPayment"
+                @print="openInvoicePrint"
+              />
+            </TabsContent>
+
+            <TabsContent value="timetable" class="mt-4">
+              <StudentTimetablePanel
+                :class-id="classId"
+                :class-label="classLabel"
+              />
+            </TabsContent>
+
+            <TabsContent value="health" class="mt-4">
+              <StudentHealthPanel
+                :student-id="id"
+                :emergency-name="guardianName"
+                :emergency-phone="guardianPhone"
+              />
+            </TabsContent>
+
+            <TabsContent value="library" class="mt-4">
+              <StudentShellPanels panel="library" :student-id="id" :student-name="displayName" />
+            </TabsContent>
+
+            <TabsContent value="documents" class="mt-4">
+              <StudentDocumentsPanel
+                :documents="documents"
+                :loading="documentsLoading"
+                :error="documentsError"
+                :can-manage="canEditStudent"
+                :uploading="uploadingDocuments"
+                :deleting-id="deletingDocumentId"
+                :document-type="documentType"
+                :type-options="DOCUMENT_TYPE_OPTIONS"
+                @update:document-type="documentType = $event"
+                @retry="loadDocuments"
+                @upload="pickDocuments"
+                @remove="removeDocument"
+              />
+            </TabsContent>
+
+            <TabsContent value="timeline" class="mt-4">
+              <StudentTimelinePanel :events="timelineEvents" />
+            </TabsContent>
+
+            <TabsContent value="achievements" class="mt-4">
+              <StudentShellPanels panel="achievements" :student-id="id" :student-name="displayName" />
+            </TabsContent>
+
+            <TabsContent value="discipline" class="mt-4">
+              <StudentDisciplinePanel :student-id="id" />
+            </TabsContent>
+
+            <TabsContent value="communication" class="mt-4">
+              <StudentShellPanels panel="communication" :student-id="id" :student-name="displayName" />
+            </TabsContent>
+
+            <TabsContent value="notes" class="mt-4">
+              <StudentShellPanels panel="notes" :student-id="id" :student-name="displayName" />
+            </TabsContent>
+
+            <TabsContent value="audit" class="mt-4">
+              <StudentShellPanels panel="audit" :student-id="id" :student-name="displayName" />
+            </TabsContent>
+          </Tabs>
+        </div>
+      </div>
     </template>
 
     <FormSheet
@@ -1050,5 +1508,5 @@ onMounted(load)
       :receipt="receiptData"
       :loading="receiptLoading"
     />
-  </div>
+  </PageShell>
 </template>

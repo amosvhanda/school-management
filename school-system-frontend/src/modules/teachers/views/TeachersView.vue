@@ -39,8 +39,8 @@ onMounted(() => {
 <template>
   <PageShell
     title="Teachers"
-    eyebrow="Dashboard / Peoples / Teachers"
     description="Teaching staff records, leave queue, and payroll status."
+    :breadcrumbs="['People & groups', 'Teachers']"
     max-width="wide"
   >
     <section

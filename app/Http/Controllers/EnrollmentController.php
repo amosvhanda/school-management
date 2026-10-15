@@ -168,4 +168,45 @@ class EnrollmentController extends Controller
 
         return response()->json(['message' => 'Enrollment application rejected']);
     }
+
+    public function updateStatus(Request $request, $id)
+    {
+        $this->authorizeEnrollmentAccess($request);
+        $user = $request->user();
+        $schoolId = $user?->isSuperAdmin() ? null : $user?->school_id;
+
+        $validated = Validator::make($request->all(), [
+            'status' => 'required|string|in:pending,under_review,interview,fee_pending,waitlisted,approved,rejected',
+            'notes' => 'nullable|string|max:2000',
+        ])->validate();
+
+        $query = EnrollmentApplication::query()->where('id', $id);
+        if ($schoolId !== null) {
+            $query->where('school_id', $schoolId);
+        }
+
+        $application = $query->firstOrFail();
+
+        if ($application->status === 'approved' && $application->student_id) {
+            return response()->json(['message' => 'Cannot change status of an enrolled application.'], 422);
+        }
+
+        if (in_array($validated['status'], ['approved'], true)) {
+            return response()->json([
+                'message' => 'Use the approve endpoint to admit and place the student.',
+            ], 422);
+        }
+
+        $application->update([
+            'status' => $validated['status'],
+            'reviewed_by' => $user->id,
+            'reviewed_at' => now(),
+            'notes' => $validated['notes'] ?? $application->notes,
+        ]);
+
+        return response()->json([
+            'message' => 'Application status updated',
+            'data' => $application->fresh(),
+        ]);
+    }
 }

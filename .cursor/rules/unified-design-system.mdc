@@ -1,0 +1,36 @@
+---
+description: Enforce one shared design system across all UI modules and new features
+globs: school-system-frontend/**/*.{vue,ts,css}
+alwaysApply: true
+---
+
+# Unified Application Design System
+
+All new UI must follow the established application design system, reuse existing layouts and shared components, maintain consistent spacing, colours, typography, interaction states, and responsive behaviour, and integrate naturally with the existing application. Before introducing new styling or components, inspect and reuse existing patterns. Do not create a separate visual identity for individual modules.
+
+## Source of truth
+
+| Concern | Use |
+| --- | --- |
+| Colour / type / elevation tokens | `school-system-frontend/src/style.css` |
+| Layout widths / page rhythm / accents | `src/lib/design-system.ts` |
+| Status / attendance / grade tones | `src/lib/ui-status.ts` |
+| Forms | `src/lib/form-standards.ts` + `FormBuilder` / `FormSheet` |
+| Tables | `DataTable` + `table-chrome.ts` + `ListFiltersBar` |
+| Page chrome | `DashboardShell` → `AppSidebar` / `AppHeader` → `PageShell` / `ModuleHub` |
+| Feedback | `EmptyState`, `ErrorState`, `PageLoader`, toasts |
+
+## Required workflow for every new page or feature
+
+1. Inspect a similar existing page (same hub or CRUD pattern).
+2. Reuse `PageShell` (or `ModuleHub` + `WorkspaceCard` for tabbed domains).
+3. Use design tokens and `STATUS_TONE_*` / `badgeVariantForStatus` — not ad-hoc `emerald-*` / `sky-*` / hex.
+4. Prefer shadcn-vue primitives already in `src/components/ui/`.
+5. Provide loading, empty, and error states.
+6. Keep business logic, routes, and APIs unchanged unless the task requires it.
+
+## Forbidden
+
+- Module-specific sidebars, headers, or theme overrides
+- One-off button / card / table styles that diverge from shared primitives
+- Scattering arbitrary spacing or colours when a token or shared class exists

@@ -134,16 +134,40 @@ export function effectiveTab(target: NavTarget): string | null {
   return HUB_DEFAULT_TABS[target.path] ?? null
 }
 
+/** Collection paths whose detail URLs (`/students/12`) should keep the list link active. */
+const DETAIL_COLLECTION_PATHS = new Set([
+  '/students',
+  '/teachers',
+  '/guardians',
+  '/hr/employees',
+])
+
+function pathsAlign(navPath: string, routePath: string): boolean {
+  if (navPath === routePath) return true
+  if (!DETAIL_COLLECTION_PATHS.has(navPath)) return false
+  // One numeric id segment only: /students/42 — not /students/create or nested hubs.
+  const prefix = `${navPath}/`
+  if (!routePath.startsWith(prefix)) return false
+  const rest = routePath.slice(prefix.length)
+  return /^\d+$/.test(rest)
+}
+
 export function navTargetsEqual(a: NavTarget, b: NavTarget): boolean {
   if (a.path === '/' || b.path === '/') {
     return a.path === '/' && b.path === '/'
   }
-  if (a.path !== b.path) return false
+  const detailVsCollection =
+    a.path !== b.path
+    && (pathsAlign(a.path, b.path) || pathsAlign(b.path, a.path))
 
-  const aTab = effectiveTab(a)
-  const bTab = effectiveTab(b)
-  if (aTab || bTab) {
-    if (aTab !== bTab) return false
+  if (!detailVsCollection && a.path !== b.path) return false
+
+  if (!detailVsCollection) {
+    const aTab = effectiveTab(a)
+    const bTab = effectiveTab(b)
+    if (aTab || bTab) {
+      if (aTab !== bTab) return false
+    }
   }
 
   // Status / staff filters are part of identity when either side declares them.
@@ -156,13 +180,35 @@ export function navTargetsEqual(a: NavTarget, b: NavTarget): boolean {
   return aStaff === bStaff
 }
 
+/** Higher score = better match when several nav links resolve to the same place. */
+export function navHrefSpecificity(href: string): number {
+  const rawPath = href.split('?')[0] || '/'
+  const params = new URLSearchParams(href.includes('?') ? href.slice(href.indexOf('?') + 1) : '')
+  let score = href.length
+  if (params.has('tab')) score += 100
+  if (params.has('status')) score += 50
+  if (params.has('staff')) score += 50
+  // Prefer the final hub path over a redirect alias (e.g. /people?tab=… over /enrollment).
+  if (!REDIRECT_TARGETS[rawPath]) score += 40
+  return score
+}
+
+/**
+ * Whether this nav href should show as active for the current route.
+ * `competitorHrefs` should be every visible sidebar href (not only siblings) so
+ * duplicate destinations (e.g. Application + Admissions → /enrollment) only
+ * highlight once — the most specific / first occurrence wins.
+ */
 export function isNavHrefActive(
   href: string | undefined,
   routePath: string,
   routeTab: unknown,
-  siblingHrefs: Array<string | undefined> = [],
+  competitorHrefs: Array<string | undefined> = [],
   routeStatus?: unknown,
   routeStaff?: unknown,
+  /** Stable id when several items share the same href string. */
+  linkKey?: string,
+  competitorKeys?: Array<string | undefined>,
 ): boolean {
   if (!href) return false
 
@@ -170,29 +216,55 @@ export function isNavHrefActive(
   const current = currentNavTarget(routePath, routeTab, routeStatus, routeStaff)
   if (!navTargetsEqual(target, current)) return false
 
-  // Prefer the most specific sibling (same path, more specific tab/status/staff).
-  const moreSpecific = siblingHrefs.some((other) => {
-    if (!other || other === href) return false
-    const sibling = parseNavHref(other)
-    if (!navTargetsEqual(sibling, current)) return false
-
-    const hrefTab = parseNavHref(href).tab
-    const siblingTab = sibling.tab
-    if (hrefTab == null && siblingTab != null) return true
-
-    const hrefStatus = parseNavHref(href).status ?? null
-    const siblingStatus = sibling.status ?? null
-    if (hrefStatus == null && siblingStatus != null) return true
-
-    const hrefStaff = parseNavHref(href).staff ?? null
-    const siblingStaff = sibling.staff ?? null
-    if (hrefStaff == null && siblingStaff != null) return true
-
-    if (href.length < other.length && sibling.path === target.path) return true
-    return false
+  const matches: Array<{ href: string; key: string; index: number; score: number }> = []
+  competitorHrefs.forEach((other, index) => {
+    if (!other) return
+    if (!navTargetsEqual(parseNavHref(other), current)) return
+    const key = competitorKeys?.[index] ?? `${other}#${index}`
+    matches.push({
+      href: other,
+      key,
+      index,
+      score: navHrefSpecificity(other),
+    })
   })
 
-  return !moreSpecific
+  if (matches.length === 0) return true
+
+  matches.sort((a, b) => {
+    if (b.score !== a.score) return b.score - a.score
+    return a.index - b.index
+  })
+
+  const winner = matches[0]!
+  const selfKey = linkKey ?? `${href}#${competitorHrefs.findIndex((h) => h === href)}`
+  return winner.key === selfKey
+}
+
+/** Flatten sidebar groups into ordered href + key pairs for active-state de-dupe. */
+export function flattenNavLinks(groups: Array<{ label?: string; items: Array<{
+  title: string
+  href?: string
+  items?: Array<{ title: string; href?: string }>
+}> }>): Array<{ key: string; href: string }> {
+  const links: Array<{ key: string; href: string }> = []
+  for (const group of groups) {
+    const groupLabel = group.label ?? ''
+    for (const item of group.items) {
+      if (item.href) {
+        links.push({ key: `${groupLabel}::${item.title}`, href: item.href })
+      }
+      for (const child of item.items ?? []) {
+        if (child.href) {
+          links.push({
+            key: `${groupLabel}::${item.title}::${child.title}`,
+            href: child.href,
+          })
+        }
+      }
+    }
+  }
+  return links
 }
 
 /** Known non-hub page paths that must exist as real routes. */
@@ -200,6 +272,7 @@ export const DIRECT_PAGE_PATHS = [
   '/',
   '/analytics',
   '/reports',
+  '/workflows',
   '/teaching',
   '/students',
   '/teachers',
@@ -211,7 +284,11 @@ export const DIRECT_PAGE_PATHS = [
   '/academics/certificates',
   '/academics/timetable',
   '/academics/my-timetable',
+  '/academics/holiday-programs',
   '/academics/tests',
+  '/people/analytics',
+  '/academics/analytics',
+  '/finance/analytics',
   '/teaching',
   '/dashboard/lms',
   '/dashboard/student',

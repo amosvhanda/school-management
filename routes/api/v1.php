@@ -188,9 +188,8 @@ Route::middleware(['auth:sanctum', 'password.changed', 'school.isolated', 'schoo
     Route::put('/user/profile', [ProfileController::class, 'update']);
     Route::post('/user/change-password', [AuthController::class, 'changePassword']);
 
-    // Generic staff file upload (resources, homework, avatars, report cards).
-    Route::post('/uploads', [UploadController::class, 'store'])
-        ->middleware('capability:isStaff');
+    // File upload: avatars for any signed-in user; other paths require staff (enforced in controller).
+    Route::post('/uploads', [UploadController::class, 'store']);
 
     // Teacher portal (scoped to the authenticated teacher).
     Route::prefix('teacher-portal')->group(function () {
@@ -302,6 +301,7 @@ Route::middleware(['auth:sanctum', 'password.changed', 'school.isolated', 'schoo
     Route::get('/students', [App\Http\Controllers\Api\V1\StudentController::class, 'index']);
     Route::post('/students', [App\Http\Controllers\Api\V1\StudentController::class, 'store']);
     Route::post('/students/promote', [StudentController::class, 'promote']);
+    Route::get('/students/promotion/preview', [StudentController::class, 'promotionPreview']);
     Route::post('/students/bulk/invoices', [StudentController::class, 'bulkInvoices']);
     Route::post('/students/bulk/status', [StudentController::class, 'bulkStatus']);
     Route::post('/students/bulk/promote', [StudentController::class, 'bulkPromote']);
@@ -309,6 +309,8 @@ Route::middleware(['auth:sanctum', 'password.changed', 'school.isolated', 'schoo
         ->whereIn('type', ['students', 'teachers', 'employees', 'guardians']);
     Route::post('/imports/{type}', [PeopleImportController::class, 'import'])
         ->whereIn('type', ['students', 'teachers', 'employees', 'guardians']);
+    // School-wide document vault (must be registered before /students/{student})
+    Route::get('/students/documents', [StudentController::class, 'documentsIndex']);
     Route::get('/students/{student}', [App\Http\Controllers\Api\V1\StudentController::class, 'show']);
     Route::put('/students/{student}', [App\Http\Controllers\Api\V1\StudentController::class, 'update']);
     Route::delete('/students/{student}', [App\Http\Controllers\Api\V1\StudentController::class, 'destroy']);
@@ -605,6 +607,7 @@ Route::middleware(['auth:sanctum', 'password.changed', 'school.isolated', 'schoo
     Route::get('/enrollment-applications/{id}', [EnrollmentController::class, 'show']);
     Route::put('/enrollment-applications/{id}/approve', [EnrollmentController::class, 'approve']);
     Route::put('/enrollment-applications/{id}/reject', [EnrollmentController::class, 'reject']);
+    Route::put('/enrollment-applications/{id}/status', [EnrollmentController::class, 'updateStatus']);
     Route::get('/leave-types', [LeaveTypeController::class, 'index']);
     Route::get('/leave-types/{id}', [LeaveTypeController::class, 'show']);
     Route::post('/leave-types', [LeaveTypeController::class, 'store']);

@@ -21,6 +21,9 @@ import {
 
 export type SetupTabId =
   | 'profile'
+  | 'academic-year'
+  | 'class-settings'
+  | 'exam-settings'
   | 'academic-setup'
   | 'grade-levels'
   | 'classes'
@@ -73,6 +76,27 @@ export const SETUP_TABS: SetupTab[] = [
       'Basic information about your school that defines your institution and powers invoices, communications, and public-facing school details.',
     icon: School,
     progressKey: 'profile',
+  },
+  {
+    id: 'academic-year',
+    title: 'Academic Year',
+    description:
+      'Set the active academic year, contact preferences, and approval rules used across the school.',
+    icon: CalendarDays,
+  },
+  {
+    id: 'class-settings',
+    title: 'Class Settings',
+    description:
+      'Institution-wide class configuration, notifications, and approval rules before roster changes apply.',
+    icon: GraduationCap,
+  },
+  {
+    id: 'exam-settings',
+    title: 'Exam Settings',
+    description:
+      'Examination configuration defaults, notifications, and approval workflow for the school.',
+    icon: SlidersHorizontal,
   },
   {
     id: 'academic-setup',
@@ -145,11 +169,10 @@ export const SETUP_TABS: SetupTab[] = [
   },
   {
     id: 'grading',
-    title: 'Grading Scales',
+    title: 'Grading Rules',
     description:
-      'Mark bands and grade letters used when converting scores in the gradebook and exam results.',
+      'Institution rules for mark entry plus grading scales used in the gradebook and exam results.',
     icon: SlidersHorizontal,
-    listKey: 'academics-grading-scales',
   },
   {
     id: 'rooms',

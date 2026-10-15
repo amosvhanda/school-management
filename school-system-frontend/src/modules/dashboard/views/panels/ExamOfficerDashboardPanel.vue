@@ -3,6 +3,7 @@ import { computed, onMounted, ref } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
 import { BookOpen, CheckCircle2, FileText, Upload } from '@lucide/vue'
 import DashboardHero from '@/components/dashboard/DashboardHero.vue'
+import StaffDashboardPageShell from '@/components/dashboard/StaffDashboardPageShell.vue'
 import RoleQuickActions from '@/components/dashboard/RoleQuickActions.vue'
 import DashboardModulesGrid from '@/components/dashboard/DashboardModulesGrid.vue'
 import DashboardSkeleton from '@/components/dashboard/DashboardSkeleton.vue'
@@ -147,15 +148,21 @@ onMounted(refreshAll)
 </script>
 
 <template>
-  <div class="mx-auto w-full max-w-[1600px] space-y-8 pb-8">
+  <StaffDashboardPageShell
+    :title="meta.pageTitle"
+    :description="meta.subtitle"
+    :breadcrumbs="[meta.pageTitle]"
+    :loading="loading"
+    :last-updated="lastUpdated"
+    @refresh="refreshAll"
+  >
     <DashboardHero
-      page-title="Exam Dashboard"
+      hide-page-header
+      hide-toolbar
       :name="user?.name"
       :role="meta.label"
       :subtitle="meta.subtitle"
       :loading="loading"
-      :last-updated="lastUpdated"
-      @refresh="refreshAll"
     />
 
     <DashboardSkeleton v-if="loading" />
@@ -199,5 +206,5 @@ onMounted(refreshAll)
         <ActivityFeed :items="recent" class="min-h-72" />
       </section>
     </template>
-  </div>
+  </StaffDashboardPageShell>
 </template>

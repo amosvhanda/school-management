@@ -683,6 +683,59 @@ class StudentController extends Controller
         ]);
     }
 
+    public function documentsIndex(Request $request)
+    {
+        $this->authorizeModuleAccess(
+            $request,
+            capabilities: [
+                'canManageStudents',
+                'canManageTeachers',
+            ],
+            permissionSlugs: [
+                'students.manage',
+            ],
+        );
+
+        $schoolId = $this->getSchoolId($request);
+        $result = $this->documents->listForSchool($schoolId, [
+            'student_id' => $request->input('student_id'),
+            'type' => $request->input('type'),
+            'search' => $request->input('search'),
+            'recent' => $request->boolean('recent'),
+            'favourite' => $request->boolean('favourite'),
+            'verified' => $request->boolean('verified'),
+            'pending' => $request->boolean('pending'),
+            'expired' => $request->boolean('expired'),
+            'page' => $request->input('page'),
+            'per_page' => $request->input('per_page'),
+        ]);
+
+        return response()->json($result);
+    }
+
+    public function promotionPreview(Request $request)
+    {
+        $this->authorizeModuleAccess(
+            $request,
+            capabilities: ['canManageStudents', 'canManageTeachers'],
+            permissionSlugs: ['students.manage'],
+        );
+
+        $schoolId = $this->getSchoolId($request);
+        $eligible = Student::query()
+            ->where('school_id', $schoolId)
+            ->where('status', 'active')
+            ->count();
+
+        return response()->json([
+            'data' => [
+                'eligible' => $eligible,
+                'academic_year' => $request->input('academic_year'),
+                'next_academic_year' => $request->input('next_academic_year'),
+            ],
+        ]);
+    }
+
     public function documents(
         Request $request,
         $student

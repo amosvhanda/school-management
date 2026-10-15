@@ -103,12 +103,22 @@ class StudentController extends Controller
         $schoolId = $request->user()->school_id;
 
         $student = DB::transaction(function () use ($request, $guardian, $schoolId) {
+            $status = $request->input('status', 'active');
+            if (! in_array($status, ['active', 'inactive'], true)) {
+                $status = 'active';
+            }
+
+            $studentNumber = $request->filled('student_number')
+                ? (string) $request->input('student_number')
+                : $this->admissionService->generateStudentNumber((int) $schoolId);
+
             $student = Student::create([
                 'first_name' => $request->firstName,
                 'last_name' => $request->surname,
                 'full_name' => trim($request->firstName.' '.$request->surname),
-                'student_number' => $this->admissionService->generateStudentNumber((int) $schoolId),
+                'student_number' => $studentNumber,
                 'roll_number' => $request->input('roll_number'),
+                'admission_date' => $request->input('admission_date'),
                 'class' => $request->class,
                 'class_id' => $request->class_id,
                 'stream_id' => $request->input('stream_id'),
@@ -118,6 +128,10 @@ class StudentController extends Controller
                 'date_of_birth' => $request->dateOfBirth,
                 'gender' => $request->gender,
                 'blood_group' => $request->input('blood_group'),
+                'religion' => $request->input('religion'),
+                'caste' => $request->input('caste'),
+                'mother_tongue' => $request->input('mother_tongue'),
+                'languages_known' => $request->input('languages_known'),
                 'national_id' => $request->input('national_id'),
                 'passport_number' => $request->input('passport_number'),
                 'phone' => $request->phone,
@@ -127,7 +141,15 @@ class StudentController extends Controller
                 'suburb' => $request->suburb,
                 'social_links' => $request->input('social_links'),
                 'school' => $request->school,
-                'status' => 'active',
+                'previous_school' => $request->input('previous_school'),
+                'father_name' => $request->input('father_name'),
+                'father_phone' => $request->input('father_phone'),
+                'father_occupation' => $request->input('father_occupation'),
+                'mother_name' => $request->input('mother_name'),
+                'mother_phone' => $request->input('mother_phone'),
+                'mother_occupation' => $request->input('mother_occupation'),
+                'siblings' => $request->input('siblings'),
+                'status' => $status,
                 'school_id' => $schoolId,
                 'guardian_first_name' => $guardian['firstName'] ?? $guardian['first_name'] ?? null,
                 'guardian_last_name' => $guardian['surname'] ?? $guardian['last_name'] ?? null,
@@ -151,7 +173,8 @@ class StudentController extends Controller
                 $schoolId,
             );
 
-            if ($request->filled('class_id')) {
+            // Draft / inactive admissions keep class_id on the row but skip placement.
+            if ($request->filled('class_id') && $status === 'active') {
                 $academicYear = (string) ($request->input('academic_year')
                     ?? $request->user()?->school?->academic_year
                     ?? date('Y'));

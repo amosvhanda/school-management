@@ -23,12 +23,20 @@ class UploadController extends Controller
      */
     public function store(Request $request)
     {
-        $this->authorizeModuleAccess($request, capabilities: ['isStaff']);
-
         $request->validate([
             'file' => ['required', 'file', 'max:20480', 'mimes:'.self::ALLOWED_MIMES],
             'directory' => ['sometimes', 'string', 'max:100', 'regex:/^[a-zA-Z0-9_\/\-]+$/'],
         ]);
+
+        $directoryInput = trim((string) $request->input('directory', 'uploads'), '/');
+        $isAvatarUpload = $directoryInput === 'avatars'
+            || str_ends_with($directoryInput, '/avatars');
+
+        if (! $isAvatarUpload) {
+            $this->authorizeModuleAccess($request, capabilities: ['isStaff']);
+        } elseif ($request->user() === null) {
+            abort(401);
+        }
 
         $file = $request->file('file');
         $ext = strtolower((string) $file->getClientOriginalExtension());

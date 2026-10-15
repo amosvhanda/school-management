@@ -59,6 +59,9 @@ class Student extends Model
         'admission_date',
         'religion',
         'caste',
+        'mother_tongue',
+        'languages_known',
+        'siblings',
         'father_name',
         'father_phone',
         'father_occupation',
@@ -80,6 +83,7 @@ class Student extends Model
             'date_of_birth' => 'date',
             'admission_date' => 'date',
             'balance' => 'decimal:2',
+            'siblings' => 'array',
         ];
     }
 

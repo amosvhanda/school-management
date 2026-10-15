@@ -140,9 +140,64 @@ class SchoolSettingsService
             return $setting->fresh();
         });
 
+        $this->syncSchoolRecordFromSetting($school, $group, $key, $setting->casted_value);
         $this->forgetCache($school);
 
         return $setting;
+    }
+
+    /**
+     * Keep canonical columns on schools in sync with typed settings the UI edits.
+     */
+    private function syncSchoolRecordFromSetting(School $school, string $group, string $key, mixed $value): void
+    {
+        $columnMap = [
+            'academic' => [
+                'academic_year' => 'academic_year',
+                'current_term' => 'current_term',
+            ],
+            'regional' => [
+                'timezone' => 'timezone',
+            ],
+            'branding' => [
+                'motto' => 'motto',
+            ],
+        ];
+
+        $column = $columnMap[$group][$key] ?? null;
+        if ($column === null) {
+            return;
+        }
+
+        $normalized = $value === '' ? null : $value;
+        if ($school->{$column} === $normalized) {
+            return;
+        }
+
+        $school->forceFill([$column => $normalized])->save();
+    }
+
+    /**
+     * Mirror school record fields into the settings bag when updated via PUT /school.
+     *
+     * @param  array<string, mixed>  $data  Validated school update payload
+     */
+    public function syncFromSchoolUpdate(School $school, array $data): void
+    {
+        $map = [
+            'academic_year' => ['academic', 'academic_year'],
+            'current_term' => ['academic', 'current_term'],
+            'timezone' => ['regional', 'timezone'],
+            'motto' => ['branding', 'motto'],
+        ];
+
+        foreach ($map as $field => [$group, $key]) {
+            if (! array_key_exists($field, $data)) {
+                continue;
+            }
+
+            $this->set($school, $group, $key, $data[$field], null, true);
+        }
     }
 
     public function bulkSet(School $school, array $settings): Collection

@@ -8,6 +8,7 @@ import {
   Users,
 } from '@lucide/vue'
 import DashboardHero from '@/components/dashboard/DashboardHero.vue'
+import StaffDashboardPageShell from '@/components/dashboard/StaffDashboardPageShell.vue'
 import DashboardSkeleton from '@/components/dashboard/DashboardSkeleton.vue'
 import MetricBand from '@/components/dashboard/MetricBand.vue'
 import type { MetricCard } from '@/components/dashboard/MetricBand.vue'
@@ -87,22 +88,27 @@ onMounted(load)
 </script>
 
 <template>
-  <div class="mx-auto w-full max-w-[1600px] space-y-8 pb-8">
+  <StaffDashboardPageShell
+    title="LMS dashboard"
+    description="Online learning overview for your school."
+    :breadcrumbs="['LMS dashboard']"
+    :loading="loading"
+    @refresh="load"
+  >
+    <template #actions>
+      <Button as-child>
+        <RouterLink to="/teaching?tab=lms">Manage LMS sessions</RouterLink>
+      </Button>
+    </template>
+
     <DashboardHero
-      page-title="LMS Dashboard"
+      hide-page-header
+      hide-toolbar
       :name="user?.name"
       role="LMS"
       subtitle="Online learning overview for your school"
       :loading="loading"
-      :last-updated="null"
-      @refresh="load"
-    >
-      <template #actions>
-        <Button as-child>
-          <RouterLink to="/teaching?tab=lms">Manage LMS sessions</RouterLink>
-        </Button>
-      </template>
-    </DashboardHero>
+    />
 
     <DashboardSkeleton v-if="loading" />
     <ErrorState v-else-if="error" :description="error" @retry="load" />
@@ -236,5 +242,5 @@ onMounted(load)
         </Card>
       </div>
     </template>
-  </div>
+  </StaffDashboardPageShell>
 </template>

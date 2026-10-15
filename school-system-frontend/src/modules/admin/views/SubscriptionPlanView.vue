@@ -68,6 +68,8 @@ onMounted(load)
   <PageShell
     title="Subscription"
     description="Your school's current plan and license status."
+    :breadcrumbs="['Administration', 'Subscription']"
+    max-width="wide"
   >
     <PageLoader v-if="loading" />
     <ErrorState v-else-if="error" :description="error" @retry="load" />

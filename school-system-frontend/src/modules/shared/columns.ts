@@ -14,6 +14,8 @@ import {
 } from '@/lib/format'
 import { relationLabelFromRow } from '@/lib/relation-display'
 import { safeDisplayValue } from '@/lib/entity-display'
+import { badgeVariantForStatus } from '@/lib/ui-status'
+import { resolveMediaUrl } from '@/lib/media-url'
 
 export function textColumn(header: string, key: string): ColumnDef<Record<string, unknown>> {
   return {
@@ -121,33 +123,13 @@ export function personNameColumn(
   }
 }
 
-const statusVariants: Record<string, 'default' | 'secondary' | 'destructive' | 'outline'> = {
-  active: 'default',
-  completed: 'default',
-  paid: 'default',
-  disbursed: 'default',
-  approved: 'default',
-  checked_in: 'default',
-  checked_out: 'secondary',
-  pending: 'secondary',
-  pending_approval: 'secondary',
-  draft: 'outline',
-  partial: 'outline',
-  inactive: 'secondary',
-  maintenance: 'outline',
-  absent: 'destructive',
-  overdue: 'destructive',
-  cancelled: 'destructive',
-  rejected: 'destructive',
-}
-
 export function statusColumn(header = 'Status', key = 'status'): ColumnDef<Record<string, unknown>> {
   return {
     accessorKey: key,
     header,
     cell: ({ row }) => {
       const status = String(row.getValue(key) ?? '—')
-      const variant = statusVariants[status.toLowerCase()] ?? 'outline'
+      const variant = badgeVariantForStatus(status)
       return h(Badge, { variant }, () => status)
     },
   }
@@ -270,7 +252,7 @@ export function studentIdentityColumn(): ColumnDef<Record<string, unknown>> {
     cell: ({ row }) => {
       const record = row.original
       const name = String(record.full_name ?? record.fullName ?? record.name ?? '').trim() || 'Student'
-      const photo = String(record.photo_url ?? record.photoUrl ?? '').trim()
+      const photo = resolveMediaUrl(String(record.photo_url ?? record.photoUrl ?? '').trim() || null)
       const classModel = record.class_model ?? record.classModel
       const className = relationName(classModel) || String(record.class ?? '').trim()
       const stream = relationName(record.stream)
@@ -279,8 +261,8 @@ export function studentIdentityColumn(): ColumnDef<Record<string, unknown>> {
       const meta = [className, stream, house].filter(Boolean).join(' · ') || 'Unassigned class'
 
       return h('div', { class: 'flex min-w-0 items-center gap-3' }, [
-        h(Avatar, { class: 'size-10', size: 'lg' }, () => [
-          photo ? h(AvatarImage, { src: photo, alt: '' }) : null,
+        h(Avatar, { class: 'size-10 shrink-0', size: 'lg' }, () => [
+          photo ? h(AvatarImage, { src: photo, alt: name }) : null,
           h(AvatarFallback, { class: 'bg-primary/10 text-xs font-semibold text-primary' }, () => personInitials(name)),
         ]),
         h('div', { class: 'min-w-0' }, [
@@ -296,8 +278,8 @@ export function studentIdentityColumn(): ColumnDef<Record<string, unknown>> {
 }
 
 export const studentColumns: ColumnDef<Record<string, unknown>>[] = [
-  textColumn('ID', 'student_number'),
   studentIdentityColumn(),
+  textColumn('Admission no.', 'student_number'),
   textColumn('Roll', 'roll_number'),
   {
     id: 'age',
@@ -322,7 +304,7 @@ export function teacherIdentityColumn(): ColumnDef<Record<string, unknown>> {
           ?? record.name
           ?? `${record.first_name ?? ''} ${record.last_name ?? ''}`.trim(),
         ).trim() || 'Teacher'
-      const photo = String(record.photo_url ?? record.photoUrl ?? '').trim()
+      const photo = resolveMediaUrl(String(record.photo_url ?? record.photoUrl ?? '').trim() || null)
       const subject = String(record.subject ?? '').trim()
       const department = String(record.department ?? '').trim()
       const designation = relationName(record.designation)
@@ -898,10 +880,41 @@ export const visitorColumns: ColumnDef<Record<string, unknown>>[] = [
     cell: ({ row }) => {
       const status = String(row.original.status ?? '—').replaceAll('_', ' ')
       const raw = String(row.original.status ?? '').toLowerCase()
-      const variant = statusVariants[raw] ?? 'outline'
+      const variant = badgeVariantForStatus(raw)
       return h(Badge, { variant }, () => status)
     },
   },
+]
+
+/** Preskool “Contact Messages” table shape (help desk tickets). */
+export const contactMessageColumns: ColumnDef<Record<string, unknown>>[] = [
+  {
+    id: 'message-id',
+    accessorKey: 'ticket_number',
+    header: 'ID',
+    cell: ({ row }) => {
+      const id = String(row.original.ticket_number ?? row.original.id ?? '')
+      return h(
+        'span',
+        { class: 'font-medium text-primary' },
+        id || '—',
+      )
+    },
+  },
+  textColumn('Name', 'requester_name'),
+  textColumn('Phone', 'requester_phone'),
+  textColumn('Email', 'requester_email'),
+  {
+    id: 'message-body',
+    accessorKey: 'description',
+    header: 'Message',
+    cell: ({ row }) => {
+      const text = String(row.original.description ?? row.original.subject ?? '').trim()
+      const preview = text.length > 72 ? `${text.slice(0, 72)}…` : text
+      return h('span', { class: 'text-sm text-muted-foreground', title: text }, preview || '—')
+    },
+  },
+  dateTimeColumn('Date', 'created_at'),
 ]
 
 export const helpDeskColumns: ColumnDef<Record<string, unknown>>[] = [
@@ -930,7 +943,7 @@ export const helpDeskColumns: ColumnDef<Record<string, unknown>>[] = [
     cell: ({ row }) => {
       const status = String(row.original.status ?? '—').replaceAll('_', ' ')
       const raw = String(row.original.status ?? '').toLowerCase()
-      const variant = statusVariants[raw] ?? 'outline'
+      const variant = badgeVariantForStatus(raw)
       return h(Badge, { variant }, () => status)
     },
   },
@@ -954,7 +967,7 @@ export const recruitmentJobColumns: ColumnDef<Record<string, unknown>>[] = [
     cell: ({ row }) => {
       const status = String(row.original.status ?? '—').replaceAll('_', ' ')
       const raw = String(row.original.status ?? '').toLowerCase()
-      const variant = statusVariants[raw] ?? 'outline'
+      const variant = badgeVariantForStatus(raw)
       return h(Badge, { variant }, () => status)
     },
   },
@@ -982,7 +995,7 @@ export const recruitmentApplicationColumns: ColumnDef<Record<string, unknown>>[]
     cell: ({ row }) => {
       const status = String(row.original.status ?? '—').replaceAll('_', ' ')
       const raw = String(row.original.status ?? '').toLowerCase()
-      const variant = statusVariants[raw] ?? 'outline'
+      const variant = badgeVariantForStatus(raw)
       return h(Badge, { variant }, () => status)
     },
   },

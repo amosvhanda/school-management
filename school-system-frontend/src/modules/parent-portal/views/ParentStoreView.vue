@@ -137,6 +137,7 @@ onMounted(load)
   <PageShell
     title="School store"
     description="Order uniforms and school stock for your child. Orders are charged to their fee account."
+    :breadcrumbs="['Parent portal', 'School store']"
     max-width="wide"
   >
     <template #actions>

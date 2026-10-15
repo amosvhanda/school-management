@@ -22,6 +22,19 @@ class CapabilityMiddlewareTest extends TestCase
             ->assertForbidden();
     }
 
+    public function test_parent_can_upload_profile_avatar(): void
+    {
+        $auth = $this->createAuthenticatedUser(role: 'parent');
+
+        $this->withHeaders(['Authorization' => 'Bearer '.$auth['token']])
+            ->post('/api/v1/uploads', [
+                'directory' => 'avatars',
+                'file' => \Illuminate\Http\UploadedFile::fake()->image('avatar.jpg', 64, 64),
+            ])
+            ->assertCreated()
+            ->assertJsonStructure(['data' => ['url', 'path']]);
+    }
+
     public function test_security_headers_present_on_api_responses(): void
     {
         $this->getJson('/api/v1/settings/config')

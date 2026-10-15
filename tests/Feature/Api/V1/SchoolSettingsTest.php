@@ -34,6 +34,51 @@ class SchoolSettingsTest extends TestCase
         $this->assertEquals('USD', $settings['regional']['currency']);
     }
 
+    public function test_setup_prefs_persist_for_class_exam_and_grading_panes(): void
+    {
+        $auth = $this->createAuthenticatedUser();
+        app(SchoolSettingsService::class)->seedDefaults($auth['school']);
+
+        $payload = [
+            ['group' => 'prefs', 'key' => 'class_settings_enabled', 'value' => false],
+            ['group' => 'prefs', 'key' => 'class_settings_contact', 'value' => 'Ms Class Lead'],
+            ['group' => 'prefs', 'key' => 'class_settings_notes', 'value' => 'Internal note'],
+            ['group' => 'prefs', 'key' => 'exam_settings_support_email', 'value' => 'exams@test.school'],
+            ['group' => 'prefs', 'key' => 'grading_rules_require_approval', 'value' => true],
+        ];
+
+        $this->withHeaders(['Authorization' => 'Bearer '.$auth['token']])
+            ->putJson('/api/v1/settings/school', ['settings' => $payload])
+            ->assertOk()
+            ->assertJsonPath('data.prefs.class_settings_enabled', false)
+            ->assertJsonPath('data.prefs.class_settings_contact', 'Ms Class Lead')
+            ->assertJsonPath('data.prefs.exam_settings_support_email', 'exams@test.school')
+            ->assertJsonPath('data.prefs.grading_rules_require_approval', true);
+
+        $stored = app(SchoolSettingsService::class)->getAll($auth['school']->fresh());
+        $this->assertSame('Internal note', $stored['prefs']['class_settings_notes']);
+    }
+
+    public function test_school_update_syncs_academic_settings_in_database(): void
+    {
+        $auth = $this->createAuthenticatedUser();
+        app(SchoolSettingsService::class)->seedDefaults($auth['school']);
+
+        $this->withHeaders(['Authorization' => 'Bearer '.$auth['token']])
+            ->putJson('/api/v1/school', [
+                'academic_year' => '2026 / 2027',
+                'current_term' => 'Term 3',
+                'status' => 'active',
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.academic_year', '2026 / 2027')
+            ->assertJsonPath('data.current_term', 'Term 3');
+
+        $settings = app(SchoolSettingsService::class)->getAll($auth['school']->fresh());
+        $this->assertSame('2026 / 2027', $settings['academic']['academic_year']);
+        $this->assertSame('Term 3', $settings['academic']['current_term']);
+    }
+
     public function test_admin_can_update_school_settings(): void
     {
         $auth = $this->createAuthenticatedUser();

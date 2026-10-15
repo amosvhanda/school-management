@@ -31,6 +31,8 @@ import { useAuth } from '@/composables/useAuth'
 import { useSchoolProfile } from '@/composables/useSchoolProfile'
 import { getErrorMessage, unwrapList } from '@/lib/api-response'
 import { formatDate, formatTime } from '@/lib/format'
+import StaffDashboardPageShell from '@/components/dashboard/StaffDashboardPageShell.vue'
+import { getRoleDashboardMeta } from '@/lib/role-dashboard'
 import { cn } from '@/lib/utils'
 import {
   assignmentTypeTone,
@@ -115,6 +117,8 @@ interface WorkRow {
 }
 
 const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'] as const
+
+const dashboardMeta = getRoleDashboardMeta('teacher')
 
 const { user } = useAuth()
 const router = useRouter()
@@ -540,33 +544,14 @@ onMounted(load)
 </script>
 
 <template>
-  <div class="mx-auto w-full max-w-[1600px] space-y-6 pb-8">
-    <header class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-      <div>
-        <p class="text-xs text-muted-foreground">Dashboard / Teacher Dashboard</p>
-        <h1 class="mt-1 font-heading text-2xl font-semibold tracking-tight md:text-3xl">
-          Teacher Dashboard
-        </h1>
-      </div>
-      <div class="flex flex-wrap items-center gap-2">
-        <span
-          v-if="lastUpdated"
-          class="text-xs text-muted-foreground"
-        >
-          Updated {{ formatTime(lastUpdated) }}
-        </span>
-        <Button
-          variant="outline"
-          size="sm"
-          class="h-9 rounded-full"
-          :disabled="loading"
-          :aria-busy="loading"
-          @click="refresh"
-        >
-          Refresh
-        </Button>
-      </div>
-    </header>
+  <StaffDashboardPageShell
+    :title="dashboardMeta.pageTitle"
+    :description="dashboardMeta.subtitle"
+    :breadcrumbs="[dashboardMeta.pageTitle]"
+    :loading="loading"
+    :last-updated="lastUpdated"
+    @refresh="refresh"
+  >
 
     <DashboardSkeleton v-if="loading" />
     <ErrorState v-else-if="error" :description="error" @retry="refresh" />
@@ -980,5 +965,5 @@ onMounted(load)
       </Card>
       </template>
     </template>
-  </div>
+  </StaffDashboardPageShell>
 </template>

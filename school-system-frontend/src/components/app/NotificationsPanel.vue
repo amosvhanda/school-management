@@ -39,6 +39,15 @@ import { getErrorMessage } from '@/lib/api-response'
 import { useNotificationStore } from '@/stores/notification.store'
 import type { UserRole } from '@/types/auth'
 
+const props = withDefaults(
+  defineProps<{
+    triggerClass?: string
+  }>(),
+  {
+    triggerClass: '',
+  },
+)
+
 const notificationStore = useNotificationStore()
 const { user } = useAuth()
 
@@ -330,15 +339,16 @@ onMounted(() => {
   <DropdownMenu v-if="showBell" v-model:open="menuOpen">
     <DropdownMenuTrigger as-child>
       <Button
-        variant="ghost"
+        variant="outline"
         size="icon"
-        class="relative size-9"
+        class="relative size-9 text-muted-foreground hover:text-foreground"
+        :class="props.triggerClass"
         aria-label="Open notifications"
       >
         <Bell class="size-4" aria-hidden="true" />
         <span
           v-if="badgeTotal > 0"
-          class="absolute -top-0.5 -right-0.5 flex size-4 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground animate-in zoom-in-50 duration-200"
+          class="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold text-white animate-in zoom-in-50 duration-200"
           :aria-label="`${badgeTotal} unread notifications`"
         >
           {{ badgeTotal > 9 ? '9+' : badgeTotal }}

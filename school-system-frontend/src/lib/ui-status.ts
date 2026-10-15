@@ -1,8 +1,19 @@
 /**
  * Shared semantic status colors — use theme tokens instead of one-off Tailwind hues.
+ * Prefer STATUS_TONE_* / badgeVariantForStatus over ad-hoc palette utilities
+ * (for example emerald, sky, or violet colour classes).
  */
 
 export type StatusTone = 'success' | 'warning' | 'info' | 'danger' | 'neutral' | 'accent'
+
+/** shadcn Badge variants used for record status columns. */
+export type StatusBadgeVariant =
+  | 'default'
+  | 'secondary'
+  | 'destructive'
+  | 'outline'
+  | 'success'
+  | 'warning'
 
 export const STATUS_TONE_ICON: Record<StatusTone, string> = {
   success: 'bg-chart-2/15 text-chart-2',
@@ -78,5 +89,47 @@ export function assignmentTypeTone(type: string): StatusTone {
 export function lessonStatusTone(status: string): StatusTone {
   if (status === 'completed') return 'success'
   if (status === 'current') return 'info'
+  return 'neutral'
+}
+
+/** Map common domain statuses → Badge variant (single source for columns / lists). */
+const STATUS_BADGE_VARIANTS: Record<string, StatusBadgeVariant> = {
+  active: 'success',
+  completed: 'success',
+  paid: 'success',
+  disbursed: 'success',
+  approved: 'success',
+  checked_in: 'success',
+  published: 'success',
+  present: 'success',
+  checked_out: 'secondary',
+  pending: 'warning',
+  pending_approval: 'warning',
+  partial: 'warning',
+  late: 'warning',
+  draft: 'outline',
+  inactive: 'secondary',
+  maintenance: 'outline',
+  excused: 'secondary',
+  absent: 'destructive',
+  overdue: 'destructive',
+  cancelled: 'destructive',
+  rejected: 'destructive',
+  failed: 'destructive',
+}
+
+export function badgeVariantForStatus(status?: string | null): StatusBadgeVariant {
+  if (!status) return 'outline'
+  const key = String(status).trim().toLowerCase().replace(/\s+/g, '_')
+  return STATUS_BADGE_VARIANTS[key] ?? 'outline'
+}
+
+export function statusToneForLabel(status?: string | null): StatusTone {
+  const variant = badgeVariantForStatus(status)
+  if (variant === 'success') return 'success'
+  if (variant === 'warning') return 'warning'
+  if (variant === 'destructive') return 'danger'
+  if (variant === 'default') return 'accent'
+  if (variant === 'secondary') return 'neutral'
   return 'neutral'
 }

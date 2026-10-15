@@ -13,6 +13,7 @@ export const useConfigStore = defineStore('config', () => {
   const terminology = ref<Record<string, string>>({})
   const settings = ref<Record<string, unknown>>({})
   const customFields = ref<Array<Record<string, unknown>>>([])
+  const school = ref<Record<string, unknown> | null>(null)
   const loaded = ref(false)
 
   async function fetchPublicConfig() {
@@ -20,6 +21,7 @@ export const useConfigStore = defineStore('config', () => {
     terminology.value = payload.terminology ?? {}
     settings.value = payload.settings ?? {}
     customFields.value = payload.custom_fields ?? []
+    school.value = payload.school ?? null
     loaded.value = true
     return payload
   }
@@ -32,6 +34,7 @@ export const useConfigStore = defineStore('config', () => {
     terminology.value = {}
     settings.value = {}
     customFields.value = []
+    school.value = null
     loaded.value = true
   }
 
@@ -39,8 +42,19 @@ export const useConfigStore = defineStore('config', () => {
     terminology.value = {}
     settings.value = {}
     customFields.value = []
+    school.value = null
     loaded.value = false
   }
 
-  return { terminology, settings, customFields, loaded, fetchPublicConfig, markLoadedWithoutSchool, term, reset }
+  return {
+    terminology,
+    settings,
+    customFields,
+    school,
+    loaded,
+    fetchPublicConfig,
+    markLoadedWithoutSchool,
+    term,
+    reset,
+  }
 })

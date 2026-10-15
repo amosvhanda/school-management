@@ -100,9 +100,9 @@ onMounted(load)
 
 <template>
   <PageShell
-    title="Platform Dashboard"
+    title="Platform dashboard"
     description="Platform-wide licenses, system health, operations, and tenant overview"
-    eyebrow="Dashboard / Platform Dashboard"
+    :breadcrumbs="['Platform']"
     max-width="wide"
   >
 

@@ -24,12 +24,14 @@ const { sidebarOpen } = storeToRefs(uiStore)
   <SidebarProvider v-model:open="sidebarOpen" class="overflow-x-hidden">
     <SkipToContent />
     <AppSidebar :navigation="navigation" :title="title" />
-    <SidebarInset id="main-content" tabindex="-1" class="min-w-0 outline-none">
+    <SidebarInset id="main-content" tabindex="-1" class="flex min-h-svh min-w-0 flex-col outline-none">
       <LicenseBanner v-if="showLicenseBanner" />
       <AppHeader />
-      <div class="page-canvas flex-1 overflow-x-hidden overflow-y-auto p-4 md:p-6 lg:p-8">
+      <div class="page-canvas min-h-0 flex-1 overflow-x-hidden overflow-y-auto p-4 md:p-6 lg:p-8">
         <!-- Remount when route name changes so shared RegistryListPage does not keep prior list rows. -->
-        <RouterView :key="String(route.name ?? route.path)" />
+        <div class="page-enter mx-auto w-full">
+          <RouterView :key="String(route.name ?? route.path)" />
+        </div>
       </div>
     </SidebarInset>
   </SidebarProvider>

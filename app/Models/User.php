@@ -7,6 +7,7 @@ use App\Enums\UserRole;
 use App\Models\Concerns\Auditable;
 use App\Models\Scopes\UserSchoolScope;
 use App\Services\PermissionService;
+use App\Services\StudentResolutionService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -175,6 +176,24 @@ class User extends Authenticatable
     public function roleValue(): string
     {
         return $this->role instanceof UserRole ? $this->role->apiValue() : (string) $this->role;
+    }
+
+    /** Profile photo from users.avatar_url or linked student record. */
+    public function resolveAvatarUrl(): ?string
+    {
+        if (filled($this->avatar_url)) {
+            return $this->avatar_url;
+        }
+
+        if ($this->roleValue() !== UserRole::Student->apiValue()) {
+            return null;
+        }
+
+        $student = $this->relationLoaded('student')
+            ? $this->student
+            : app(StudentResolutionService::class)->resolveForUser($this, persistLink: false);
+
+        return filled($student?->photo_url) ? $student->photo_url : null;
     }
 
     public function isSuperAdmin(): bool

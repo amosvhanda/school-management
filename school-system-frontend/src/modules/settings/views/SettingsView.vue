@@ -2,7 +2,6 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import {
-  Check,
   CheckCircle2,
   CircleDashed,
   GitBranch,
@@ -12,11 +11,13 @@ import {
 } from '@lucide/vue'
 import PageShell from '@/components/layout/PageShell.vue'
 import WorkspaceCard from '@/components/layout/WorkspaceCard.vue'
-import FormBuilder from '@/components/forms/FormBuilder.vue'
-import { useFormBuilder } from '@/components/forms/useFormBuilder'
 import PageLoader from '@/components/feedback/PageLoader.vue'
 import ErrorState from '@/components/feedback/ErrorState.vue'
 import SchoolSetupSection from '@/modules/settings/components/SchoolSetupSection.vue'
+import SchoolProfileShell from '@/modules/settings/school-profile/SchoolProfileShell.vue'
+import AcademicYearPane from '@/modules/settings/school-profile/AcademicYearPane.vue'
+import GradingRulesPane from '@/modules/settings/school-profile/GradingRulesPane.vue'
+import SettingsConfigPane from '@/modules/settings/school-profile/SettingsConfigPane.vue'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -31,15 +32,12 @@ import {
 } from '@/components/ui/select'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { useToast } from '@/composables/useToast'
-import { useSchoolProfile } from '@/composables/useSchoolProfile'
 import { schoolApi } from '@/services/api.service'
 import { fetchList, moduleEndpoints } from '@/services'
+import { fetchPaginatedList } from '@/services/dashboard.service'
 import { getErrorMessage } from '@/lib/api-response'
 import { cn } from '@/lib/utils'
-import {
-  schoolSettingsFormFields,
-  schoolSettingsFormSchema,
-} from '@/modules/settings/school-settings-form'
+import { HUB_TAB_NAV_WRAP, hubTabButtonClass } from '@/lib/page-meta'
 import {
   SETUP_TABS,
   sectionsForTab,
@@ -51,6 +49,7 @@ import { shouldAutoCreateSection } from '@/lib/module-hub'
 
 interface SchoolProfile {
   name?: string
+  code?: string
   principal_name?: string
   email?: string
   phone?: string
@@ -65,6 +64,12 @@ interface SchoolProfile {
   currency?: string
   currency_locked?: boolean
   logo_path?: string
+  academic_year?: string
+  current_term?: string
+  status?: string
+  license_status?: string
+  created_at?: string
+  updated_at?: string
 }
 
 interface SetupCounts {
@@ -82,12 +87,9 @@ interface SetupCounts {
 const toast = useToast()
 const route = useRoute()
 const router = useRouter()
-const { loadSchool } = useSchoolProfile()
 const loading = ref(true)
 const error = ref<string | null>(null)
-const currencyLocked = ref(false)
 const currentSchool = ref<SchoolProfile | null>(null)
-const formResetValues = ref<Record<string, unknown> | undefined>()
 const activeTab = ref<SetupTabId>('profile')
 const setupCounts = ref<SetupCounts>({
   terms: 0,
@@ -108,29 +110,24 @@ function parseSetupTab(value: unknown): SetupTabId | null {
   return validTabIds.has(tab as SetupTabId) ? (tab as SetupTabId) : null
 }
 
-const formFields = computed(() =>
-  schoolSettingsFormFields({ currencyLocked: currencyLocked.value }),
-)
-
-const {
-  handleSubmit,
-  resetForm,
-  applyServerErrors,
-  isSubmitting,
-} = useFormBuilder(schoolSettingsFormSchema)
-
-watch(
-  () => formResetValues.value,
-  (values) => {
-    resetForm({ values: (values ?? {}) as never })
-  },
-  { deep: true, immediate: true },
-)
-
 const activeTabConfig = computed(() => tabById(activeTab.value))
 const activeSections = computed(() => sectionsForTab(activeTabConfig.value))
 const isProfileTab = computed(() => activeTab.value === 'profile')
+const isAcademicYearTab = computed(() => activeTab.value === 'academic-year')
+const isClassSettingsTab = computed(() => activeTab.value === 'class-settings')
+const isExamSettingsTab = computed(() => activeTab.value === 'exam-settings')
+const isGradingTab = computed(() => activeTab.value === 'grading')
 const isNotificationsTab = computed(() => activeTab.value === 'notifications')
+
+const pageTitle = computed(() => activeTabConfig.value.title)
+
+const pageDescription = computed(() => activeTabConfig.value.description)
+
+const pageBreadcrumbTrail = computed(() => ['Settings', activeTabConfig.value.title])
+
+const profileShellRef = ref<InstanceType<typeof SchoolProfileShell> | null>(null)
+const publishing = ref(false)
+const studentCount = ref<number | null>(null)
 
 const NOTIFICATION_OPTIONS = [
   {
@@ -327,7 +324,9 @@ function selectTab(tabId: SetupTabId) {
   activeTab.value = tabId
   void router.replace(schoolSetupLocation(tabId, {
     query: Object.fromEntries(
-      Object.entries(route.query).filter(([key]) => key !== 'tab' && key !== 'create'),
+      Object.entries(route.query).filter(
+        ([key]) => key !== 'tab' && key !== 'create' && key !== 'section',
+      ),
     ),
   }))
 }
@@ -350,18 +349,6 @@ watch(
   },
   { immediate: true },
 )
-
-const onSubmit = handleSubmit(async (values) => {
-  try {
-    await schoolApi.update(values as Record<string, unknown>)
-    toast.success('School settings saved')
-    await loadSchool({ force: true })
-    await load()
-  } catch (err) {
-    applyServerErrors(err)
-    toast.error('Save failed', getErrorMessage(err))
-  }
-})
 
 async function loadSetupCounts() {
   const [
@@ -555,31 +542,39 @@ async function saveMessagingSettings() {
   }
 }
 
+async function publishSchoolProfile() {
+  publishing.value = true
+  try {
+    await schoolApi.update({ status: 'active' })
+    await schoolApi.updateSettings([
+      { group: 'profile', key: 'published_at', value: new Date().toISOString() },
+    ])
+    toast.success('School profile published')
+    await load()
+  } catch (err) {
+    toast.error('Publish failed', getErrorMessage(err))
+  } finally {
+    publishing.value = false
+  }
+}
+
+function openProfileEditor() {
+  profileShellRef.value?.openEditor()
+}
+
 async function load() {
   loading.value = true
   error.value = null
   try {
-    const [school] = await Promise.all([
+    const [school, studentsPage] = await Promise.all([
       schoolApi.show() as Promise<SchoolProfile>,
-      loadSetupCounts(),
+      loadSetupCounts().then(() =>
+        fetchPaginatedList(moduleEndpoints.students, { per_page: 1 }).catch(() => null),
+      ),
     ])
+
     currentSchool.value = school
-    currencyLocked.value = school.currency_locked === true
-    formResetValues.value = {
-      name: String(school.name ?? ''),
-      principal_name: String(school.principal_name ?? ''),
-      email: String(school.email ?? ''),
-      phone: String(school.phone ?? ''),
-      website: String(school.website ?? ''),
-      year_founded: school.year_founded ?? '',
-      suburb: String(school.suburb ?? ''),
-      city: String(school.city ?? ''),
-      student_capacity: school.student_capacity ?? '',
-      timezone: String(school.timezone ?? ''),
-      currency: school.currency === 'ZWG' ? 'ZWG' : 'USD',
-      motto: String(school.motto ?? ''),
-      address: String(school.address ?? ''),
-    }
+    studentCount.value = studentsPage?.total ?? null
   } catch (err) {
     error.value = getErrorMessage(err, 'Failed to load school settings')
   } finally {
@@ -592,22 +587,20 @@ onMounted(load)
 
 <template>
   <PageShell
-    title="School Setup & Configuration"
-    description="Configure all foundational settings for your school in one place."
+    :title="pageTitle"
+    :description="pageDescription"
+    :breadcrumbs="pageBreadcrumbTrail"
     max-width="wide"
   >
     <template #actions>
-      <Button
-        v-if="isProfileTab"
-        type="submit"
-        form="school-setup-form"
-        class="min-w-[10rem]"
-        :disabled="loading || isSubmitting"
-        :aria-busy="isSubmitting"
-      >
-        <Save class="mr-2 size-4" aria-hidden="true" />
-        {{ isSubmitting ? 'Saving…' : 'Save All Setup' }}
-      </Button>
+      <template v-if="isProfileTab">
+        <Button type="button" variant="outline" :disabled="loading" @click="openProfileEditor">
+          Edit information
+        </Button>
+        <Button type="button" :disabled="loading || publishing" @click="publishSchoolProfile">
+          {{ publishing ? 'Publishing…' : 'Publish' }}
+        </Button>
+      </template>
     </template>
 
     <PageLoader v-if="loading" label="Loading school setup" />
@@ -651,18 +644,13 @@ onMounted(load)
         </div>
       </section>
 
-      <section class="overflow-x-auto rounded-2xl border border-border/60 bg-muted/30 p-2">
+      <section :class="HUB_TAB_NAV_WRAP">
         <nav class="flex min-w-max items-center gap-2" aria-label="School setup sections">
           <button
             v-for="tab in SETUP_TABS"
             :key="tab.id"
             type="button"
-            :class="cn(
-              'inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-              activeTab === tab.id
-                ? 'bg-background text-foreground shadow-sm'
-                : 'text-muted-foreground hover:bg-background/80 hover:text-foreground',
-            )"
+            :class="hubTabButtonClass(activeTab === tab.id)"
             :aria-current="activeTab === tab.id ? 'page' : undefined"
             @click="selectTab(tab.id)"
           >
@@ -673,23 +661,65 @@ onMounted(load)
       </section>
 
       <div class="grid gap-6 xl:grid-cols-[minmax(0,1.7fr)_minmax(20rem,0.9fr)]">
+        <SchoolProfileShell
+          v-if="isProfileTab"
+          ref="profileShellRef"
+          class="min-w-0"
+          :school="currentSchool"
+          :setup-counts="setupCounts"
+          :student-count="studentCount ?? undefined"
+          @refreshed="load"
+        />
+
+        <AcademicYearPane
+          v-else-if="isAcademicYearTab"
+          class="min-w-0"
+          :school-name="currentSchool?.name"
+          :school-email="currentSchool?.email"
+          :principal-name="currentSchool?.principal_name"
+          :academic-year="currentSchool?.academic_year"
+          @saved="load"
+        />
+
+        <GradingRulesPane
+          v-else-if="isGradingTab"
+          class="min-w-0"
+          :school-name="currentSchool?.name"
+          :school-email="currentSchool?.email"
+          :principal-name="currentSchool?.principal_name"
+          @saved="load"
+        />
+
+        <SettingsConfigPane
+          v-else-if="isClassSettingsTab"
+          class="min-w-0"
+          title="Class Settings"
+          active-nav-label="Class Settings"
+          settings-prefix="class_settings"
+          :school-name="currentSchool?.name"
+          :school-email="currentSchool?.email"
+          :principal-name="currentSchool?.principal_name"
+          @saved="load"
+        />
+
+        <SettingsConfigPane
+          v-else-if="isExamSettingsTab"
+          class="min-w-0"
+          title="Exam Settings"
+          active-nav-label="Exam Settings"
+          settings-prefix="exam_settings"
+          :school-name="currentSchool?.name"
+          :school-email="currentSchool?.email"
+          :principal-name="currentSchool?.principal_name"
+          @saved="load"
+        />
+
         <WorkspaceCard
+          v-else
           :title="activeTabConfig.title"
           :description="activeTabConfig.description"
         >
-          <template v-if="isProfileTab" #meta>
-            <div class="inline-flex size-16 shrink-0 items-center justify-center rounded-full bg-muted text-xl font-semibold text-muted-foreground">
-              {{ String(currentSchool?.name ?? 'SC').slice(0, 2).toUpperCase() }}
-            </div>
-            <div class="space-y-1.5">
-              <p class="text-sm font-medium text-foreground">Upload School Logo</p>
-              <p class="text-xs text-muted-foreground">
-                Recommended: 500x500px, PNG or JPG, max 2MB
-              </p>
-            </div>
-          </template>
-
-          <template v-else-if="activeSectionMeta" #meta>
+          <template v-if="activeSectionMeta" #meta>
             <div class="inline-flex size-16 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
               <component :is="activeTabConfig.icon" class="size-7" aria-hidden="true" />
             </div>
@@ -701,37 +731,7 @@ onMounted(load)
             </div>
           </template>
 
-          <div v-if="isProfileTab">
-            <form
-              id="school-setup-form"
-              class="space-y-6"
-              novalidate
-              :aria-busy="isSubmitting"
-              @submit.prevent="onSubmit"
-            >
-              <FormBuilder
-                :fields="formFields"
-                :columns="2"
-              />
-
-              <div class="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border/60 bg-muted/30 px-4 py-3">
-                <p class="text-sm text-muted-foreground">
-                  Fees currency applies to invoices, fee structures, student accounts, store sales, and trip fees.
-                </p>
-                <div class="flex items-center gap-2 text-sm">
-                  <Badge :variant="currencyLocked ? 'secondary' : 'outline'">
-                    {{ currencyLocked ? 'Currency locked' : 'Currency editable' }}
-                  </Badge>
-                  <Button type="submit" :disabled="isSubmitting" variant="outline">
-                    <Check class="mr-2 size-4" aria-hidden="true" />
-                    {{ isSubmitting ? 'Saving…' : 'Save profile' }}
-                  </Button>
-                </div>
-              </div>
-            </form>
-          </div>
-
-          <div v-else-if="isNotificationsTab" class="space-y-6">
+          <div v-if="isNotificationsTab" class="space-y-6">
             <PageLoader v-if="notificationsLoading" label="Loading notification settings" />
             <template v-else>
               <fieldset class="space-y-3">

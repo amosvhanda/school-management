@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import type { FormFieldSchema } from '@/components/forms/useFormBuilder'
-import { formSection, genderOptions, mergeFormSections } from '@/lib/form-standards'
+import { formSection, mergeFormSections } from '@/lib/form-standards'
 import {
   dateOfBirthSchema,
   formatZimPhoneHint,
@@ -11,11 +11,17 @@ import { guardianRelationshipOptions } from '@/modules/guardians/guardian-form'
 
 const dobBounds = studentDobBounds()
 
+/** Matches EnrollmentController::store — gender is male|female only (no "other"). */
+const enrollmentGenderOptions = [
+  { label: 'Male', value: 'male' },
+  { label: 'Female', value: 'female' },
+]
+
 export const enrollmentFormSchema = z.object({
   first_name: z.string().trim().min(1, 'First name is required'),
   surname: z.string().trim().min(1, 'Surname is required'),
   date_of_birth: dateOfBirthSchema,
-  gender: z.enum(['male', 'female', 'other'], { required_error: 'Please select gender' }),
+  gender: z.enum(['male', 'female'], { required_error: 'Please select gender' }),
   phone: zimPhoneSchema,
   address: z.string().trim().min(1, 'Address is required'),
   grade_applying_for: z.string().trim().min(1, 'Grade is required'),
@@ -48,7 +54,7 @@ export const enrollmentFormFields: FormFieldSchema[] = mergeFormSections(
       type: 'select',
       required: true,
       placeholder: 'Select gender',
-      options: genderOptions,
+      options: enrollmentGenderOptions,
     },
     {
       name: 'phone',

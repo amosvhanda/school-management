@@ -67,6 +67,13 @@ class EnsureStaffOrPortalAccess
             }
         }
 
+        if ($request->isMethod('POST') && $path === 'api/v1/uploads') {
+            $directory = trim((string) $request->input('directory', 'uploads'), '/');
+            if ($directory === 'avatars' || str_ends_with($directory, '/avatars')) {
+                return $next($request);
+            }
+        }
+
         return response()->json([
             'message' => 'You do not have permission for this module.',
         ], 403);

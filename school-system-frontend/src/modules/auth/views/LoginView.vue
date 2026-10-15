@@ -12,6 +12,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import AuthFormShell from '@/components/auth/AuthFormShell.vue'
 import PasswordInput from '@/components/forms/PasswordInput.vue'
@@ -22,6 +23,7 @@ import { resolvePostLoginRedirect } from '@/app/router/guards'
 import { isStaffDashboardRole } from '@/lib/permissions'
 import { DEMO_ACCOUNTS, type DemoAccount } from '@/lib/demo-accounts'
 import { brandName, brandTagline } from '@/lib/brand'
+import { resolveMediaUrl } from '@/lib/media-url'
 import {
   formButtonClass,
   formFieldsAnimateOptions,
@@ -61,6 +63,22 @@ const tenantBrandTagline = computed(() => {
       ? String((branding as Record<string, unknown>).motto ?? '').trim()
       : ''
   return motto || brandTagline
+})
+
+const tenantLogoUrl = computed(() => {
+  const schoolLogo = configStore.school?.logo_path
+  if (schoolLogo) {
+    return resolveMediaUrl(String(schoolLogo))
+  }
+  const branding = configStore.settings?.branding
+  if (branding && typeof branding === 'object') {
+    const record = branding as Record<string, unknown>
+    const compact = String(record.compact_logo_path ?? '').trim()
+    if (compact) {
+      return resolveMediaUrl(compact)
+    }
+  }
+  return null
 })
 
 const { submit, isSubmitting, setValues } = useFormApiSubmit({
@@ -219,13 +237,19 @@ onMounted(() => {
                 type="button"
                 variant="outline"
                 size="sm"
-                class="h-auto flex-col items-start gap-0.5 border-border/70 bg-background/60 px-2 py-2 text-left whitespace-normal"
+                class="h-auto flex-row items-center gap-2 border-border/70 bg-background/60 px-2 py-2 text-left whitespace-normal"
                 :disabled="isSubmitting || !!quickLoginRole"
                 :aria-busy="quickLoginRole === account.role"
                 @click="quickSignIn(account)"
               >
-                <span class="text-xs font-medium">{{ account.label }}</span>
-                <span class="text-[10px] font-normal text-muted-foreground">{{ account.destination }}</span>
+                <Avatar class="size-8 shrink-0">
+                  <AvatarImage :src="account.avatarUrl" :alt="account.label" />
+                  <AvatarFallback class="text-[10px]">{{ account.label.slice(0, 2) }}</AvatarFallback>
+                </Avatar>
+                <span class="min-w-0 flex-1">
+                  <span class="block text-xs font-medium">{{ account.label }}</span>
+                  <span class="block text-[10px] font-normal text-muted-foreground">{{ account.destination }}</span>
+                </span>
               </Button>
             </div>
           </CardContent>
@@ -278,6 +302,17 @@ onMounted(() => {
       >
         <div class="flex flex-col items-center gap-3 text-center md:items-start md:text-left">
           <div
+            v-if="tenantLogoUrl"
+            class="flex size-11 items-center justify-center overflow-hidden rounded-xl border border-border/60 bg-background"
+          >
+            <img
+              :src="tenantLogoUrl"
+              :alt="`${tenantBrandName} logo`"
+              class="size-full object-contain p-1"
+            />
+          </div>
+          <div
+            v-else
             class="flex size-11 items-center justify-center rounded-xl bg-primary text-primary-foreground"
             aria-hidden="true"
           >

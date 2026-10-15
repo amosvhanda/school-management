@@ -17,6 +17,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { cn } from '@/lib/utils'
+import { HUB_TAB_NAV_WRAP, hubTabButtonClass } from '@/lib/page-meta'
 import { canAccessNavItem } from '@/lib/permissions'
 import { useAuth } from '@/composables/useAuth'
 import {
@@ -162,10 +163,25 @@ watch(
 function shouldAutoCreate(section: { listKey: string }, index: number) {
   return shouldAutoCreateSection(section, index, route.query)
 }
+
+const shellTitle = computed(() => activeTab.value?.title ?? props.title)
+const shellDescription = computed(() => activeTab.value?.description ?? props.description)
+const shellBreadcrumbTrail = computed((): string[] => {
+  const tabTitle = activeTab.value?.title
+  if (tabTitle && tabTitle !== props.title) {
+    return [props.title, tabTitle]
+  }
+  return [props.title]
+})
 </script>
 
 <template>
-  <PageShell :title="title" :description="description" max-width="wide">
+  <PageShell
+    :title="shellTitle"
+    :description="shellDescription"
+    :breadcrumbs="shellBreadcrumbTrail"
+    max-width="wide"
+  >
     <template v-if="$slots.actions" #actions>
       <slot name="actions" />
     </template>
@@ -237,7 +253,7 @@ function shouldAutoCreate(section: { listKey: string }, index: number) {
         class="hidden lg:block"
         :aria-label="ariaLabel"
       >
-        <div class="sticky top-20 space-y-1 rounded-2xl bg-card p-2.5 shadow-[var(--shadow-soft)] ring-1 ring-border/80">
+        <div class="sticky top-20 space-y-1 rounded-2xl bg-card p-2.5 shadow-[var(--shadow-soft)] ring-1 ring-border/80 dark:ring-border/50">
           <template v-if="usePriorityNav">
             <button
               v-for="tab in primaryTabs"
@@ -400,12 +416,12 @@ function shouldAutoCreate(section: { listKey: string }, index: number) {
         <slot name="tools" />
       </div>
 
-      <section class="overflow-x-auto rounded-2xl bg-card p-2 shadow-[var(--shadow-soft)] ring-1 ring-border/80">
-        <nav class="flex min-w-max items-center gap-1.5" :aria-label="ariaLabel">
+      <section :class="HUB_TAB_NAV_WRAP">
+        <nav class="flex min-w-max items-center gap-2" :aria-label="ariaLabel">
           <template v-for="(group, groupIndex) in tabGroups" :key="group.label || `group-${groupIndex}`">
             <span
               v-if="group.label && groupIndex > 0"
-              class="mx-1 h-6 w-px shrink-0 bg-border"
+              class="mx-0.5 h-6 w-px shrink-0 bg-border/80"
               aria-hidden="true"
             />
             <span
@@ -418,20 +434,15 @@ function shouldAutoCreate(section: { listKey: string }, index: number) {
               v-for="tab in group.tabs"
               :key="tab.id"
               type="button"
-              :class="cn(
-                'inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-                activeTabId === tab.id
-                  ? 'bg-primary text-primary-foreground shadow-sm'
-                  : 'text-muted-foreground hover:bg-muted hover:text-foreground',
-              )"
+              :class="hubTabButtonClass(activeTabId === tab.id)"
               :aria-current="activeTabId === tab.id ? 'page' : undefined"
               @click="selectTab(tab.id)"
             >
-              <component :is="tab.icon" class="size-4" aria-hidden="true" />
+              <component :is="tab.icon" class="size-4 shrink-0" aria-hidden="true" />
               {{ tab.title }}
               <span
                 v-if="tabBadge(tab.id) > 0"
-                class="ml-1 inline-flex min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-[10px] font-semibold text-primary-foreground"
+                class="ml-0.5 inline-flex min-w-5 items-center justify-center rounded-full bg-primary/15 px-1.5 text-[10px] font-semibold text-primary"
                 :aria-label="`${tabBadge(tab.id)} unread`"
               >
                 {{ tabBadge(tab.id) > 99 ? '99+' : tabBadge(tab.id) }}

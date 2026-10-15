@@ -614,6 +614,7 @@ export const moduleListMetaRegistry: Record<string, ListPageMeta> = {
   },
   'ops-help-desk': {
     filterMode: 'server',
+    csvExport: true,
     filters: [
       {
         key: 'status',

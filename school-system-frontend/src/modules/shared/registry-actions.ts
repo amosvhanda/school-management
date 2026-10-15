@@ -14,7 +14,7 @@ import {
   feeStructureAssignPromptForm,
 } from '@/modules/shared/action-prompt-forms'
 
-export type RowActionMethod = 'post' | 'put' | 'patch' | 'delete'
+export type RowActionMethod = 'get' | 'post' | 'put' | 'patch' | 'delete'
 
 export interface RowActionConfig {
   label: string
@@ -47,7 +47,7 @@ export const moduleActionsRegistry: Record<string, RowActionConfig[]> = {
   students: [
     {
       label: 'Print ID card',
-      method: 'post',
+      method: 'get',
       path: (id) => endpoints.students.idCardPrint(id),
       variant: 'outline',
       openIdCardPrint: true,

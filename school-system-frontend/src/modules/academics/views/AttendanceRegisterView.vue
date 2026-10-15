@@ -776,9 +776,9 @@ onMounted(async () => {
 
 <template>
   <PageShell
-    title="Student Attendance"
+    title="Student attendance"
     description="Student attendance register with status, timings, and class analytics."
-    eyebrow="Dashboard / Student Attendance"
+    :breadcrumbs="['Academics', 'Student attendance']"
     max-width="wide"
   >
     <template #actions>

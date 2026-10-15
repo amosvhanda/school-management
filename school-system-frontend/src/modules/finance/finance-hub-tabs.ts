@@ -28,6 +28,14 @@ export const FINANCE_HUB_TABS: ModuleHubTab[] = [
     group: 'Home',
   },
   {
+    id: 'payment-settings',
+    title: 'Payment settings',
+    description: 'Acceptance methods, settlement account, and publication rules.',
+    icon: Wallet,
+    component: () => import('@/modules/finance/views/PaymentSettingsPanel.vue'),
+    group: 'Fees',
+  },
+  {
     id: 'payments',
     title: 'Payments',
     description: 'Record and review fee collections.',

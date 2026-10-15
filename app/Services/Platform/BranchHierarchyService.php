@@ -25,12 +25,15 @@ class BranchHierarchyService
         $branches = School::where('parent_school_id', $root->id)->get();
 
         return [
-            'school' => $root->only(['id', 'name', 'code', 'branch_type']),
+            'school' => $root->only(['id', 'name', 'code', 'branch_type', 'status']),
             'branches' => $branches->map(fn ($b) => [
                 'id' => $b->id,
                 'name' => $b->name,
                 'code' => $b->code,
                 'branch_type' => $b->branch_type,
+                'status' => $b->status,
+                'updated_at' => $b->updated_at?->toIso8601String(),
+                'members_count' => Student::where('school_id', $b->id)->where('status', 'active')->count(),
                 'children' => $this->tree($b)['branches'],
             ]),
         ];

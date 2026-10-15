@@ -6,17 +6,12 @@ use App\Models\ExamResult;
 use App\Models\Grade;
 use App\Models\School;
 use App\Models\Student;
-use App\Services\Domain\SchoolDomainRules;
 use Illuminate\Http\Response;
 use Illuminate\Support\Carbon;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class StudentReportCardService
 {
-    public function __construct(
-        private SchoolDomainRules $domainRules,
-    ) {}
-
     public function download(Student $student, string $format = 'html'): StreamedResponse|Response
     {
         $format = strtolower($format);
@@ -75,12 +70,8 @@ class StudentReportCardService
                 )
                 ->get();
 
-        $this->domainRules
-            ->assertReportCardHasGrades(
-                $student,
-                $grades,
-                $examResults
-            );
+        // Empty grades/results still produce a printable shell (frontend shows clear empty rows).
+        // Blocking download made the Student Profile "Download" action appear broken.
 
         $school =
             School::query()

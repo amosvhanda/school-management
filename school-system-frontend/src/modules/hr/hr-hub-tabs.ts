@@ -21,7 +21,7 @@ export const HR_HUB_TABS: ModuleHubTab[] = [
     description: 'Non-teaching staff records and employment details.',
     icon: Users,
     capability: 'canManageTeachers',
-    listKey: 'hr-employees',
+    component: () => import('@/modules/hr/views/StaffListPanel.vue'),
   },
   {
     id: 'staff-tasks',

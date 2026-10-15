@@ -193,6 +193,7 @@ onMounted(async () => {
   <PageShell
     title="Notifications"
     :description="`Alerts for ${selectedChildLabel}`"
+    :breadcrumbs="['Parent portal', 'Notifications']"
     max-width="wide"
   >
     <template #actions>

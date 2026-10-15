@@ -21,11 +21,10 @@ withDefaults(
 
 <template>
   <Card :class="cn('overflow-hidden', $props.class)">
-    <CardHeader class="border-b border-border/60 px-5 py-5 sm:px-6">
+    <CardHeader class="border-b border-border/50 px-5 py-5 sm:px-6 dark:border-border/40">
       <div class="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-        <div class="min-w-0 space-y-1">
-          <p class="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Records</p>
-          <CardTitle class="text-lg">{{ title }}</CardTitle>
+        <div class="min-w-0 space-y-1.5">
+          <CardTitle class="text-lg font-semibold tracking-tight">{{ title }}</CardTitle>
           <CardDescription v-if="description || $slots.description" class="max-w-2xl text-sm leading-relaxed">
             <slot name="description">{{ description }}</slot>
           </CardDescription>
@@ -33,7 +32,7 @@ withDefaults(
 
         <div
           v-if="$slots.meta || metaLabel != null || metaValue != null"
-          class="flex items-center gap-3 rounded-2xl bg-muted/50 px-4 py-3 ring-1 ring-border/60"
+          class="flex items-center gap-3 rounded-2xl bg-muted/45 px-4 py-3 ring-1 ring-border/50"
         >
           <slot name="meta">
             <div

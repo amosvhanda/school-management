@@ -42,8 +42,6 @@ export async function importPeopleCsv(
   if (options?.dryRun) {
     form.append('dry_run', '1')
   }
-  const { data } = await api.post(endpoints.imports.import(type), form, {
-    headers: { 'Content-Type': 'multipart/form-data' },
-  })
+  const { data } = await api.post(endpoints.imports.import(type), form)
   return unwrapOne<PeopleImportResult>(data)
 }

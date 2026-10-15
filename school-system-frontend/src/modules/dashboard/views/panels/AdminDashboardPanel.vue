@@ -27,9 +27,10 @@ import { Button } from '@/components/ui/button'
 import { useAuth } from '@/composables/useAuth'
 import { useSchoolProfile } from '@/composables/useSchoolProfile'
 import { useStaffDashboard } from '@/composables/useStaffDashboard'
+import PageShell from '@/components/layout/PageShell.vue'
 import { formatMoney } from '@/lib/finance-constants'
 import { lazy } from '@/lib/lazy'
-import { getDashboardModuleGroupsForVariant } from '@/lib/role-dashboard'
+import { getDashboardModuleGroupsForVariant, getRoleDashboardMeta } from '@/lib/role-dashboard'
 
 const AttendancePanel = lazy(() => import('@/components/dashboard/AttendancePanel.vue'))
 const ActivityFeed = lazy(() => import('@/components/dashboard/ActivityFeed.vue'))
@@ -38,6 +39,8 @@ const FeeRevenueChart = lazy(() => import('@/components/dashboard/FeeRevenueChar
 
 const { user, checkCapability } = useAuth()
 const { school } = useSchoolProfile()
+
+const dashboardMeta = getRoleDashboardMeta('admin')
 
 const {
   loading, error, partialErrors, kpis,
@@ -135,31 +138,29 @@ onMounted(refresh)
 </script>
 
 <template>
-  <div class="mx-auto w-full max-w-[1600px] space-y-6 pb-8">
-    <header class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-      <div>
-        <p class="text-xs text-muted-foreground">Dashboard / Admin Dashboard</p>
-        <h1 class="mt-1 text-2xl font-semibold tracking-tight md:text-3xl">Admin Dashboard</h1>
-      </div>
-      <div class="flex flex-wrap items-center gap-2">
-        <span
-          v-if="school?.academic_year"
-          class="inline-flex h-9 items-center rounded-full border border-border bg-card px-3 text-xs font-medium"
-        >
-          AY {{ school.academic_year }}
-        </span>
-        <Button
-          variant="outline"
-          size="sm"
-          class="h-9 gap-2 rounded-full"
-          :disabled="loading"
-          :aria-busy="loading"
-          @click="refresh"
-        >
-          Refresh
-        </Button>
-      </div>
-    </header>
+  <PageShell
+    :title="dashboardMeta.pageTitle"
+    :description="dashboardMeta.subtitle"
+    :breadcrumbs="[dashboardMeta.pageTitle]"
+    max-width="wide"
+  >
+    <template #actions>
+      <span
+        v-if="school?.academic_year"
+        class="inline-flex h-9 items-center rounded-xl border border-border/80 bg-card px-3 text-xs font-medium shadow-none"
+      >
+        AY {{ school.academic_year }}
+      </span>
+      <Button
+        variant="outline"
+        size="sm"
+        :disabled="loading"
+        :aria-busy="loading"
+        @click="refresh"
+      >
+        Refresh
+      </Button>
+    </template>
 
     <DashboardSkeleton v-if="loading" />
 
@@ -304,5 +305,5 @@ onMounted(refresh)
     </template>
 
     <ErrorState v-else-if="error" :description="error" @retry="refresh" />
-  </div>
+  </PageShell>
 </template>

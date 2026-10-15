@@ -12,7 +12,9 @@ import {
 } from '@/components/ui/dialog'
 import {
   FORM_REQUIRED_DESCRIPTION,
+  formSheetDescriptionClass,
   formSheetSizeClass,
+  formSheetTitleClass,
   resolveFormSheetColumns,
   resolveFormSheetSize,
   type FormSheetColumns,
@@ -82,11 +84,14 @@ watch(open, (isOpen) => {
         formSheetSizeClass[resolvedSize],
       )"
     >
-      <DialogHeader class="shrink-0 space-y-1 border-b border-border/60 px-6 pt-6 pb-4">
-        <DialogTitle class="text-base font-semibold tracking-tight">
+      <DialogHeader class="shrink-0 space-y-1.5 border-b border-border/60 px-6 pt-6 pb-4">
+        <DialogTitle :class="formSheetTitleClass">
           {{ title }}
         </DialogTitle>
-        <DialogDescription v-if="(showRequiredHint && !staged) || description" class="text-xs leading-relaxed">
+        <DialogDescription
+          v-if="(showRequiredHint && !staged) || description"
+          :class="formSheetDescriptionClass"
+        >
           <slot name="description">
             {{ description ?? FORM_REQUIRED_DESCRIPTION }}
           </slot>

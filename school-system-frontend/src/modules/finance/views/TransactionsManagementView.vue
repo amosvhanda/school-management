@@ -389,8 +389,9 @@ onMounted(() => {
 
 <template>
   <PageShell
-    title="Financial Transactions"
+    title="Financial transactions"
     description="Complete audit trail of all financial activities"
+    :breadcrumbs="['Finance', 'Transactions']"
     max-width="wide"
   >
     <template #actions>

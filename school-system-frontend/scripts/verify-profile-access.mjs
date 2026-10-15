@@ -15,7 +15,7 @@ const ACCOUNTS = [
   { label: 'Exam officer', email: 'exam@school.co.zw', password: 'exam123', role: 'examination_officer', webAccess: true },
   { label: 'Parent', email: 'parent@school.co.zw', password: 'parent123', role: 'parent', webAccess: true },
   { label: 'Platform admin', email: 'super@school.co.zw', password: 'super123', role: 'super_admin', webAccess: true },
-  { label: 'Student', email: 'student@school.co.zw', password: 'student123', role: 'student', webAccess: false },
+  { label: 'Student', email: 'student@school.co.zw', password: 'student123', role: 'student', webAccess: true },
 ]
 
 const STAFF_DASHBOARD_ROLES = ['admin', 'teacher', 'finance', 'accounts', 'examination_officer']
@@ -41,6 +41,8 @@ function hasCapability(user, capability) {
     case 'canViewAuditLogs':
       return ['super_admin', 'admin', 'finance', 'accounts'].includes(role)
     case 'canManageExaminations':
+      return ['super_admin', 'admin', 'examination_officer'].includes(role)
+    case 'canEnterExamResults':
       return ['super_admin', 'admin', 'teacher', 'examination_officer'].includes(role)
     default:
       return false
@@ -51,12 +53,19 @@ function isParentPath(path) {
   return path === '/portal' || path.startsWith('/portal/')
 }
 
+function isStudentPath(path) {
+  return path === '/student' || path.startsWith('/student/')
+}
+
 function isPlatformPath(path) {
   return path === '/platform' || path.startsWith('/platform/')
 }
 
 function canAccessRoute(user, path, meta = {}) {
-  if (user.role === 'student' && path !== '/license/activate') return false
+  if (user.role === 'student') {
+    if (path === '/license/activate') return true
+    return isStudentPath(path)
+  }
 
   if (user.role === 'parent') {
     if (path === '/license/activate') return true
@@ -64,11 +73,11 @@ function canAccessRoute(user, path, meta = {}) {
   }
 
   if (user.role === 'super_admin') {
-    if (isParentPath(path)) return false
+    if (isParentPath(path) || isStudentPath(path)) return false
     if (isPlatformPath(path)) return true
     if (path === '/') return false
-  } else if (STAFF_DASHBOARD_ROLES.includes(user.role) || user.role === 'super_admin') {
-    if (isParentPath(path) || isPlatformPath(path)) return false
+  } else if (STAFF_DASHBOARD_ROLES.includes(user.role)) {
+    if (isParentPath(path) || isStudentPath(path) || isPlatformPath(path)) return false
   } else {
     return false
   }
@@ -89,10 +98,10 @@ function getDefaultRoute(role) {
   switch (role) {
     case 'parent':
       return '/portal'
+    case 'student':
+      return '/student'
     case 'super_admin':
       return '/platform'
-    case 'student':
-      return '/login'
     default:
       return STAFF_DASHBOARD_ROLES.includes(role) ? '/' : '/login'
   }
@@ -103,9 +112,10 @@ const ROUTE_CHECKS = [
   { path: '/students', meta: { capability: 'canManageStudents' }, label: 'Students' },
   { path: '/teachers', meta: { capability: 'canManageTeachers' }, label: 'Teachers' },
   { path: '/finance', meta: { capability: 'canManageFinance' }, label: 'Finance' },
-  { path: '/academics/exams', meta: { capability: 'canManageExaminations' }, label: 'Exams' },
+  { path: '/academics/exams', meta: { capability: ['canManageExaminations', 'canEnterExamResults'] }, label: 'Exams' },
   { path: '/compliance/audit', meta: { capability: 'canViewAuditLogs' }, label: 'Audit logs' },
   { path: '/portal', meta: { roles: ['parent'] }, label: 'Parent portal' },
+  { path: '/student', meta: { roles: ['student'] }, label: 'Student portal' },
   { path: '/platform', meta: { roles: ['super_admin'] }, label: 'Platform dashboard' },
   { path: '/platform/licenses', meta: { roles: ['super_admin'] }, label: 'Platform licenses' },
 ]
@@ -140,10 +150,9 @@ for (const account of ACCOUNTS) {
     }
 
     const defaultRoute = getDefaultRoute(user.role)
-    const webBlocked = user.role === 'student'
 
-    if (webBlocked && account.webAccess) {
-      console.log('FAIL — student should not have web access')
+    if (!account.webAccess) {
+      console.log('FAIL — account marked as blocked from web access but login succeeded')
       failures++
       continue
     }
@@ -158,9 +167,11 @@ for (const account of ACCOUNTS) {
         ? '/platform'
         : user.role === 'parent'
           ? '/portal'
-          : STAFF_DASHBOARD_ROLES.includes(user.role)
-            ? '/'
-            : '/login'
+          : user.role === 'student'
+            ? '/student'
+            : STAFF_DASHBOARD_ROLES.includes(user.role)
+              ? '/'
+              : '/login'
 
     if (defaultRoute !== expectedDefault) {
       console.log(`FAIL — default route ${defaultRoute} !== ${expectedDefault}`)

@@ -2,7 +2,17 @@
 import { computed, ref, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import * as icons from '@lucide/vue'
-import { Check, ChevronRight, ChevronsUpDown, GraduationCap, Plus } from '@lucide/vue'
+import {
+  Check,
+  ChevronsUpDown,
+  GraduationCap,
+  LogOut,
+  Menu,
+  Minus,
+  PanelLeft,
+  Plus,
+  UserRound,
+} from '@lucide/vue'
 import {
   Sidebar,
   SidebarContent,
@@ -28,6 +38,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { usePermissions } from '@/composables/usePermissions'
 import { useAuth } from '@/composables/useAuth'
 import { useSchoolProfile } from '@/composables/useSchoolProfile'
@@ -37,10 +48,8 @@ import { useNotificationStore } from '@/stores/notification.store'
 import type { NavGroup, NavItem } from '@/types/navigation'
 import { cn } from '@/lib/utils'
 import {
-  currentNavTarget,
+  flattenNavLinks,
   isNavHrefActive,
-  navTargetsEqual,
-  parseNavHref,
 } from '@/lib/nav-href'
 
 const props = defineProps<{ navigation: NavGroup[]; title: string }>()
@@ -49,7 +58,7 @@ const route = useRoute()
 const router = useRouter()
 const toast = useToast()
 const { filterNavigation, isSuperAdmin } = usePermissions()
-const { user, defaultRoute, switchSchool, loading } = useAuth()
+const { user, defaultRoute, switchSchool, loading, logout, displayName } = useAuth()
 const { school } = useSchoolProfile()
 const switchingSchool = ref(false)
 
@@ -97,8 +106,14 @@ async function handleSwitchSchool(schoolId: number) {
 function addSchool() {
   void router.push({ path: '/platform/licenses', query: { register: '1' } })
 }
+
+async function handleLogout() {
+  await logout()
+  await router.push({ name: 'login' })
+}
+
 const notificationStore = useNotificationStore()
-const { isMobile, setOpenMobile, state } = useSidebar()
+const { isMobile, setOpenMobile, state, toggleSidebar } = useSidebar()
 
 const groups = computed(() => filterNavigation(props.navigation))
 const isCollapsed = computed(() => state.value === 'collapsed')
@@ -106,30 +121,50 @@ const homeHref = computed(() => defaultRoute.value || '/')
 /** Accordion: at most one manually opened submenu (active branch always stays open). */
 const openMenuKey = ref<string | null>(null)
 
+const userInitials = computed(() =>
+  (displayName.value || user.value?.name || 'U')
+    .split(' ')
+    .map((part) => part[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase(),
+)
+
+const roleLabel = computed(() =>
+  (user.value?.role ?? 'user').replaceAll('_', ' '),
+)
+
 function resolveIcon(name?: string) {
   if (!name) return icons.LayoutDashboard
   return ((icons as Record<string, unknown>)[name] as typeof icons.LayoutDashboard) ?? icons.Circle
 }
 
-function siblingHrefs(items: NavItem[]): Array<string | undefined> {
-  return items.map((item) => item.href)
+const flatLinks = computed(() => flattenNavLinks(groups.value))
+const competitorHrefs = computed(() => flatLinks.value.map((link) => link.href))
+const competitorKeys = computed(() => flatLinks.value.map((link) => link.key))
+
+function linkKey(groupLabel: string, item: NavItem, child?: NavItem) {
+  if (child) return `${groupLabel}::${item.title}::${child.title}`
+  return `${groupLabel}::${item.title}`
 }
 
-function isItemActive(href: string | undefined, siblings: NavItem[]) {
+function isItemActive(groupLabel: string, item: NavItem, child?: NavItem) {
+  const href = child?.href ?? item.href
   return isNavHrefActive(
     href,
     route.path,
     route.query.tab,
-    siblingHrefs(siblings),
+    competitorHrefs.value,
     route.query.status,
     route.query.staff,
+    linkKey(groupLabel, item, child),
+    competitorKeys.value,
   )
 }
 
-function hasActiveDescendant(item: NavItem): boolean {
-  const current = currentNavTarget(route.path, route.query.tab, route.query.status, route.query.staff)
-  if (item.href && navTargetsEqual(parseNavHref(item.href), current)) return true
-  return (item.items ?? []).some((child) => hasActiveDescendant(child))
+function hasActiveDescendant(groupLabel: string, item: NavItem): boolean {
+  if (item.href && isItemActive(groupLabel, item)) return true
+  return (item.items ?? []).some((child) => isItemActive(groupLabel, item, child))
 }
 
 function menuKey(groupLabel: string, item: NavItem) {
@@ -137,13 +172,21 @@ function menuKey(groupLabel: string, item: NavItem) {
 }
 
 function isMenuOpen(groupLabel: string, item: NavItem) {
-  if (hasActiveDescendant(item)) return true
+  if (hasActiveDescendant(groupLabel, item)) return true
   return openMenuKey.value === menuKey(groupLabel, item)
 }
 
 function toggleMenu(groupLabel: string, item: NavItem) {
   const key = menuKey(groupLabel, item)
   openMenuKey.value = openMenuKey.value === key ? null : key
+}
+
+/** Expand/collapse submenu; when icon-collapsed, navigate to primary child instead. */
+function onExpandableClick(groupLabel: string, item: NavItem) {
+  if (isCollapsed.value && primaryChildHref(item)) {
+    return
+  }
+  toggleMenu(groupLabel, item)
 }
 
 function openMenu(groupLabel: string, item: NavItem) {
@@ -159,6 +202,26 @@ function badgeCount(item: { badge?: string }) {
   return 0
 }
 
+/** Leaf active = full accent; parent open/section = soft highlight without the active rail. */
+function rowActiveClass(active: boolean, open = false) {
+  return cn(
+    'relative h-11 rounded-xl px-2.5 text-[15px] font-medium transition-colors duration-150 group-data-[collapsible=icon]:mx-auto group-data-[collapsible=icon]:size-10 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:rounded-xl group-data-[collapsible=icon]:px-0',
+    active
+      ? 'bg-accent text-primary shadow-none hover:bg-accent before:absolute before:inset-y-2 before:left-0 before:w-[3px] before:rounded-full before:bg-primary group-data-[collapsible=icon]:before:hidden'
+      : open
+        ? 'bg-muted/45 text-sidebar-foreground hover:bg-muted/60'
+        : 'bg-transparent text-sidebar-foreground/85 hover:bg-muted/50 hover:text-sidebar-foreground',
+  )
+}
+
+/** PreSkool: circular tint when open/active; plain icon when idle. */
+function iconBoxClass(active: boolean) {
+  return cn(
+    'flex size-7 shrink-0 items-center justify-center rounded-full transition-colors duration-150 [&_svg]:size-[18px]!',
+    active ? 'bg-primary/15 text-primary' : 'bg-transparent text-muted-foreground',
+  )
+}
+
 watch(
   () => [route.path, route.query.tab] as const,
   () => {
@@ -167,7 +230,7 @@ watch(
     }
     for (const group of groups.value) {
       for (const item of group.items) {
-        if (item.items?.length && hasActiveDescendant(item)) {
+        if (item.items?.length && hasActiveDescendant(group.label, item)) {
           openMenuKey.value = menuKey(group.label, item)
         }
       }
@@ -178,33 +241,56 @@ watch(
 </script>
 
 <template>
-  <Sidebar collapsible="icon" class="border-r border-sidebar-border bg-sidebar" aria-label="Application navigation">
-    <SidebarHeader class="gap-3 px-3 py-4 group-data-[collapsible=icon]:px-2">
-      <RouterLink
-        :to="homeHref"
-        class="flex items-center gap-2.5 rounded-xl px-1 py-1 group-data-[collapsible=icon]:justify-center"
-        :aria-label="`${title} home`"
-      >
-        <div
-          class="flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground"
+  <Sidebar collapsible="icon" class="border-r border-sidebar-border bg-sidebar dark:border-sidebar-border/80" aria-label="Application navigation">
+    <SidebarHeader class="gap-2 border-b border-sidebar-border/70 px-3 group-data-[collapsible=icon]:px-2">
+      <div class="flex h-16 items-center gap-2 group-data-[collapsible=icon]:justify-center">
+        <!-- Collapsed: logo expands the sidebar (hamburger was hidden in icon mode). -->
+        <button
+          v-if="isCollapsed"
+          type="button"
+          class="inline-flex size-9 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          aria-label="Expand navigation sidebar"
+          @click="toggleSidebar"
         >
-          <GraduationCap class="size-4" aria-hidden="true" />
-        </div>
-        <span class="truncate text-base font-semibold tracking-tight text-sidebar-foreground group-data-[collapsible=icon]:hidden">
-          {{ title }}
-        </span>
-      </RouterLink>
+          <PanelLeft class="size-4" aria-hidden="true" />
+        </button>
+        <template v-else>
+          <RouterLink
+            :to="homeHref"
+            class="flex min-w-0 flex-1 items-center gap-2.5 rounded-xl px-1 py-1"
+            :aria-label="`${title} home`"
+          >
+            <div
+              class="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground"
+            >
+              <GraduationCap class="size-4" aria-hidden="true" />
+            </div>
+            <span class="truncate text-lg font-semibold tracking-tight text-sidebar-foreground">
+              {{ title }}
+            </span>
+          </RouterLink>
+          <button
+            type="button"
+            class="inline-flex size-9 shrink-0 items-center justify-center rounded-lg text-muted-foreground outline-none hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+            aria-label="Collapse navigation sidebar"
+            @click="toggleSidebar"
+          >
+            <Menu class="size-5" aria-hidden="true" />
+          </button>
+        </template>
+      </div>
+
       <DropdownMenu v-if="isSuperAdmin">
         <DropdownMenuTrigger as-child>
           <button
             type="button"
-            class="flex w-full items-center gap-3 rounded-2xl bg-muted/50 px-3 py-2.5 text-left ring-1 ring-border/70 outline-none group-data-[collapsible=icon]:hidden focus-visible:ring-2 focus-visible:ring-ring"
+            class="flex w-full items-center gap-3 rounded-xl bg-muted/50 px-3 py-2 text-left ring-1 ring-border/70 outline-none group-data-[collapsible=icon]:hidden focus-visible:ring-2 focus-visible:ring-ring"
             :disabled="switchingSchool || loading"
             :aria-busy="switchingSchool"
             aria-label="Switch school"
           >
             <div
-              class="flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary"
+              class="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary"
             >
               <GraduationCap class="size-4" aria-hidden="true" />
             </div>
@@ -259,42 +345,30 @@ watch(
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
-      <RouterLink
-        v-else
-        :to="homeHref"
-        class="flex items-center gap-3 rounded-2xl bg-muted/50 px-3 py-2.5 ring-1 ring-border/70 group-data-[collapsible=icon]:hidden"
-        :aria-label="`${schoolCardName} home`"
-      >
-        <div
-          class="flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary"
-        >
-          <GraduationCap class="size-4" aria-hidden="true" />
-        </div>
-        <div class="min-w-0">
-          <p class="truncate text-sm font-semibold leading-tight text-sidebar-foreground">{{ schoolCardName }}</p>
-          <p class="mt-0.5 truncate text-[11px] text-muted-foreground">School Management</p>
-        </div>
-      </RouterLink>
     </SidebarHeader>
 
-    <SidebarContent class="gap-0 px-1 py-2 md:px-2" aria-label="Main menu">
-      <SidebarGroup v-for="group in groups" :key="group.label" class="p-0">
-        <SidebarGroupLabel class="px-3 text-[11px] font-semibold uppercase tracking-[0.16em]">
+    <SidebarContent class="gap-0 px-3 py-3" aria-label="Main menu">
+      <SidebarGroup v-for="(group, groupIndex) in groups" :key="group.label || `group-${groupIndex}`" class="p-0 py-2">
+        <SidebarGroupLabel
+          v-if="group.label"
+          class="mb-1.5 h-auto px-2.5 py-0 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground/80"
+        >
           {{ group.label }}
         </SidebarGroupLabel>
         <SidebarGroupContent>
           <SidebarMenu class="gap-0.5">
             <SidebarMenuItem v-for="item in group.items" :key="item.title" class="relative">
-              <!-- Expandable EduDash-style module -->
+              <!-- Expandable ProSkool module -->
               <template v-if="item.items?.length">
                 <SidebarMenuButton
                   :tooltip="item.title"
-                  :is-active="hasActiveDescendant(item)"
-                  class="h-9 rounded-xl px-2.5 group-data-[collapsible=icon]:mx-auto group-data-[collapsible=icon]:size-9 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0 data-[active=true]:bg-primary/10 data-[active=true]:font-medium data-[active=true]:text-primary"
+                  :is-active="false"
+                  :class="rowActiveClass(
+                    false,
+                    isMenuOpen(group.label, item) && !isCollapsed,
+                  )"
                   :aria-expanded="isMenuOpen(group.label, item)"
-                  @click="isCollapsed && primaryChildHref(item)
-                    ? undefined
-                    : toggleMenu(group.label, item)"
+                  @click="onExpandableClick(group.label, item)"
                 >
                   <RouterLink
                     v-if="isCollapsed && primaryChildHref(item)"
@@ -303,30 +377,43 @@ watch(
                     :title="item.title"
                     @click.stop
                   >
-                    <component :is="resolveIcon(item.icon)" class="size-4 shrink-0 opacity-80" aria-hidden="true" />
+                    <span :class="iconBoxClass(hasActiveDescendant(group.label, item))">
+                      <component :is="resolveIcon(item.icon)" aria-hidden="true" />
+                    </span>
                     <span class="sr-only">{{ item.title }}</span>
                   </RouterLink>
                   <template v-else>
-                    <component :is="resolveIcon(item.icon)" class="size-4 shrink-0 opacity-80" aria-hidden="true" />
-                    <span class="truncate">{{ item.title }}</span>
-                    <ChevronRight
-                      class="ml-auto size-4 shrink-0 opacity-50 transition-transform group-data-[collapsible=icon]:hidden"
-                      :class="cn(isMenuOpen(group.label, item) && 'rotate-90')"
+                    <span :class="iconBoxClass(hasActiveDescendant(group.label, item) || isMenuOpen(group.label, item))">
+                      <component :is="resolveIcon(item.icon)" aria-hidden="true" />
+                    </span>
+                    <span class="min-w-0 flex-1 truncate text-left text-[15px] font-medium leading-snug">
+                      {{ item.title }}
+                    </span>
+                    <span
+                      class="flex size-5 shrink-0 items-center justify-center text-muted-foreground/70 group-data-[collapsible=icon]:hidden"
+                      :class="isMenuOpen(group.label, item) ? 'text-primary' : ''"
                       aria-hidden="true"
-                    />
+                    >
+                      <Minus v-if="isMenuOpen(group.label, item)" class="size-3.5" />
+                      <Plus v-else class="size-3.5" />
+                    </span>
                   </template>
                 </SidebarMenuButton>
 
-                <SidebarMenuSub v-show="isMenuOpen(group.label, item) && !isCollapsed">
+                <SidebarMenuSub
+                  v-show="isMenuOpen(group.label, item) && !isCollapsed"
+                  class="mx-0 mb-1 mt-0.5 border-l-0 px-0 py-0"
+                >
                   <SidebarMenuSubItem v-for="child in item.items" :key="child.title">
                     <SidebarMenuSubButton
                       as-child
                       size="sm"
-                      :is-active="isItemActive(child.href, item.items ?? [])"
+                      :is-active="isItemActive(group.label, item, child)"
+                      class="h-9 rounded-lg pl-9 text-sm font-normal text-sidebar-foreground/75 hover:bg-muted/50 hover:text-sidebar-foreground focus-visible:ring-1 focus-visible:ring-ring/40 data-[active=true]:bg-primary/10 data-[active=true]:font-medium data-[active=true]:text-primary data-[active=true]:shadow-none"
                     >
                       <RouterLink
                         :to="child.href ?? '#'"
-                        :aria-current="isItemActive(child.href, item.items ?? []) ? 'page' : undefined"
+                        :aria-current="isItemActive(group.label, item, child) ? 'page' : undefined"
                         @click="openMenu(group.label, item)"
                       >
                         <span class="truncate">{{ child.title }}</span>
@@ -336,22 +423,26 @@ watch(
                 </SidebarMenuSub>
               </template>
 
-              <!-- Flat leaf link -->
+              <!-- Flat leaf (Dashboard / Application / Reports) -->
               <template v-else>
                 <SidebarMenuButton
                   as-child
                   :tooltip="item.title"
-                  :is-active="isItemActive(item.href, group.items)"
-                  class="h-9 rounded-xl px-2.5 group-data-[collapsible=icon]:mx-auto group-data-[collapsible=icon]:size-9 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0 data-[active=true]:bg-primary/10 data-[active=true]:font-medium data-[active=true]:text-primary"
+                  :is-active="isItemActive(group.label, item)"
+                  :class="rowActiveClass(isItemActive(group.label, item))"
                 >
                   <RouterLink
                     :to="item.href ?? '#'"
                     class="gap-2.5 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:gap-0"
-                    :aria-current="isItemActive(item.href, group.items) ? 'page' : undefined"
+                    :aria-current="isItemActive(group.label, item) ? 'page' : undefined"
                     :title="isCollapsed ? item.title : undefined"
                   >
-                    <component :is="resolveIcon(item.icon)" class="size-4 shrink-0 opacity-80" aria-hidden="true" />
-                    <span class="truncate group-data-[collapsible=icon]:sr-only">{{ item.title }}</span>
+                    <span :class="iconBoxClass(isItemActive(group.label, item))">
+                      <component :is="resolveIcon(item.icon)" aria-hidden="true" />
+                    </span>
+                    <span class="truncate text-[15px] font-medium leading-snug group-data-[collapsible=icon]:sr-only">
+                      {{ item.title }}
+                    </span>
                   </RouterLink>
                 </SidebarMenuButton>
                 <SidebarMenuBadge
@@ -368,26 +459,47 @@ watch(
     </SidebarContent>
 
     <SidebarFooter class="border-t border-sidebar-border/70 p-3">
-      <div class="flex items-center gap-3 rounded-2xl px-2 py-2 group-data-[collapsible=icon]:hidden">
-        <div
-          class="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary"
-          aria-hidden="true"
-        >
-          {{ user?.name?.split(' ').map((part) => part[0]).join('').slice(0, 2).toUpperCase() ?? 'U' }}
-        </div>
-        <div class="min-w-0">
-          <p class="truncate text-sm font-semibold text-sidebar-foreground">{{ user?.name ?? 'User' }}</p>
-          <p class="mt-0.5 truncate text-[11px] capitalize text-muted-foreground">
-            {{ user?.role?.replaceAll('_', ' ') ?? title }}
-          </p>
-        </div>
-      </div>
-      <p
-        class="hidden truncate py-2 text-center text-[10px] font-bold tracking-tight text-sidebar-foreground/70 group-data-[collapsible=icon]:block"
-        :title="user?.name"
-      >
-        {{ user?.name?.split(' ').map((part) => part[0]).join('').slice(0, 2).toUpperCase() ?? 'U' }}
-      </p>
+      <DropdownMenu>
+        <DropdownMenuTrigger as-child>
+          <button
+            type="button"
+            class="flex w-full items-center gap-3 rounded-xl bg-muted/35 px-2.5 py-2 text-left outline-none transition-colors hover:bg-muted/65 focus-visible:ring-2 focus-visible:ring-ring group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0"
+            aria-label="Account menu"
+          >
+            <Avatar class="size-9 shrink-0">
+              <AvatarImage v-if="user?.avatar_url" :src="user.avatar_url" :alt="displayName || 'User'" />
+              <AvatarFallback class="bg-primary/10 text-xs font-semibold text-primary">
+                {{ userInitials }}
+              </AvatarFallback>
+            </Avatar>
+            <div class="min-w-0 flex-1 group-data-[collapsible=icon]:hidden">
+              <p class="truncate text-base font-medium text-sidebar-foreground">
+                {{ displayName || user?.name || 'User' }}
+              </p>
+              <p class="mt-0.5 truncate text-sm capitalize text-muted-foreground">
+                {{ roleLabel }}
+              </p>
+            </div>
+            <ChevronsUpDown
+              class="size-4 shrink-0 text-muted-foreground group-data-[collapsible=icon]:hidden"
+              aria-hidden="true"
+            />
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent side="top" align="start" class="w-56 rounded-xl p-1.5">
+          <DropdownMenuItem class="cursor-pointer gap-2 rounded-lg" as-child>
+            <RouterLink to="/profile">
+              <UserRound class="size-4" aria-hidden="true" />
+              Profile
+            </RouterLink>
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem class="cursor-pointer gap-2 rounded-lg text-destructive focus:text-destructive" @click="handleLogout">
+            <LogOut class="size-4" aria-hidden="true" />
+            Log out
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
     </SidebarFooter>
     <SidebarRail aria-hidden="true" />
   </Sidebar>

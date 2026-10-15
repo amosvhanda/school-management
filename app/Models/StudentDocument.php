@@ -19,12 +19,18 @@ class StudentDocument extends Model
         'path',
         'mime_type',
         'size',
+        'is_favourite',
+        'verified_at',
+        'expires_at',
     ];
 
     protected function casts(): array
     {
         return [
             'size' => 'integer',
+            'is_favourite' => 'boolean',
+            'verified_at' => 'datetime',
+            'expires_at' => 'datetime',
         ];
     }
 

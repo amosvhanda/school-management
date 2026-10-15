@@ -89,6 +89,12 @@ const form = ref({
 const isTeacher = computed(() => authStore.user?.role === 'teacher')
 const teacherId = computed(() => authStore.user?.teacher_id)
 
+const canEnterMarks = computed(
+  () =>
+    authStore.checkCapability('canEnterExamResults')
+    || authStore.checkCapability('canManageExaminations'),
+)
+
 const selectedClassName = computed(
   () => classes.value.find((c) => String(c.id) === selectedClass.value)?.name ?? 'Class',
 )
@@ -296,9 +302,10 @@ onMounted(async () => {
   <PageShell
     title="Gradebook"
     description="Class-first marks — pick a class, scan the marksheet, enter scores."
+    :breadcrumbs="['Academics', 'Gradebook']"
     max-width="wide"
   >
-    <template #actions>
+    <template v-if="canEnterMarks" #actions>
       <Button class="h-10 px-4" :disabled="!selectedClass" @click="openEntry()">
         <Plus class="mr-2 h-4 w-4" aria-hidden="true" />
         Enter mark
@@ -442,7 +449,7 @@ onMounted(async () => {
                 <TableRow class="hover:bg-transparent">
                   <TableHead class="min-w-[10rem] sticky left-0 z-10 bg-card">Learner</TableHead>
                   <TableHead class="min-w-[14rem]">Marks</TableHead>
-                  <TableHead class="w-28 text-right">
+                  <TableHead v-if="canEnterMarks" class="w-28 text-right">
                     <span class="sr-only">Actions</span>
                   </TableHead>
                 </TableRow>
@@ -500,7 +507,7 @@ onMounted(async () => {
                       </ul>
                       <p v-else class="text-sm text-muted-foreground">No marks yet</p>
                     </TableCell>
-                    <TableCell class="text-right">
+                    <TableCell v-if="canEnterMarks" class="text-right">
                       <Button
                         type="button"
                         variant="ghost"
