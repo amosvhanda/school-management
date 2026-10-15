@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Enterprise;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Api\V1\Finance\PostJournalRequest;
 use App\Models\BankStatementLine;
 use App\Models\ChartOfAccount;
 use App\Models\ExchangeRate;
@@ -44,25 +45,13 @@ class EnterpriseFinanceController extends Controller
         return response()->json(['data' => ChartOfAccount::where('school_id', $request->user()->school_id)->orderBy('code')->get()]);
     }
 
-    public function postJournal(Request $request)
+    public function postJournal(PostJournalRequest $request)
     {
-        $this->authorize('create', JournalEntry::class);
-
-        $data = Validator::make($request->all(), [
-            'description' => 'required|string',
-            'entry_date' => 'nullable|date',
-            'currency' => 'nullable|string|size:3',
-            'lines' => 'required|array|min:2',
-            'lines.*.account_id' => [
-                'required',
-                Rule::exists('chart_of_accounts', 'id')
-                    ->where('school_id', $request->user()->school_id),
-            ],
-            'lines.*.debit' => 'nullable|numeric',
-            'lines.*.credit' => 'nullable|numeric',
-        ])->validate();
-
-        $entry = $this->finance->postJournal($request->user()->school_id, $data, $request->user()->id);
+        $entry = $this->finance->postJournal(
+            $request->user()->school_id,
+            $request->validated(),
+            $request->user()->id,
+        );
 
         return response()->json(['data' => $entry, 'message' => 'Journal posted'], 201);
     }
