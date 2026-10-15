@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Exam;
 use App\Models\Hostel;
 use App\Models\HostelBed;
 use App\Models\HostelRoom;
@@ -173,5 +174,45 @@ class CrossTenantIdorTest extends TestCase
             'Authorization' => 'Bearer '.$auth['token'],
         ])->getJson("/api/v1/invoices/{$invoice->id}")
             ->assertForbidden();
+    }
+
+    public function test_cannot_show_or_update_exam_from_other_school(): void
+    {
+        $auth = $this->createAuthenticatedUser();
+        $otherSchool = School::factory()->create();
+        $otherExam = Exam::factory()->create(['school_id' => $otherSchool->id]);
+
+        $headers = ['Authorization' => 'Bearer '.$auth['token']];
+
+        $this->withHeaders($headers)
+            ->getJson("/api/v1/exams/{$otherExam->id}")
+            ->assertNotFound();
+
+        $this->withHeaders($headers)
+            ->putJson("/api/v1/exams/{$otherExam->id}", [
+                'name' => 'Hijacked exam',
+            ])
+            ->assertNotFound();
+
+        $this->withHeaders($headers)
+            ->postJson("/api/v1/exams/{$otherExam->id}/results", [
+                'results' => [],
+            ])
+            ->assertNotFound();
+    }
+
+    public function test_teacher_cannot_post_journal_via_policy(): void
+    {
+        $auth = $this->createAuthenticatedUser('teacher');
+
+        $this->withHeaders([
+            'Authorization' => 'Bearer '.$auth['token'],
+        ])->postJson('/api/v1/enterprise/finance/journals', [
+            'description' => 'Unauthorized journal',
+            'lines' => [
+                ['account_id' => 1, 'debit' => 10, 'credit' => 0],
+                ['account_id' => 2, 'debit' => 0, 'credit' => 10],
+            ],
+        ])->assertForbidden();
     }
 }

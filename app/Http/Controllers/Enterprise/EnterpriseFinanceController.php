@@ -7,6 +7,7 @@ use App\Models\BankStatementLine;
 use App\Models\ChartOfAccount;
 use App\Models\ExchangeRate;
 use App\Models\InstalmentPlan;
+use App\Models\JournalEntry;
 use App\Models\Payment;
 use App\Models\RevenueRecognitionRule;
 use App\Services\Enterprise\FinanceEnterpriseService;
@@ -27,7 +28,6 @@ class EnterpriseFinanceController extends Controller
         );
     }
 
-
     public function seedAccounts(Request $request)
     {
         $this->authorizeEnterpriseFinance($request);
@@ -46,7 +46,7 @@ class EnterpriseFinanceController extends Controller
 
     public function postJournal(Request $request)
     {
-        $this->authorizeEnterpriseFinance($request);
+        $this->authorize('create', JournalEntry::class);
 
         $data = Validator::make($request->all(), [
             'description' => 'required|string',

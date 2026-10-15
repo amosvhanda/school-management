@@ -6,18 +6,18 @@ use App\Http\Concerns\HandlesResourceQueries;
 use App\Http\Resources\Api\V1\ExamResource;
 use App\Models\Exam;
 use App\Models\ExamResult;
-use App\Models\Term;
 use App\Models\GradeLevel;
-use App\Models\Subject;
 use App\Models\Student;
-use App\Models\GradingScale;
+use App\Models\Subject;
+use App\Models\Term;
 use App\Services\AuditService;
+use App\Services\Domain\SchoolDomainRules;
 use App\Services\ExamAccessService;
 use App\Services\ParentNotificationService;
 use App\Services\Platform\MarkModerationLockService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 
 class ExamController extends Controller
@@ -31,31 +31,12 @@ class ExamController extends Controller
         private ExamAccessService $examAccess,
     ) {}
 
-    private function authorizeExamAccess(Request $request, bool $manage = false): void
-    {
-        if ($manage) {
-            $this->authorizeModuleAccess(
-                $request,
-                capabilities: ['canManageExaminations', 'canEnterExamResults'],
-                permissionSlugs: ['exams.manage', 'exams.enter_results'],
-            );
-
-            return;
-        }
-
-        $this->authorizeModuleAccess(
-            $request,
-            capabilities: ['canManageExaminations', 'canEnterExamResults', 'isStaff'],
-            permissionSlugs: ['exams.manage', 'exams.enter_results'],
-        );
-    }
-
     /**
      * Get all exams for the school
      */
     public function index(Request $request)
     {
-        $this->authorizeExamAccess($request, manage: false);
+        $this->authorize('viewAny', Exam::class);
         $user = $request->user();
         $schoolId = $user->school_id;
 
@@ -87,7 +68,6 @@ class ExamController extends Controller
      */
     public function show(Request $request, $id)
     {
-        $this->authorizeExamAccess($request, manage: false);
         $user = $request->user();
         $schoolId = $user->school_id;
 
@@ -95,9 +75,7 @@ class ExamController extends Controller
             ->with(['term', 'gradeLevel', 'subject', 'examResults.student'])
             ->findOrFail($id);
 
-        if (! $this->examAccess->canManageExams($user) && ! $this->examAccess->canEnterResults($user, $exam)) {
-            abort(403, 'You can only view exams for subjects you are assigned to teach.');
-        }
+        $this->authorize('view', $exam);
 
         // Get all students in the grade level
         $students = Student::where('school_id', $schoolId)
@@ -117,9 +95,8 @@ class ExamController extends Controller
      */
     public function store(Request $request)
     {
-        $this->authorizeExamAccess($request, manage: true);
+        $this->authorize('create', Exam::class);
         $user = $request->user();
-        $this->examAccess->assertCanManageExams($user);
         $schoolId = $user->school_id;
 
         $validator = Validator::make($request->all(), [
@@ -155,7 +132,7 @@ class ExamController extends Controller
         $subject = Subject::where('school_id', $schoolId)
             ->findOrFail($request->subject_id);
 
-        app(\App\Services\Domain\SchoolDomainRules::class)->assertSubjectAvailableForGrade(
+        app(SchoolDomainRules::class)->assertSubjectAvailableForGrade(
             (int) $schoolId,
             (int) $request->grade_level_id,
             (int) $request->subject_id,
@@ -188,13 +165,13 @@ class ExamController extends Controller
      */
     public function update(Request $request, $id)
     {
-        $this->authorizeExamAccess($request, manage: true);
         $user = $request->user();
-        $this->examAccess->assertCanManageExams($user);
         $schoolId = $user->school_id;
 
         $exam = Exam::where('school_id', $schoolId)
             ->findOrFail($id);
+
+        $this->authorize('update', $exam);
 
         $validator = Validator::make($request->all(), [
             'term_id' => 'sometimes|exists:terms,id',
@@ -260,13 +237,13 @@ class ExamController extends Controller
      */
     public function destroy(Request $request, $id)
     {
-        $this->authorizeExamAccess($request, manage: true);
         $user = $request->user();
-        $this->examAccess->assertCanManageExams($user);
         $schoolId = $user->school_id;
 
         $exam = Exam::where('school_id', $schoolId)
             ->findOrFail($id);
+
+        $this->authorize('delete', $exam);
 
         // Delete exam results
         $exam->examResults()->delete();
@@ -283,7 +260,6 @@ class ExamController extends Controller
      */
     public function recordResults(Request $request, $id)
     {
-        $this->authorizeExamAccess($request, manage: false);
         $user = $request->user();
         $schoolId = $user->school_id;
 
@@ -294,7 +270,7 @@ class ExamController extends Controller
         $exam = Exam::where('school_id', $schoolId)
             ->findOrFail($id);
 
-        $this->examAccess->assertCanEnterResults($user, $exam);
+        $this->authorize('enterResults', $exam);
         $this->examAccess->assertExamOpenForEntry($exam);
 
         $validator = Validator::make($request->all(), [
@@ -361,10 +337,9 @@ class ExamController extends Controller
 
     public function approveResults(Request $request, $id)
     {
-        $this->authorizeExamAccess($request, manage: true);
         $user = $request->user();
-        $this->examAccess->assertCanManageExams($user);
         $exam = Exam::where('school_id', $user->school_id)->findOrFail($id);
+        $this->authorize('approveResults', $exam);
 
         $updated = ExamResult::where('exam_id', $exam->id)->update([
             'status' => 'approved',
@@ -394,10 +369,9 @@ class ExamController extends Controller
 
     public function publish(Request $request, $id)
     {
-        $this->authorizeExamAccess($request, manage: true);
         $user = $request->user();
-        $this->examAccess->assertCanManageExams($user);
         $exam = Exam::where('school_id', $user->school_id)->findOrFail($id);
+        $this->authorize('publish', $exam);
 
         $pending = ExamResult::where('exam_id', $exam->id)->where('status', 'draft')->count();
         if ($pending > 0 && ! $request->boolean('force', false)) {
@@ -428,7 +402,7 @@ class ExamController extends Controller
 
     public function analytics(Request $request)
     {
-        $this->authorizeExamAccess($request, manage: false);
+        $this->authorize('viewAny', Exam::class);
         $schoolId = $request->user()?->school_id;
         if (! $schoolId) {
             abort(403, 'User is not associated with a school.');
