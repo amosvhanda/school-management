@@ -1,0 +1,10 @@
+includes:
+    - vendor/larastan/larastan/extension.neon
+
+parameters:
+    paths:
+        - app
+    level: 1
+    # Raise gradually after baseline is green (target level 5+).
+    ignoreErrors: []
+    treatPhpDocTypesAsCertain: false

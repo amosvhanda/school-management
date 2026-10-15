@@ -5,7 +5,7 @@
 
 ## Summary
 
-The multi-tenant Laravel API already has strong isolation primitives (`SchoolScope`, `school.isolated`, portal guards, tenant jobs) and a large green Feature suite (**515 passed** at baseline). This pass hardened Eloquent isolation on child tables that had no `school_id`, removed an unsafe route-binding override, documented architecture/security findings, and added a regression test.
+The multi-tenant Laravel API already has strong isolation primitives (`SchoolScope`, `school.isolated`, portal guards, tenant jobs). Full suite baseline this re-audit: **525 passed** (2238 assertions). Prior same-day work hardened relation scopes, policies, Form Requests, and StudentController extraction. This continuation added fee-structure Form Requests, explicit school_id lookups (fee/timetable/teacher), IDOR coverage, and a Larastan config stub.
 
 No Spatie Permission migration, no destructive migrations, and no API contract breaks.
 
@@ -40,11 +40,12 @@ Evidence primarily from Feature tests + controller/service wiring:
 |------|-------|
 | Formal requirements tracker | Not in repo; audit is code/test-driven |
 | Eloquent policies | Expanded: Invoice, Payment, Exam, JournalEntry (+ existing Student/Teacher/School/CustomField) |
-| Form Requests | Exam, invoice/payment, enterprise finance writes extracted; many modules still inline |
+| Form Requests | Exam, invoice/payment, enterprise finance, fee structures extracted; attendance/payroll still inline |
 | Horizon/Pulse runtime | Packages + config present; staging Redis check still required |
 | Enterprise/platform breadth | Large surface; not every endpoint has dedicated tests |
 | AI assistant | Present with tools/stubs; treat as partial product surface |
-| Larastan | Not configured |
+| Larastan | `phpstan.neon.dist` (level 1) committed; package not installed (Packagist blocked in agent) |
+| Fat controllers | `TeacherPortalController` ~1488 LOC; `StudentController` ~1169 LOC remaining |
 
 ## Confirmed bugs / defects and fixes
 
@@ -156,11 +157,31 @@ None.
 | Invoice/Payment Form Requests + enterprise finance Form Requests | Done |
 | Ops dashboard SuperAdmin gates | `OpsDashboardAccessTest` |
 
+## Follow-up completed (re-audit continuation)
+
+| Item | Outcome |
+|------|---------|
+| Full suite re-baseline | **525 passed** (2238 assertions) |
+| Fee-structure Form Requests + explicit `school_id` on update/destroy | Done; IDOR test for cross-school update/delete |
+| Timetable + Teacher update/destroy explicit `school_id` | Defense-in-depth (was relying on `SchoolScope` alone) |
+| Larastan | Config stub `phpstan.neon.dist`; `composer require` blocked (Packagist/DNS in agent sandbox) — install locally |
+| Packages added | **None** (Larastan require rolled back to keep lock/autoload healthy) |
+
+### Commands executed (this continuation)
+
+| Command | Result |
+|---------|--------|
+| `php artisan test` | **525 passed** |
+| `php artisan test --filter='FeeStructureApi\|TimetableApi\|TeacherApiTest\|CrossTenantIdor\|…'` | **76 passed** |
+| `composer require larastan/larastan` | **Failed** — Packagist CONNECT/DNS blocked in agent |
+| `./vendor/bin/pint --dirty` | Fixed style on touched PHP files |
+
 ## Recommended next steps (priority order)
 
-1. Staging: Redis + Horizon terminate-on-deploy + Pulse SuperAdmin gate verification.  
-2. Optional: introduce Larastan at level 0/1 in a dedicated PR.  
-3. Continue Form Requests for remaining high-traffic writes (attendance, fees, payroll).  
+1. Merge / review [PR #6](https://github.com/amosvhanda/school-management/pull/6) into `feature-school-erp`.  
+2. Locally: `composer require --dev larastan/larastan:^3.13` then `./vendor/bin/phpstan analyse` (uses `phpstan.neon.dist`).  
+3. Staging: Redis + Horizon terminate-on-deploy + Pulse SuperAdmin gate verification.  
+4. Continue Form Requests / service extraction for attendance, payroll, and teacher portal slices.  
 
 ---
 

@@ -13,6 +13,7 @@ use App\Models\User;
 use App\Services\PermissionService;
 use App\Services\TimetableConflictService;
 use App\Services\TimetableGeneratorService;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
@@ -151,7 +152,9 @@ class TimetableController extends Controller
             return $forbidden;
         }
 
-        $timetable = Timetable::findOrFail($id);
+        $timetable = Timetable::query()
+            ->where('school_id', $request->user()->school_id)
+            ->findOrFail($id);
 
         $schoolId = $request->user()?->school_id;
 
@@ -236,7 +239,9 @@ class TimetableController extends Controller
             return $forbidden;
         }
 
-        $timetable = Timetable::findOrFail($id);
+        $timetable = Timetable::query()
+            ->where('school_id', $request->user()->school_id)
+            ->findOrFail($id);
         $timetable->delete();
 
         return response()->json([
@@ -347,7 +352,7 @@ class TimetableController extends Controller
     }
 
     /**
-     * @param  \Illuminate\Database\Eloquent\Builder<Timetable>  $query
+     * @param  Builder<Timetable>  $query
      */
     private function applyRoleScope($query, ?User $user): string
     {
