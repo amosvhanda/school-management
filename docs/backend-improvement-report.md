@@ -144,7 +144,7 @@ None.
 | Replace `$guarded = []` on ERP models with `$fillable` | Done (only `SchoolUserMembership` remains guarded by design) |
 | `InvoicePolicy` + `PaymentPolicy`; wire `$this->authorize` | Done; base `Controller` now uses `AuthorizesRequests` |
 | IDOR Feature suite | Added `tests/Feature/CrossTenantIdorTest.php` |
-| `StudentController` split | Deferred (large; separate refactor PR) |
+| `StudentController` split | Started: extracted `StudentReportCardService`, `StudentDocumentService`, `StudentIdCardService` (~860 LOC moved) |
 
 ## Recommended next steps (priority order)
 
