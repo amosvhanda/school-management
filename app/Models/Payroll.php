@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\Auditable;
 use App\Models\Concerns\BelongsToSchool;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -10,7 +11,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Payroll extends Model
 {
-    use BelongsToSchool, HasFactory;
+    use Auditable, BelongsToSchool, HasFactory;
 
     protected $table = 'payroll';
 
@@ -39,16 +40,16 @@ class Payroll extends Model
     protected function casts(): array
     {
         return [
-        'base_salary' => 'decimal:2',
-        'allowances_total' => 'decimal:2',
-        'gross_salary' => 'decimal:2',
-        'deductions_total' => 'decimal:2',
-        'net_salary' => 'decimal:2',
-        'amount_paid' => 'decimal:2',
-        'allowances' => 'array',
-        'deductions' => 'array',
-        'paid_at' => 'date',
-    ];
+            'base_salary' => 'decimal:2',
+            'allowances_total' => 'decimal:2',
+            'gross_salary' => 'decimal:2',
+            'deductions_total' => 'decimal:2',
+            'net_salary' => 'decimal:2',
+            'amount_paid' => 'decimal:2',
+            'allowances' => 'array',
+            'deductions' => 'array',
+            'paid_at' => 'date',
+        ];
     }
 
     public function school(): BelongsTo

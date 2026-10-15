@@ -2,9 +2,9 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\Auditable;
 use App\Models\Concerns\BelongsToSchool;
 use App\Models\Concerns\HasCustomFields;
-use App\Models\CustomField;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -12,7 +12,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Teacher extends Model
 {
-    use BelongsToSchool, HasCustomFields, HasFactory;
+    use Auditable, BelongsToSchool, HasCustomFields, HasFactory;
 
     protected $fillable = [
         'employee_id',

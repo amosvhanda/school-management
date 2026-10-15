@@ -183,6 +183,12 @@ None.
 3. Shrink `phpstan-baseline.neon` over time (raise level toward 5+).  
 4. Continue service extraction for teacher portal slices.  
 
+### Audit trail (follow-up)
+
+- `LogApiActivity` middleware logs successful authenticated mutating API calls (`http_post` / `http_put` / `http_patch` / `http_delete`).
+- `Auditable` expanded to teachers, classes, payroll, academic entities, announcements, journals, hostel/library.
+- Auth login/logout, report exports, and explicit service logs remain; failed 4xx writes are not HTTP-audited; GET reads are not logged (noise).  
+
 ---
 
 ## Note on concurrent WIP

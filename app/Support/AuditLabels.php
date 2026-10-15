@@ -9,6 +9,7 @@ use App\Models\Subject;
 use App\Models\Teacher;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
 
 class AuditLabels
@@ -28,6 +29,12 @@ class AuditLabels
         'workflow' => 'Workflows',
         'reports' => 'Reports',
         'system' => 'System',
+        'teacher' => 'Teachers',
+        'academic' => 'Academic',
+        'communication' => 'Communications',
+        'operations' => 'Operations',
+        'enterprise' => 'Enterprise',
+        'platform' => 'Platform',
     ];
 
     /** @var array<string, string> */
@@ -44,6 +51,10 @@ class AuditLabels
         'published' => 'Published',
         'rejected' => 'Rejected',
         'recorded' => 'Recorded',
+        'http_post' => 'API create/submit',
+        'http_put' => 'API update',
+        'http_patch' => 'API patch',
+        'http_delete' => 'API delete',
     ];
 
     /** @var array<string, class-string<Model>> */
@@ -166,7 +177,7 @@ class AuditLabels
 
         if (in_array($field, ['start_date', 'end_date', 'reviewed_at', 'joining_date', 'date'], true) && is_string($value)) {
             try {
-                $parsed = \Illuminate\Support\Carbon::parse($value);
+                $parsed = Carbon::parse($value);
                 // Date-only fields should not show midnight noise.
                 if (in_array($field, ['start_date', 'end_date', 'joining_date', 'date'], true)
                     || ($parsed->hour === 0 && $parsed->minute === 0 && $parsed->second === 0)) {

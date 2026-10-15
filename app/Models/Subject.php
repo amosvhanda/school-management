@@ -2,14 +2,16 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\Auditable;
 use App\Models\Concerns\BelongsToSchool;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Subject extends Model
 {
-    use BelongsToSchool, HasFactory;
+    use Auditable, BelongsToSchool, HasFactory;
 
     protected $fillable = [
         'school_id',
@@ -19,15 +21,15 @@ class Subject extends Model
         'is_active',
         'order',
         'class_id',
-        'teacher_id'
+        'teacher_id',
     ];
 
     protected function casts(): array
     {
         return [
-        'is_active' => 'boolean',
-        'order' => 'integer',
-    ];
+            'is_active' => 'boolean',
+            'order' => 'integer',
+        ];
     }
 
     public function school(): BelongsTo
@@ -45,12 +47,12 @@ class Subject extends Model
         return $this->belongsTo(Teacher::class);
     }
 
-    public function grades(): \Illuminate\Database\Eloquent\Relations\HasMany
+    public function grades(): HasMany
     {
         return $this->hasMany(Grade::class);
     }
 
-    public function timetables(): \Illuminate\Database\Eloquent\Relations\HasMany
+    public function timetables(): HasMany
     {
         return $this->hasMany(Timetable::class);
     }

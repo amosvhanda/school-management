@@ -2,6 +2,7 @@
 
 namespace App\Models\Concerns;
 
+use App\Services\AuditService;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Event;
 
@@ -13,17 +14,31 @@ trait Auditable
         $modelClass = static::class;
 
         Event::listen("eloquent.created: {$modelClass}", function (Model $model) {
-            app(\App\Services\AuditService::class)->logModelEvent($model, 'created');
+            try {
+                app(AuditService::class)->logModelEvent($model, 'created');
+            } catch (\Throwable $e) {
+                report($e);
+            }
         });
 
         Event::listen("eloquent.updated: {$modelClass}", function (Model $model) {
-            if ($model->getChanges() !== []) {
-                app(\App\Services\AuditService::class)->logModelEvent($model, 'updated');
+            if ($model->getChanges() === []) {
+                return;
+            }
+
+            try {
+                app(AuditService::class)->logModelEvent($model, 'updated');
+            } catch (\Throwable $e) {
+                report($e);
             }
         });
 
         Event::listen("eloquent.deleted: {$modelClass}", function (Model $model) {
-            app(\App\Services\AuditService::class)->logModelEvent($model, 'deleted');
+            try {
+                app(AuditService::class)->logModelEvent($model, 'deleted');
+            } catch (\Throwable $e) {
+                report($e);
+            }
         });
     }
 

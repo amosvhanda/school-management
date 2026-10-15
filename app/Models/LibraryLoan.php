@@ -2,13 +2,14 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\Auditable;
 use App\Models\Concerns\IsolatesViaSchoolRelation;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class LibraryLoan extends Model
 {
-    use IsolatesViaSchoolRelation;
+    use Auditable, IsolatesViaSchoolRelation;
 
     protected $fillable = [
         'book_id', 'student_id', 'library_member_id', 'borrowed_at', 'due_at',
