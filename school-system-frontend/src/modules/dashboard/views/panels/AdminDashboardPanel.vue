@@ -11,7 +11,10 @@ import {
   Users,
   Wallet,
 } from '@lucide/vue'
-import DashboardHero from '@/components/dashboard/DashboardHero.vue'
+import AttendanceHealthCard from '@/components/dashboard/AttendanceHealthCard.vue'
+import ClassDistributionCard from '@/components/dashboard/ClassDistributionCard.vue'
+import HighlightPersonCard from '@/components/dashboard/HighlightPersonCard.vue'
+import PreskoolGreetingCard from '@/components/dashboard/PreskoolGreetingCard.vue'
 import RoleQuickActions from '@/components/dashboard/RoleQuickActions.vue'
 import DashboardModulesGrid from '@/components/dashboard/DashboardModulesGrid.vue'
 import DashboardSkeleton from '@/components/dashboard/DashboardSkeleton.vue'
@@ -22,10 +25,11 @@ import ErrorState from '@/components/feedback/ErrorState.vue'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { useAuth } from '@/composables/useAuth'
+import { useSchoolProfile } from '@/composables/useSchoolProfile'
 import { useStaffDashboard } from '@/composables/useStaffDashboard'
 import { formatMoney } from '@/lib/finance-constants'
 import { lazy } from '@/lib/lazy'
-import { getDashboardModuleGroupsForVariant, getRoleDashboardMeta } from '@/lib/role-dashboard'
+import { getDashboardModuleGroupsForVariant } from '@/lib/role-dashboard'
 
 const AttendancePanel = lazy(() => import('@/components/dashboard/AttendancePanel.vue'))
 const ActivityFeed = lazy(() => import('@/components/dashboard/ActivityFeed.vue'))
@@ -33,10 +37,10 @@ const ActivityChart = lazy(() => import('@/components/dashboard/ActivityChart.vu
 const FeeRevenueChart = lazy(() => import('@/components/dashboard/FeeRevenueChart.vue'))
 
 const { user, checkCapability } = useAuth()
-const meta = getRoleDashboardMeta(user.value?.role)
+const { school } = useSchoolProfile()
 
 const {
-  loading, error, partialErrors, lastUpdated, kpis,
+  loading, error, partialErrors, kpis,
   recent, schoolWidgets, schoolWidgetsError, activity, load,
 } = useStaffDashboard()
 
@@ -114,6 +118,10 @@ const financeCards = computed<MetricCard[]>(() => [
 ])
 
 const feeRevenue = computed(() => schoolWidgets.value?.charts?.fee_revenue ?? [])
+const classSlices = computed(() => schoolWidgets.value?.charts?.admissions_by_class ?? [])
+const topTeacher = computed(() => schoolWidgets.value?.top_teachers?.[0] ?? null)
+const topStudent = computed(() => schoolWidgets.value?.top_students?.[0] ?? null)
+const upcomingCount = computed(() => schoolWidgets.value?.upcoming_events?.length ?? 0)
 
 function refresh() {
   return load({
@@ -127,15 +135,31 @@ onMounted(refresh)
 </script>
 
 <template>
-  <div class="mx-auto w-full max-w-[1600px] space-y-8 pb-8">
-    <DashboardHero
-      :name="user?.name"
-      :role="meta.label"
-      :subtitle="meta.subtitle"
-      :loading="loading"
-      :last-updated="lastUpdated"
-      @refresh="refresh"
-    />
+  <div class="mx-auto w-full max-w-[1600px] space-y-6 pb-8">
+    <header class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+      <div>
+        <p class="text-xs text-muted-foreground">Dashboard / Admin Dashboard</p>
+        <h1 class="mt-1 text-2xl font-semibold tracking-tight md:text-3xl">Admin Dashboard</h1>
+      </div>
+      <div class="flex flex-wrap items-center gap-2">
+        <span
+          v-if="school?.academic_year"
+          class="inline-flex h-9 items-center rounded-full border border-border bg-card px-3 text-xs font-medium"
+        >
+          AY {{ school.academic_year }}
+        </span>
+        <Button
+          variant="outline"
+          size="sm"
+          class="h-9 gap-2 rounded-full"
+          :disabled="loading"
+          :aria-busy="loading"
+          @click="refresh"
+        >
+          Refresh
+        </Button>
+      </div>
+    </header>
 
     <DashboardSkeleton v-if="loading" />
 
@@ -151,6 +175,51 @@ onMounted(refresh)
           </Button>
         </AlertDescription>
       </Alert>
+
+      <PreskoolGreetingCard
+        :name="user?.name"
+        :school-name="school?.name"
+        :academic-year="school?.academic_year"
+        :attendance="kpis.attendanceSummary"
+        :new-admissions="kpis.newAdmissionsThisMonth ?? 0"
+        :fees-today="kpis.paymentsToday ?? 0"
+        :upcoming-events="upcomingCount"
+        :students-growth="kpis.studentsGrowth"
+        :payments-growth="kpis.paymentsGrowth"
+      />
+
+      <div class="grid gap-4 xl:grid-cols-12">
+        <div class="grid gap-4 sm:grid-cols-2 xl:col-span-4 xl:grid-cols-1">
+          <HighlightPersonCard
+            tone="teacher"
+            badge="Best Teacher"
+            :person="topTeacher"
+            empty-title="No teacher highlights yet"
+            empty-description="Results will appear here after marks are recorded."
+          />
+          <HighlightPersonCard
+            tone="student"
+            badge="Top Student"
+            :person="topStudent"
+            empty-title="No student highlights yet"
+            empty-description="Published results will feature leading learners here."
+          />
+        </div>
+        <div class="xl:col-span-4">
+          <ClassDistributionCard
+            :total-students="kpis.totalStudents ?? 0"
+            :students-growth="kpis.studentsGrowth"
+            :slices="classSlices"
+            :class-count="kpis.totalClasses"
+          />
+        </div>
+        <div class="xl:col-span-4">
+          <AttendanceHealthCard
+            :attendance="kpis.attendanceSummary"
+            :total-students="kpis.totalStudents ?? 0"
+          />
+        </div>
+      </div>
 
       <MetricBand
         title="School overview"

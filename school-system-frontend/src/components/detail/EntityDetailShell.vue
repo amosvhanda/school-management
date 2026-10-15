@@ -37,8 +37,8 @@ function statusBadgeVariant(status?: string): 'default' | 'secondary' | 'destruc
 </script>
 
 <template>
-  <div class="space-y-6">
-    <Button variant="ghost" size="sm" as-child class="-ml-2">
+  <div class="mx-auto w-full max-w-[1600px] space-y-6 pb-8">
+    <Button variant="ghost" size="sm" as-child class="-ml-2 rounded-full">
       <RouterLink :to="backTo">
         <ArrowLeft class="mr-1 size-4" aria-hidden="true" />
         {{ backLabel }}
@@ -49,15 +49,18 @@ function statusBadgeVariant(status?: string): 'default' | 'secondary' | 'destruc
     <ErrorState v-else-if="error" :description="error" @retry="$emit('retry')" />
 
     <template v-else>
+      <header class="flex flex-col gap-1">
+        <p class="text-xs text-muted-foreground">Dashboard / {{ title }}</p>
+      </header>
       <Card>
         <CardContent class="flex flex-col gap-4 p-6 sm:flex-row sm:items-center sm:justify-between">
           <div class="flex min-w-0 items-center gap-4">
             <Avatar v-if="initials" class="size-14 shrink-0" size="lg">
-              <AvatarFallback class="text-base font-semibold">{{ initials }}</AvatarFallback>
+              <AvatarFallback class="rounded-2xl bg-primary/10 text-base font-semibold text-primary">{{ initials }}</AvatarFallback>
             </Avatar>
             <div class="min-w-0 space-y-1">
               <div class="flex flex-wrap items-center gap-2">
-                <h1 class="truncate text-2xl font-semibold tracking-tight">{{ title }}</h1>
+                <h1 class="truncate font-heading text-2xl font-semibold tracking-tight md:text-3xl">{{ title }}</h1>
                 <Badge v-if="status" :variant="statusBadgeVariant(status)" class="capitalize">
                   {{ status.replace(/_/g, ' ') }}
                 </Badge>
@@ -65,7 +68,7 @@ function statusBadgeVariant(status?: string): 'default' | 'secondary' | 'destruc
               <p v-if="subtitle" class="truncate text-sm text-muted-foreground">{{ subtitle }}</p>
             </div>
           </div>
-          <div class="flex shrink-0 flex-wrap items-center gap-2">
+          <div class="flex shrink-0 flex-wrap items-center gap-2 [&_button]:rounded-full [&_a]:rounded-full">
             <slot name="actions" />
           </div>
         </CardContent>

@@ -85,7 +85,7 @@ const hasActive = computed(() => (props.activeCount ?? 0) > 0)
 
 <template>
   <section
-    class="flex flex-col gap-3 border-b border-border/60 bg-muted/20 px-4 py-3.5"
+    class="flex flex-col gap-3 border-b border-border/60 bg-card px-4 py-4"
     aria-label="List filters"
   >
     <div class="flex flex-wrap items-center justify-between gap-2">

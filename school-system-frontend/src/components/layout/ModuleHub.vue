@@ -237,7 +237,7 @@ function shouldAutoCreate(section: { listKey: string }, index: number) {
         class="hidden lg:block"
         :aria-label="ariaLabel"
       >
-        <div class="sticky top-20 space-y-1 rounded-2xl border border-border/60 bg-muted/20 p-2.5">
+        <div class="sticky top-20 space-y-1 rounded-2xl bg-card p-2.5 shadow-[var(--shadow-soft)] ring-1 ring-border/80">
           <template v-if="usePriorityNav">
             <button
               v-for="tab in primaryTabs"
@@ -246,7 +246,7 @@ function shouldAutoCreate(section: { listKey: string }, index: number) {
               :class="cn(
                 'flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
                 activeTabId === tab.id
-                  ? 'bg-background text-foreground shadow-sm'
+                  ? 'bg-primary/10 text-primary shadow-none'
                   : 'text-muted-foreground hover:bg-background/70 hover:text-foreground',
               )"
               :aria-current="activeTabId === tab.id ? 'page' : undefined"
@@ -290,8 +290,8 @@ function shouldAutoCreate(section: { listKey: string }, index: number) {
                     :class="cn(
                       'flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
                       activeTabId === tab.id
-                        ? 'bg-background text-foreground shadow-sm'
-                        : 'text-muted-foreground hover:bg-background/70 hover:text-foreground',
+                        ? 'bg-primary/10 text-primary shadow-none'
+                        : 'text-muted-foreground hover:bg-muted/70 hover:text-foreground',
                     )"
                     :aria-current="activeTabId === tab.id ? 'page' : undefined"
                     @click="selectTab(tab.id)"
@@ -323,8 +323,8 @@ function shouldAutoCreate(section: { listKey: string }, index: number) {
                 :class="cn(
                   'flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
                   activeTabId === tab.id
-                    ? 'bg-background text-foreground shadow-sm'
-                    : 'text-muted-foreground hover:bg-background/70 hover:text-foreground',
+                    ? 'bg-primary/10 text-primary shadow-none'
+                    : 'text-muted-foreground hover:bg-muted/70 hover:text-foreground',
                 )"
                 :aria-current="activeTabId === tab.id ? 'page' : undefined"
                 @click="selectTab(tab.id)"
@@ -400,8 +400,8 @@ function shouldAutoCreate(section: { listKey: string }, index: number) {
         <slot name="tools" />
       </div>
 
-      <section class="overflow-x-auto rounded-2xl border border-border/60 bg-muted/30 p-2">
-        <nav class="flex min-w-max items-center gap-2" :aria-label="ariaLabel">
+      <section class="overflow-x-auto rounded-2xl bg-card p-2 shadow-[var(--shadow-soft)] ring-1 ring-border/80">
+        <nav class="flex min-w-max items-center gap-1.5" :aria-label="ariaLabel">
           <template v-for="(group, groupIndex) in tabGroups" :key="group.label || `group-${groupIndex}`">
             <span
               v-if="group.label && groupIndex > 0"
@@ -419,10 +419,10 @@ function shouldAutoCreate(section: { listKey: string }, index: number) {
               :key="tab.id"
               type="button"
               :class="cn(
-                'inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                'inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
                 activeTabId === tab.id
-                  ? 'bg-background text-foreground shadow-sm'
-                  : 'text-muted-foreground hover:bg-background/80 hover:text-foreground',
+                  ? 'bg-primary text-primary-foreground shadow-sm'
+                  : 'text-muted-foreground hover:bg-muted hover:text-foreground',
               )"
               :aria-current="activeTabId === tab.id ? 'page' : undefined"
               @click="selectTab(tab.id)"

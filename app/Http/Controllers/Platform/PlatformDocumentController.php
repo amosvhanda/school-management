@@ -59,7 +59,7 @@ class PlatformDocumentController extends Controller
         $data = $request->validated();
 
         // Tighten multi-tenant lookup bounds
-        $student = Student::where('school_id', $schoolId)->findOrFail($data['student_id']);
+        $student = Student::query()->forSchool($schoolId)->findOrFail($data['student_id']);
 
         $cert = $this->certificates->issue(
             $request->user(),
@@ -101,7 +101,7 @@ class PlatformDocumentController extends Controller
 
         // Defend against cross-tenant metadata manipulation loop
         if (!empty($data['exam_id'])) {
-            Exam::where('school_id', $schoolId)->findOrFail($data['exam_id']);
+            Exam::query()->forSchool($schoolId)->findOrFail($data['exam_id']);
         }
 
         $doc = $this->vault->store($request->user(), [...$data, 'school_id' => $schoolId]);

@@ -74,9 +74,7 @@ class InvoiceController extends Controller
             permissionSlugs: ['finance.manage', 'transactions.view'],
         );
 
-        if ($request->user()->school_id && $invoice->school_id !== $request->user()->school_id) {
-            abort(403, 'Unauthorized action.');
-        }
+        $this->assertInvoiceTenant($request, $invoice);
 
         $invoice->load([
             'student:id,full_name,student_number,class,balance,currency',
@@ -95,9 +93,7 @@ class InvoiceController extends Controller
             permissionSlugs: ['finance.manage', 'transactions.view'],
         );
 
-        if ($request->user()->school_id && $invoice->school_id !== $request->user()->school_id) {
-            abort(403, 'Unauthorized action.');
-        }
+        $this->assertInvoiceTenant($request, $invoice);
 
         $invoice->load([
             'student:id,full_name,student_number,class',
@@ -126,7 +122,10 @@ class InvoiceController extends Controller
             permissionSlugs: ['finance.manage'],
         );
 
-        $schoolId = $request->user()->school_id;
+        $schoolId = $request->user()?->school_id;
+        if (! $schoolId) {
+            abort(403, 'User is not associated with a school.');
+        }
 
         $validator = Validator::make($request->all(), [
             'student_id' => [
@@ -290,9 +289,7 @@ class InvoiceController extends Controller
             permissionSlugs: ['finance.manage'],
         );
 
-        if ($request->user()->school_id && $invoice->school_id !== $request->user()->school_id) {
-            abort(403, 'Unauthorized action.');
-        }
+        $this->assertInvoiceTenant($request, $invoice);
 
         if (in_array($invoice->status, ['paid'], true)) {
             return response()->json(['message' => 'Paid invoices cannot be edited.'], 422);
@@ -324,5 +321,13 @@ class InvoiceController extends Controller
 
         return (new InvoiceResource($invoice))
             ->additional(['message' => 'Invoice updated successfully']);
+    }
+
+    private function assertInvoiceTenant(Request $request, Invoice $invoice): void
+    {
+        $schoolId = $request->user()?->school_id;
+        if (! $schoolId || (int) $invoice->school_id !== (int) $schoolId) {
+            abort(404);
+        }
     }
 }

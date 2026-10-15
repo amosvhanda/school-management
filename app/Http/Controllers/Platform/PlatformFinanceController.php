@@ -60,7 +60,7 @@ class PlatformFinanceController extends Controller
     public function applyScholarship(Request $request, int $id)
     {
         $schoolId = $this->requirePlatformSchoolId($request);
-        $scholarship = Scholarship::where('school_id', $schoolId)->findOrFail($id);
+        $scholarship = Scholarship::query()->forSchool($schoolId)->findOrFail($id);
         $data = Validator::make($request->all(), [
             'student_id' => [
                 'required',
@@ -226,7 +226,7 @@ class PlatformFinanceController extends Controller
             'reason' => 'required|string',
         ])->validate();
 
-        $payment = Payment::where('school_id', $schoolId)->findOrFail($data['payment_id']);
+        $payment = Payment::query()->forSchool($schoolId)->findOrFail($data['payment_id']);
         $refund = $this->refunds->request($request->user(), $payment, $data['amount'], $data['reason']);
 
         return (new RefundResource($refund->load('payment')))

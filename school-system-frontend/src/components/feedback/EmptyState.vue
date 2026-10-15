@@ -22,7 +22,7 @@ withDefaults(
   <div
     :class="cn(
       'flex flex-col items-center justify-center gap-2 text-center',
-      variant === 'default' && 'rounded-xl border border-dashed border-border/80 bg-muted/10 p-12',
+      variant === 'default' && 'rounded-2xl border border-dashed border-border/80 bg-card p-12 shadow-[var(--shadow-soft)]',
       variant === 'embedded' && 'px-6 py-12',
       $props.class,
     )"

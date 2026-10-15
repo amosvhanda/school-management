@@ -47,6 +47,7 @@ import {
 import { api } from '@/lib/api'
 import PaymentReceiptSheet from '@/modules/finance/components/PaymentReceiptSheet.vue'
 import InvoicePrintSheet from '@/modules/finance/components/InvoicePrintSheet.vue'
+import StudentIdCardSheet from '@/modules/students/components/StudentIdCardSheet.vue'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { teacherCreateDefaults } from '@/modules/teachers/teacher-form'
@@ -99,6 +100,9 @@ const receiptData = ref<Record<string, unknown> | null>(null)
 const invoicePrintOpen = ref(false)
 const invoicePrintLoading = ref(false)
 const invoicePrintData = ref<Record<string, unknown> | null>(null)
+const idCardPrintOpen = ref(false)
+const idCardPrintLoading = ref(false)
+const idCardPrintDocuments = ref<Record<string, unknown>[]>([])
 const exportLoading = ref(false)
 const reverseTarget = ref<{ action: RowActionConfig; row: Record<string, unknown> } | null>(null)
 const reverseReason = ref('')
@@ -510,6 +514,22 @@ async function runAction(action: RowActionConfig, row: Record<string, unknown>) 
     return
   }
 
+  if (action.openIdCardPrint && !action.promptForm) {
+    idCardPrintOpen.value = true
+    idCardPrintLoading.value = true
+    idCardPrintDocuments.value = []
+    try {
+      const card = await fetchOne<Record<string, unknown>>(action.path(id as string | number))
+      idCardPrintDocuments.value = card ? [card] : []
+    } catch (err) {
+      toast.error('ID card unavailable', getErrorMessage(err))
+      idCardPrintOpen.value = false
+    } finally {
+      idCardPrintLoading.value = false
+    }
+    return
+  }
+
   if (action.copyText) {
     const text = action.copyText(row)
     if (!text) {
@@ -595,6 +615,18 @@ async function executeAction(action: RowActionConfig, row: Record<string, unknow
     else if (action.method === 'put') result = await updateRecord(path, body)
     else if (action.method === 'patch') result = await patchRecord(path, body)
     else await deleteRecord(path)
+
+    if (action.openIdCardPrint) {
+      const cards = Array.isArray(result)
+        ? result.filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === 'object')
+        : result && typeof result === 'object'
+          ? [result as Record<string, unknown>]
+          : []
+      idCardPrintDocuments.value = cards
+      idCardPrintOpen.value = true
+      toast.success(action.successMessage ?? 'ID cards ready to print')
+      return true
+    }
 
     const successTitle = action.successMessage ?? `${action.label} completed`
     const generateMeta =
@@ -915,6 +947,11 @@ defineExpose({ load, openEdit })
       :document="invoicePrintData"
       :loading="invoicePrintLoading"
     />
+    <StudentIdCardSheet
+      v-model:open="idCardPrintOpen"
+      :documents="idCardPrintDocuments"
+      :loading="idCardPrintLoading"
+    />
     <CsvImportDialog
       v-if="csvImportType"
       v-model:open="importOpen"
@@ -1071,6 +1108,11 @@ defineExpose({ load, openEdit })
       v-model:open="invoicePrintOpen"
       :document="invoicePrintData"
       :loading="invoicePrintLoading"
+    />
+    <StudentIdCardSheet
+      v-model:open="idCardPrintOpen"
+      :documents="idCardPrintDocuments"
+      :loading="idCardPrintLoading"
     />
     <CsvImportDialog
       v-if="csvImportType"

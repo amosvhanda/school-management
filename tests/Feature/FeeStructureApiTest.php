@@ -194,4 +194,50 @@ class FeeStructureApiTest extends TestCase
         $this->assertNotNull($row);
         $this->assertSame(2, $row['fee_structures_count']);
     }
+
+    public function test_bulk_assign_copies_fee_structure_to_selected_classes(): void
+    {
+        $auth = $this->createAuthenticatedUser();
+        $sourceClass = ClassModel::factory()->create(['school_id' => $auth['school']->id]);
+        $targetClass = ClassModel::factory()->create(['school_id' => $auth['school']->id]);
+        $source = FeeStructure::factory()->create([
+            'school_id' => $auth['school']->id,
+            'class_id' => $sourceClass->id,
+            'class_name' => $sourceClass->name,
+            'category' => 'tuition',
+            'amount' => 1500,
+            'currency' => 'USD',
+        ]);
+
+        $this->withHeaders(['Authorization' => 'Bearer '.$auth['token']])
+            ->postJson('/api/v1/fee-structures/bulk-assign', [
+                'fee_structure_id' => $source->id,
+                'class_ids' => [$targetClass->id],
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.0.class_id', $targetClass->id)
+            ->assertJsonPath('data.0.amount', '1500.00');
+
+        $this->assertDatabaseHas('fee_structures', [
+            'school_id' => $auth['school']->id,
+            'class_id' => $targetClass->id,
+            'category' => 'tuition',
+            'amount' => 1500,
+        ]);
+    }
+
+    public function test_bulk_assign_rejects_other_school_fee_structure_and_classes(): void
+    {
+        $auth = $this->createAuthenticatedUser();
+        $otherSchool = \App\Models\School::factory()->create();
+        $otherClass = ClassModel::factory()->create(['school_id' => $otherSchool->id]);
+        $otherStructure = FeeStructure::factory()->create(['school_id' => $otherSchool->id]);
+
+        $this->withHeaders(['Authorization' => 'Bearer '.$auth['token']])
+            ->postJson('/api/v1/fee-structures/bulk-assign', [
+                'fee_structure_id' => $otherStructure->id,
+                'class_ids' => [$otherClass->id],
+            ])
+            ->assertStatus(422);
+    }
 }

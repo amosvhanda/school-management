@@ -38,7 +38,7 @@ const accentClasses = {
   <component
     :is="linkTo ? RouterLink : 'div'"
     :to="linkTo"
-    class="block h-full rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+    class="block h-full rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
     :aria-label="`${title}: ${value}`"
   >
     <Card
@@ -62,7 +62,7 @@ const accentClasses = {
         <div
           v-if="icon"
           :class="cn(
-            'flex size-10 shrink-0 items-center justify-center rounded-xl',
+            'flex size-11 shrink-0 items-center justify-center rounded-2xl',
             accentClasses[resolvedAccent],
             linkTo && !empty ? 'transition-transform duration-200 group-hover:scale-105' : '',
             empty ? 'opacity-70' : '',

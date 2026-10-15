@@ -30,7 +30,10 @@ class PaymentWebhookController extends Controller
         $internalReference = $data['reference'] ?? $data['ref'];
         $status = strtolower((string) ($data['status'] ?? 'paid'));
 
-        $txn = PaymentGatewayTransaction::where('internal_reference', $internalReference)->firstOrFail();
+        $txn = PaymentGatewayTransaction::query()
+            ->withoutSchoolScope()
+            ->where('internal_reference', $internalReference)
+            ->firstOrFail();
         $config = $txn->config;
         $credentials = $config->credentials ?? [];
 

@@ -40,8 +40,34 @@ class UpdateStudentRequest extends ApiFormRequest
             'firstName' => ['sometimes', 'string', 'max:255'],
             'surname' => ['sometimes', 'string', 'max:255'],
             'class' => ['sometimes', 'string'],
-            'class_id' => ['nullable', 'integer', 'exists:classes,id'],
-            'grade_level_id' => ['nullable', 'integer', 'exists:grade_levels,id'],
+            'class_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('classes', 'id')->where(
+                    fn ($q) => $q->where('school_id', $this->user()?->school_id),
+                ),
+            ],
+            'stream_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('streams', 'id')->where(
+                    fn ($q) => $q->where('school_id', $this->user()?->school_id),
+                ),
+            ],
+            'house_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('houses', 'id')->where(
+                    fn ($q) => $q->where('school_id', $this->user()?->school_id),
+                ),
+            ],
+            'grade_level_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('grade_levels', 'id')->where(
+                    fn ($q) => $q->where('school_id', $this->user()?->school_id),
+                ),
+            ],
             'student_category_id' => [
                 'nullable',
                 'integer',
@@ -61,7 +87,13 @@ class UpdateStudentRequest extends ApiFormRequest
             'guardian.phone' => ZimbabweMobileNumber::optional(),
             'guardian.email' => ['nullable', 'email'],
             'guardian.relationship' => ['nullable', 'string', 'max:100'],
-            'guardian_id' => ['nullable', 'integer', 'exists:guardians,id'],
+            'guardian_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('guardians', 'id')->where(
+                    fn ($q) => $q->where('school_id', $this->user()?->school_id),
+                ),
+            ],
             'custom_fields' => ['nullable', 'array'],
         ];
     }

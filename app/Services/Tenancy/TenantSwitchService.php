@@ -34,12 +34,29 @@ class TenantSwitchService
     }
 
     /**
-     * @return Collection<int, array{id:int,name:string,code:?string,status:string,is_current:bool,is_default:bool}>
+     * @return Collection<int, array{id:int,name:string,code:?string,status:string,subtitle?:string,is_current:bool,is_default:bool}>
      */
     public function availableSchools(User $user): Collection
     {
         if ($user->role === UserRole::SuperAdmin) {
-            return collect();
+            return School::query()
+                ->where('status', '!=', 'deleted')
+                ->orderBy('name')
+                ->get(['id', 'name', 'code', 'status', 'city', 'branch_type', 'parent_school_id'])
+                ->map(fn (School $school) => [
+                    'id' => $school->id,
+                    'name' => $school->name,
+                    'code' => $school->code,
+                    'status' => $school->status,
+                    'subtitle' => $school->city
+                        ?: ($school->code
+                            ?: ($school->branch_type === 'branch' && $school->parent_school_id
+                                ? 'Branch campus'
+                                : 'Primary campus')),
+                    'is_current' => (int) $user->school_id === (int) $school->id,
+                    'is_default' => false,
+                ])
+                ->values();
         }
 
         $this->ensureMembership($user, $user->school_id, true);
@@ -82,9 +99,21 @@ class TenantSwitchService
     public function switchTo(User $user, int $schoolId): User
     {
         if ($user->role === UserRole::SuperAdmin) {
-            throw ValidationException::withMessages([
-                'school_id' => ['Super admins do not switch tenant context this way.'],
-            ]);
+            $school = School::query()->find($schoolId);
+            if (! $school || $school->status === 'deleted') {
+                throw ValidationException::withMessages([
+                    'school_id' => ['That school is not available.'],
+                ]);
+            }
+            if ($school->status !== 'active') {
+                throw ValidationException::withMessages([
+                    'school_id' => ['That school is currently suspended.'],
+                ]);
+            }
+
+            $user->update(['school_id' => $schoolId]);
+
+            return $user->fresh();
         }
 
         if (! $this->userBelongsToSchool($user, $schoolId)) {

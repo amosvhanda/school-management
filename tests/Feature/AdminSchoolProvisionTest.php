@@ -59,10 +59,9 @@ class AdminSchoolProvisionTest extends TestCase
         $this->assertDatabaseHas('schools', ['id' => $school->id, 'code' => 'MUFA-HS']);
         $this->assertDatabaseHas('users', ['id' => $admin->id, 'school_id' => $school->id]);
 
-        $adminToken = $admin->createToken('test')->plainTextToken;
-        $this->withHeaders(['Authorization' => 'Bearer '.$adminToken])
-            ->getJson('/api/v1/dashboard/kpis')
-            ->assertOk();
+        $this->flushHeaders();
+        Sanctum::actingAs($admin);
+        $this->getJson('/api/v1/dashboard/kpis')->assertOk();
 
         $this->postJson('/api/v1/auth/login', [
             'email' => 'admin@mufakose.test',

@@ -216,6 +216,8 @@ export const studentsApi = {
     return data as Blob
   },
   printIdCard: (id: number | string) => fetchOne(e.students.idCardPrint(id)),
+  bulkPrintIdCards: (studentIds: Array<number | string>) =>
+    postRecord(e.students.idCardsBulkPrint, { student_ids: studentIds }),
   uploadPhoto: async (id: number | string, file: File) => {
     const form = new FormData()
     form.append('file', file)
@@ -339,6 +341,10 @@ export const academicsApi = {
     todaySummary: () => fetchOne(e.attendance.todaySummary),
     studentSummary: (id: number | string) => fetchOne(e.attendance.studentSummary(id)),
     classReport: (id: number | string) => fetchOne(e.attendance.classReport(id)),
+    clearClass: async (classId: number | string, date: string) => {
+      const { data } = await api.delete(e.attendance.clearClass(classId, date))
+      return unwrapOne<{ message?: string; deleted?: number }>(data)
+    },
   },
   timetable: {
     ...crud(e.timetable.list, e.timetable.detail),
@@ -396,7 +402,11 @@ export const financeApi = {
       updateRecord(e.invoices.detail(id), payload),
     print: (id: number | string) => fetchOne(e.invoices.print(id)),
   },
-  feeStructures: crud(e.feeStructures.list, e.feeStructures.detail),
+  feeStructures: {
+    ...crud(e.feeStructures.list, e.feeStructures.detail),
+    bulkAssign: (payload: { fee_structure_id: number | string; class_ids: Array<number | string> }) =>
+      postRecord(e.feeStructures.bulkAssign, payload),
+  },
   feeCategories: crud(e.feeCategories.list, e.feeCategories.detail),
   feeGroups: crud(e.feeGroups.list, e.feeGroups.detail),
   feeDiscounts: crud(e.feeDiscounts.list, e.feeDiscounts.detail),

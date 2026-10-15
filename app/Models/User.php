@@ -5,6 +5,8 @@ namespace App\Models;
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use App\Models\Concerns\Auditable;
 use App\Enums\UserRole;
+use App\Models\Scopes\UserSchoolScope;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -40,6 +42,16 @@ class User extends Authenticatable
         'school_id',
         'avatar_url',
     ];
+
+    protected static function booted(): void
+    {
+        static::addGlobalScope(new UserSchoolScope());
+    }
+
+    public function scopeWithoutSchoolScope(Builder $query): Builder
+    {
+        return $query->withoutGlobalScope(UserSchoolScope::class);
+    }
 
     public function school(): \Illuminate\Database\Eloquent\Relations\BelongsTo
     {

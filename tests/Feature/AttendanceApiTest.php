@@ -212,4 +212,94 @@ class AttendanceApiTest extends TestCase
 
         $response->assertStatus(200);
     }
+
+    public function test_student_attendance_summary_is_not_found_for_other_school(): void
+    {
+        $auth = $this->createAuthenticatedUser();
+        $other = Student::factory()->create();
+
+        $this->withHeaders([
+            'Authorization' => 'Bearer '.$auth['token'],
+        ])->getJson("/api/v1/attendance/student/{$other->id}/summary")
+            ->assertNotFound();
+    }
+
+    public function test_attendance_store_rejects_other_school_class(): void
+    {
+        $auth = $this->createAuthenticatedUser();
+        $otherClass = ClassModel::factory()->create();
+        $student = Student::factory()->create(['school_id' => $auth['school']->id]);
+
+        $this->withHeaders([
+            'Authorization' => 'Bearer '.$auth['token'],
+        ])->postJson('/api/v1/attendance', [
+            'class_id' => $otherClass->id,
+            'date' => now()->format('Y-m-d'),
+            'records' => [
+                ['student_id' => $student->id, 'status' => 'present'],
+            ],
+        ])->assertStatus(422)
+            ->assertJsonValidationErrors('class_id');
+    }
+
+    public function test_clear_class_attendance_only_deletes_own_school_rows(): void
+    {
+        $auth = $this->createAuthenticatedUser();
+        $class = ClassModel::factory()->create(['school_id' => $auth['school']->id]);
+        $student = Student::factory()->create([
+            'school_id' => $auth['school']->id,
+            'class_id' => $class->id,
+        ]);
+        $date = now()->format('Y-m-d');
+
+        Attendance::withoutGlobalScopes()->create([
+            'school_id' => $auth['school']->id,
+            'student_id' => $student->id,
+            'class_id' => $class->id,
+            'date' => $date,
+            'status' => 'present',
+            'marked_by' => $auth['user']->id,
+        ]);
+
+        $otherSchool = \App\Models\School::factory()->create();
+        $otherClass = ClassModel::factory()->create(['school_id' => $otherSchool->id]);
+        $otherStudent = Student::factory()->create([
+            'school_id' => $otherSchool->id,
+            'class_id' => $otherClass->id,
+        ]);
+        Attendance::withoutGlobalScopes()->create([
+            'school_id' => $otherSchool->id,
+            'student_id' => $otherStudent->id,
+            'class_id' => $otherClass->id,
+            'date' => $date,
+            'status' => 'absent',
+            'marked_by' => $auth['user']->id,
+        ]);
+
+        $this->withHeaders([
+            'Authorization' => 'Bearer '.$auth['token'],
+        ])->deleteJson("/api/v1/attendance/class/{$class->id}/date/{$date}")
+            ->assertOk()
+            ->assertJsonPath('deleted', 1);
+
+        $this->assertDatabaseMissing('attendance', [
+            'student_id' => $student->id,
+            'date' => $date,
+        ]);
+        $this->assertDatabaseHas('attendance', [
+            'student_id' => $otherStudent->id,
+            'status' => 'absent',
+        ]);
+    }
+
+    public function test_clear_class_attendance_rejects_other_school_class(): void
+    {
+        $auth = $this->createAuthenticatedUser();
+        $otherClass = ClassModel::factory()->create();
+
+        $this->withHeaders([
+            'Authorization' => 'Bearer '.$auth['token'],
+        ])->deleteJson('/api/v1/attendance/class/'.$otherClass->id.'/date/'.now()->format('Y-m-d'))
+            ->assertNotFound();
+    }
 }

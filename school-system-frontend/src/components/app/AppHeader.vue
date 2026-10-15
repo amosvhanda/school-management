@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
-import { Building2, ChevronsUpDown } from '@lucide/vue'
+import { Building2, ChevronsUpDown, Plus, Search } from '@lucide/vue'
 import { SidebarTrigger } from '@/components/ui/sidebar'
 import { Separator } from '@/components/ui/separator'
 import {
@@ -22,6 +22,8 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { useSchoolProfile } from '@/composables/useSchoolProfile'
 import NotificationsPanel from '@/components/app/NotificationsPanel.vue'
 import ThemeToggle from '@/components/app/ThemeToggle.vue'
 import { useAuth } from '@/composables/useAuth'
@@ -33,7 +35,9 @@ const router = useRouter()
 const toast = useToast()
 const { displayName, user, logout, canAccess, checkCapability, switchSchool, loading } = useAuth()
 const { items } = useBreadcrumbs()
+const { school } = useSchoolProfile()
 const switchingSchool = ref(false)
+const searchQuery = ref('')
 
 const canViewProfile = computed(() =>
   canAccess('isStaff') || canAccess('isParent') || user.value?.role === 'student',
@@ -43,7 +47,9 @@ const canManageSchoolSettings = computed(() => checkCapability('canManageTeacher
 const pageTitle = computed(() => items.value.at(-1)?.title ?? 'Dashboard')
 
 const availableSchools = computed(() => user.value?.schools ?? [])
-const canSwitchSchool = computed(() => availableSchools.value.length > 1)
+const canSwitchSchool = computed(
+  () => user.value?.role !== 'super_admin' && availableSchools.value.length > 1,
+)
 const currentSchool = computed(() =>
   availableSchools.value.find((s) => s.is_current || s.id === user.value?.school_id)
   ?? availableSchools.value[0]
@@ -73,6 +79,31 @@ async function handleSwitchSchool(schoolId: number) {
   }
 }
 
+function onSearchShortcut(event: KeyboardEvent) {
+  if (event.key !== '/' || event.metaKey || event.ctrlKey || event.altKey) return
+  const target = event.target as HTMLElement | null
+  if (target && ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)) return
+  event.preventDefault()
+  document.getElementById('global-search')?.focus()
+}
+
+onMounted(() => window.addEventListener('keydown', onSearchShortcut))
+onUnmounted(() => window.removeEventListener('keydown', onSearchShortcut))
+
+function submitSearch() {
+  const q = searchQuery.value.trim()
+  if (!q) return
+  if (checkCapability('canManageStudents')) {
+    void router.push({ path: '/people', query: { tab: 'students', search: q } })
+    return
+  }
+  if (checkCapability('canManageFinance')) {
+    void router.push({ path: '/finance', query: { tab: 'invoices', search: q } })
+    return
+  }
+  void router.push({ path: '/people', query: { search: q } })
+}
+
 const initials = computed(() =>
   displayName.value
     .split(' ')
@@ -86,7 +117,7 @@ const initials = computed(() =>
 <template>
   <header
     role="banner"
-    class="sticky top-0 z-30 flex h-14 shrink-0 items-center gap-2 border-b border-border/60 bg-background/85 px-3 backdrop-blur-xl supports-[backdrop-filter]:bg-background/75 sm:gap-3 sm:px-4"
+    class="sticky top-0 z-30 flex h-16 shrink-0 items-center gap-2 border-b border-border/70 bg-card px-3 sm:gap-3 sm:px-4"
   >
     <div class="flex min-w-0 flex-1 items-center gap-2">
       <SidebarTrigger class="size-9 shrink-0" aria-label="Toggle navigation sidebar" />
@@ -109,9 +140,35 @@ const initials = computed(() =>
       <p class="min-w-0 truncate text-sm font-medium lg:hidden" :title="pageTitle">
         {{ pageTitle }}
       </p>
+
+      <form
+        class="relative mx-2 hidden min-w-0 flex-1 md:block md:max-w-md"
+        role="search"
+        @submit.prevent="submitSearch"
+      >
+        <label for="global-search" class="sr-only">Search students, staff, or invoices</label>
+        <Search class="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
+        <Input
+          id="global-search"
+          v-model="searchQuery"
+          type="search"
+          placeholder="Search students, staff, invoices…"
+          class="h-10 rounded-full border-border/80 bg-muted/40 pl-9 pr-12"
+          autocomplete="off"
+        />
+        <kbd class="pointer-events-none absolute right-3 top-1/2 hidden -translate-y-1/2 rounded-md border bg-background px-1.5 text-[10px] text-muted-foreground lg:inline">
+          /
+        </kbd>
+      </form>
     </div>
 
     <div class="flex shrink-0 items-center gap-0.5 sm:gap-1">
+      <span
+        v-if="school?.academic_year"
+        class="mr-1 hidden h-9 items-center rounded-full border bg-background px-3 text-xs font-medium text-muted-foreground xl:inline-flex"
+      >
+        Academic Year : {{ school.academic_year }}
+      </span>
       <DropdownMenu v-if="canSwitchSchool">
         <DropdownMenuTrigger as-child>
           <Button
@@ -150,6 +207,46 @@ const initials = computed(() =>
 
       <NotificationsPanel />
       <ThemeToggle />
+
+      <DropdownMenu>
+        <DropdownMenuTrigger as-child>
+          <Button size="sm" class="ml-1 hidden h-9 rounded-full px-3 sm:inline-flex">
+            <Plus class="mr-1 size-3.5" aria-hidden="true" />
+            Quick Add
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" class="w-52">
+          <DropdownMenuLabel>Create</DropdownMenuLabel>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
+            v-if="checkCapability('canManageStudents')"
+            class="cursor-pointer"
+            @click="router.push('/people?tab=students&create=1')"
+          >
+            New admission
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            v-if="checkCapability('canManageTeachers')"
+            class="cursor-pointer"
+            @click="router.push('/people?tab=teachers&create=1')"
+          >
+            Add teacher
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            v-if="checkCapability('canManageFinance')"
+            class="cursor-pointer"
+            @click="router.push('/finance?tab=invoices&create=1')"
+          >
+            Create invoice
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            class="cursor-pointer"
+            @click="router.push('/academics/attendance')"
+          >
+            Mark attendance
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
 
       <DropdownMenu>
         <DropdownMenuTrigger as-child>

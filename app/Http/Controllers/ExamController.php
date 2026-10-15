@@ -18,6 +18,7 @@ use App\Services\Platform\MarkModerationLockService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 
 class ExamController extends Controller
 {
@@ -286,6 +287,10 @@ class ExamController extends Controller
         $user = $request->user();
         $schoolId = $user->school_id;
 
+        if (! $schoolId) {
+            abort(403, 'User is not associated with a school.');
+        }
+
         $exam = Exam::where('school_id', $schoolId)
             ->findOrFail($id);
 
@@ -294,7 +299,14 @@ class ExamController extends Controller
 
         $validator = Validator::make($request->all(), [
             'results' => 'required|array',
-            'results.*.student_id' => 'required|exists:students,id',
+            'results.*.student_id' => [
+                'required',
+                'integer',
+                Rule::exists('students', 'id')->where(
+                    fn ($q) => $q->where('school_id', $schoolId)
+                        ->where('grade_level_id', $exam->grade_level_id)
+                ),
+            ],
             'results.*.marks_obtained' => 'required|numeric|min:0|max:'.$exam->total_marks,
             'results.*.remarks' => 'nullable|string',
         ]);
@@ -418,9 +430,12 @@ class ExamController extends Controller
     {
         $this->authorizeExamAccess($request, manage: false);
         $schoolId = $request->user()?->school_id;
+        if (! $schoolId) {
+            abort(403, 'User is not associated with a school.');
+        }
 
         $query = ExamResult::query()
-            ->when($schoolId, fn ($q) => $q->where('school_id', $schoolId))
+            ->where('school_id', $schoolId)
             ->with(['exam:id,name,academic_year', 'subject:id,name']);
 
         if ($request->filled('exam_id')) {

@@ -456,4 +456,24 @@ class ParentPortalApiTest extends TestCase
             ->assertOk()
             ->assertJsonPath('data.0.response_status', 'mixed');
     }
+
+    public function test_parent_cannot_start_thread_for_other_school_student(): void
+    {
+        $school = School::factory()->create();
+        $parent = User::factory()->create([
+            'role' => UserRole::Parent,
+            'school_id' => $school->id,
+        ]);
+        $otherStudent = Student::factory()->create();
+        $token = $parent->createToken('test')->plainTextToken;
+
+        $this->withHeaders(['Authorization' => 'Bearer '.$token])
+            ->postJson('/api/v1/parent/portal/communications/threads', [
+                'subject' => 'Cross-school',
+                'message' => 'Should not work',
+                'student_id' => $otherStudent->id,
+            ])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('student_id');
+    }
 }

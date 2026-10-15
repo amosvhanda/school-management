@@ -26,8 +26,9 @@ class DispatchEnterpriseWebhookJob implements ShouldQueue
     /** @var list<int> */
     public array $backoff = [60, 300, 900, 3600, 7200];
 
-    public function __construct(public int $deliveryId)
+    public function __construct(public int $deliveryId, ?int $schoolId = null)
     {
+        $this->schoolId = $schoolId;
         $this->onQueue('webhooks');
     }
 
@@ -38,7 +39,7 @@ class DispatchEnterpriseWebhookJob implements ShouldQueue
             return;
         }
 
-        $this->schoolId = (int) $delivery->school_id;
+        $this->schoolId = $this->schoolId ?: (int) $delivery->school_id;
 
         if ($delivery->status === WebhookDelivery::STATUS_SUCCESS) {
             return;
@@ -136,7 +137,7 @@ class DispatchEnterpriseWebhookJob implements ShouldQueue
         ]);
 
         if ($willRetry) {
-            self::dispatch($delivery->id)->delay($nextRetryAt);
+            self::dispatch($delivery->id, (int) $delivery->school_id)->delay($nextRetryAt);
         } else {
             Log::warning('Enterprise webhook delivery failed permanently', [
                 'delivery_id' => $delivery->id,

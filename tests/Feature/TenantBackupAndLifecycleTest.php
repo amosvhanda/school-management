@@ -32,14 +32,14 @@ class TenantBackupAndLifecycleTest extends TestCase
         $backupId = $create->json('data.backup.id');
         $this->assertNotNull($backupId);
 
-        Student::query()->where('school_id', $school->id)->delete();
-        $this->assertSame(0, Student::query()->where('school_id', $school->id)->count());
+        Student::query()->withoutSchoolScope()->where('school_id', $school->id)->delete();
+        $this->assertSame(0, Student::query()->withoutSchoolScope()->where('school_id', $school->id)->count());
 
         $this->postJson("/api/v1/admin/schools/{$school->id}/backups/{$backupId}/restore")
             ->assertOk()
             ->assertJsonPath('data.backup.restored_at', fn ($value) => $value !== null);
 
-        $this->assertSame(1, Student::query()->where('school_id', $school->id)->count());
+        $this->assertSame(1, Student::query()->withoutSchoolScope()->where('school_id', $school->id)->count());
         $this->assertDatabaseHas('school_backups', [
             'id' => $backupId,
             'school_id' => $school->id,

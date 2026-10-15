@@ -2,23 +2,25 @@
 import { computed, onMounted, ref } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 import {
-  BarChart3,
+  BookOpen,
+  CalendarDays,
   ClipboardCheck,
   Download,
   FileSpreadsheet,
   FileText,
+  NotebookPen,
   Receipt,
   TrendingUp,
 } from '@lucide/vue'
 import { useAuth } from '@/composables/useAuth'
 import { useToast } from '@/composables/useToast'
 import { studentPortalApi, studentsApi } from '@/services/api.service'
-import { getErrorMessage } from '@/lib/api-response'
-import { formatDate } from '@/lib/format'
+import { getErrorMessage, unwrapList } from '@/lib/api-response'
+import { formatDate, formatTime } from '@/lib/format'
 import { formatMoney } from '@/lib/finance-constants'
-import DashboardHero from '@/components/dashboard/DashboardHero.vue'
-import MetricBand from '@/components/dashboard/MetricBand.vue'
-import type { MetricCard } from '@/components/dashboard/MetricBand.vue'
+import DashboardSkeleton from '@/components/dashboard/DashboardSkeleton.vue'
+import StudentGreetingCard from '@/components/dashboard/StudentGreetingCard.vue'
+import KpiCard from '@/components/dashboard/KpiCard.vue'
 import EmptyState from '@/components/feedback/EmptyState.vue'
 import ErrorState from '@/components/feedback/ErrorState.vue'
 import StudentCbtPanel from '@/modules/student-portal/components/StudentCbtPanel.vue'
@@ -56,11 +58,13 @@ const lastUpdated = ref<Date | null>(null)
 
 const studentProfile = ref<Record<string, unknown> | null>(null)
 const attendanceSummary = ref<Record<string, unknown> | null>(null)
+const attendanceRows = ref<Array<Record<string, unknown>>>([])
 const performanceRows = ref<Array<Record<string, unknown>>>([])
 const examRows = ref<Array<Record<string, unknown>>>([])
 const invoiceRows = ref<Array<Record<string, unknown>>>([])
 const assignmentRows = ref<Array<Record<string, unknown>>>([])
 const announcementRows = ref<Array<Record<string, unknown>>>([])
+const timetableRows = ref<Array<Record<string, unknown>>>([])
 const expandedAnnouncementId = ref<number | string | null>(null)
 const assignmentSheetOpen = ref(false)
 const selectedAssignment = ref<Record<string, unknown> | null>(null)
@@ -84,7 +88,7 @@ const pageTitle = computed(() => {
     case 'performance':
       return 'My performance'
     case 'attendance':
-      return 'My attendance'
+      return 'Student Attendance'
     case 'exams':
       return 'My exams'
     case 'fees':
@@ -94,7 +98,7 @@ const pageTitle = computed(() => {
     case 'announcements':
       return 'Announcements'
     default:
-      return 'Student dashboard'
+      return 'Student Dashboard'
   }
 })
 
@@ -103,7 +107,7 @@ const pageDescription = computed(() => {
     case 'performance':
       return 'Your continuous assessment marks by subject and term.'
     case 'attendance':
-      return 'Presence summary for the current term.'
+      return 'Your presence, late arrivals, and absences this term.'
     case 'exams':
       return 'Published examination timetable and results.'
     case 'fees':
@@ -146,6 +150,36 @@ const attendanceBreakdown = computed(() => {
   }
 })
 
+const attendanceHeatmap = computed(() => {
+  const byDate = new Map<string, string>()
+  for (const row of attendanceRows.value) {
+    const date = String(row.date ?? '').slice(0, 10)
+    if (date) byDate.set(date, String(row.status ?? ''))
+  }
+  const days: Array<{ date: string; status: string; label: string }> = []
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  for (let i = 29; i >= 0; i -= 1) {
+    const day = new Date(today)
+    day.setDate(today.getDate() - i)
+    const iso = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, '0')}-${String(day.getDate()).padStart(2, '0')}`
+    days.push({
+      date: iso,
+      status: byDate.get(iso) ?? '',
+      label: formatDate(iso),
+    })
+  }
+  return days
+})
+
+function attendanceCellClass(status: string) {
+  if (status === 'present') return 'bg-chart-2'
+  if (status === 'late') return 'bg-chart-3'
+  if (status === 'absent') return 'bg-destructive/80'
+  if (status === 'excused' || status === 'sick') return 'bg-primary/70'
+  return 'bg-muted'
+}
+
 const averageScore = computed(() => {
   if (!performanceRows.value.length) return 0
   const scored = performanceRows.value.filter((row) => row.score != null)
@@ -170,107 +204,160 @@ const hasAttendanceData = computed(() =>
   Boolean(attendanceSummary.value) && attendanceBreakdown.value.counted > 0,
 )
 
-const overviewCards = computed<MetricCard[]>(() => [
+const pendingAssignments = computed(() =>
+  assignmentRows.value.filter((row) => canSubmitAssignment(row.submission_status ?? row.status)).length,
+)
+
+const homeworkDueSoon = computed(() =>
+  assignmentRows.value.filter((row) => assignmentDueTone(row) !== 'neutral').length,
+)
+
+const upcomingExamCount = computed(() =>
+  examRows.value.filter((row) => !row.result && row.exam_date).length,
+)
+
+const overviewCards = computed(() => [
   {
     title: 'Average score',
     value: hasPerformanceData.value ? `${averageScore.value.toFixed(1)}%` : '—',
-    subtitle: hasPerformanceData.value
-      ? 'Across recorded assessments'
-      : 'No assessments recorded yet',
-    icon: hasPerformanceData.value ? TrendingUp : BarChart3,
+    subtitle: hasPerformanceData.value ? 'Across recorded assessments' : 'No assessments yet',
+    icon: TrendingUp,
     empty: !hasPerformanceData.value,
     href: '/student/performance',
   },
   {
-    title: 'Attendance rate',
+    title: 'Attendance',
     value: hasAttendanceData.value ? `${attendanceRate.value.toFixed(1)}%` : '—',
-    subtitle: hasAttendanceData.value
-      ? 'Current attendance summary'
-      : 'No attendance marked yet',
+    subtitle: hasAttendanceData.value ? 'Current attendance summary' : 'No attendance marked yet',
     icon: ClipboardCheck,
-    accent: hasAttendanceData.value && attendanceRate.value < 80 ? 'warning' : 'success',
+    accent: hasAttendanceData.value && attendanceRate.value < 80 ? ('warning' as const) : ('success' as const),
     empty: !hasAttendanceData.value,
     href: '/student/attendance',
   },
   {
-    title: 'Outstanding balance',
+    title: 'Assignments pending',
+    value: assignmentRows.value.length ? pendingAssignments.value : '—',
+    subtitle: 'Still to submit',
+    icon: NotebookPen,
+    empty: !assignmentRows.value.length,
+    href: '/student/assignments',
+  },
+  {
+    title: 'Homework due',
+    value: assignmentRows.value.length ? homeworkDueSoon.value : '—',
+    subtitle: 'Due today or this week',
+    icon: BookOpen,
+    empty: !assignmentRows.value.length,
+    href: '/student/assignments',
+  },
+  {
+    title: 'Upcoming exams',
+    value: upcomingExamCount.value || '—',
+    subtitle: 'Published timetable',
+    icon: FileText,
+    empty: !upcomingExamCount.value,
+    href: '/student/exams',
+  },
+  {
+    title: 'Fee due',
     value: invoiceRows.value.length || totalOutstanding.value > 0
       ? formatMoney(totalOutstanding.value)
       : '—',
-    subtitle: invoiceRows.value.length
-      ? 'Total unpaid amount'
-      : 'No invoices issued yet',
+    subtitle: pendingInvoices.value ? `${pendingInvoices.value} unpaid invoices` : 'Nothing outstanding',
     icon: Receipt,
-    accent: totalOutstanding.value > 0 ? 'danger' : undefined,
+    accent: totalOutstanding.value > 0 ? ('danger' as const) : undefined,
     empty: !invoiceRows.value.length && totalOutstanding.value <= 0,
-    href: '/student/fees',
-  },
-  {
-    title: 'Pending invoices',
-    value: invoiceRows.value.length ? pendingInvoices.value : '—',
-    subtitle: invoiceRows.value.length
-      ? 'Unpaid or partial invoices'
-      : 'Nothing awaiting payment',
-    icon: FileText,
-    accent: pendingInvoices.value > 0 ? 'warning' : undefined,
-    empty: !invoiceRows.value.length,
     href: '/student/fees',
   },
 ])
 
-type ProfileField = { label: string; value: string; empty: boolean; hint?: string }
+const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'] as const
 
-const profileFields = computed<ProfileField[]>(() => {
-  const profile = studentProfile.value ?? {}
-  const guardianFirst = String(profile.guardian_first_name ?? '').trim()
-  const guardianLast = String(profile.guardian_last_name ?? '').trim()
-  const guardianName = `${guardianFirst} ${guardianLast}`.trim()
+function clock(value?: unknown) {
+  return formatTime(value, '—')
+}
 
-  function field(
-    label: string,
-    raw: string,
-    emptyValues: string[],
-    hint: string,
-  ): ProfileField {
-    const value = raw.trim()
-    const empty = !value || emptyValues.includes(value)
-    return {
-      label,
-      value: empty ? hint : value,
-      empty,
-      hint: empty ? hint : undefined,
-    }
-  }
+function toMinutes(hhmm: string) {
+  const [h, m] = hhmm.split(':').map(Number)
+  if (!Number.isFinite(h) || !Number.isFinite(m)) return null
+  return h * 60 + m
+}
 
-  return [
-    field('Student number', String(profile.student_number ?? ''), ['Not assigned'], 'Not assigned yet — ask the office'),
-    field('Current class', String(profile.class ?? ''), ['Not assigned'], 'Class not assigned yet'),
-    field(
-      'Date of birth',
-      formatDate(profile.date_of_birth, ''),
-      ['', '—', 'Not on file'],
-      'Not on file — ask the office to update',
-    ),
-    field(
-      'Guardian',
-      guardianName,
-      ['', 'Not available'],
-      'No guardian linked yet',
-    ),
-    field(
-      'Contact phone',
-      String(profile.phone ?? ''),
-      ['', '—'],
-      'No phone on file',
-    ),
-    field(
-      'Contact email',
-      String(profile.email ?? user.value?.email ?? ''),
-      ['', '—'],
-      'No email on file',
-    ),
-  ]
+function lessonStatus(start: string, end: string): 'completed' | 'current' | 'upcoming' {
+  const now = new Date()
+  const current = now.getHours() * 60 + now.getMinutes()
+  const s = toMinutes(start)
+  const e = toMinutes(end)
+  if (s == null || e == null) return 'upcoming'
+  if (current >= e) return 'completed'
+  if (current >= s && current < e) return 'current'
+  return 'upcoming'
+}
+
+const todayLessons = computed(() => {
+  const todayName = DAYS[new Date().getDay()]
+  return timetableRows.value
+    .filter((slot) => String(slot.day ?? '') === todayName)
+    .map((slot) => {
+      const start = clock(slot.start_time)
+      const end = clock(slot.end_time)
+      const teacher = asRecord(slot.teacher)
+      const room = typeof slot.room === 'string'
+        ? slot.room
+        : String(asRecord(slot.room)?.name ?? '—')
+      const subject = typeof slot.subject === 'string'
+        ? slot.subject
+        : String(asRecord(slot.subject)?.name ?? slot.subject_name ?? 'Lesson')
+      return {
+        id: Number(slot.id ?? 0),
+        start,
+        end,
+        subject,
+        teacher: String(teacher?.name ?? '—'),
+        room,
+        status: start !== '—' && end !== '—' ? lessonStatus(start, end) : ('upcoming' as const),
+        sortKey: toMinutes(start) ?? 9999,
+      }
+    })
+    .sort((a, b) => a.sortKey - b.sortKey)
 })
+
+const subjectPerformance = computed(() => {
+  const grouped = new Map<string, number[]>()
+  for (const row of performanceRows.value) {
+    if (row.score == null) continue
+    const subject = String(row.subject ?? 'Subject')
+    const list = grouped.get(subject) ?? []
+    const total = Number(row.total ?? 0)
+    const score = Number(row.score ?? 0)
+    list.push(total > 0 ? Math.round((score / total) * 100) : score)
+    grouped.set(subject, list)
+  }
+  return [...grouped.entries()]
+    .map(([subject, scores]) => ({
+      subject,
+      percent: Math.round(scores.reduce((sum, n) => sum + n, 0) / scores.length),
+    }))
+    .sort((a, b) => b.percent - a.percent)
+    .slice(0, 6)
+})
+
+const studentDisplayName = computed(() =>
+  String(studentProfile.value?.full_name ?? user.value?.name ?? 'Student'),
+)
+
+const studentHouse = computed(() => {
+  const nested = asRecord(studentProfile.value?.house)
+  return String(studentProfile.value?.house_name ?? nested?.name ?? '').trim()
+})
+
+const quickActions = [
+  { label: 'View Timetable', href: '/student', icon: CalendarDays },
+  { label: 'Assignments', href: '/student/assignments', icon: BookOpen },
+  { label: 'Exam Results', href: '/student/exams', icon: FileText },
+  { label: 'Pay Fees', href: '/student/fees', icon: Receipt },
+  { label: 'Attendance', href: '/student/attendance', icon: ClipboardCheck },
+]
 
 const attentionItems = computed(() => {
   const items: Array<{ title: string; detail: string; href: string }> = []
@@ -531,12 +618,13 @@ async function loadStudentPortal() {
       announcementRows.value = asRecordArray(portal.announcements)
     }
 
-    const [gradesPayload, feesPayload, attendancePayload, assignmentsPayload, announcementsPayload] = await Promise.allSettled([
+    const [gradesPayload, feesPayload, attendancePayload, assignmentsPayload, announcementsPayload, timetablePayload] = await Promise.allSettled([
       studentPortalApi.grades(),
       studentPortalApi.fees(),
       studentPortalApi.attendance(),
       studentPortalApi.assignments(),
       studentPortalApi.announcements(),
+      studentPortalApi.timetable(),
     ])
 
     if (gradesPayload.status === 'fulfilled') {
@@ -568,10 +656,11 @@ async function loadStudentPortal() {
     if (attendancePayload.status === 'fulfilled') {
       const data = asRecord(attendancePayload.value)
       const summary = asRecord(data?.summary)
+      const rows = asRecordArray(data?.rows ?? attendancePayload.value)
+      attendanceRows.value = rows
       if (summary) {
         attendanceSummary.value = summary
       } else if (!attendanceSummary.value) {
-        const rows = asRecordArray(data?.rows ?? attendancePayload.value)
         const present = rows.filter((r) => r.status === 'present').length
         const late = rows.filter((r) => r.status === 'late').length
         const absent = rows.filter((r) => r.status === 'absent').length
@@ -596,6 +685,10 @@ async function loadStudentPortal() {
       announcementRows.value = asRecordArray(announcementsPayload.value)
     }
 
+    if (timetablePayload.status === 'fulfilled') {
+      timetableRows.value = unwrapList<Record<string, unknown>>(timetablePayload.value)
+    }
+
     if (!studentProfile.value) {
       error.value = 'Student profile is not linked to this account yet. Please contact the school office.'
     }
@@ -615,21 +708,27 @@ onMounted(loadStudentPortal)
 </script>
 
 <template>
-  <div class="mx-auto w-full max-w-[1600px] space-y-8 pb-8">
-    <DashboardHero
-      v-if="section === 'dashboard'"
-      :name="user?.name"
-      role="Student"
-      subtitle="Your school records at a glance — performance, attendance, exams, and fees."
-      :loading="loading"
-      :last-updated="lastUpdated"
-      @refresh="refresh"
+  <div class="mx-auto w-full max-w-[1600px] space-y-6 pb-8">
+    <header
+      class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between"
     >
-      <template v-if="studentId" #actions>
+      <div class="min-w-0 space-y-1">
+        <p class="text-xs text-muted-foreground">Dashboard / {{ pageTitle }}</p>
+        <h1 class="font-heading text-2xl font-semibold tracking-tight text-foreground md:text-3xl">
+          {{ pageTitle }}
+        </h1>
+        <p class="max-w-2xl text-sm leading-relaxed text-muted-foreground">
+          {{ pageDescription }}
+        </p>
+      </div>
+      <div
+        v-if="studentId && (section === 'dashboard' || section === 'performance' || section === 'exams')"
+        class="flex flex-wrap gap-2"
+      >
         <Button
           variant="outline"
           size="sm"
-          class="h-9"
+          class="h-9 rounded-full"
           :disabled="downloading || loading"
           @click="downloadResults('html')"
         >
@@ -639,49 +738,23 @@ onMounted(loadStudentPortal)
         <Button
           variant="outline"
           size="sm"
-          class="h-9"
+          class="h-9 rounded-full"
           :disabled="downloading || loading"
           @click="downloadResults('csv')"
         >
           <FileSpreadsheet class="mr-2 size-4" aria-hidden="true" />
           CSV
         </Button>
-      </template>
-    </DashboardHero>
-
-    <header
-      v-else
-      class="flex flex-col gap-4 border-b border-border/60 pb-6 sm:flex-row sm:items-end sm:justify-between"
-    >
-      <div class="min-w-0 space-y-1.5">
-        <h1 class="font-heading text-2xl font-semibold tracking-tight text-foreground md:text-[1.75rem]">
-          {{ pageTitle }}
-        </h1>
-        <p class="max-w-2xl text-sm leading-relaxed text-muted-foreground">
-          {{ pageDescription }}
-        </p>
-      </div>
-      <div
-        v-if="studentId && (section === 'performance' || section === 'exams')"
-        class="flex flex-wrap gap-2"
-      >
         <Button
+          v-if="section === 'dashboard'"
           variant="outline"
           size="sm"
-          :disabled="downloading || loading"
-          @click="downloadResults('html')"
+          class="h-9 rounded-full"
+          :disabled="loading"
+          :aria-busy="loading"
+          @click="refresh"
         >
-          <Download class="mr-2 size-4" aria-hidden="true" />
-          Download report card
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          :disabled="downloading || loading"
-          @click="downloadResults('csv')"
-        >
-          <FileSpreadsheet class="mr-2 size-4" aria-hidden="true" />
-          Download CSV
+          Refresh
         </Button>
       </div>
     </header>
@@ -693,79 +766,248 @@ onMounted(loadStudentPortal)
       @retry="refresh"
     />
 
+    <DashboardSkeleton v-else-if="section === 'dashboard' && loading" />
+
     <template v-else-if="section === 'dashboard'">
-      <MetricBand
-        title="My overview"
-        description="Performance, attendance, and fees at a glance"
-        :cards="overviewCards"
-        skip-permission-filter
+      <StudentGreetingCard
+        :name="studentDisplayName"
+        :student-number="String(studentProfile?.student_number ?? '')"
+        :class-name="String(studentProfile?.class ?? '')"
+        :house="studentHouse"
+        :attendance-rate="hasAttendanceData ? `${attendanceRate.toFixed(1)}%` : '—'"
+        :average-score="hasPerformanceData ? `${averageScore.toFixed(1)}%` : '—'"
+        :pending-assignments="pendingAssignments"
+        :fee-due="totalOutstanding > 0 ? formatMoney(totalOutstanding) : '—'"
       />
 
-      <section class="space-y-3" aria-labelledby="student-profile-title">
-        <div>
-          <h2 id="student-profile-title" class="text-base font-semibold tracking-tight md:text-lg">
-            Profile
-          </h2>
-          <p class="text-sm text-muted-foreground">Your enrolment and contact details</p>
+      <section aria-labelledby="student-quick-actions">
+        <h2 id="student-quick-actions" class="mb-3 text-sm font-medium text-muted-foreground">
+          Quick actions
+        </h2>
+        <div class="flex flex-wrap gap-2">
+          <Button
+            v-for="action in quickActions"
+            :key="action.label"
+            variant="outline"
+            size="sm"
+            class="h-9 rounded-full"
+            as-child
+          >
+            <RouterLink :to="action.href">
+              <component :is="action.icon" class="mr-1.5 size-3.5" aria-hidden="true" />
+              {{ action.label }}
+            </RouterLink>
+          </Button>
         </div>
-        <Card class="border-border/70">
-          <CardContent class="p-0">
-            <dl class="grid sm:grid-cols-2 lg:grid-cols-3">
-              <div
-                v-for="field in profileFields"
-                :key="field.label"
-                class="space-y-1 border-b border-border/60 px-5 py-4 sm:border-r sm:odd:[&:nth-last-child(-n+2)]:border-b-0 lg:border-b lg:[&:nth-child(3n)]:border-r-0 lg:[&:nth-child(n+4)]:border-b-0"
+      </section>
+
+      <section aria-label="Student overview">
+        <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          <KpiCard v-for="card in overviewCards" :key="card.title" v-bind="card" />
+        </div>
+      </section>
+
+      <section class="grid gap-4 xl:grid-cols-12" aria-label="Schedule and academic performance">
+        <Card class="xl:col-span-7">
+          <CardHeader class="flex flex-row items-start justify-between gap-3">
+            <div>
+              <CardTitle class="text-base">Today's Schedule</CardTitle>
+              <CardDescription>{{ DAYS[new Date().getDay()] }} · {{ todayLessons.length }} periods</CardDescription>
+            </div>
+          </CardHeader>
+          <CardContent class="space-y-3">
+            <p v-if="!todayLessons.length" class="py-8 text-center text-sm text-muted-foreground">
+              No lessons on your class timetable for today.
+            </p>
+            <ol v-else class="space-y-3">
+              <li
+                v-for="lesson in todayLessons"
+                :key="lesson.id"
+                class="flex items-start gap-3 rounded-2xl bg-muted/40 px-4 py-3 ring-1 ring-border/60"
               >
-                <dt class="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-                  {{ field.label }}
-                </dt>
-                <dd
-                  :class="cn(
-                    'text-sm',
-                    field.empty
-                      ? 'font-normal italic text-muted-foreground'
-                      : 'font-semibold text-foreground',
-                    field.label === 'Contact email' ? 'break-all' : '',
-                  )"
-                >
-                  {{ field.value }}
-                </dd>
+                <div class="w-16 shrink-0 text-sm font-semibold tabular-nums">{{ lesson.start }}</div>
+                <div class="min-w-0 flex-1">
+                  <p class="font-semibold">{{ lesson.subject }}</p>
+                  <p class="text-sm text-muted-foreground">{{ lesson.teacher }} · Room {{ lesson.room }}</p>
+                </div>
+                <Badge variant="outline" class="capitalize shrink-0">
+                  {{ lesson.status === 'current' ? 'Live' : lesson.status === 'completed' ? 'Done' : 'Next' }}
+                </Badge>
+              </li>
+            </ol>
+          </CardContent>
+        </Card>
+
+        <Card class="xl:col-span-5">
+          <CardHeader class="flex flex-row items-start justify-between gap-3">
+            <div>
+              <CardTitle class="text-base">Academic Performance</CardTitle>
+              <CardDescription>Subject scores from recorded assessments.</CardDescription>
+            </div>
+            <Button variant="outline" size="sm" as-child>
+              <RouterLink to="/student/performance">Full Report</RouterLink>
+            </Button>
+          </CardHeader>
+          <CardContent class="space-y-3">
+            <div class="grid grid-cols-2 gap-3">
+              <div class="rounded-2xl bg-muted/50 p-3 ring-1 ring-border/60">
+                <p class="text-xs text-muted-foreground">Average</p>
+                <p class="mt-1 text-2xl font-semibold tabular-nums">
+                  {{ hasPerformanceData ? `${averageScore.toFixed(1)}%` : '—' }}
+                </p>
               </div>
-            </dl>
+              <div class="rounded-2xl bg-muted/50 p-3 ring-1 ring-border/60">
+                <p class="text-xs text-muted-foreground">Attendance</p>
+                <p class="mt-1 text-2xl font-semibold tabular-nums">
+                  {{ hasAttendanceData ? `${attendanceRate.toFixed(1)}%` : '—' }}
+                </p>
+              </div>
+            </div>
+            <p v-if="!subjectPerformance.length" class="text-sm text-muted-foreground">
+              Marks will appear here once teachers enter them.
+            </p>
+            <ul v-else class="space-y-2">
+              <li
+                v-for="row in subjectPerformance"
+                :key="row.subject"
+                class="flex items-center justify-between gap-3 rounded-xl bg-muted/40 px-3 py-2 ring-1 ring-border/60"
+              >
+                <span class="truncate text-sm font-medium">{{ row.subject }}</span>
+                <span class="tabular-nums text-sm font-semibold">{{ row.percent }}%</span>
+              </li>
+            </ul>
           </CardContent>
         </Card>
       </section>
 
-      <section class="space-y-3" aria-labelledby="student-next-title">
-        <div>
-          <h2 id="student-next-title" class="text-base font-semibold tracking-tight md:text-lg">
-            Needs attention
-          </h2>
-          <p class="text-sm text-muted-foreground">
-            Only items that need a follow-up — everything else stays in the sidebar.
-          </p>
-        </div>
-        <ul v-if="attentionItems.length" class="space-y-2" role="list">
-          <li v-for="item in attentionItems" :key="item.href + item.title">
-            <RouterLink
-              :to="item.href"
-              class="flex items-start justify-between gap-4 rounded-xl border border-border/70 bg-card px-4 py-3 transition-colors hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      <section class="grid gap-4 lg:grid-cols-2" aria-label="Assignments and exams">
+        <Card>
+          <CardHeader class="flex flex-row items-start justify-between gap-3">
+            <div>
+              <CardTitle class="text-base">Assignments &amp; Homework</CardTitle>
+              <CardDescription>{{ pendingAssignments }} pending</CardDescription>
+            </div>
+            <Button variant="outline" size="sm" as-child>
+              <RouterLink to="/student/assignments">View all</RouterLink>
+            </Button>
+          </CardHeader>
+          <CardContent class="space-y-2">
+            <p v-if="!assignmentRows.length" class="text-sm text-muted-foreground">No homework assigned yet.</p>
+            <div
+              v-for="row in assignmentRows.slice(0, 6)"
+              :key="String(row.id)"
+              class="flex items-start justify-between gap-3 rounded-xl bg-muted/40 px-3 py-2 ring-1 ring-border/60"
             >
-              <span class="min-w-0">
-                <span class="block text-sm font-medium text-foreground">{{ item.title }}</span>
-                <span class="block text-xs text-muted-foreground">{{ item.detail }}</span>
-              </span>
-              <span class="shrink-0 text-xs font-medium text-primary">Open</span>
-            </RouterLink>
-          </li>
-        </ul>
-        <p
-          v-else
-          class="rounded-xl border border-dashed border-border/70 px-4 py-6 text-sm text-muted-foreground"
-          role="status"
-        >
-          You’re all caught up. Use the sidebar for timetable, performance, attendance, exams, assignments, and fees.
-        </p>
+              <div class="min-w-0">
+                <p class="truncate font-medium">{{ row.title ?? 'Assignment' }}</p>
+                <p class="truncate text-xs text-muted-foreground">{{ assignmentDueLabel(row) }}</p>
+              </div>
+              <Button
+                v-if="canSubmitAssignment(row.submission_status)"
+                size="sm"
+                class="shrink-0"
+                @click="openAssignmentSheet(row)"
+              >
+                Upload
+              </Button>
+              <Badge v-else variant="outline" class="shrink-0">{{ submissionLabel(row.submission_status) }}</Badge>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader class="flex flex-row items-start justify-between gap-3">
+            <div>
+              <CardTitle class="text-base">Exam Center</CardTitle>
+              <CardDescription>Upcoming papers and latest results.</CardDescription>
+            </div>
+            <Button variant="outline" size="sm" as-child>
+              <RouterLink to="/student/exams">Results</RouterLink>
+            </Button>
+          </CardHeader>
+          <CardContent class="space-y-2">
+            <p v-if="!examRows.length" class="text-sm text-muted-foreground">No exams published yet.</p>
+            <div
+              v-for="row in examRows.slice(0, 6)"
+              :key="String(row.id ?? row.name)"
+              class="flex items-start justify-between gap-3 rounded-xl bg-muted/40 px-3 py-2 ring-1 ring-border/60"
+            >
+              <div class="min-w-0">
+                <p class="truncate font-medium">{{ row.name ?? 'Exam' }}</p>
+                <p class="text-xs text-muted-foreground">{{ formatDate(row.exam_date) }}</p>
+              </div>
+              <Badge variant="outline" class="shrink-0">{{ examResultSummary(row) }}</Badge>
+            </div>
+          </CardContent>
+        </Card>
+      </section>
+
+      <section class="grid gap-4 lg:grid-cols-2" aria-label="Attendance and notices">
+        <Card>
+          <CardHeader class="flex flex-row items-start justify-between gap-3">
+            <div>
+              <CardTitle class="text-base">Attendance Center</CardTitle>
+              <CardDescription>Presence this term.</CardDescription>
+            </div>
+            <Button variant="outline" size="sm" as-child>
+              <RouterLink to="/student/attendance">Details</RouterLink>
+            </Button>
+          </CardHeader>
+          <CardContent>
+            <div class="grid grid-cols-2 gap-3 sm:grid-cols-3">
+              <div class="rounded-2xl bg-muted/50 p-3 ring-1 ring-border/60">
+                <p class="text-xs text-muted-foreground">Present</p>
+                <p class="mt-1 text-xl font-semibold tabular-nums">{{ attendanceBreakdown.present }}</p>
+              </div>
+              <div class="rounded-2xl bg-muted/50 p-3 ring-1 ring-border/60">
+                <p class="text-xs text-muted-foreground">Late</p>
+                <p class="mt-1 text-xl font-semibold tabular-nums">{{ attendanceBreakdown.late }}</p>
+              </div>
+              <div class="rounded-2xl bg-muted/50 p-3 ring-1 ring-border/60">
+                <p class="text-xs text-muted-foreground">Absent</p>
+                <p class="mt-1 text-xl font-semibold tabular-nums">{{ attendanceBreakdown.absent }}</p>
+              </div>
+              <div class="rounded-2xl bg-muted/50 p-3 ring-1 ring-border/60">
+                <p class="text-xs text-muted-foreground">Excused</p>
+                <p class="mt-1 text-xl font-semibold tabular-nums">{{ attendanceBreakdown.excused }}</p>
+              </div>
+              <div class="rounded-2xl bg-muted/50 p-3 ring-1 ring-border/60">
+                <p class="text-xs text-muted-foreground">Days</p>
+                <p class="mt-1 text-xl font-semibold tabular-nums">{{ attendanceBreakdown.totalDays }}</p>
+              </div>
+              <div class="rounded-2xl bg-muted/50 p-3 ring-1 ring-border/60">
+                <p class="text-xs text-muted-foreground">Rate</p>
+                <p class="mt-1 text-xl font-semibold tabular-nums">{{ hasAttendanceData ? `${attendanceRate.toFixed(1)}%` : '—' }}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle class="text-base">Needs attention</CardTitle>
+            <CardDescription>Only items that need a follow-up.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ul v-if="attentionItems.length" class="space-y-2" role="list">
+              <li v-for="item in attentionItems" :key="item.href + item.title">
+                <RouterLink
+                  :to="item.href"
+                  class="flex items-start justify-between gap-4 rounded-xl bg-muted/40 px-4 py-3 ring-1 ring-border/60 transition-colors hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  <span class="min-w-0">
+                    <span class="block text-sm font-medium">{{ item.title }}</span>
+                    <span class="block text-xs text-muted-foreground">{{ item.detail }}</span>
+                  </span>
+                  <span class="shrink-0 text-xs font-medium text-primary">Open</span>
+                </RouterLink>
+              </li>
+            </ul>
+            <p v-else class="text-sm text-muted-foreground" role="status">
+              You’re all caught up.
+            </p>
+          </CardContent>
+        </Card>
       </section>
     </template>
 
@@ -806,42 +1048,108 @@ onMounted(loadStudentPortal)
       </CardContent>
     </Card>
 
-    <Card v-if="!error && section === 'attendance'" class="border-border/70">
-      <CardHeader>
-        <CardTitle>Attendance</CardTitle>
-        <CardDescription>Summary of your presence this term</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div v-if="loading" class="text-sm text-muted-foreground" role="status">Loading attendance summary…</div>
-        <div v-else-if="!attendanceSummary" class="text-sm text-muted-foreground">No attendance summary found.</div>
-        <div v-else class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-          <div class="rounded-lg border border-border/70 p-3">
-            <p class="text-xs text-muted-foreground">Present</p>
-            <p class="text-lg font-semibold tabular-nums">{{ attendanceBreakdown.present }}</p>
-          </div>
-          <div class="rounded-lg border border-border/70 p-3">
-            <p class="text-xs text-muted-foreground">Late</p>
-            <p class="text-lg font-semibold tabular-nums">{{ attendanceBreakdown.late }}</p>
-          </div>
-          <div class="rounded-lg border border-border/70 p-3">
-            <p class="text-xs text-muted-foreground">Absent</p>
-            <p class="text-lg font-semibold tabular-nums">{{ attendanceBreakdown.absent }}</p>
-          </div>
-          <div class="rounded-lg border border-border/70 p-3">
-            <p class="text-xs text-muted-foreground">Excused</p>
-            <p class="text-lg font-semibold tabular-nums">{{ attendanceBreakdown.excused }}</p>
-          </div>
-          <div class="rounded-lg border border-border/70 p-3">
-            <p class="text-xs text-muted-foreground">Total days</p>
-            <p class="text-lg font-semibold tabular-nums">{{ attendanceBreakdown.totalDays }}</p>
-          </div>
-          <div class="rounded-lg border border-border/70 p-3">
-            <p class="text-xs text-muted-foreground">Attendance rate</p>
-            <p class="text-lg font-semibold tabular-nums">{{ attendanceRate.toFixed(1) }}%</p>
-          </div>
+    <template v-if="!error && section === 'attendance'">
+      <section aria-label="Attendance summary" class="grid gap-4 sm:grid-cols-2 xl:grid-cols-6">
+        <div class="rounded-2xl bg-card p-4 shadow-[var(--shadow-soft)] ring-1 ring-border/80">
+          <p class="text-xs font-medium tracking-wide text-muted-foreground uppercase">Today</p>
+          <p class="mt-2 text-3xl font-semibold tabular-nums">{{ hasAttendanceData ? `${attendanceRate.toFixed(0)}%` : '—' }}</p>
+          <p class="mt-1 text-xs text-muted-foreground">Attendance rate</p>
         </div>
-      </CardContent>
-    </Card>
+        <div class="rounded-2xl bg-card p-4 shadow-[var(--shadow-soft)] ring-1 ring-border/80">
+          <p class="text-xs font-medium tracking-wide text-muted-foreground uppercase">Present</p>
+          <p class="mt-2 text-3xl font-semibold tabular-nums">{{ attendanceBreakdown.present }}</p>
+          <p class="mt-1 text-xs text-muted-foreground">Days marked present</p>
+        </div>
+        <div class="rounded-2xl bg-card p-4 shadow-[var(--shadow-soft)] ring-1 ring-border/80">
+          <p class="text-xs font-medium tracking-wide text-muted-foreground uppercase">Absentees</p>
+          <p class="mt-2 text-3xl font-semibold tabular-nums">{{ attendanceBreakdown.absent }}</p>
+          <p class="mt-1 text-xs text-muted-foreground">Days absent</p>
+        </div>
+        <div class="rounded-2xl bg-card p-4 shadow-[var(--shadow-soft)] ring-1 ring-border/80">
+          <p class="text-xs font-medium tracking-wide text-muted-foreground uppercase">Late</p>
+          <p class="mt-2 text-3xl font-semibold tabular-nums">{{ attendanceBreakdown.late }}</p>
+          <p class="mt-1 text-xs text-muted-foreground">Late arrivals</p>
+        </div>
+        <div class="rounded-2xl bg-card p-4 shadow-[var(--shadow-soft)] ring-1 ring-border/80">
+          <p class="text-xs font-medium tracking-wide text-muted-foreground uppercase">On leave</p>
+          <p class="mt-2 text-3xl font-semibold tabular-nums">{{ attendanceBreakdown.excused }}</p>
+          <p class="mt-1 text-xs text-muted-foreground">Excused days</p>
+        </div>
+        <div class="rounded-2xl bg-card p-4 shadow-[var(--shadow-soft)] ring-1 ring-border/80">
+          <p class="text-xs font-medium tracking-wide text-muted-foreground uppercase">Days</p>
+          <p class="mt-2 text-3xl font-semibold tabular-nums">{{ attendanceBreakdown.totalDays }}</p>
+          <p class="mt-1 text-xs text-muted-foreground">Marked this term</p>
+        </div>
+      </section>
+
+      <div class="grid gap-4 xl:grid-cols-12">
+        <Card class="xl:col-span-5">
+          <CardHeader>
+            <p class="text-[11px] font-semibold tracking-[0.16em] text-muted-foreground uppercase">Pattern</p>
+            <CardTitle class="text-base">30-day heatmap</CardTitle>
+            <CardDescription>Each square is a school day on your register.</CardDescription>
+          </CardHeader>
+          <CardContent class="space-y-4">
+            <div v-if="loading" class="text-sm text-muted-foreground" role="status">Loading attendance…</div>
+            <template v-else>
+              <div class="grid grid-cols-10 gap-1.5" role="img" aria-label="Attendance heatmap for the last 30 days">
+                <span
+                  v-for="day in attendanceHeatmap"
+                  :key="day.date"
+                  class="aspect-square rounded-md"
+                  :class="attendanceCellClass(day.status)"
+                  :title="`${day.label}: ${day.status || 'not marked'}`"
+                />
+              </div>
+              <ul class="flex flex-wrap gap-3 text-xs text-muted-foreground">
+                <li class="inline-flex items-center gap-1.5"><span class="size-2 rounded-full bg-chart-2" aria-hidden="true" /> Present</li>
+                <li class="inline-flex items-center gap-1.5"><span class="size-2 rounded-full bg-chart-3" aria-hidden="true" /> Late</li>
+                <li class="inline-flex items-center gap-1.5"><span class="size-2 rounded-full bg-destructive/80" aria-hidden="true" /> Absent</li>
+                <li class="inline-flex items-center gap-1.5"><span class="size-2 rounded-full bg-primary/70" aria-hidden="true" /> Excused</li>
+                <li class="inline-flex items-center gap-1.5"><span class="size-2 rounded-full bg-muted" aria-hidden="true" /> Not marked</li>
+              </ul>
+            </template>
+          </CardContent>
+        </Card>
+
+        <Card class="xl:col-span-7">
+          <CardHeader>
+            <p class="text-[11px] font-semibold tracking-[0.16em] text-muted-foreground uppercase">Workspace</p>
+            <CardTitle class="text-base">Attendance Register</CardTitle>
+            <CardDescription>Recent days with status, check-in, and remarks.</CardDescription>
+          </CardHeader>
+          <CardContent class="overflow-x-auto p-0">
+            <div v-if="loading" class="p-6 text-sm text-muted-foreground" role="status">Loading register…</div>
+            <EmptyState
+              v-else-if="!attendanceRows.length"
+              variant="embedded"
+              title="No attendance marked yet"
+              description="Days will appear here once teachers mark the register."
+            />
+            <Table v-else>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Check-in</TableHead>
+                  <TableHead>Remarks</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <TableRow v-for="row in attendanceRows.slice(0, 30)" :key="String(row.id ?? row.date)">
+                  <TableCell class="font-medium">{{ formatDate(row.date) }}</TableCell>
+                  <TableCell>
+                    <Badge variant="outline" class="capitalize">{{ String(row.status ?? '—').replace('_', ' ') }}</Badge>
+                  </TableCell>
+                  <TableCell class="tabular-nums">{{ row.time_in ? formatTime(row.time_in) : '—' }}</TableCell>
+                  <TableCell class="max-w-xs truncate text-muted-foreground">{{ row.remarks || '—' }}</TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      </div>
+    </template>
 
     <StudentCbtPanel v-if="!error && section === 'exams'" class="mb-6" />
 

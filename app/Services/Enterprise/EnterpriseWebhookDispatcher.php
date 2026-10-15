@@ -26,7 +26,7 @@ class EnterpriseWebhookDispatcher
                 'status' => WebhookDelivery::STATUS_PENDING,
             ]);
 
-            DispatchEnterpriseWebhookJob::dispatch($delivery->id);
+            DispatchEnterpriseWebhookJob::dispatch($delivery->id, $schoolId);
             $queued++;
         }
 
@@ -45,7 +45,7 @@ class EnterpriseWebhookDispatcher
             'last_error' => null,
         ]);
 
-        DispatchEnterpriseWebhookJob::dispatch($delivery->id);
+        DispatchEnterpriseWebhookJob::dispatch($delivery->id, (int) $delivery->school_id);
     }
 
     public function retryFailed(?int $schoolId = null, int $limit = 50): int

@@ -89,6 +89,7 @@ onMounted(load)
 <template>
   <div class="mx-auto w-full max-w-[1600px] space-y-8 pb-8">
     <DashboardHero
+      page-title="LMS Dashboard"
       :name="user?.name"
       role="LMS"
       subtitle="Online learning overview for your school"

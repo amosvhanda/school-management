@@ -44,4 +44,35 @@ class StudentIdCardPrintTest extends TestCase
             ->getJson("/api/v1/students/{$student->id}/id-card/print")
             ->assertNotFound();
     }
+
+    public function test_staff_can_bulk_print_id_cards_for_own_school_students(): void
+    {
+        $auth = $this->createAuthenticatedUser();
+        $students = Student::factory()->count(2)->create([
+            'school_id' => $auth['school']->id,
+        ]);
+
+        $this->withHeaders(['Authorization' => 'Bearer '.$auth['token']])
+            ->postJson('/api/v1/students/id-cards/bulk-print', [
+                'student_ids' => $students->pluck('id')->all(),
+            ])
+            ->assertOk()
+            ->assertJsonCount(2, 'data')
+            ->assertJsonPath('data.0.student.id', $students[0]->id)
+            ->assertJsonPath('data.1.student.id', $students[1]->id);
+    }
+
+    public function test_staff_cannot_bulk_print_id_cards_for_other_school_students(): void
+    {
+        $auth = $this->createAuthenticatedUser();
+        $own = Student::factory()->create(['school_id' => $auth['school']->id]);
+        $other = Student::factory()->create(['school_id' => School::factory()->create()->id]);
+
+        $this->withHeaders(['Authorization' => 'Bearer '.$auth['token']])
+            ->postJson('/api/v1/students/id-cards/bulk-print', [
+                'student_ids' => [$own->id, $other->id],
+            ])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('student_ids');
+    }
 }

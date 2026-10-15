@@ -94,6 +94,7 @@ class StudentPortalController extends Controller
                 'student_number' => $student->student_number,
                 'class_id' => $student->class_id,
                 'class_name' => $student->classModel?->name ?? $student->class,
+                'house_name' => $student->house?->name,
                 'status' => $student->status,
                 'balance' => (float) $student->balance,
                 'currency' => $student->currency,
@@ -123,7 +124,7 @@ class StudentPortalController extends Controller
     public function me(Request $request)
     {
         $student = $this->requireStudent($request);
-        $student->loadMissing(['classModel:id,name', 'gradeLevel:id,name']);
+        $student->loadMissing(['classModel:id,name', 'gradeLevel:id,name', 'house:id,name']);
 
         return $this->success($student);
     }
@@ -544,7 +545,7 @@ class StudentPortalController extends Controller
             throw new AccessDeniedHttpException('Student profile is not linked to this account.');
         }
 
-        $student->loadMissing('classModel:id,name');
+        $student->loadMissing(['classModel:id,name', 'house:id,name']);
 
         return $student;
     }

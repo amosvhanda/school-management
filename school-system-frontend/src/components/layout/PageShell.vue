@@ -1,10 +1,9 @@
 <script setup lang="ts">
 import { computed, inject } from 'vue'
 import { cn } from '@/lib/utils'
-import { Separator } from '@/components/ui/separator'
 import { moduleHubKey } from '@/lib/module-hub'
 
-withDefaults(
+const props = withDefaults(
   defineProps<{
     title: string
     description?: string
@@ -22,6 +21,8 @@ const maxWidthClass = {
   wide: 'max-w-[1600px]',
   full: 'max-w-none',
 } as const
+
+const crumb = computed(() => props.eyebrow || `Dashboard / ${props.title}`)
 </script>
 
 <template>
@@ -31,7 +32,7 @@ const maxWidthClass = {
   >
     <div
       v-if="$slots.actions"
-      class="flex flex-wrap items-center justify-end gap-2"
+      class="flex flex-wrap items-center justify-end gap-2 [&_button]:h-9 [&_button]:rounded-full [&_button]:px-4 [&_a]:h-9 [&_a]:rounded-full [&_a]:px-4"
     >
       <slot name="actions" />
     </div>
@@ -39,29 +40,28 @@ const maxWidthClass = {
   </div>
   <div
     v-else
-    :class="cn('mx-auto w-full space-y-8 pb-8', maxWidthClass[maxWidth])"
+    :class="cn('mx-auto w-full space-y-6 pb-8', maxWidthClass[maxWidth])"
   >
-    <header class="space-y-4">
-      <div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div class="min-w-0 space-y-1.5">
-          <p
-            v-if="eyebrow || $slots.eyebrow"
-            class="text-xs font-medium tracking-wide text-muted-foreground uppercase"
-          >
-            <slot name="eyebrow">{{ eyebrow }}</slot>
-          </p>
-          <h1 class="font-heading text-2xl font-semibold tracking-tight text-foreground md:text-[1.75rem]">
-            {{ title }}
-          </h1>
-          <p v-if="description" class="max-w-2xl text-sm leading-relaxed text-muted-foreground">
-            {{ description }}
-          </p>
-        </div>
-        <div v-if="$slots.actions" class="flex flex-wrap items-center gap-2">
-          <slot name="actions" />
-        </div>
+    <header class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+      <div class="min-w-0 space-y-1">
+        <p
+          class="text-xs text-muted-foreground"
+        >
+          <slot name="eyebrow">{{ crumb }}</slot>
+        </p>
+        <h1 class="font-heading text-2xl font-semibold tracking-tight text-foreground md:text-3xl">
+          {{ title }}
+        </h1>
+        <p v-if="description" class="max-w-2xl text-sm leading-relaxed text-muted-foreground">
+          {{ description }}
+        </p>
       </div>
-      <Separator class="opacity-60" />
+      <div
+        v-if="$slots.actions"
+        class="flex flex-wrap items-center gap-2 [&_button]:h-9 [&_button]:rounded-full [&_button]:px-4 [&_a]:inline-flex [&_a]:h-9 [&_a]:items-center [&_a]:rounded-full [&_a]:px-4"
+      >
+        <slot name="actions" />
+      </div>
     </header>
 
     <div class="space-y-6">

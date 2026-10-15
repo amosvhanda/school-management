@@ -43,6 +43,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'capability' => \App\Http\Middleware\EnsureCapability::class,
             'permission' => \App\Http\Middleware\EnsurePermission::class,
             '2fa.enabled' => \App\Http\Middleware\EnsureTwoFactorEnabled::class,
+            'staff.or.portal' => \App\Http\Middleware\EnsureStaffOrPortalAccess::class,
         ]);
 
         $middleware->api(append: [

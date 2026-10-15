@@ -6,7 +6,7 @@ import type { NavGroup, NavItem } from '@/types/navigation'
  */
 export const staffNavigation: NavGroup[] = [
   {
-    label: 'Menu',
+    label: 'Main',
     items: [
       {
         title: 'Dashboard',
@@ -269,7 +269,7 @@ export const adminNavigation: NavGroup[] = staffNavigation.map((group) => ({
 
 export const teacherNavigation: NavGroup[] = [
   {
-    label: 'Menu',
+    label: 'Main',
     items: [
       { title: 'Dashboard', href: '/', icon: 'LayoutDashboard', roles: ['teacher'] },
       { title: 'Teaching', href: '/teaching', icon: 'BookOpen', capability: 'isStaff', roles: ['teacher'] },
@@ -303,7 +303,7 @@ export const teacherNavigation: NavGroup[] = [
 
 export const financeNavigation: NavGroup[] = [
   {
-    label: 'Menu',
+    label: 'Main',
     items: [
       { title: 'Dashboard', href: '/', icon: 'LayoutDashboard', roles: ['finance'] },
       {
@@ -344,7 +344,7 @@ export const financeNavigation: NavGroup[] = [
 
 export const accountsNavigation: NavGroup[] = [
   {
-    label: 'Menu',
+    label: 'Main',
     items: [
       { title: 'Dashboard', href: '/', icon: 'LayoutDashboard', roles: ['accounts'] },
       {
@@ -379,7 +379,7 @@ export const accountsNavigation: NavGroup[] = [
 
 export const examinationOfficerNavigation: NavGroup[] = [
   {
-    label: 'Menu',
+    label: 'Main',
     items: [
       { title: 'Dashboard', href: '/', icon: 'LayoutDashboard', roles: ['examination_officer'] },
       {
@@ -400,7 +400,7 @@ export const examinationOfficerNavigation: NavGroup[] = [
 
 export const parentNavigation: NavGroup[] = [
   {
-    label: 'Menu',
+    label: 'Main',
     items: [
       { title: 'Dashboard', href: '/portal', icon: 'Home', capability: 'isParent', roles: ['parent'] },
       { title: 'My children', href: '/portal/children', icon: 'Users', capability: 'isParent', roles: ['parent'] },
@@ -412,7 +412,7 @@ export const parentNavigation: NavGroup[] = [
 
 export const studentNavigation: NavGroup[] = [
   {
-    label: 'Menu',
+    label: 'Main',
     items: [
       { title: 'Dashboard', href: '/student', icon: 'Home', roles: ['student'] },
       { title: 'Timetable', href: '/student/timetable', icon: 'CalendarDays', roles: ['student'] },
@@ -429,7 +429,7 @@ export const studentNavigation: NavGroup[] = [
 
 export const platformNavigation: NavGroup[] = [
   {
-    label: 'Menu',
+    label: 'Main',
     items: [
       { title: 'Dashboard', href: '/platform', icon: 'LayoutDashboard', capability: 'isSuperAdmin', roles: ['super_admin'] },
       { title: 'Licenses', href: '/platform/licenses', icon: 'Key', capability: 'isSuperAdmin', roles: ['super_admin'] },

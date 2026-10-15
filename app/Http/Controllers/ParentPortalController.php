@@ -446,7 +446,13 @@ class ParentPortalController extends Controller
         $validator = Validator::make($request->all(), [
             'subject' => 'required|string|max:255',
             'message' => 'required|string',
-            'student_id' => 'nullable|exists:students,id',
+            'student_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('students', 'id')->where(
+                    fn ($q) => $q->where('school_id', $parent->school_id)
+                ),
+            ],
             'staff_user_id' => [
                 'nullable',
                 Rule::exists('users', 'id')->where(fn ($q) => $q->where('school_id', $parent->school_id)),
@@ -590,9 +596,21 @@ class ParentPortalController extends Controller
         $parent = $this->requireParent($request);
 
         $validator = Validator::make($request->all(), [
-            'student_id' => 'required|integer|exists:students,id',
+            'student_id' => [
+                'required',
+                'integer',
+                Rule::exists('students', 'id')->where(
+                    fn ($q) => $q->where('school_id', $parent->school_id)
+                ),
+            ],
             'items' => 'required|array|min:1',
-            'items.*.item_id' => 'required|integer|exists:inventory_items,id',
+            'items.*.item_id' => [
+                'required',
+                'integer',
+                Rule::exists('inventory_items', 'id')->where(
+                    fn ($q) => $q->where('school_id', $parent->school_id)
+                ),
+            ],
             'items.*.quantity' => 'required|integer|min:1',
             'notes' => 'nullable|string|max:500',
         ]);
@@ -672,7 +690,13 @@ class ParentPortalController extends Controller
         $parent = $this->requireParent($request);
 
         $validator = Validator::make($request->all(), [
-            'student_id' => 'required|integer|exists:students,id',
+            'student_id' => [
+                'required',
+                'integer',
+                Rule::exists('students', 'id')->where(
+                    fn ($q) => $q->where('school_id', $parent->school_id)
+                ),
+            ],
         ]);
 
         if ($validator->fails()) {

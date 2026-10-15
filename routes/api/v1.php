@@ -142,7 +142,8 @@ Route::get('/webhooks/payments/{provider}/sandbox-checkout', [PaymentWebhookCont
     ->middleware('throttle:30,1');
 
 // ─── Authenticated ────────────────────────────────────────────────────────
-Route::middleware(['auth:sanctum', 'school.isolated', 'school.licensed', '2fa.enabled'])->group(function () {
+// staff.or.portal: parents/students may only use auth, profile, license, and portal routes.
+Route::middleware(['auth:sanctum', 'school.isolated', 'school.licensed', '2fa.enabled', 'staff.or.portal'])->group(function () {
 
     // License (accessible even when expired — middleware excludes these paths)
     Route::get('/license/status', [LicenseController::class, 'status']);
@@ -326,6 +327,7 @@ Route::middleware(['auth:sanctum', 'school.isolated', 'school.licensed', '2fa.en
     Route::get('/students/{student}/exams', [StudentController::class, 'exams']);
     Route::get('/students/{student}/results/download', [StudentController::class, 'downloadResults']);
     Route::get('/students/{student}/id-card/print', [StudentController::class, 'printIdCard']);
+    Route::post('/students/id-cards/bulk-print', [StudentController::class, 'bulkPrintIdCards']);
     Route::post('/students/{student}/photo', [StudentController::class, 'uploadPhoto']);
     Route::get('/students/{student}/guardians', [GuardianController::class, 'forStudent']);
 
@@ -445,6 +447,7 @@ Route::middleware(['auth:sanctum', 'school.isolated', 'school.licensed', '2fa.en
     Route::get('/attendance/today/summary', [AttendanceController::class, 'todaySummary']);
     Route::get('/attendance/student/{id}/summary', [AttendanceController::class, 'studentSummary']);
     Route::get('/attendance/class/{id}/report', [AttendanceController::class, 'classReport']);
+    Route::delete('/attendance/class/{classId}/date/{date}', [AttendanceController::class, 'clearClassAttendance']);
     Route::get('/timetable', [TimetableController::class, 'index']);
     Route::post('/timetable', [TimetableController::class, 'store']);
     Route::put('/timetable/{id}', [TimetableController::class, 'update']);
@@ -476,6 +479,7 @@ Route::middleware(['auth:sanctum', 'school.isolated', 'school.licensed', '2fa.en
     Route::post('/fee-structures', [FeeStructureController::class, 'store']);
     Route::put('/fee-structures/{id}', [FeeStructureController::class, 'update']);
     Route::delete('/fee-structures/{id}', [FeeStructureController::class, 'destroy']);
+    Route::post('/fee-structures/bulk-assign', [FeeStructureController::class, 'bulkAssign']);
     Route::get('/fee-categories', [FeeCategoryController::class, 'index']);
     Route::get('/fee-categories/{id}', [FeeCategoryController::class, 'show']);
     Route::post('/fee-categories', [FeeCategoryController::class, 'store']);

@@ -2,7 +2,7 @@ import { z } from 'zod'
 import type { FormFieldSchema } from '@/components/forms/useFormBuilder'
 import { PAYMENT_METHOD_OPTIONS, PAYROLL_PAYMENT_METHOD_OPTIONS } from '@/lib/finance-constants'
 import type { FormSheetSize } from '@/lib/form-standards'
-import { expenseHeadRelation, incomeHeadRelation } from '@/lib/form-relations'
+import { classRelation, expenseHeadRelation, incomeHeadRelation, studentRelation } from '@/lib/form-relations'
 import { endpoints } from '@/services/endpoints'
 import { moduleEndpoints } from '@/services'
 
@@ -377,6 +377,46 @@ export const feePaymentPromptForm: ActionPromptForm = {
     income_head_id: '',
     reference: '',
     notes: '',
+  }),
+}
+
+export const bulkIdCardPrintPromptForm: ActionPromptForm = {
+  title: 'Print student ID cards',
+  description: 'Select up to 100 students from this school. Cards open in a printable sheet.',
+  saveLabel: 'Load ID cards',
+  size: 'md',
+  fields: [
+    {
+      name: 'student_ids',
+      label: 'Students',
+      type: 'multirelation',
+      required: true,
+      colSpan: 2,
+      relation: studentRelation({ moduleLabel: 'student' }),
+    },
+  ],
+  schema: z.object({
+    student_ids: z.array(z.coerce.number()).min(1, 'Select at least one student').max(100),
+  }),
+}
+
+export const feeStructureAssignPromptForm: ActionPromptForm = {
+  title: 'Assign fee structure',
+  description: 'Copy this fee amount and category onto the selected classes in this school.',
+  saveLabel: 'Assign',
+  size: 'md',
+  fields: [
+    {
+      name: 'class_ids',
+      label: 'Classes',
+      type: 'multirelation',
+      required: true,
+      colSpan: 2,
+      relation: classRelation({ moduleLabel: 'class' }),
+    },
+  ],
+  schema: z.object({
+    class_ids: z.array(z.coerce.number()).min(1, 'Select at least one class'),
   }),
 }
 

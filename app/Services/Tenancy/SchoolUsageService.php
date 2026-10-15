@@ -17,14 +17,14 @@ class SchoolUsageService
         $schoolId = $school->id;
 
         return [
-            'users' => User::query()->where('school_id', $schoolId)->count(),
-            'students' => Student::query()->where('school_id', $schoolId)->count(),
-            'teachers' => Teacher::query()->where('school_id', $schoolId)->count(),
-            'classes' => ClassModel::query()->where('school_id', $schoolId)->count(),
-            'invoices' => Invoice::query()->where('school_id', $schoolId)->count(),
+            'users' => User::query()->withoutSchoolScope()->where('school_id', $schoolId)->count(),
+            'students' => Student::query()->forSchool($schoolId)->count(),
+            'teachers' => Teacher::query()->forSchool($schoolId)->count(),
+            'classes' => ClassModel::query()->forSchool($schoolId)->count(),
+            'invoices' => Invoice::query()->forSchool($schoolId)->count(),
             'domains' => $school->domains()->count(),
             'storage_bytes' => $this->estimateStorageBytes($schoolId),
-            'last_activity_at' => User::query()->where('school_id', $schoolId)->max('updated_at'),
+            'last_activity_at' => User::query()->withoutSchoolScope()->where('school_id', $schoolId)->max('updated_at'),
         ];
     }
 

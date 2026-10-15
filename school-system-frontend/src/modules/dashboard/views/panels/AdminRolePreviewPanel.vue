@@ -57,6 +57,7 @@ watch(role, () => {
 <template>
   <div class="mx-auto w-full max-w-[1600px] space-y-8 pb-8">
     <DashboardHero
+      page-title="Admin Dashboard"
       :name="user?.name"
       :role="preview?.title ?? `${role} preview`"
       :subtitle="preview?.subtitle ?? 'Admin preview of this role dashboard'"

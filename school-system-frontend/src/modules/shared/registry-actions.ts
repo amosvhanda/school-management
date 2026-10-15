@@ -10,6 +10,8 @@ import {
   spendDisbursePromptForm,
   libraryBorrowPromptForm,
   feePaymentPromptForm,
+  bulkIdCardPrintPromptForm,
+  feeStructureAssignPromptForm,
 } from '@/modules/shared/action-prompt-forms'
 
 export type RowActionMethod = 'post' | 'put' | 'patch' | 'delete'
@@ -28,6 +30,8 @@ export interface RowActionConfig {
   openReceipt?: boolean
   /** Opens printable invoice sheet */
   openInvoicePrint?: boolean
+  /** Opens printable student ID card sheet (GET for one, POST for bulk) */
+  openIdCardPrint?: boolean
   /** Download response as a file blob (e.g. HTML certificate) */
   downloadBlob?: boolean
   downloadFilename?: (row: Record<string, unknown>) => string
@@ -40,6 +44,25 @@ export interface RowActionConfig {
 }
 
 export const moduleActionsRegistry: Record<string, RowActionConfig[]> = {
+  students: [
+    {
+      label: 'Print ID card',
+      method: 'post',
+      path: (id) => endpoints.students.idCardPrint(id),
+      variant: 'outline',
+      openIdCardPrint: true,
+    },
+  ],
+  'finance-fees': [
+    {
+      label: 'Assign to classes',
+      method: 'post',
+      path: () => endpoints.feeStructures.bulkAssign,
+      body: (row) => ({ fee_structure_id: row.id }),
+      promptForm: feeStructureAssignPromptForm,
+      successMessage: 'Fee structure assigned to selected classes',
+    },
+  ],
   workflows: [
     {
       label: 'Approve',
@@ -388,6 +411,16 @@ export const moduleActionsRegistry: Record<string, RowActionConfig[]> = {
 }
 
 export const moduleToolbarActionsRegistry: Record<string, RowActionConfig[]> = {
+  students: [
+    {
+      label: 'Print ID cards',
+      method: 'post',
+      path: () => endpoints.students.idCardsBulkPrint,
+      promptForm: bulkIdCardPrintPromptForm,
+      openIdCardPrint: true,
+      successMessage: 'ID cards ready to print',
+    },
+  ],
   'finance-payroll': [
     {
       label: 'Generate payroll',

@@ -38,8 +38,35 @@ class StoreStudentRequest extends ApiFormRequest
             'firstName' => ['required', 'string', 'max:255'],
             'surname' => ['required', 'string', 'max:255'],
             'class' => ['required_without:class_id', 'nullable', 'string'],
-            'class_id' => ['required_without:class', 'nullable', 'integer', 'exists:classes,id'],
-            'grade_level_id' => ['nullable', 'integer', 'exists:grade_levels,id'],
+            'class_id' => [
+                'required_without:class',
+                'nullable',
+                'integer',
+                Rule::exists('classes', 'id')->where(
+                    fn ($q) => $q->where('school_id', $this->user()?->school_id),
+                ),
+            ],
+            'stream_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('streams', 'id')->where(
+                    fn ($q) => $q->where('school_id', $this->user()?->school_id),
+                ),
+            ],
+            'house_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('houses', 'id')->where(
+                    fn ($q) => $q->where('school_id', $this->user()?->school_id),
+                ),
+            ],
+            'grade_level_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('grade_levels', 'id')->where(
+                    fn ($q) => $q->where('school_id', $this->user()?->school_id),
+                ),
+            ],
             'student_category_id' => [
                 'nullable',
                 'integer',
@@ -59,7 +86,13 @@ class StoreStudentRequest extends ApiFormRequest
             'guardian.phone' => ZimbabweMobileNumber::optional(),
             'guardian.email' => ['nullable', 'email'],
             'guardian.relationship' => ['nullable', 'string', 'max:100'],
-            'guardian_id' => ['nullable', 'integer', 'exists:guardians,id'],
+            'guardian_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('guardians', 'id')->where(
+                    fn ($q) => $q->where('school_id', $this->user()?->school_id),
+                ),
+            ],
             'custom_fields' => ['nullable', 'array'],
         ];
     }

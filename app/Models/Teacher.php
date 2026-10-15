@@ -21,7 +21,14 @@ class Teacher extends Model
         'name',
         'email',
         'phone',
+        'gender',                  // PreSkool UI parity
+        'blood_group',             // PreSkool UI parity
+        'national_id',             // PreSkool UI parity
+        'passport_number',         // PreSkool UI parity
         'address',
+        'social_links',            // PreSkool UI parity (JSON)
+        'emergency_contact_name',  // PreSkool UI parity
+        'emergency_contact_phone', // PreSkool UI parity
         'subject',
         'department',
         'designation_id',
@@ -39,6 +46,10 @@ class Teacher extends Model
         'payment_method',
         'employment_type',
         'period_rate',
+        'date_of_birth',
+        'national_id',
+        'work_experience',
+        'previous_school',
     ];
 
     protected function casts(): array
@@ -49,6 +60,8 @@ class Teacher extends Model
             'period_rate' => 'decimal:2',
             'allowances' => 'array',
             'deductions' => 'array',
+            'social_links' => 'array',
+            'date_of_birth' => 'date',
         ];
     }
 

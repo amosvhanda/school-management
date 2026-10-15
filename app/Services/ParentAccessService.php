@@ -24,7 +24,10 @@ class ParentAccessService
 
     public function canManageAnyParent(User $user): bool
     {
-        return in_array($user->role, [UserRole::SuperAdmin, UserRole::Admin, UserRole::SchoolAdmin, UserRole::Teacher], true);
+        // Staff who manage students may act on parent-linked student data.
+        // Teachers are intentionally excluded — they use teacher-portal / student policies.
+        return in_array($user->role, [UserRole::SuperAdmin, UserRole::Admin, UserRole::SchoolAdmin], true)
+            || $user->hasCapability('canManageStudents');
     }
 
     /**

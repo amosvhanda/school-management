@@ -614,7 +614,7 @@ onMounted(load)
     <ErrorState v-else-if="error" :description="error" @retry="load" />
 
     <div v-else class="space-y-6">
-      <section class="rounded-2xl border border-border/70 bg-card p-4 shadow-sm">
+      <section class="rounded-2xl bg-card p-4 shadow-[var(--shadow-soft)] ring-1 ring-border/80">
         <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
           <button
             v-for="item in setupProgressItems"

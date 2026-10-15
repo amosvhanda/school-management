@@ -2,12 +2,20 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\IsolatesViaSchoolRelation;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class WorkflowApproval extends Model
 {
+    use IsolatesViaSchoolRelation;
+
     public $timestamps = false;
+
+    public static function schoolIsolationRelation(): string
+    {
+        return 'instance';
+    }
 
     protected $fillable = ['instance_id', 'step_order', 'approver_id', 'action', 'comments', 'acted_at'];
 

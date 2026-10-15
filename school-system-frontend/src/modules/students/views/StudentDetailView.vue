@@ -553,7 +553,7 @@ onMounted(load)
 </script>
 
 <template>
-  <div class="space-y-6">
+  <div class="mx-auto w-full max-w-[1600px] space-y-6 pb-8">
     <div class="flex items-center justify-between gap-3">
       <Button variant="ghost" size="sm" as-child>
         <RouterLink to="/students">
@@ -619,8 +619,9 @@ onMounted(load)
             />
           </div>
           <div class="flex-1 space-y-1">
+            <p class="text-xs text-muted-foreground">Dashboard / Students / {{ displayName }}</p>
             <div class="flex flex-wrap items-center gap-2">
-              <h1 class="text-2xl font-semibold tracking-tight">{{ displayName }}</h1>
+              <h1 class="font-heading text-2xl font-semibold tracking-tight md:text-3xl">{{ displayName }}</h1>
               <Badge :variant="statusVariant(student.status)">{{ student.status ?? 'unknown' }}</Badge>
             </div>
             <p class="text-muted-foreground">

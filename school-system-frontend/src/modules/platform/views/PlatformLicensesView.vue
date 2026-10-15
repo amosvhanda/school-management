@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, h, onMounted, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import type { ColumnDef } from '@tanstack/vue-table'
 import {
   Building2,
@@ -55,6 +56,8 @@ import {
 import PlatformSchoolManageSheet from '@/modules/platform/views/PlatformSchoolManageSheet.vue'
 
 const toast = useToast()
+const route = useRoute()
+const router = useRouter()
 const loading = ref(true)
 const error = ref<string | null>(null)
 const activeTab = ref('schools')
@@ -543,6 +546,25 @@ async function copyText(value: string, label: string) {
   await navigator.clipboard.writeText(value)
   toast.success(`${label} copied`)
 }
+
+watch(
+  () => route.query.register,
+  (value) => {
+    if (value === '1') {
+      activeTab.value = 'schools'
+      resetRegisterForm()
+      registerOpen.value = true
+    }
+  },
+  { immediate: true },
+)
+
+watch(registerOpen, (open) => {
+  if (open || route.query.register !== '1') return
+  const query = { ...route.query }
+  delete query.register
+  void router.replace({ query })
+})
 
 onMounted(loadAll)
 </script>

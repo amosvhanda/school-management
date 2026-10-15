@@ -30,6 +30,7 @@ export interface AuthSchool {
   name: string
   code?: string | null
   status?: string
+  subtitle?: string | null
   is_current?: boolean
   is_default?: boolean
 }

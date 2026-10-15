@@ -9,10 +9,6 @@ trait ChecksSchoolOwnership
 {
     protected function belongsToSameSchool(User $user, ?int $schoolId): bool
     {
-        if ($user->role === UserRole::SuperAdmin) {
-            return true;
-        }
-
         if ($user->school_id === null || $schoolId === null) {
             return false;
         }

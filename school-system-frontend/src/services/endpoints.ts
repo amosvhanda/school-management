@@ -154,6 +154,7 @@ export const endpoints = {
     exams: (id: number | string) => `/students/${id}/exams`,
     resultsDownload: (id: number | string) => `/students/${id}/results/download`,
     idCardPrint: (id: number | string) => `/students/${id}/id-card/print`,
+    idCardsBulkPrint: '/students/id-cards/bulk-print',
     photo: (id: number | string) => `/students/${id}/photo`,
     guardians: (id: number | string) => `/students/${id}/guardians`,
   },
@@ -246,6 +247,8 @@ export const endpoints = {
     todaySummary: '/attendance/today/summary',
     studentSummary: (id: number | string) => `/attendance/student/${id}/summary`,
     classReport: (id: number | string) => `/attendance/class/${id}/report`,
+    clearClass: (classId: number | string, date: string) =>
+      `/attendance/class/${classId}/date/${date}`,
   },
   timetable: {
     list: '/timetable',
@@ -298,6 +301,7 @@ export const endpoints = {
   feeStructures: {
     list: '/fee-structures',
     detail: (id: number | string) => `/fee-structures/${id}`,
+    bulkAssign: '/fee-structures/bulk-assign',
   },
   feeCategories: {
     list: '/fee-categories',

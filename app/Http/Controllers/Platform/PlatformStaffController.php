@@ -44,7 +44,7 @@ class PlatformStaffController extends Controller
             'recorded_on' => 'nullable|date',
         ])->validate();
 
-        Student::where('school_id', $schoolId)->findOrFail($data['student_id']);
+        Student::query()->forSchool($schoolId)->findOrFail($data['student_id']);
 
         $point = BehaviorPoint::create([
             'school_id' => $schoolId,
@@ -62,7 +62,9 @@ class PlatformStaffController extends Controller
     public function behaviorSummary(Request $request, int $studentId)
     {
         $schoolId = $this->platformSchoolId($request);
-        $studentQuery = Student::query()->when($schoolId, fn ($q) => $q->where('school_id', $schoolId));
+        $studentQuery = $schoolId
+            ? Student::query()->forSchool($schoolId)
+            : Student::query();
         $studentQuery->findOrFail($studentId);
         $total = BehaviorPoint::where('student_id', $studentId)->sum('points');
 
@@ -95,7 +97,7 @@ class PlatformStaffController extends Controller
             'follow_up_date' => 'nullable|date',
         ])->validate();
 
-        Student::where('school_id', $schoolId)->findOrFail($data['student_id']);
+        Student::query()->forSchool($schoolId)->findOrFail($data['student_id']);
 
         $intervention = StudentIntervention::create([
             'school_id' => $schoolId,

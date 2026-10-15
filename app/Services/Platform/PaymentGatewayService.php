@@ -95,7 +95,10 @@ class PaymentGatewayService
 
     public function completeWebhook(string $internalReference, array $providerResponse): PaymentGatewayTransaction
     {
-        $txn = PaymentGatewayTransaction::where('internal_reference', $internalReference)->firstOrFail();
+        $txn = PaymentGatewayTransaction::query()
+            ->withoutSchoolScope()
+            ->where('internal_reference', $internalReference)
+            ->firstOrFail();
 
         if ($txn->status === 'completed') {
             return $txn;
@@ -105,6 +108,7 @@ class PaymentGatewayService
 
         $completed = DB::transaction(function () use ($txn, $providerResponse, &$newlyCompleted) {
             $locked = PaymentGatewayTransaction::query()
+                ->withoutSchoolScope()
                 ->whereKey($txn->id)
                 ->lockForUpdate()
                 ->firstOrFail();

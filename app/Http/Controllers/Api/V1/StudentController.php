@@ -37,22 +37,39 @@ class StudentController extends Controller
                 'class_id',
                 'grade_level_id',
                 'gender',
+                'blood_group',
                 'class',
                 AllowedFilter::callback('guardian_id', function ($query, $value) {
                     $query->whereHas('guardians', fn ($q) => $q->where('guardians.id', (int) $value));
                 }),
                 'search',
             ],
-            'search_columns' => ['full_name', 'first_name', 'last_name', 'student_number', 'email'],
-            'sorts' => ['full_name', 'created_at', 'student_number', 'status'],
-            'includes' => ['guardians', 'classModel', 'gradeLevel', 'studentCategory'],
+            'search_columns' => [
+                'full_name',
+                'first_name',
+                'last_name',
+                'student_number',
+                'roll_number',
+                'national_id',
+                'passport_number',
+                'email',
+            ],
+            'sorts' => ['full_name', 'created_at', 'student_number', 'roll_number', 'status'],
+            'includes' => ['guardians', 'classModel', 'gradeLevel', 'studentCategory', 'stream', 'house', 'medicalProfile'],
             'fields' => [
                 'students.id',
                 'students.full_name',
                 'students.first_name',
                 'students.last_name',
                 'students.student_number',
+                'students.roll_number',
                 'students.status',
+                'students.gender',
+                'students.blood_group',
+                'students.national_id',
+                'students.passport_number',
+                'students.photo_url',
+                'students.social_links',
                 'students.class_id',
                 'students.grade_level_id',
                 'students.student_category_id',
@@ -70,7 +87,9 @@ class StudentController extends Controller
     {
         $this->authorize('view', $student);
 
-        return $this->success(new StudentResource($student->load(['guardians', 'studentCategory'])));
+        return $this->success(
+            new StudentResource($student->load(['guardians', 'classModel', 'stream', 'house', 'studentCategory', 'medicalProfile', 'documents']))
+        );
     }
 
     public function store(StoreStudentRequest $request)
@@ -83,6 +102,7 @@ class StudentController extends Controller
             'last_name' => $request->surname,
             'full_name' => trim($request->firstName.' '.$request->surname),
             'student_number' => $this->admissionService->generateStudentNumber((int) $schoolId),
+            'roll_number' => $request->input('roll_number'),
             'class' => $request->class,
             'class_id' => $request->class_id,
             'stream_id' => $request->input('stream_id'),
@@ -91,10 +111,15 @@ class StudentController extends Controller
             'student_category_id' => $request->input('student_category_id'),
             'date_of_birth' => $request->dateOfBirth,
             'gender' => $request->gender,
+            'blood_group' => $request->input('blood_group'),
+            'national_id' => $request->input('national_id'),
+            'passport_number' => $request->input('passport_number'),
             'phone' => $request->phone,
             'email' => $request->email,
+            'photo_url' => $request->input('photo_url'),
             'address' => $request->address,
             'suburb' => $request->suburb,
+            'social_links' => $request->input('social_links'),
             'school' => $request->school,
             'status' => 'active',
             'school_id' => $schoolId,
@@ -135,7 +160,7 @@ class StudentController extends Controller
         }
 
         return $this->created(
-            new StudentResource($student->fresh()->load(['guardians', 'classModel', 'stream', 'house'])),
+            new StudentResource($student->fresh()->load(['guardians', 'classModel', 'stream', 'house', 'medicalProfile'])),
             'Student created successfully',
         );
     }
@@ -148,7 +173,25 @@ class StudentController extends Controller
             $student->full_name = trim($student->first_name.' '.$student->last_name);
         }
 
-        $student->fill($request->only(['class', 'class_id', 'grade_level_id', 'student_category_id', 'phone', 'email', 'address', 'suburb', 'status']));
+        $student->fill($request->only([
+            'class',
+            'class_id',
+            'stream_id',
+            'house_id',
+            'grade_level_id',
+            'student_category_id',
+            'roll_number',
+            'blood_group',
+            'national_id',
+            'passport_number',
+            'photo_url',
+            'phone',
+            'email',
+            'address',
+            'suburb',
+            'social_links',
+            'status',
+        ]));
 
         if ($request->has('dateOfBirth')) {
             $student->date_of_birth = $request->dateOfBirth;
@@ -186,7 +229,7 @@ class StudentController extends Controller
         }
 
         return $this->success(
-            new StudentResource($student->fresh()->load('guardians')),
+            new StudentResource($student->fresh()->load(['guardians', 'classModel', 'stream', 'house', 'medicalProfile'])),
             'Student updated successfully',
         );
     }

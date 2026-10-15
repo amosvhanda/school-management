@@ -57,6 +57,24 @@ class TenantSwitchTest extends TestCase
         ]);
     }
 
+    public function test_super_admin_lists_every_school_and_can_switch(): void
+    {
+        $first = School::factory()->create(['status' => 'active', 'name' => 'Global International', 'city' => 'Harare']);
+        $second = School::factory()->create(['status' => 'active', 'name' => 'Sunrise Public School']);
+        $auth = $this->createAuthenticatedUser('super_admin', $first->id);
+
+        $this->withHeaders(['Authorization' => 'Bearer '.$auth['token']])
+            ->getJson('/api/v1/auth/me')
+            ->assertOk()
+            ->assertJsonFragment(['name' => 'Global International', 'is_current' => true])
+            ->assertJsonFragment(['name' => 'Sunrise Public School']);
+
+        $this->withHeaders(['Authorization' => 'Bearer '.$auth['token']])
+            ->postJson('/api/v1/auth/switch-school', ['school_id' => $second->id])
+            ->assertOk()
+            ->assertJsonPath('data.user.school_id', $second->id);
+    }
+
     public function test_user_cannot_switch_to_unrelated_school(): void
     {
         $auth = $this->createAuthenticatedUser();

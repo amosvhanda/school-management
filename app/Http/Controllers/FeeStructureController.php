@@ -200,6 +200,104 @@ class FeeStructureController extends Controller
         ]);
     }
 
+    public function bulkAssign(Request $request)
+    {
+        $this->authorizeModuleAccess(
+            $request,
+            capabilities: ['canManageFinance'],
+            permissionSlugs: ['finance.manage'],
+        );
+
+        $schoolId = $request->user()?->school_id;
+        if (! $schoolId) {
+            abort(403, 'User is not associated with a school.');
+        }
+
+        $validator = Validator::make($request->all(), [
+            'fee_structure_id' => [
+                'required',
+                'integer',
+                Rule::exists('fee_structures', 'id')->where(
+                    fn ($q) => $q->where('school_id', $schoolId)
+                ),
+            ],
+            'class_ids' => 'required|array|min:1|max:100',
+            'class_ids.*' => [
+                'required',
+                'integer',
+                Rule::exists('classes', 'id')->where(
+                    fn ($q) => $q->where('school_id', $schoolId)
+                ),
+            ],
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'message' => 'Validation failed',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        $source = FeeStructure::query()
+            ->where('school_id', $schoolId)
+            ->findOrFail((int) $request->fee_structure_id);
+
+        $classIds = collect($request->input('class_ids'))
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values();
+
+        $classes = ClassModel::query()
+            ->where('school_id', $schoolId)
+            ->whereIn('id', $classIds->all())
+            ->get()
+            ->keyBy('id');
+
+        $assigned = [];
+
+        foreach ($classIds as $classId) {
+            $class = $classes->get($classId);
+            if (! $class) {
+                continue;
+            }
+
+            $existing = FeeStructure::query()
+                ->where('school_id', $schoolId)
+                ->where('class_id', $class->id)
+                ->where(function ($q) use ($source) {
+                    if ($source->fee_category_id) {
+                        $q->where('fee_category_id', $source->fee_category_id);
+                    } else {
+                        $q->where('category', $source->category);
+                    }
+                })
+                ->first();
+
+            $payload = [
+                'class_id' => $class->id,
+                'class_name' => $class->name,
+                'fee_category_id' => $source->fee_category_id,
+                'category' => $source->category,
+                'amount' => $source->amount,
+                'currency' => $source->currency,
+                'school_id' => $schoolId,
+            ];
+
+            if ($existing) {
+                $existing->update($payload);
+                $assigned[] = $existing->fresh()->load(['feeCategory:id,name,is_active', 'classModel:id,name']);
+            } else {
+                $assigned[] = FeeStructure::create($payload)
+                    ->load(['feeCategory:id,name,is_active', 'classModel:id,name']);
+            }
+        }
+
+        return response()->json([
+            'data' => $assigned,
+            'message' => 'Fee structure assigned to selected classes',
+        ]);
+    }
+
     /**
      * @return array{0: int|null, 1: string}
      */

@@ -123,27 +123,31 @@ class AttendanceController extends Controller
 
         $user = $request->user();
         $schoolId = $user?->school_id;
+        if (! $schoolId) {
+            abort(403, 'User is not associated with a school.');
+        }
 
         // Handle class_id - can be class name or class ID
         $classId = $request->class_id;
         $class = null;
         if (! is_numeric($classId)) {
-            // If it's a class name, try to find the class ID
             $class = ClassModel::where('name', $classId)
-                ->when($schoolId, fn ($q) => $q->where('school_id', $schoolId))
+                ->where('school_id', $schoolId)
                 ->first();
-            if ($class) {
-                $classId = $class->id;
-            } else {
-                // If class not found, use null (will be stored as string in class_id field)
-                $classId = $request->class_id;
-            }
-        }
-        if ($classId && is_numeric($classId)) {
+        } elseif ($classId) {
             $class = ClassModel::where('id', $classId)
-                ->when($schoolId, fn ($q) => $q->where('school_id', $schoolId))
+                ->where('school_id', $schoolId)
                 ->first();
         }
+
+        if (! $class) {
+            return response()->json([
+                'message' => 'Validation failed',
+                'errors' => ['class_id' => ['The selected class is invalid for this school.']],
+            ], 422);
+        }
+
+        $classId = $class->id;
 
         // Enforce class teacher assignment for teachers
         if ($user?->isTeacher()) {
@@ -358,9 +362,23 @@ class AttendanceController extends Controller
 
     public function studentSummary(Request $request, $id)
     {
+        $this->authorizeModuleAccess(
+            $request,
+            capabilities: ['canManageStudents', 'canManageTeachers'],
+            permissionSlugs: ['attendance.manage'],
+        );
+
         $schoolId = $request->user()?->school_id;
-        $attendance = Attendance::where('student_id', $id)
-            ->when($schoolId, fn ($q) => $q->where('school_id', $schoolId))
+        if (! $schoolId) {
+            abort(403, 'User is not associated with a school.');
+        }
+
+        $student = Student::query()
+            ->where('school_id', $schoolId)
+            ->findOrFail($id);
+
+        $attendance = Attendance::where('student_id', $student->id)
+            ->where('school_id', $schoolId)
             ->get();
 
         $summary = [
@@ -381,21 +399,25 @@ class AttendanceController extends Controller
 
     public function classReport(Request $request, $id)
     {
-        // Handle both class name and class ID
-        $classId = $id;
+        $this->authorizeModuleAccess(
+            $request,
+            capabilities: ['canManageStudents', 'canManageTeachers'],
+            permissionSlugs: ['attendance.manage'],
+        );
+
         $schoolId = $request->user()?->school_id;
-        if (! is_numeric($classId)) {
-            $class = ClassModel::where('name', $classId)
-                ->when($schoolId, fn ($q) => $q->where('school_id', $schoolId))
-                ->first();
-            if ($class) {
-                $classId = $class->id;
-            }
+        if (! $schoolId) {
+            abort(403, 'User is not associated with a school.');
         }
 
+        $classQuery = ClassModel::query()->where('school_id', $schoolId);
+        $class = is_numeric($id)
+            ? $classQuery->findOrFail($id)
+            : $classQuery->where('name', $id)->firstOrFail();
+
         $attendance = Attendance::with('student')
-            ->where('class_id', $classId)
-            ->when($schoolId, fn ($q) => $q->where('school_id', $schoolId))
+            ->where('class_id', $class->id)
+            ->where('school_id', $schoolId)
             ->get();
 
         $summary = [
@@ -414,8 +436,17 @@ class AttendanceController extends Controller
 
     public function todaySummary(Request $request)
     {
+        $this->authorizeModuleAccess(
+            $request,
+            capabilities: ['canManageStudents', 'canManageTeachers'],
+            permissionSlugs: ['attendance.manage'],
+        );
+
         $today = now()->toDateString();
         $schoolId = $request->user()?->school_id;
+        if (! $schoolId) {
+            abort(403, 'User is not associated with a school.');
+        }
 
         $attendance = Attendance::whereDate('date', $today)
             ->when($schoolId, fn ($q) => $q->where('school_id', $schoolId))
@@ -442,6 +473,50 @@ class AttendanceController extends Controller
                 'total' => $actualTotal,
                 'date' => $today,
             ],
+        ]);
+    }
+
+    public function clearClassAttendance(Request $request, $classId, $date)
+    {
+        $this->authorizeModuleAccess(
+            $request,
+            capabilities: ['canManageStudents', 'canManageTeachers'],
+            permissionSlugs: ['attendance.manage'],
+        );
+
+        $schoolId = $request->user()?->school_id;
+        if (! $schoolId) {
+            abort(403, 'User is not associated with a school.');
+        }
+
+        $validator = Validator::make(
+            ['date' => $date, 'class_id' => $classId],
+            [
+                'date' => 'required|date',
+                'class_id' => 'required|integer',
+            ]
+        );
+
+        if ($validator->fails()) {
+            return response()->json([
+                'message' => 'Validation failed',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        $class = ClassModel::query()
+            ->where('school_id', $schoolId)
+            ->findOrFail((int) $classId);
+
+        $deleted = Attendance::query()
+            ->where('school_id', $schoolId)
+            ->where('class_id', $class->id)
+            ->whereDate('date', $date)
+            ->delete();
+
+        return response()->json([
+            'message' => 'Class attendance cleared',
+            'deleted' => $deleted,
         ]);
     }
 }
