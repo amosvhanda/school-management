@@ -91,19 +91,19 @@ class PeopleImportController extends Controller
         $map = [
             'students' => [
                 'capabilities' => ['canManageStudents'],
-                'permissions' => ['students.manage', 'people.manage'],
+                'permissions' => ['students.manage'],
             ],
             'teachers' => [
                 'capabilities' => ['canManageTeachers'],
-                'permissions' => ['teachers.manage', 'people.manage'],
+                'permissions' => ['hr.manage'],
             ],
             'employees' => [
                 'capabilities' => ['canManageTeachers'],
-                'permissions' => ['hr.manage', 'people.manage'],
+                'permissions' => ['hr.manage'],
             ],
             'guardians' => [
                 'capabilities' => ['canManageTeachers', 'canManageStudents'],
-                'permissions' => ['people.manage', 'students.manage'],
+                'permissions' => ['students.manage', 'hr.manage'],
             ],
         ];
 

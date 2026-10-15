@@ -3,10 +3,13 @@
 namespace App\Providers;
 
 use App\Contracts\TeachingAssistant;
+use App\Enums\UserRole;
+use App\Models\User;
 use App\Services\Ai\StubTeachingAssistant;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -36,6 +39,14 @@ class AppServiceProvider extends ServiceProvider
         if ($this->app->isProduction()) {
             DB::prohibitDestructiveCommands();
         }
+
+        // Pulse registers a local-only gate via callAfterResolving; override after boot.
+        $this->app->booted(function () {
+            Gate::define('viewPulse', function (?User $user = null) {
+                return $user?->role === UserRole::SuperAdmin
+                    || $this->app->environment('local');
+            });
+        });
 
         ResetPassword::createUrlUsing(function (object $user, string $token) {
             $frontend = (string) env('FRONTEND_URL', 'http://localhost:5173');

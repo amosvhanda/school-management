@@ -25,7 +25,6 @@ class StudentPolicy
             && (
                 $user->hasCapability('canManageStudents')
                 || $user->hasPermission('students.manage')
-                || $user->hasPermission('students.view')
             );
     }
 
@@ -46,8 +45,7 @@ class StudentPolicy
         }
 
         return $user->hasCapability('canManageStudents')
-            || $user->hasPermission('students.manage')
-            || $user->hasPermission('students.view');
+            || $user->hasPermission('students.manage');
     }
 
     /**
@@ -76,8 +74,8 @@ class StudentPolicy
 
         return $user->hasCapability('canManageStudents')
             || $user->hasPermission('students.manage')
-            || $user->hasPermission('students.view')
-            || $user->hasPermission('results.view');
+            || $user->hasPermission('exams.manage')
+            || $user->hasPermission('exams.enter_results');
     }
 
     public function create(User $user): bool

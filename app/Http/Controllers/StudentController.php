@@ -2678,7 +2678,6 @@ HTML;
             ],
             permissionSlugs: [
                 'students.manage',
-                'students.view',
             ],
         );
 
@@ -2741,7 +2740,6 @@ HTML;
             ],
             permissionSlugs: [
                 'students.manage',
-                'students.view',
             ],
         );
 

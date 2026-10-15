@@ -9,6 +9,16 @@ Per-tenant databases are intentionally out of scope.
 - Privileged roles must enable 2FA via **Profile → Security** before using APIs
 - Run `php artisan saas:go-live-check` before cutover
 
+## Permissions (keep custom RBAC)
+
+Do **not** migrate to `spatie/laravel-permission` for go-live. Authorization uses:
+
+- Catalog: `config/permissions.php` + `config/permission_capabilities.php`
+- Resolution: `App\Services\PermissionService`
+- Enforcement: `capability` / `permission` middleware + policies
+
+School isolation stays outside RBAC (`school.isolated`, scopes, policy ownership checks).
+
 ## Before go-live
 
 1. **Environment**
@@ -20,9 +30,12 @@ Per-tenant databases are intentionally out of scope.
 
 2. **Processes** (Docker Compose or Supervisor)
    - App (php-fpm) + nginx/apache
-   - Queue worker: `php artisan queue:work --queue=webhooks,notifications,tenant,default`
-   - Scheduler: `php artisan schedule:work` (or cron `* * * * * schedule:run`)
+   - Queue: `php artisan horizon` (requires Redis; queues `webhooks,notifications,tenant,default`)
+   - On deploy: `php artisan horizon:terminate` so workers restart cleanly
+   - Scheduler: `php artisan schedule:work`
    - See root `supervisord.conf` and `docker-compose.yml`
+   - Dashboards (SuperAdmin): `/horizon`, `/pulse`
+   - Telescope (`/telescope`): local/staging only (`TELESCOPE_ENABLED=true`); not installed with `composer install --no-dev`
 
 3. **Tenant ingress**
    - Follow [wildcard-ingress.md](./wildcard-ingress.md)
@@ -34,6 +47,7 @@ Per-tenant databases are intentionally out of scope.
 
 5. **Health**
    - `GET /up` and platform System Health (`/platform/system/health`)
+   - Horizon + Pulse for queue/runtime metrics
    - Confirm failed jobs / notification queue depth are acceptable
    - `php artisan saas:go-live-check` (use `--strict` before production cutover)
 
@@ -51,7 +65,9 @@ Bearer-token API clients do not use cookie CSRF. Sanctum SPA cookie auth should 
 | Concern | Approach |
 |---------|----------|
 | Tenant isolation | `SchoolScope` + `school.isolated` + membership checks |
-| Jobs | `BelongsToTenant` + `SetTenantContext` on `tenant` queue |
+| Jobs | `BelongsToTenant` + `SetTenantContext`; Horizon on Redis |
+| Observability | Pulse + Horizon (SuperAdmin); Telescope local/staging only |
+| Permissions | Custom `PermissionService` (not Spatie) |
 | Backups | Logical per-school JSON via `SchoolBackupService` |
 | Migrations | Global Laravel migrations for the shared schema |
 | Privileged 2FA | `2fa.enabled` middleware + Profile setup (production default) |
@@ -62,9 +78,11 @@ Bearer-token API clients do not use cookie CSRF. Sanctum SPA cookie auth should 
 
 | Gate | Result | Notes |
 |------|--------|-------|
-| `php artisan test` | **515 passed** (2212 assertions) | Full suite green |
+| `php artisan test` | **515 passed** (2212 assertions) | Full suite green (pre-Horizon) |
 | `school-system-frontend` `npm run build` | **green** | `vue-tsc -b && vite build` |
 | `php artisan saas:go-live-check` | **green** | Local/non-production skips strict prod env asserts |
+| Horizon + Pulse packages | installed | Horizon manually registered (Laravel 13 DevCommands) |
+| Telescope | installed (--dev) | Disabled by default; local/staging opt-in |
 | Staging env + Redis/HTTPS/2FA | pending | Needs staging host |
 | `saas:go-live-check --strict` on staging | pending | Run after staging env mirrors production |
 | Paynow + SMS/WhatsApp staging | deferred | Not in current go-live scope |
