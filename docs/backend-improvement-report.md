@@ -179,9 +179,9 @@ None.
 ## Recommended next steps (priority order)
 
 1. Merge / review [PR #6](https://github.com/amosvhanda/school-management/pull/6) into `feature-school-erp`.  
-2. Locally: `composer require --dev larastan/larastan:^3.13` then `./vendor/bin/phpstan analyse` (uses `phpstan.neon.dist`).  
-3. Staging: Redis + Horizon terminate-on-deploy + Pulse SuperAdmin gate verification.  
-4. Continue Form Requests / service extraction for attendance, payroll, and teacher portal slices.  
+2. Staging: Redis + Horizon terminate-on-deploy + Pulse SuperAdmin gate verification.  
+3. Shrink `phpstan-baseline.neon` over time (raise level toward 5+).  
+4. Continue service extraction for teacher portal slices.  
 
 ---
 

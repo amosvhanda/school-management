@@ -82,7 +82,7 @@ Shared database, row-level isolation via `school_id`.
 | T8 | Few Form Requests vs many inline `$request->validate` / `Validator::make`. Consistency and reuse suffer; not automatically insecure. | Low | **Improved** | Exam + invoice/payment + enterprise finance + fee-structure writes use Form Requests; continue for attendance/payroll |
 | T9 | Some controllers used `Model::findOrFail($id)` relying only on `SchoolScope` (fee structures, timetable, teachers). Safe while `CurrentSchoolId` is set; brittle if scope is bypassed. | Low | **Fixed** | Explicit `where('school_id', …)` on update/destroy; fee-structure cross-tenant IDOR test added |
 | T10 | Fat controllers remain: `TeacherPortalController` (~1488 LOC), `StudentController` (~1169), `DashboardController`, portals. | Medium (maintainability) | Open | Extract further slices when touching those modules |
-| T11 | Larastan / PHPStan | Info | **Blocked in agent env** | `phpstan.neon.dist` (level 1) added; install blocked by Packagist/network from this agent — run `composer require --dev larastan/larastan:^3.13` locally |
+| T11 | Larastan / PHPStan | Info | **Done (level 1 + baseline)** | `larastan/larastan` ^3.13 installed; `phpstan.neon.dist` + `phpstan-baseline.neon` (~424 known issues). Shrink baseline over time. |
 
 ### Explicitly out of scope (per product decision)
 
@@ -240,9 +240,9 @@ php artisan test --filter='SchoolErp|EnterpriseErp|WorkflowApi|HelpDesk|Procurem
 3. **P1 — Done:** Invoice/Payment/Exam/Journal policies + `$fillable` hardening on ERP models.  
 4. **P1 — Done:** Split `StudentController` into domain services (report card, documents, ID card, invoices, bulk, academic, photo).  
 5. **P2 — Done:** Form Requests for exam CRUD/results, journal, invoice/payment, enterprise finance, and fee-structure writes.  
-6. **P2 — Partial:** `phpstan.neon.dist` ready; Larastan package install deferred (network/Packagist unavailable in agent). Run install locally then `./vendor/bin/phpstan analyse`.  
+6. **P2 — Done:** Larastan level 1 + baseline; attendance/payroll Form Requests.  
 7. **P3:** Staging verification of Horizon/Pulse with Redis; SuperAdmin-only UI access.  
-8. **P3:** Continue thinning `TeacherPortalController` / remaining Form Requests (attendance, payroll).  
+8. **P3:** Continue thinning `TeacherPortalController`; shrink PHPStan baseline.  
 
 ---
 

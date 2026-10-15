@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Exceptions\DomainException;
 use App\Http\Concerns\HandlesResourceQueries;
+use App\Http\Requests\Api\V1\Attendance\ClearClassAttendanceRequest;
+use App\Http\Requests\Api\V1\Attendance\StoreAttendanceRequest;
 use App\Http\Resources\Api\V1\AttendanceResource;
 use App\Models\Attendance;
 use App\Models\AttendanceSession;
@@ -16,7 +18,6 @@ use App\Services\PermissionService;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Validator;
 use Spatie\QueryBuilder\AllowedFilter;
 
 class AttendanceController extends Controller
@@ -96,33 +97,8 @@ class AttendanceController extends Controller
         ]);
     }
 
-    public function store(Request $request)
+    public function store(StoreAttendanceRequest $request)
     {
-        $this->authorizeModuleAccess(
-            $request,
-            capabilities: ['canManageStudents', 'canManageTeachers'],
-            permissionSlugs: ['attendance.manage'],
-        );
-
-        $validator = Validator::make($request->all(), [
-            'class_id' => 'required', // Can be string (class name) or integer (class ID)
-            'date' => 'required|date',
-            'overwrite' => 'nullable|boolean',
-            'force' => 'nullable|boolean',
-            'records' => 'required|array',
-            'records.*.student_id' => 'required|exists:students,id',
-            'records.*.status' => 'required|string|in:present,absent,late,excused,sick,left_early',
-            'records.*.remarks' => 'nullable|string',
-            'records.*.time' => 'nullable|string',
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json([
-                'message' => 'Validation failed',
-                'errors' => $validator->errors(),
-            ], 422);
-        }
-
         $user = $request->user();
         $schoolId = $user?->school_id;
         if (! $schoolId) {
@@ -546,42 +522,23 @@ class AttendanceController extends Controller
         ]);
     }
 
-    public function clearClassAttendance(Request $request, $classId, $date)
+    public function clearClassAttendance(ClearClassAttendanceRequest $request, $classId, $date)
     {
-        $this->authorizeModuleAccess(
-            $request,
-            capabilities: ['canManageStudents', 'canManageTeachers'],
-            permissionSlugs: ['attendance.manage'],
-        );
-
         $schoolId = $request->user()?->school_id;
         if (! $schoolId) {
             abort(403, 'User is not associated with a school.');
         }
 
-        $validator = Validator::make(
-            ['date' => $date, 'class_id' => $classId],
-            [
-                'date' => 'required|date',
-                'class_id' => 'required|integer',
-            ]
-        );
-
-        if ($validator->fails()) {
-            return response()->json([
-                'message' => 'Validation failed',
-                'errors' => $validator->errors(),
-            ], 422);
-        }
+        $data = $request->validated();
 
         $class = ClassModel::query()
             ->where('school_id', $schoolId)
-            ->findOrFail((int) $classId);
+            ->findOrFail((int) $data['class_id']);
 
         $deleted = Attendance::query()
             ->where('school_id', $schoolId)
             ->where('class_id', $class->id)
-            ->whereDate('date', $date)
+            ->whereDate('date', $data['date'])
             ->delete();
 
         return response()->json([

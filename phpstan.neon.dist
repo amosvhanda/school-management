@@ -1,10 +1,10 @@
 includes:
     - vendor/larastan/larastan/extension.neon
+    - phpstan-baseline.neon
 
 parameters:
     paths:
         - app
     level: 1
-    # Raise gradually after baseline is green (target level 5+).
-    ignoreErrors: []
+    # Raise gradually after baseline shrinks (target level 5+).
     treatPhpDocTypesAsCertain: false
