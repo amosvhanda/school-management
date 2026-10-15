@@ -15,7 +15,6 @@ import {
   Search,
   Thermometer,
   Trash2,
-  UserX,
   Users,
   X,
 } from '@lucide/vue'
@@ -63,7 +62,6 @@ import { todayIsoDate } from '@/lib/validation'
 import {
   ATTENDANCE_STATUS_TONE,
   STATUS_TONE_DOT,
-  STATUS_TONE_ICON,
   STATUS_TONE_SOLID,
   type AttendanceMarkStatus,
 } from '@/lib/ui-status'
