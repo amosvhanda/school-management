@@ -10,7 +10,10 @@ class JobApplication extends Model
 {
     use BelongsToSchool;
 
-    protected $guarded = [];
+    protected $fillable = [
+        'school_id', 'job_posting_id', 'applicant_name', 'email', 'phone', 'resume_url',
+        'cover_letter', 'status', 'notes', 'reviewed_by', 'reviewed_at',
+    ];
 
     protected function casts(): array
     {

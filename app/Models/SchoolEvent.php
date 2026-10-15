@@ -10,7 +10,10 @@ class SchoolEvent extends Model
 {
     use BelongsToSchool;
 
-    protected $guarded = [];
+    protected $fillable = [
+        'school_id', 'title', 'type', 'starts_at', 'ends_at', 'location',
+        'description', 'status', 'created_by',
+    ];
 
     protected function casts(): array
     {

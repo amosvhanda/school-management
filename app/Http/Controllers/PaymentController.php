@@ -29,11 +29,7 @@ class PaymentController extends Controller
 
     public function index(Request $request)
     {
-        $this->authorizeModuleAccess(
-            $request,
-            capabilities: ['canManageFinance'],
-            permissionSlugs: ['finance.manage', 'transactions.view'],
-        );
+        $this->authorize('viewAny', Payment::class);
 
         $schoolId = $request->user()->school_id;
 
@@ -70,11 +66,7 @@ class PaymentController extends Controller
 
     public function store(Request $request)
     {
-        $this->authorizeModuleAccess(
-            $request,
-            capabilities: ['canManageFinance'],
-            permissionSlugs: ['finance.manage'],
-        );
+        $this->authorize('create', Payment::class);
 
         $schoolId = $request->user()->school_id;
 
@@ -140,16 +132,7 @@ class PaymentController extends Controller
 
     public function receipt(Request $request, Payment $payment)
     {
-        $this->authorizeModuleAccess(
-            $request,
-            capabilities: ['canManageFinance'],
-            permissionSlugs: ['finance.manage', 'transactions.view'],
-        );
-
-        // Tenant Scoping Guard
-        if ($request->user()->school_id && $payment->school_id !== $request->user()->school_id) {
-            abort(403, 'Unauthorized action.');
-        }
+        $this->authorize('view', $payment);
 
         $payment->load([
             'student:id,full_name,student_number,class',
@@ -170,16 +153,7 @@ class PaymentController extends Controller
 
     public function reverse(Request $request, Payment $payment)
     {
-        $this->authorizeModuleAccess(
-            $request,
-            capabilities: ['canManageFinance'],
-            permissionSlugs: ['finance.manage'],
-        );
-
-        // Tenant Scoping Guard
-        if ($request->user()->school_id && $payment->school_id !== $request->user()->school_id) {
-            abort(403, 'Unauthorized action.');
-        }
+        $this->authorize('update', $payment);
 
         $validator = Validator::make($request->all(), [
             'reason' => 'nullable|string|max:500',
@@ -221,16 +195,7 @@ class PaymentController extends Controller
 
     public function destroy(Request $request, Payment $payment)
     {
-        $this->authorizeModuleAccess(
-            $request,
-            capabilities: ['canManageFinance'],
-            permissionSlugs: ['finance.manage'],
-        );
-
-        // Tenant Scoping Guard
-        if ($request->user()->school_id && $payment->school_id !== $request->user()->school_id) {
-            abort(403, 'Unauthorized action.');
-        }
+        $this->authorize('delete', $payment);
 
         if ($payment->status === 'completed') {
             return response()->json([

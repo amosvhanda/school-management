@@ -10,7 +10,9 @@ class Hostel extends Model
 {
     use BelongsToSchool;
 
-    protected $guarded = [];
+    protected $fillable = [
+        'school_id', 'name', 'gender', 'capacity', 'status',
+    ];
 
     public function rooms(): HasMany
     {

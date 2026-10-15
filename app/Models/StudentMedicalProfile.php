@@ -10,7 +10,9 @@ class StudentMedicalProfile extends Model
 {
     use IsolatesViaSchoolRelation;
 
-    protected $guarded = [];
+    protected $fillable = [
+        'student_id', 'conditions', 'allergies', 'blood_group', 'emergency_notes', 'medications',
+    ];
 
     public static function schoolIsolationRelation(): string
     {

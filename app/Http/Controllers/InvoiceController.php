@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Http\Concerns\HandlesResourceQueries;
 use App\Http\Resources\Api\V1\InvoiceResource;
+use App\Models\FeeGroup;
+use App\Models\FeeStructure;
 use App\Models\Invoice;
 use App\Models\NotificationQueue;
 use App\Models\Student;
@@ -21,11 +23,7 @@ class InvoiceController extends Controller
 
     public function index(Request $request)
     {
-        $this->authorizeModuleAccess(
-            $request,
-            capabilities: ['canManageFinance'],
-            permissionSlugs: ['finance.manage', 'transactions.view'],
-        );
+        $this->authorize('viewAny', Invoice::class);
 
         $schoolId = $request->user()->school_id;
 
@@ -68,13 +66,7 @@ class InvoiceController extends Controller
 
     public function show(Request $request, Invoice $invoice)
     {
-        $this->authorizeModuleAccess(
-            $request,
-            capabilities: ['canManageFinance'],
-            permissionSlugs: ['finance.manage', 'transactions.view'],
-        );
-
-        $this->assertInvoiceTenant($request, $invoice);
+        $this->authorize('view', $invoice);
 
         $invoice->load([
             'student:id,full_name,student_number,class,balance,currency',
@@ -87,13 +79,7 @@ class InvoiceController extends Controller
 
     public function print(Request $request, Invoice $invoice)
     {
-        $this->authorizeModuleAccess(
-            $request,
-            capabilities: ['canManageFinance'],
-            permissionSlugs: ['finance.manage', 'transactions.view'],
-        );
-
-        $this->assertInvoiceTenant($request, $invoice);
+        $this->authorize('view', $invoice);
 
         $invoice->load([
             'student:id,full_name,student_number,class',
@@ -116,11 +102,7 @@ class InvoiceController extends Controller
 
     public function store(Request $request)
     {
-        $this->authorizeModuleAccess(
-            $request,
-            capabilities: ['canManageFinance'],
-            permissionSlugs: ['finance.manage'],
-        );
+        $this->authorize('create', Invoice::class);
 
         $schoolId = $request->user()?->school_id;
         if (! $schoolId) {
@@ -166,7 +148,7 @@ class InvoiceController extends Controller
         $applyDiscounts = $request->boolean('apply_discounts', true);
 
         if ($request->filled('fee_group_id')) {
-            $group = \App\Models\FeeGroup::query()
+            $group = FeeGroup::query()
                 ->where('school_id', $schoolId)
                 ->where('is_active', true)
                 ->with('categories:id')
@@ -210,7 +192,7 @@ class InvoiceController extends Controller
         $feeStructureId = $request->fee_structure_id ? (int) $request->fee_structure_id : null;
 
         if ($feeStructureId && ! $request->filled('amount')) {
-            $structure = \App\Models\FeeStructure::query()
+            $structure = FeeStructure::query()
                 ->where('school_id', $schoolId)
                 ->findOrFail($feeStructureId);
             $amount = (float) $structure->amount;
@@ -283,13 +265,7 @@ class InvoiceController extends Controller
 
     public function update(Request $request, Invoice $invoice)
     {
-        $this->authorizeModuleAccess(
-            $request,
-            capabilities: ['canManageFinance'],
-            permissionSlugs: ['finance.manage'],
-        );
-
-        $this->assertInvoiceTenant($request, $invoice);
+        $this->authorize('update', $invoice);
 
         if (in_array($invoice->status, ['paid'], true)) {
             return response()->json(['message' => 'Paid invoices cannot be edited.'], 422);
@@ -339,13 +315,5 @@ class InvoiceController extends Controller
 
         return (new InvoiceResource($invoice->fresh()))
             ->additional(['message' => 'Invoice updated successfully']);
-    }
-
-    private function assertInvoiceTenant(Request $request, Invoice $invoice): void
-    {
-        $schoolId = $request->user()?->school_id;
-        if (! $schoolId || (int) $invoice->school_id !== (int) $schoolId) {
-            abort(404);
-        }
     }
 }

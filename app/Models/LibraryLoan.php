@@ -10,7 +10,10 @@ class LibraryLoan extends Model
 {
     use IsolatesViaSchoolRelation;
 
-    protected $guarded = [];
+    protected $fillable = [
+        'book_id', 'student_id', 'library_member_id', 'borrowed_at', 'due_at',
+        'returned_at', 'fine_amount', 'status',
+    ];
 
     public static function schoolIsolationRelation(): string
     {

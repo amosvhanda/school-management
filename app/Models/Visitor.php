@@ -10,7 +10,10 @@ class Visitor extends Model
 {
     use BelongsToSchool;
 
-    protected $guarded = [];
+    protected $fillable = [
+        'school_id', 'name', 'phone', 'id_number', 'purpose',
+        'host_user_id', 'student_id', 'check_in_at', 'check_out_at', 'status',
+    ];
 
     protected function casts(): array
     {

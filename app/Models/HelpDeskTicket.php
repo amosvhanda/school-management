@@ -10,7 +10,11 @@ class HelpDeskTicket extends Model
 {
     use BelongsToSchool;
 
-    protected $guarded = [];
+    protected $fillable = [
+        'school_id', 'ticket_number', 'subject', 'description', 'category', 'priority',
+        'status', 'requester_name', 'requester_email', 'requester_phone', 'student_id',
+        'assigned_to', 'created_by', 'resolved_at', 'closed_at',
+    ];
 
     protected function casts(): array
     {

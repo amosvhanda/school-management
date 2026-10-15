@@ -11,7 +11,9 @@ class HostelRoom extends Model
 {
     use IsolatesViaSchoolRelation;
 
-    protected $guarded = [];
+    protected $fillable = [
+        'hostel_id', 'room_number', 'capacity',
+    ];
 
     public static function schoolIsolationRelation(): string
     {

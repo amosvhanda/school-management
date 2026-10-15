@@ -405,15 +405,13 @@ class AttendanceController extends Controller
         ?int $classId,
         bool $lock = false,
     ): ?Attendance {
+        // Legacy rows may lack school_id; student_id is globally unique so this cannot cross tenants.
         $query = Attendance::withoutGlobalScopes()
             ->where('student_id', $studentId)
-            ->whereDate('date', $date);
-
-        if ($schoolId) {
-            $query->where(function ($q) use ($schoolId) {
+            ->whereDate('date', $date)
+            ->where(function ($q) use ($schoolId) {
                 $q->where('school_id', $schoolId)->orWhereNull('school_id');
             });
-        }
 
         if ($classId !== null) {
             $query->where(function ($q) use ($classId) {

@@ -11,7 +11,10 @@ class JobPosting extends Model
 {
     use BelongsToSchool;
 
-    protected $guarded = [];
+    protected $fillable = [
+        'school_id', 'title', 'department', 'employment_type', 'location', 'description',
+        'requirements', 'openings', 'status', 'published_at', 'closes_at', 'created_by',
+    ];
 
     protected function casts(): array
     {

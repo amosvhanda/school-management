@@ -17,7 +17,7 @@ trait BelongsToSchool
         /** @var class-string<Model> $modelClass */
         $modelClass = static::class;
 
-        $modelClass::addGlobalScope(new SchoolScope());
+        $modelClass::addGlobalScope(new SchoolScope);
 
         Event::listen("eloquent.creating: {$modelClass}", function (Model $model) {
             if ($model->school_id !== null) {
@@ -64,10 +64,5 @@ trait BelongsToSchool
         }
 
         return $query->where($field, $value)->first();
-    }
-
-    public function resolveChildRouteBinding($childType, $value, $field = null)
-    {
-        return $this->newModelQuery()->where($field ?? $this->getRouteKeyName(), $value)->first();
     }
 }
