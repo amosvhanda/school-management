@@ -18,11 +18,23 @@ class PlatformCommunicationController extends Controller
 
     public function __construct(private CommunicationHubService $hub) {}
 
+    private function authorizePlatformComms(Request $request): void
+    {
+        $this->authorizeModuleAccess(
+            $request,
+            capabilities: ['isStaff'],
+            permissionSlugs: ['communications.manage'],
+        );
+    }
+
+
     /**
      * Dispatch an omni-channel announcement across the platform
      */
     public function send(SendHubMessageRequest $request): JsonResponse
     {
+        $this->authorizePlatformComms($request);
+
         // Validation rules are securely abstracted inside the form request
         $data = $request->validated();
         $data['school_id'] = $this->requirePlatformSchoolId($request);
@@ -41,6 +53,8 @@ class PlatformCommunicationController extends Controller
      */
     public function tracking(Request $request): JsonResponse
     {
+        $this->authorizePlatformComms($request);
+
         $schoolId = $this->platformSchoolId($request);
         $messageId = $request->integer('message_id') ?: null;
 

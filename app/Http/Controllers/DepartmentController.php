@@ -9,6 +9,15 @@ use Illuminate\Validation\Rule;
 
 class DepartmentController extends Controller
 {
+    private function authorizeAcademicManage(Request $request): void
+    {
+        $this->authorizeModuleAccess(
+            $request,
+            capabilities: ['canManageTeachers'],
+            permissionSlugs: ['academics.manage'],
+        );
+    }
+
     /**
      * Get all departments for the school
      */
@@ -66,6 +75,8 @@ class DepartmentController extends Controller
      */
     public function store(Request $request)
     {
+        $this->authorizeAcademicManage($request);
+
         $user = $request->user();
         $schoolId = $user->school_id;
 
@@ -123,6 +134,8 @@ class DepartmentController extends Controller
      */
     public function update(Request $request, Department $department)
     {
+        $this->authorizeAcademicManage($request);
+
         $user = $request->user();
         $schoolId = $user->school_id;
 
@@ -179,6 +192,8 @@ class DepartmentController extends Controller
      */
     public function destroy(Request $request, Department $department)
     {
+        $this->authorizeAcademicManage($request);
+
         // Check if department has teachers
         if ($department->teachers()->exists()) {
             return response()->json([

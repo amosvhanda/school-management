@@ -21,6 +21,8 @@ class CommunicationController extends Controller
 
     public function index(Request $request)
     {
+        $this->authorizeCommunications($request);
+
         $user = $request->user();
         $this->authorizeCommunications($request);
         $this->messaging->authorizeStaff($user);
@@ -204,6 +206,8 @@ class CommunicationController extends Controller
 
     public function show(Request $request, int $id)
     {
+        $this->authorizeCommunications($request);
+
         $user = $request->user();
         $this->authorizeCommunications($request);
         $this->messaging->authorizeStaff($user);
@@ -233,6 +237,8 @@ class CommunicationController extends Controller
 
     public function reply(Request $request, int $id)
     {
+        $this->authorizeCommunications($request);
+
         $user = $request->user();
         $this->authorizeCommunications($request);
         $this->messaging->authorizeStaff($user);

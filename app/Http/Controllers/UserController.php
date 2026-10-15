@@ -6,8 +6,9 @@ use App\Enums\UserRole;
 use App\Models\Role;
 use App\Models\User;
 use App\Services\AuditService;
+use App\Support\TemporaryPassword;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 
@@ -128,7 +129,10 @@ class UserController extends Controller
             ], 422);
         }
 
-        $password = $request->input('password') ?: 'password123';
+        $providedPassword = $request->filled('password');
+        $password = $providedPassword
+            ? (string) $request->input('password')
+            : TemporaryPassword::generate();
 
         $user = User::create([
             'name' => $fullName,
@@ -137,14 +141,21 @@ class UserController extends Controller
             'email' => $request->input('email'),
             'role' => $role,
             'status' => $request->input('status', 'active'),
-            'password' => Hash::make($password),
+            'password' => $password,
+            'must_change_password' => ! $providedPassword,
             'school_id' => $currentUser?->isSuperAdmin() ? $request->input('school_id') : $schoolId,
         ]);
 
-        return response()->json([
+        $payload = [
             'message' => 'User created successfully',
             'data' => $this->formatUser($user),
-        ], 201);
+        ];
+
+        if (! $providedPassword) {
+            $payload['temporary_password'] = $password;
+        }
+
+        return response()->json($payload, 201);
     }
 
     public function update(Request $request, $id)
@@ -214,7 +225,8 @@ class UserController extends Controller
         }
 
         if ($request->filled('password')) {
-            $user->password = Hash::make($request->input('password'));
+            $user->password = $request->input('password');
+            $user->must_change_password = true;
         }
 
         if ($request->has('permission_ids')) {
@@ -285,11 +297,17 @@ class UserController extends Controller
         $this->authorizeUserAccess($request, 'edit');
 
         $user = $this->findScopedUser($request, $id);
-        $user->password = Hash::make('password123');
+        $temporaryPassword = TemporaryPassword::generate();
+        $user->password = $temporaryPassword;
+        $user->must_change_password = true;
         $user->save();
 
         return response()->json([
-            'message' => 'Password reset successfully',
+            'message' => 'Password reset successfully. Share the temporary password securely — it will not be shown again.',
+            'data' => [
+                'temporary_password' => $temporaryPassword,
+            ],
+            'temporary_password' => $temporaryPassword,
         ]);
     }
 
@@ -323,7 +341,7 @@ class UserController extends Controller
         }
 
         $user = $this->findScopedUser($request, $id);
-        $oldRole = $user->role instanceof \App\Enums\UserRole ? $user->role->value : (string) $user->role;
+        $oldRole = $user->role instanceof UserRole ? $user->role->value : (string) $user->role;
         $user->role = $role;
         $user->save();
 
@@ -358,7 +376,7 @@ class UserController extends Controller
         );
     }
 
-    private function rejectPrivilegedRoleAssignment(?User $actor, string $role): ?\Illuminate\Http\JsonResponse
+    private function rejectPrivilegedRoleAssignment(?User $actor, string $role): ?JsonResponse
     {
         if ($role !== UserRole::SuperAdmin->value) {
             return null;
@@ -379,7 +397,7 @@ class UserController extends Controller
     /**
      * @param  mixed  $permissionIds
      */
-    private function rejectInvalidPermissionIds($permissionIds): ?\Illuminate\Http\JsonResponse
+    private function rejectInvalidPermissionIds($permissionIds): ?JsonResponse
     {
         if (! is_array($permissionIds)) {
             return response()->json([
@@ -433,31 +451,31 @@ class UserController extends Controller
         $surname = $request->input('surname') ?? $request->input('last_name');
         $name = $request->input('name');
 
-        if (!$name) {
+        if (! $name) {
             $first = $firstName ?? $existingUser?->first_name;
             $last = $surname ?? $existingUser?->last_name;
             if ($first || $last) {
-                $name = trim(trim((string) $first) . ' ' . trim((string) $last));
+                $name = trim(trim((string) $first).' '.trim((string) $last));
             }
         }
 
-        if ((!$firstName || !$surname) && $name) {
+        if ((! $firstName || ! $surname) && $name) {
             $parts = preg_split('/\s+/', trim($name));
             if ($parts) {
-                if (!$firstName) {
+                if (! $firstName) {
                     $firstName = $parts[0] ?? null;
                 }
-                if (!$surname) {
+                if (! $surname) {
                     $surname = count($parts) > 1 ? implode(' ', array_slice($parts, 1)) : $surname;
                 }
             }
         }
 
-        if (!$name && $existingUser) {
+        if (! $name && $existingUser) {
             $name = $existingUser->name;
         }
 
-        if (!$name) {
+        if (! $name) {
             return [null, null, null];
         }
 

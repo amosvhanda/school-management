@@ -13,8 +13,20 @@ class SchoolTripController extends Controller
 {
     public function __construct(private SchoolTripService $tripService) {}
 
+    private function authorizeTrips(Request $request): void
+    {
+        $this->authorizeModuleAccess(
+            $request,
+            capabilities: ['canManageTeachers'],
+            permissionSlugs: ['operations.manage'],
+        );
+    }
+
+
     public function index(Request $request)
     {
+        $this->authorizeTrips($request);
+
         $trips = SchoolTrip::where('school_id', $request->user()->school_id)
             ->withCount(['enrollments as enrolled_count' => fn ($q) => $q->where('status', 'enrolled')])
             ->orderByDesc('trip_date')
@@ -33,6 +45,8 @@ class SchoolTripController extends Controller
 
     public function store(Request $request)
     {
+        $this->authorizeTrips($request);
+
         $data = $request->validate([
             'name' => 'required|string|max:255',
             'destination' => 'nullable|string|max:255',
@@ -60,6 +74,8 @@ class SchoolTripController extends Controller
 
     public function update(Request $request, int $id)
     {
+        $this->authorizeTrips($request);
+
         $trip = SchoolTrip::where('school_id', $request->user()->school_id)->findOrFail($id);
 
         $data = $request->validate([
@@ -90,6 +106,8 @@ class SchoolTripController extends Controller
 
     public function enrollments(Request $request, int $id)
     {
+        $this->authorizeTrips($request);
+
         $trip = SchoolTrip::where('school_id', $request->user()->school_id)->findOrFail($id);
         $enrollments = SchoolTripEnrollment::where('school_trip_id', $trip->id)
             ->with(['student:id,full_name,student_number', 'invoice:id,invoice_number,amount,balance,status'])
@@ -101,6 +119,8 @@ class SchoolTripController extends Controller
 
     public function enroll(Request $request, int $id)
     {
+        $this->authorizeTrips($request);
+
         $schoolId = $request->user()->school_id;
         $trip = SchoolTrip::where('school_id', $schoolId)->findOrFail($id);
         $data = $request->validate(['student_id' => 'required|integer']);

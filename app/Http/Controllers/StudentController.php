@@ -731,6 +731,12 @@ class StudentController extends Controller
         Request $request,
         $student
     ) {
+        $this->authorizeModuleAccess(
+            $request,
+            capabilities: ['canManageFinance'],
+            permissionSlugs: ['finance.manage', 'transactions.view'],
+        );
+
         $user = $request->user();
 
         if (

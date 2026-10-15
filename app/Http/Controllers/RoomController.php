@@ -9,6 +9,15 @@ use Illuminate\Validation\Rule;
 
 class RoomController extends Controller
 {
+    private function authorizeAcademicManage(Request $request): void
+    {
+        $this->authorizeModuleAccess(
+            $request,
+            capabilities: ['canManageTeachers'],
+            permissionSlugs: ['academics.manage'],
+        );
+    }
+
     /**
      * Get all rooms for the school
      */
@@ -28,6 +37,8 @@ class RoomController extends Controller
      */
     public function store(Request $request): JsonResponse
     {
+        $this->authorizeAcademicManage($request);
+
         $schoolId = $request->user()->school_id;
 
         $validated = $request->validate([
@@ -54,6 +65,8 @@ class RoomController extends Controller
      */
     public function update(Request $request, int $id): JsonResponse
     {
+        $this->authorizeAcademicManage($request);
+
         $schoolId = $request->user()->school_id;
         $room = Room::where('school_id', $schoolId)->findOrFail($id);
 
@@ -77,6 +90,8 @@ class RoomController extends Controller
      */
     public function destroy(Request $request, int $id): JsonResponse
     {
+        $this->authorizeAcademicManage($request);
+
         $schoolId = $request->user()->school_id;
         $room = Room::where('school_id', $schoolId)->findOrFail($id);
 

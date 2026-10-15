@@ -8,6 +8,15 @@ use Illuminate\Support\Facades\Validator;
 
 class TermController extends Controller
 {
+    private function authorizeAcademicManage(Request $request): void
+    {
+        $this->authorizeModuleAccess(
+            $request,
+            capabilities: ['canManageTeachers'],
+            permissionSlugs: ['academics.manage'],
+        );
+    }
+
     /**
      * Get all terms for the school
      */
@@ -77,6 +86,8 @@ class TermController extends Controller
      */
     public function store(Request $request)
     {
+        $this->authorizeAcademicManage($request);
+
         $user = $request->user();
         $schoolId = $user->school_id;
 
@@ -127,6 +138,8 @@ class TermController extends Controller
      */
     public function update(Request $request, int $id)
     {
+        $this->authorizeAcademicManage($request);
+
         $term = Term::where('school_id', $request->user()->school_id)->findOrFail($id);
 
         $validator = Validator::make($request->all(), [
@@ -203,6 +216,8 @@ class TermController extends Controller
      */
     public function destroy(Request $request, int $id)
     {
+        $this->authorizeAcademicManage($request);
+
         $term = Term::where('school_id', $request->user()->school_id)->findOrFail($id);
 
         if ($term->exams()->count() > 0) {

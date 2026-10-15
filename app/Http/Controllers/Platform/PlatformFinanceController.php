@@ -26,8 +26,20 @@ class PlatformFinanceController extends Controller
         private RefundService $refunds,
     ) {}
 
+    private function authorizePlatformFinance(Request $request): void
+    {
+        $this->authorizeModuleAccess(
+            $request,
+            capabilities: ['canManageFinance'],
+            permissionSlugs: ['finance.manage'],
+        );
+    }
+
+
     public function scholarships(Request $request)
     {
+        $this->authorizePlatformFinance($request);
+
         $rows = $this->scopeToPlatformSchool(Scholarship::query(), $request)
             ->with('school:id,name,code')
             ->withCount('applications')
@@ -39,6 +51,8 @@ class PlatformFinanceController extends Controller
 
     public function storeScholarship(Request $request)
     {
+        $this->authorizePlatformFinance($request);
+
         $schoolId = $this->requirePlatformSchoolId($request);
         $data = Validator::make($request->all(), [
             'school_id' => 'nullable|integer|exists:schools,id',
@@ -59,6 +73,8 @@ class PlatformFinanceController extends Controller
 
     public function applyScholarship(Request $request, int $id)
     {
+        $this->authorizePlatformFinance($request);
+
         $schoolId = $this->requirePlatformSchoolId($request);
         $scholarship = Scholarship::query()->forSchool($schoolId)->findOrFail($id);
         $data = Validator::make($request->all(), [
@@ -83,6 +99,8 @@ class PlatformFinanceController extends Controller
 
     public function reviewScholarshipApplication(Request $request, int $id)
     {
+        $this->authorizePlatformFinance($request);
+
         $application = $this->scopeToPlatformSchool(ScholarshipApplication::query(), $request)->findOrFail($id);
         $data = Validator::make($request->all(), ['status' => 'required|in:approved,rejected,pending'])->validate();
 
@@ -97,6 +115,8 @@ class PlatformFinanceController extends Controller
 
     public function gatewayConfigs(Request $request)
     {
+        $this->authorizePlatformFinance($request);
+
         $rows = $this->scopeToPlatformSchool(PaymentGatewayConfig::query(), $request)
             ->with('school:id,name,code')
             ->get();
@@ -106,6 +126,8 @@ class PlatformFinanceController extends Controller
 
     public function storeGatewayConfig(Request $request)
     {
+        $this->authorizePlatformFinance($request);
+
         $schoolId = $this->requirePlatformSchoolId($request);
         $data = Validator::make($request->all(), [
             'school_id' => 'nullable|integer|exists:schools,id',
@@ -130,6 +152,8 @@ class PlatformFinanceController extends Controller
 
     public function initiatePayment(Request $request)
     {
+        $this->authorizePlatformFinance($request);
+
         $schoolId = $this->requirePlatformSchoolId($request);
         $invoiceRule = Rule::exists('invoices', 'id')->where('school_id', $schoolId);
         $studentRule = Rule::exists('students', 'id')->where('school_id', $schoolId);
@@ -179,6 +203,8 @@ class PlatformFinanceController extends Controller
 
     public function penaltyRules(Request $request)
     {
+        $this->authorizePlatformFinance($request);
+
         $rows = $this->scopeToPlatformSchool(FeePenaltyRule::query(), $request)
             ->with('school:id,name,code')
             ->get();
@@ -188,6 +214,8 @@ class PlatformFinanceController extends Controller
 
     public function storePenaltyRule(Request $request)
     {
+        $this->authorizePlatformFinance($request);
+
         $schoolId = $this->requirePlatformSchoolId($request);
         $data = Validator::make($request->all(), [
             'school_id' => 'nullable|integer|exists:schools,id',
@@ -206,6 +234,8 @@ class PlatformFinanceController extends Controller
 
     public function refunds(Request $request)
     {
+        $this->authorizePlatformFinance($request);
+
         return RefundResource::collection(
             $this->scopeToPlatformSchool(Refund::query(), $request)
                 ->with(['payment', 'school:id,name,code'])
@@ -217,6 +247,8 @@ class PlatformFinanceController extends Controller
 
     public function requestRefund(Request $request)
     {
+        $this->authorizePlatformFinance($request);
+
         $schoolId = $this->requirePlatformSchoolId($request);
         $paymentRule = Rule::exists('payments', 'id')->where('school_id', $schoolId);
         $data = Validator::make($request->all(), [
@@ -237,6 +269,8 @@ class PlatformFinanceController extends Controller
 
     public function approveRefund(Request $request, Refund $refund)
     {
+        $this->authorizePlatformFinance($request);
+
         return (new RefundResource(
             $this->refunds->approve($refund, $request->user())->load('payment')
         ))->additional(['message' => 'Refund processed']);

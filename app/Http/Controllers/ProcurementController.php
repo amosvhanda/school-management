@@ -22,8 +22,28 @@ class ProcurementController extends Controller
         private FinancialLedgerService $ledger,
     ) {}
 
+    private function authorizeProcurement(Request $request): void
+    {
+        $this->authorizeModuleAccess(
+            $request,
+            capabilities: ['canManageTeachers'],
+            permissionSlugs: ['operations.manage'],
+        );
+    }
+
+    private function authorizeProcurementDisburse(Request $request): void
+    {
+        $this->authorizeModuleAccess(
+            $request,
+            capabilities: ['canManageFinance'],
+            permissionSlugs: ['finance.manage'],
+        );
+    }
+
+
     public function requisitions(Request $request)
     {
+        $this->authorizeProcurement($request);
         $filters = is_array($request->input('filter')) ? $request->input('filter') : [];
         $status = $request->input('status', $filters['status'] ?? null);
         $spendType = $request->input('spend_type', $filters['spend_type'] ?? null);
@@ -53,6 +73,8 @@ class ProcurementController extends Controller
 
     public function storeRequisition(Request $request)
     {
+        $this->authorizeProcurement($request);
+
         $validator = Validator::make($request->all(), [
             'title' => 'required|string|max:255',
             'description' => 'nullable|string',
@@ -112,6 +134,8 @@ class ProcurementController extends Controller
 
     public function updateRequisition(Request $request, int $id)
     {
+        $this->authorizeProcurement($request);
+
         $requisition = PurchaseRequisition::where('school_id', $request->user()->school_id)->findOrFail($id);
 
         if ($requisition->status !== 'draft') {
@@ -139,6 +163,8 @@ class ProcurementController extends Controller
      */
     public function submit(Request $request, int $id)
     {
+        $this->authorizeProcurement($request);
+
         $user = $request->user();
         $requisition = PurchaseRequisition::where('school_id', $user->school_id)->findOrFail($id);
 
@@ -176,6 +202,7 @@ class ProcurementController extends Controller
      */
     public function disburse(Request $request, int $id)
     {
+        $this->authorizeProcurementDisburse($request);
         $schoolId = (int) $request->user()->school_id;
         $expenseHeadRule = Rule::exists('expense_heads', 'id')
             ->where('school_id', $schoolId)
@@ -257,6 +284,8 @@ class ProcurementController extends Controller
 
     public function vendors(Request $request)
     {
+        $this->authorizeProcurement($request);
+
         $query = Vendor::where('school_id', $request->user()->school_id);
 
         if ($request->filled('status')) {
@@ -268,6 +297,8 @@ class ProcurementController extends Controller
 
     public function storeVendor(Request $request)
     {
+        $this->authorizeProcurement($request);
+
         $data = $request->validate([
             'name' => 'required|string|max:255',
             'contact_person' => 'nullable|string',
@@ -283,6 +314,8 @@ class ProcurementController extends Controller
 
     public function updateVendor(Request $request, int $id)
     {
+        $this->authorizeProcurement($request);
+
         $vendor = Vendor::where('school_id', $request->user()->school_id)->findOrFail($id);
 
         $data = $request->validate([
@@ -301,6 +334,8 @@ class ProcurementController extends Controller
 
     public function receiveGoods(Request $request)
     {
+        $this->authorizeProcurement($request);
+
         $data = $request->validate([
             'requisition_id' => 'required|exists:purchase_requisitions,id',
             'vendor_id' => 'nullable|exists:vendors,id',

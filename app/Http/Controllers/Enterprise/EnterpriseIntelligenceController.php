@@ -20,13 +20,36 @@ class EnterpriseIntelligenceController extends Controller
         private CommunicationHubService $communication,
     ) {}
 
+    private function authorizeEnterpriseIntel(Request $request): void
+    {
+        $this->authorizeModuleAccess(
+            $request,
+            capabilities: ['canManageTeachers'],
+            permissionSlugs: ['enrollment.manage', 'settings.manage'],
+        );
+    }
+
+    private function authorizeEnterpriseCampaigns(Request $request): void
+    {
+        $this->authorizeModuleAccess(
+            $request,
+            capabilities: ['canManageTeachers', 'isStaff'],
+            permissionSlugs: ['communications.manage'],
+        );
+    }
+
+
     public function commandCenter(Request $request)
     {
+        $this->authorizeEnterpriseIntel($request);
+
         return response()->json(['data' => $this->commandCenter->dashboard($request->user()->school_id)]);
     }
 
     public function admissionScore(Request $request)
     {
+        $this->authorizeEnterpriseIntel($request);
+
         $data = Validator::make($request->all(), [
             'applicant_name' => 'required|string',
             'academic_score' => 'required|numeric',
@@ -39,6 +62,8 @@ class EnterpriseIntelligenceController extends Controller
 
     public function studentProfile(Request $request, int $id)
     {
+        $this->authorizeEnterpriseIntel($request);
+
         Student::where('school_id', $request->user()->school_id)->findOrFail($id);
 
         return response()->json(['data' => $this->intelligence->profile($id)]);
@@ -46,6 +71,8 @@ class EnterpriseIntelligenceController extends Controller
 
     public function studentTimeline(Request $request, int $id)
     {
+        $this->authorizeEnterpriseIntel($request);
+
         Student::where('school_id', $request->user()->school_id)->findOrFail($id);
 
         return response()->json(['data' => $this->intelligence->timeline($id, $request->user()->school_id)]);
@@ -53,6 +80,8 @@ class EnterpriseIntelligenceController extends Controller
 
     public function recordTimelineEvent(Request $request, int $id)
     {
+        $this->authorizeEnterpriseIntel($request);
+
         Student::where('school_id', $request->user()->school_id)->findOrFail($id);
         $data = Validator::make($request->all(), [
             'event_type' => 'required|string',
@@ -67,11 +96,15 @@ class EnterpriseIntelligenceController extends Controller
 
     public function earlyWarnings(Request $request)
     {
+        $this->authorizeEnterpriseIntel($request);
+
         return response()->json(['data' => $this->intelligence->earlyWarnings($request->user()->school_id)]);
     }
 
     public function alumni(Request $request)
     {
+        $this->authorizeEnterpriseIntel($request);
+
         return response()->json(['data' => AlumniRecord::where('school_id', $request->user()->school_id)->orderByDesc('graduation_year')->get()]);
     }
 
@@ -137,6 +170,8 @@ class EnterpriseIntelligenceController extends Controller
 
     public function registerAlumni(Request $request, int $studentId)
     {
+        $this->authorizeEnterpriseIntel($request);
+
         $student = Student::where('school_id', $request->user()->school_id)->findOrFail($studentId);
         $data = Validator::make($request->all(), [
             'graduation_year' => 'nullable|integer|min:1900|max:'.(now()->year + 1),
@@ -150,11 +185,15 @@ class EnterpriseIntelligenceController extends Controller
 
     public function campaigns(Request $request)
     {
+        $this->authorizeEnterpriseCampaigns($request);
+
         return response()->json(['data' => MessageCampaign::where('school_id', $request->user()->school_id)->orderByDesc('created_at')->get()]);
     }
 
     public function storeCampaign(Request $request)
     {
+        $this->authorizeEnterpriseCampaigns($request);
+
         $data = Validator::make($request->all(), [
             'name' => 'required|string',
             'channels' => 'required|array',
@@ -174,6 +213,8 @@ class EnterpriseIntelligenceController extends Controller
 
     public function sendCampaign(Request $request, int $id)
     {
+        $this->authorizeEnterpriseCampaigns($request);
+
         $campaign = MessageCampaign::where('school_id', $request->user()->school_id)->findOrFail($id);
         $recipientIds = $campaign->audience_filter['recipient_ids'] ?? [];
 

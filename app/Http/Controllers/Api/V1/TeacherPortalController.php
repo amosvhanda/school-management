@@ -264,6 +264,28 @@ class TeacherPortalController extends Controller
             }
         }
 
+        $existingSession = AttendanceSession::query()
+            ->where('school_id', $this->schoolId($request))
+            ->where('class_id', $data['class_id'])
+            ->whereDate('date', $data['date'])
+            ->when(
+                array_key_exists('subject_id', $data),
+                fn ($q) => $q->where('subject_id', $data['subject_id'] ?? null),
+            )
+            ->when(
+                array_key_exists('period', $data),
+                fn ($q) => $q->where('period', $data['period'] ?? null),
+            )
+            ->first();
+
+        if ($existingSession?->isLocked()) {
+            return $this->error(
+                'This attendance register is locked and cannot be changed.',
+                423,
+                ['date' => ['Attendance for this class/date is locked.']],
+            );
+        }
+
         $session = AttendanceSession::query()->updateOrCreate(
             [
                 'school_id' => $this->schoolId($request),
@@ -865,7 +887,7 @@ class TeacherPortalController extends Controller
             'teacher_id' => $teacherId,
             'lesson_type' => $data['lesson_type'] ?? 'live',
             'status' => $data['status'] ?? 'scheduled',
-            // Stub meeting URL when live lesson has none — real video later.
+            // Placeholder room URL until a live video provider is wired.
             'meeting_url' => $data['meeting_url'] ?? (($data['lesson_type'] ?? 'live') === 'live'
                 ? 'https://meet.example.local/room/'.uniqid('lesson_')
                 : null),

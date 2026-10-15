@@ -1,6 +1,12 @@
 <?php
 
 use App\Exceptions\DomainException;
+use App\Http\Middleware\CaptureAuditContext;
+use App\Http\Middleware\EnsureEmailIsVerified;
+use App\Http\Middleware\EnsurePasswordChanged;
+use App\Http\Middleware\EnsureSchoolLicenseActive;
+use App\Http\Middleware\EnsureSuperAdmin;
+use App\Http\Middleware\ValidateSchoolIsolation;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
@@ -11,6 +17,7 @@ use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
+use Spatie\QueryBuilder\Exceptions\InvalidFieldQuery;
 use Spatie\QueryBuilder\Exceptions\InvalidFilterQuery;
 use Spatie\QueryBuilder\Exceptions\InvalidIncludeQuery;
 use Spatie\QueryBuilder\Exceptions\InvalidSortQuery;
@@ -38,6 +45,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'verified' => \App\Http\Middleware\EnsureEmailIsVerified::class,
             'school.isolated' => \App\Http\Middleware\ValidateSchoolIsolation::class,
             'school.licensed' => \App\Http\Middleware\EnsureSchoolLicenseActive::class,
+            'password.changed' => \App\Http\Middleware\EnsurePasswordChanged::class,
             'super_admin' => \App\Http\Middleware\EnsureSuperAdmin::class,
             'school.domain' => \App\Http\Middleware\ResolveSchoolFromDomain::class,
             'capability' => \App\Http\Middleware\EnsureCapability::class,
@@ -56,10 +64,10 @@ return Application::configure(basePath: dirname(__DIR__))
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(
-            fn (Request $request, \Throwable $e) => $request->is('api/*') || $request->expectsJson()
+            fn (Request $request, Throwable $e) => $request->is('api/*') || $request->expectsJson()
         );
 
-        $exceptions->render(function (\Throwable $e, Request $request) {
+        $exceptions->render(function (Throwable $e, Request $request) {
             if (! $request->is('api/*') && ! $request->expectsJson()) {
                 return null;
             }
@@ -71,7 +79,7 @@ return Application::configure(basePath: dirname(__DIR__))
             if ($e instanceof InvalidFilterQuery
                 || $e instanceof InvalidSortQuery
                 || $e instanceof InvalidIncludeQuery
-                || $e instanceof \Spatie\QueryBuilder\Exceptions\InvalidFieldQuery) {
+                || $e instanceof InvalidFieldQuery) {
                 return response()->json([
                     'message' => $e->getMessage(),
                     'errors' => ['query' => [$e->getMessage()]],

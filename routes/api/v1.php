@@ -143,7 +143,7 @@ Route::get('/webhooks/payments/{provider}/sandbox-checkout', [PaymentWebhookCont
 
 // ─── Authenticated ────────────────────────────────────────────────────────
 // staff.or.portal: parents/students may only use auth, profile, license, and portal routes.
-Route::middleware(['auth:sanctum', 'school.isolated', 'school.licensed', '2fa.enabled', 'staff.or.portal'])->group(function () {
+Route::middleware(['auth:sanctum', 'password.changed', 'school.isolated', 'school.licensed', '2fa.enabled', 'staff.or.portal'])->group(function () {
 
     // License (accessible even when expired — middleware excludes these paths)
     Route::get('/license/status', [LicenseController::class, 'status']);

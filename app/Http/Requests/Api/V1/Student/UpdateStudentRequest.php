@@ -36,6 +36,8 @@ class UpdateStudentRequest extends ApiFormRequest
 
     public function rules(): array
     {
+        $schoolId = $this->user()?->school_id;
+
         return [
             'firstName' => ['sometimes', 'string', 'max:255'],
             'surname' => ['sometimes', 'string', 'max:255'],
@@ -43,36 +45,41 @@ class UpdateStudentRequest extends ApiFormRequest
             'class_id' => [
                 'nullable',
                 'integer',
-                Rule::exists('classes', 'id')->where(
-                    fn ($q) => $q->where('school_id', $this->user()?->school_id),
+                Rule::exists('classes', 'id')->when(
+                    $schoolId !== null,
+                    fn ($rule) => $rule->where('school_id', $schoolId)
                 ),
             ],
             'stream_id' => [
                 'nullable',
                 'integer',
-                Rule::exists('streams', 'id')->where(
-                    fn ($q) => $q->where('school_id', $this->user()?->school_id),
+                Rule::exists('streams', 'id')->when(
+                    $schoolId !== null,
+                    fn ($rule) => $rule->where('school_id', $schoolId)
                 ),
             ],
             'house_id' => [
                 'nullable',
                 'integer',
-                Rule::exists('houses', 'id')->where(
-                    fn ($q) => $q->where('school_id', $this->user()?->school_id),
+                Rule::exists('houses', 'id')->when(
+                    $schoolId !== null,
+                    fn ($rule) => $rule->where('school_id', $schoolId)
                 ),
             ],
             'grade_level_id' => [
                 'nullable',
                 'integer',
-                Rule::exists('grade_levels', 'id')->where(
-                    fn ($q) => $q->where('school_id', $this->user()?->school_id),
+                Rule::exists('grade_levels', 'id')->when(
+                    $schoolId !== null,
+                    fn ($rule) => $rule->where('school_id', $schoolId)
                 ),
             ],
             'student_category_id' => [
                 'nullable',
                 'integer',
-                Rule::exists('student_categories', 'id')->where(
-                    fn ($q) => $q->where('school_id', $this->user()?->school_id),
+                Rule::exists('student_categories', 'id')->when(
+                    $schoolId !== null,
+                    fn ($rule) => $rule->where('school_id', $schoolId)
                 ),
             ],
             'dateOfBirth' => ['nullable', 'date'],
@@ -90,8 +97,9 @@ class UpdateStudentRequest extends ApiFormRequest
             'guardian_id' => [
                 'nullable',
                 'integer',
-                Rule::exists('guardians', 'id')->where(
-                    fn ($q) => $q->where('school_id', $this->user()?->school_id),
+                Rule::exists('guardians', 'id')->when(
+                    $schoolId !== null,
+                    fn ($rule) => $rule->where('school_id', $schoolId)
                 ),
             ],
             'custom_fields' => ['nullable', 'array'],

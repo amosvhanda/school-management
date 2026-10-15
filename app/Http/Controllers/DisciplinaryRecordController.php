@@ -15,8 +15,20 @@ class DisciplinaryRecordController extends Controller
 
     public function __construct(private ParentNotificationService $notifications) {}
 
+    private function authorizeDiscipline(Request $request): void
+    {
+        $this->authorizeModuleAccess(
+            $request,
+            capabilities: ['canManageStudents', 'canManageTeachers'],
+            permissionSlugs: ['students.manage', 'hr.manage'],
+        );
+    }
+
+
     public function index(Request $request)
     {
+        $this->authorizeDiscipline($request);
+
         $schoolId = $request->user()?->school_id;
 
         $query = DisciplinaryRecord::query()
@@ -49,6 +61,8 @@ class DisciplinaryRecordController extends Controller
 
     public function show(Request $request, int $id)
     {
+        $this->authorizeDiscipline($request);
+
         $schoolId = $request->user()?->school_id;
 
         $record = DisciplinaryRecord::query()
@@ -61,6 +75,8 @@ class DisciplinaryRecordController extends Controller
 
     public function store(Request $request)
     {
+        $this->authorizeDiscipline($request);
+
         $validator = Validator::make($request->all(), [
             'student_id' => 'required|exists:students,id',
             'incident_date' => 'required|date',
@@ -100,6 +116,8 @@ class DisciplinaryRecordController extends Controller
 
     public function update(Request $request, int $id)
     {
+        $this->authorizeDiscipline($request);
+
         $schoolId = $request->user()?->school_id;
 
         $record = DisciplinaryRecord::query()

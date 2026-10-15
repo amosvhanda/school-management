@@ -18,8 +18,20 @@ class EnterpriseFinanceController extends Controller
 {
     public function __construct(private FinanceEnterpriseService $finance) {}
 
+    private function authorizeEnterpriseFinance(Request $request): void
+    {
+        $this->authorizeModuleAccess(
+            $request,
+            capabilities: ['canManageFinance'],
+            permissionSlugs: ['finance.manage'],
+        );
+    }
+
+
     public function seedAccounts(Request $request)
     {
+        $this->authorizeEnterpriseFinance($request);
+
         $this->finance->seedDefaultAccounts($request->user()->school_id);
 
         return response()->json(['message' => 'Default chart of accounts created']);
@@ -27,11 +39,15 @@ class EnterpriseFinanceController extends Controller
 
     public function accounts(Request $request)
     {
+        $this->authorizeEnterpriseFinance($request);
+
         return response()->json(['data' => ChartOfAccount::where('school_id', $request->user()->school_id)->orderBy('code')->get()]);
     }
 
     public function postJournal(Request $request)
     {
+        $this->authorizeEnterpriseFinance($request);
+
         $data = Validator::make($request->all(), [
             'description' => 'required|string',
             'entry_date' => 'nullable|date',
@@ -53,11 +69,15 @@ class EnterpriseFinanceController extends Controller
 
     public function exchangeRates(Request $request)
     {
+        $this->authorizeEnterpriseFinance($request);
+
         return response()->json(['data' => ExchangeRate::where('school_id', $request->user()->school_id)->orderByDesc('effective_date')->get()]);
     }
 
     public function storeExchangeRate(Request $request)
     {
+        $this->authorizeEnterpriseFinance($request);
+
         $data = Validator::make($request->all(), [
             'from_currency' => 'required|string|size:3',
             'to_currency' => 'required|string|size:3',
@@ -70,11 +90,15 @@ class EnterpriseFinanceController extends Controller
 
     public function instalmentPlans(Request $request)
     {
+        $this->authorizeEnterpriseFinance($request);
+
         return response()->json(['data' => InstalmentPlan::where('school_id', $request->user()->school_id)->with('items')->get()]);
     }
 
     public function createInstalmentPlan(Request $request)
     {
+        $this->authorizeEnterpriseFinance($request);
+
         $data = Validator::make($request->all(), [
             'student_id' => [
                 'required',
@@ -100,11 +124,15 @@ class EnterpriseFinanceController extends Controller
 
     public function bankStatements(Request $request)
     {
+        $this->authorizeEnterpriseFinance($request);
+
         return response()->json(['data' => BankStatementLine::where('school_id', $request->user()->school_id)->orderByDesc('transaction_date')->limit(100)->get()]);
     }
 
     public function importBankLine(Request $request)
     {
+        $this->authorizeEnterpriseFinance($request);
+
         $data = Validator::make($request->all(), [
             'transaction_date' => 'required|date',
             'amount' => 'required|numeric',
@@ -118,6 +146,8 @@ class EnterpriseFinanceController extends Controller
 
     public function reconcile(Request $request, BankStatementLine $line)
     {
+        $this->authorizeEnterpriseFinance($request);
+
         $data = Validator::make($request->all(), [
             'payment_id' => [
                 'required',
@@ -133,6 +163,8 @@ class EnterpriseFinanceController extends Controller
 
     public function profitAndLoss(Request $request)
     {
+        $this->authorizeEnterpriseFinance($request);
+
         $from = $request->get('from', now()->startOfYear()->toDateString());
         $to = $request->get('to', now()->toDateString());
 
@@ -141,21 +173,29 @@ class EnterpriseFinanceController extends Controller
 
     public function balanceSheet(Request $request)
     {
+        $this->authorizeEnterpriseFinance($request);
+
         return response()->json(['data' => $this->finance->balanceSheet($request->user()->school_id, $request->get('as_of', now()->toDateString()))]);
     }
 
     public function cashflowForecast(Request $request)
     {
+        $this->authorizeEnterpriseFinance($request);
+
         return response()->json(['data' => $this->finance->cashflowForecast($request->user()->school_id, $request->integer('months') ?: 3)]);
     }
 
     public function revenueRules(Request $request)
     {
+        $this->authorizeEnterpriseFinance($request);
+
         return response()->json(['data' => RevenueRecognitionRule::where('school_id', $request->user()->school_id)->get()]);
     }
 
     public function storeRevenueRule(Request $request)
     {
+        $this->authorizeEnterpriseFinance($request);
+
         $data = Validator::make($request->all(), [
             'name' => 'required|string',
             'recognition_method' => 'required|in:immediate,monthly,term_based',

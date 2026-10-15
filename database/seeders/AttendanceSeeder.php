@@ -57,7 +57,10 @@ class AttendanceSeeder extends Seeder
     private function resolveClass(Student $student): ?ClassModel
     {
         if ($student->class_id) {
-            $byId = ClassModel::with('teacher')->find($student->class_id);
+            $byId = ClassModel::with('teacher')
+                ->where('school_id', $student->school_id)
+                ->where('id', $student->class_id)
+                ->first();
             if ($byId) {
                 return $byId;
             }

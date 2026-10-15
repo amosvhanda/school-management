@@ -11,12 +11,12 @@ class EnsureEmailIsVerified
     /**
      * Handle an incoming request.
      *
-     * @param  \Closure(\Illuminate\Http\Request): (\Symfony\Component\HttpFoundation\Response)  $next
+     * @param  Closure(Request): (Response)  $next
      */
     public function handle(Request $request, Closure $next): Response
     {
-        // For now, skip email verification
-        // TODO: Implement email verification if needed
+        // Email verification is intentionally not enforced yet. Keep this
+        // middleware registered so routes can opt in once verification ships.
         return $next($request);
     }
 }

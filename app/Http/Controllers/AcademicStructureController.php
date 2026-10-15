@@ -10,6 +10,15 @@ use Illuminate\Support\Facades\Validator;
 
 class AcademicStructureController extends Controller
 {
+    private function authorizeAcademicManage(Request $request): void
+    {
+        $this->authorizeModuleAccess(
+            $request,
+            capabilities: ['canManageTeachers'],
+            permissionSlugs: ['academics.manage'],
+        );
+    }
+
     public function streams(Request $request)
     {
         $schoolId = $request->user()->school_id;
@@ -24,6 +33,8 @@ class AcademicStructureController extends Controller
 
     public function storeStream(Request $request)
     {
+        $this->authorizeAcademicManage($request);
+
         $data = Validator::make($request->all(), [
             'name' => 'required|string|max:100',
             'code' => 'nullable|string|max:20',
@@ -42,6 +53,8 @@ class AcademicStructureController extends Controller
 
     public function updateStream(Request $request, int $id)
     {
+        $this->authorizeAcademicManage($request);
+
         $stream = Stream::query()
             ->where('school_id', $request->user()->school_id)
             ->findOrFail($id);
@@ -74,6 +87,8 @@ class AcademicStructureController extends Controller
 
     public function storeHouse(Request $request)
     {
+        $this->authorizeAcademicManage($request);
+
         $data = Validator::make($request->all(), [
             'name' => 'required|string|max:100',
             'code' => 'nullable|string|max:20',
@@ -93,6 +108,8 @@ class AcademicStructureController extends Controller
 
     public function updateHouse(Request $request, int $id)
     {
+        $this->authorizeAcademicManage($request);
+
         $house = House::query()
             ->where('school_id', $request->user()->school_id)
             ->findOrFail($id);
@@ -129,6 +146,8 @@ class AcademicStructureController extends Controller
 
     public function storeSubjectPackage(Request $request)
     {
+        $this->authorizeAcademicManage($request);
+
         $data = Validator::make($request->all(), [
             'grade_level_id' => 'required|integer|exists:grade_levels,id',
             'subject_id' => 'required|integer|exists:subjects,id',
@@ -171,6 +190,8 @@ class AcademicStructureController extends Controller
 
     public function updateSubjectPackage(Request $request, int $id)
     {
+        $this->authorizeAcademicManage($request);
+
         $row = GradeLevelSubject::query()
             ->where('school_id', $request->user()->school_id)
             ->findOrFail($id);
@@ -205,6 +226,8 @@ class AcademicStructureController extends Controller
 
     public function destroySubjectPackage(Request $request, int $id)
     {
+        $this->authorizeAcademicManage($request);
+
         $row = GradeLevelSubject::query()
             ->where('school_id', $request->user()->school_id)
             ->findOrFail($id);

@@ -3,11 +3,16 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
-use App\Models\Concerns\Auditable;
 use App\Enums\UserRole;
+use App\Models\Concerns\Auditable;
 use App\Models\Scopes\UserSchoolScope;
+use App\Services\PermissionService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Ai\Concerns\HasConversations;
@@ -17,7 +22,7 @@ use Laravel\Sanctum\HasApiTokens;
 class User extends Authenticatable
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
-    use HasApiTokens, HasConversations, HasFactory, Notifiable, Auditable, TwoFactorAuthenticatable;
+    use Auditable, HasApiTokens, HasConversations, HasFactory, Notifiable, TwoFactorAuthenticatable;
 
     /**
      * The attributes that are mass assignable.
@@ -28,6 +33,7 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
+        'must_change_password',
         'role',
         'permission_ids',
         'status',
@@ -53,34 +59,34 @@ class User extends Authenticatable
         return $query->withoutGlobalScope(UserSchoolScope::class);
     }
 
-    public function school(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    public function school(): BelongsTo
     {
         return $this->belongsTo(School::class);
     }
 
-    public function schoolMemberships(): \Illuminate\Database\Eloquent\Relations\HasMany
+    public function schoolMemberships(): HasMany
     {
         return $this->hasMany(SchoolUserMembership::class);
     }
 
-    public function schools(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
+    public function schools(): BelongsToMany
     {
         return $this->belongsToMany(School::class, 'school_user_memberships')
             ->withPivot('role', 'is_default')
             ->withTimestamps();
     }
 
-    public function teacher(): \Illuminate\Database\Eloquent\Relations\HasOne
+    public function teacher(): HasOne
     {
         return $this->hasOne(Teacher::class);
     }
 
-    public function student(): \Illuminate\Database\Eloquent\Relations\HasOne
+    public function student(): HasOne
     {
         return $this->hasOne(Student::class);
     }
 
-    public function reportTemplatesCreated(): \Illuminate\Database\Eloquent\Relations\HasMany
+    public function reportTemplatesCreated(): HasMany
     {
         return $this->hasMany(ReportTemplate::class, 'created_by');
     }
@@ -88,19 +94,19 @@ class User extends Authenticatable
     /**
      * Get students associated with this user (when user is a parent)
      */
-    public function students(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
+    public function students(): BelongsToMany
     {
         return $this->belongsToMany(Student::class, 'parent_student', 'parent_id', 'student_id')
             ->withPivot('relationship', 'is_primary', 'school_id')
             ->withTimestamps();
     }
 
-    public function children(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
+    public function children(): BelongsToMany
     {
         return $this->students();
     }
 
-    public function leaveRequestsReviewed(): \Illuminate\Database\Eloquent\Relations\HasMany
+    public function leaveRequestsReviewed(): HasMany
     {
         return $this->hasMany(LeaveRequest::class, 'reviewed_by');
     }
@@ -127,12 +133,22 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'must_change_password' => 'boolean',
             'date_of_birth' => 'date',
             'two_factor_confirmed_at' => 'datetime',
             'platform_terms_accepted_at' => 'datetime',
             'role' => UserRole::class,
             'permission_ids' => 'array',
         ];
+    }
+
+    public function clearMustChangePassword(): void
+    {
+        if (! $this->must_change_password) {
+            return;
+        }
+
+        $this->forceFill(['must_change_password' => false])->save();
     }
 
     public function hasAcceptedCurrentPlatformTerms(): bool
@@ -173,12 +189,12 @@ class User extends Authenticatable
 
     public function hasPermission(string $slug): bool
     {
-        return app(\App\Services\PermissionService::class)->hasPermission($this, $slug);
+        return app(PermissionService::class)->hasPermission($this, $slug);
     }
 
     public function hasCapability(string $capability): bool
     {
-        return app(\App\Services\PermissionService::class)->hasCapability($this, $capability);
+        return app(PermissionService::class)->hasCapability($this, $capability);
     }
 
     /**
@@ -186,6 +202,6 @@ class User extends Authenticatable
      */
     public function permissionSlugs(): array
     {
-        return app(\App\Services\PermissionService::class)->permissionSlugsForUser($this);
+        return app(PermissionService::class)->permissionSlugsForUser($this);
     }
 }

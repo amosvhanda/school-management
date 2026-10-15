@@ -106,6 +106,8 @@ interface AttendanceRecord {
   date?: string
   time_in?: string | null
   remarks?: string | null
+  locked_at?: string | null
+  submitted_at?: string | null
   student?: { full_name?: string; student_number?: string }
   class_model?: { name?: string }
 }
@@ -180,6 +182,7 @@ const historyRows = ref<AttendanceRecord[]>([])
 const historyLoading = ref(false)
 const activeTab = ref('mark')
 const registerDirty = ref(false)
+const registerLocked = ref(false)
 const atRisk = ref<AtRiskStudent[]>([])
 const report = ref<AttendanceReport | null>(null)
 const reportLoading = ref(false)
@@ -437,6 +440,7 @@ async function loadAtRisk() {
 async function loadRegister() {
   if (!selectedClassId.value) {
     registerRows.value = []
+    registerLocked.value = false
     return
   }
 
@@ -459,9 +463,12 @@ async function loadRegister() {
     ])
 
     const byStudent = new Map<number, AttendanceRecord>()
+    let locked = false
     for (const row of existing) {
       byStudent.set(row.student_id, row)
+      if (row.locked_at) locked = true
     }
+    registerLocked.value = locked
 
     registerRows.value = students.map((student) => {
       const saved = byStudent.get(student.id)
@@ -558,6 +565,7 @@ async function loadAudit() {
 }
 
 function setStatus(row: RegisterRow, status: MarkStatus) {
+  if (registerLocked.value) return
   row.status = status
   if (status !== 'late') row.time_in = ''
   registerDirty.value = true
@@ -570,6 +578,7 @@ function onOtherStatusChange(row: RegisterRow, value: unknown) {
 }
 
 function markAllPresent() {
+  if (registerLocked.value) return
   for (const row of registerRows.value) {
     row.status = 'present'
     row.time_in = ''
@@ -578,6 +587,7 @@ function markAllPresent() {
 }
 
 function markAllAbsent() {
+  if (registerLocked.value) return
   for (const row of registerRows.value) {
     row.status = 'absent'
     row.time_in = ''
@@ -589,7 +599,12 @@ const copyingPrevious = ref(false)
 
 async function copyPreviousDay() {
   if (!selectedClassId.value || !registerRows.value.length) return
-
+  if (registerLocked.value) {
+    toast.warning('Register locked', {
+      description: 'This day’s attendance is locked and cannot be changed.',
+    })
+    return
+  }
   const previous = new Date(registerDate.value)
   previous.setDate(previous.getDate() - 1)
   const previousIso = previous.toISOString().slice(0, 10)
@@ -635,6 +650,12 @@ async function copyPreviousDay() {
 
 async function saveRegister() {
   if (!selectedClassId.value || !registerRows.value.length) return
+  if (registerLocked.value) {
+    toast.warning('Register locked', {
+      description: 'This day’s attendance is locked and cannot be changed.',
+    })
+    return
+  }
 
   const marked = registerRows.value.filter((r) => r.status !== 'unmarked')
   if (!marked.length) {
@@ -674,6 +695,12 @@ async function saveRegister() {
 
 async function submitRegister() {
   if (!selectedClassId.value) return
+  if (registerLocked.value) {
+    toast.warning('Register locked', {
+      description: 'This day’s attendance is locked and cannot be changed.',
+    })
+    return
+  }
   try {
     await teacherPortalApi.submitAttendance({
       class_id: Number(selectedClassId.value),
@@ -687,12 +714,18 @@ async function submitRegister() {
 
 async function lockRegister() {
   if (!selectedClassId.value) return
+  if (registerLocked.value) {
+    toast.info('Already locked', { description: 'This register is already locked.' })
+    return
+  }
   try {
     await teacherPortalApi.lockAttendance({
       class_id: Number(selectedClassId.value),
       date: registerDate.value,
     })
+    registerLocked.value = true
     toast.success('Attendance locked')
+    await loadRegister()
   } catch (err) {
     toast.error('Lock failed', { description: getErrorMessage(err) })
   }
@@ -751,23 +784,40 @@ onMounted(async () => {
     max-width="wide"
   >
     <template #actions>
+      <Badge
+        v-if="registerLocked"
+        variant="secondary"
+        class="h-9 gap-1.5 px-3"
+        aria-live="polite"
+      >
+        <Lock class="size-3.5" aria-hidden="true" />
+        Locked
+      </Badge>
       <Button
         variant="outline"
-        :disabled="!registerRows.length || copyingPrevious"
+        :disabled="registerLocked || !registerRows.length || copyingPrevious"
         :aria-busy="copyingPrevious"
         @click="copyPreviousDay"
       >
         <Copy class="mr-2 size-4" aria-hidden="true" />
         {{ copyingPrevious ? 'Copying…' : 'Copy previous day' }}
       </Button>
-      <Button variant="outline" :disabled="!registerRows.length" @click="markAllPresent">
+      <Button
+        variant="outline"
+        :disabled="registerLocked || !registerRows.length"
+        @click="markAllPresent"
+      >
         Mark all present
       </Button>
-      <Button variant="outline" :disabled="!registerRows.length" @click="markAllAbsent">
+      <Button
+        variant="outline"
+        :disabled="registerLocked || !registerRows.length"
+        @click="markAllAbsent"
+      >
         Mark all absent
       </Button>
       <Button
-        :disabled="saving || !registerRows.length"
+        :disabled="registerLocked || saving || !registerRows.length"
         :aria-busy="saving"
         @click="saveRegister"
       >
@@ -776,7 +826,7 @@ onMounted(async () => {
       </Button>
       <Button
         variant="outline"
-        :disabled="!selectedClassId || !registerRows.length"
+        :disabled="registerLocked || !selectedClassId || !registerRows.length"
         @click="submitRegister"
       >
         <CheckCircle2 class="mr-2 size-4" aria-hidden="true" />
@@ -784,7 +834,7 @@ onMounted(async () => {
       </Button>
       <Button
         variant="outline"
-        :disabled="!selectedClassId || !registerRows.length"
+        :disabled="registerLocked || !selectedClassId || !registerRows.length"
         @click="lockRegister"
       >
         <Lock class="mr-2 size-4" aria-hidden="true" />
@@ -1023,6 +1073,7 @@ onMounted(async () => {
                   </CardTitle>
                   <CardDescription>
                     Student attendance register for {{ formatDate(registerDate) }} with status, timings and actions
+                    <span v-if="registerLocked" class="text-foreground"> · Locked — edits disabled</span>
                   </CardDescription>
                 </div>
                 <Badge variant="secondary">
@@ -1072,6 +1123,7 @@ onMounted(async () => {
                         size="sm"
                         variant="outline"
                         class="shrink-0"
+                        :disabled="registerLocked"
                         :class="markButtonClass(PRESENT_OPTION, row.status === 'present')"
                         :aria-pressed="row.status === 'present'"
                         :aria-label="`Present for ${row.full_name}`"
@@ -1092,6 +1144,7 @@ onMounted(async () => {
                         >
                           <SelectTrigger
                             class="h-9 w-full"
+                            :disabled="registerLocked"
                             :aria-label="`Other status for ${row.full_name}`"
                           >
                             <SelectValue placeholder="Other status…" />
@@ -1115,6 +1168,7 @@ onMounted(async () => {
                           type="button"
                           size="sm"
                           variant="outline"
+                          :disabled="registerLocked"
                           :class="markButtonClass(opt, row.status === opt.value)"
                           :aria-pressed="row.status === opt.value"
                           :aria-label="`${opt.label} for ${row.full_name}`"
@@ -1140,6 +1194,7 @@ onMounted(async () => {
                         v-model="row.time_in"
                         type="time"
                         class="h-9"
+                        :disabled="registerLocked"
                         @update:model-value="registerDirty = true"
                       />
                     </div>
@@ -1152,6 +1207,7 @@ onMounted(async () => {
                         v-model="row.remarks"
                         type="text"
                         class="h-9"
+                        :disabled="registerLocked"
                         :placeholder="
                           row.status === 'absent'
                             ? 'Reason for absence (optional)'

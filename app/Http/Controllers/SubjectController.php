@@ -9,6 +9,15 @@ use Illuminate\Validation\Rule;
 
 class SubjectController extends Controller
 {
+    private function authorizeAcademicManage(Request $request): void
+    {
+        $this->authorizeModuleAccess(
+            $request,
+            capabilities: ['canManageTeachers'],
+            permissionSlugs: ['academics.manage'],
+        );
+    }
+
     /**
      * Get all subjects for the school
      */
@@ -64,6 +73,8 @@ class SubjectController extends Controller
      */
     public function store(Request $request)
     {
+        $this->authorizeAcademicManage($request);
+
         $user = $request->user();
         $schoolId = $user->school_id;
 
@@ -120,6 +131,8 @@ class SubjectController extends Controller
      */
     public function update(Request $request, Subject $subject)
     {
+        $this->authorizeAcademicManage($request);
+
         $user = $request->user();
         $schoolId = $user->school_id;
 
@@ -175,6 +188,8 @@ class SubjectController extends Controller
      */
     public function destroy(Request $request, Subject $subject)
     {
+        $this->authorizeAcademicManage($request);
+
         // Check if subject is in use
         if ($subject->grades()->exists() || $subject->timetables()->exists()) {
             return response()->json([

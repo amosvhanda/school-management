@@ -12,8 +12,20 @@ class AssetController extends Controller
 {
     public function __construct(private WorkflowService $workflows) {}
 
+    private function authorizeAssets(Request $request): void
+    {
+        $this->authorizeModuleAccess(
+            $request,
+            capabilities: ['canManageTeachers'],
+            permissionSlugs: ['operations.manage'],
+        );
+    }
+
+
     public function index(Request $request)
     {
+        $this->authorizeAssets($request);
+
         $query = Asset::where('school_id', $request->user()->school_id)->with('custodian:id,name');
 
         if ($request->filled('category')) {
@@ -29,6 +41,8 @@ class AssetController extends Controller
 
     public function store(Request $request)
     {
+        $this->authorizeAssets($request);
+
         $data = $request->validate([
             'asset_tag' => 'nullable|string|max:100',
             'name' => 'required|string|max:255',
@@ -46,6 +60,8 @@ class AssetController extends Controller
 
     public function update(Request $request, int $id)
     {
+        $this->authorizeAssets($request);
+
         $asset = Asset::where('school_id', $request->user()->school_id)->findOrFail($id);
 
         $data = $request->validate([
@@ -66,6 +82,8 @@ class AssetController extends Controller
 
     public function logMaintenance(Request $request, int $id)
     {
+        $this->authorizeAssets($request);
+
         $asset = Asset::where('school_id', $request->user()->school_id)->findOrFail($id);
 
         $data = $request->validate([
@@ -81,6 +99,8 @@ class AssetController extends Controller
 
     public function dispose(Request $request, int $id)
     {
+        $this->authorizeAssets($request);
+
         $asset = Asset::where('school_id', $request->user()->school_id)->findOrFail($id);
 
         $data = $request->validate([

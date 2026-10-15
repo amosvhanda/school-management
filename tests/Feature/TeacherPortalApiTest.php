@@ -205,5 +205,21 @@ class TeacherPortalApiTest extends TestCase
                 ->where('student_id', $ctx['student']->id)
                 ->value('submitted_at')
         );
+
+        $this->withHeaders($ctx['headers'])->postJson('/api/v1/attendance', [
+            'class_id' => $ctx['class']->id,
+            'date' => $date,
+            'overwrite' => true,
+            'records' => [[
+                'student_id' => $ctx['student']->id,
+                'status' => 'absent',
+            ]],
+        ])->assertStatus(423)
+            ->assertJsonPath('error_code', 'attendance_locked');
+
+        $this->assertDatabaseHas('attendance', [
+            'student_id' => $ctx['student']->id,
+            'status' => 'present',
+        ]);
     }
 }

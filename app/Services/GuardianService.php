@@ -2,11 +2,12 @@
 
 namespace App\Services;
 
+use App\Enums\UserRole;
 use App\Models\Guardian;
 use App\Models\Student;
 use App\Models\User;
-use App\Enums\UserRole;
-use Illuminate\Support\Facades\Hash;
+use App\Support\TemporaryPassword;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
 
 class GuardianService
@@ -17,19 +18,20 @@ class GuardianService
     public function createOrFindGuardian(array $guardianData, int $schoolId, ?int $studentId = null): Guardian
     {
         return DB::transaction(function () use ($guardianData, $schoolId, $studentId) {
-            // Check if guardian exists by email or phone
-            $guardian = Guardian::where('school_id', $schoolId)
-                ->where(function ($query) use ($guardianData) {
-                    if (!empty($guardianData['email'])) {
-                        $query->where('email', $guardianData['email']);
-                    }
-                    if (!empty($guardianData['phone'])) {
-                        $query->orWhere('phone', $guardianData['phone']);
-                    }
-                })
-                ->first();
+            // Prefer exact email match. Only fall back to phone when email is absent,
+            // so shared phones cannot attach the wrong parent portal account.
+            $guardian = null;
+            if (! empty($guardianData['email'])) {
+                $guardian = Guardian::where('school_id', $schoolId)
+                    ->where('email', $guardianData['email'])
+                    ->first();
+            } elseif (! empty($guardianData['phone'])) {
+                $guardian = Guardian::where('school_id', $schoolId)
+                    ->where('phone', $guardianData['phone'])
+                    ->first();
+            }
 
-            if (!$guardian) {
+            if (! $guardian) {
                 // Create guardian
                 $guardian = Guardian::create([
                     'school_id' => $schoolId,
@@ -44,28 +46,36 @@ class GuardianService
                     'is_primary' => $guardianData['is_primary'] ?? true,
                     'can_receive_notifications' => $guardianData['can_receive_notifications'] ?? true,
                 ]);
+            }
 
-                // Create user account for guardian if email provided
-                if (!empty($guardianData['email'])) {
-                    $user = User::firstOrCreate(
-                        [
-                            'email' => $guardianData['email'],
-                            'school_id' => $schoolId,
-                        ],
-                        [
-                            'name' => "{$guardian->first_name} {$guardian->last_name}",
-                            'first_name' => $guardian->first_name,
-                            'last_name' => $guardian->last_name,
-                            'phone' => $guardian->phone,
-                            'password' => Hash::make('password123'), // Default password, should be changed on first login
-                            'role' => UserRole::Parent,
-                        ]
-                    );
+            // Ensure a parent portal user exists when an email is present.
+            if (! empty($guardianData['email']) && ! $guardian->user_id) {
+                $user = User::firstOrCreate(
+                    [
+                        'email' => $guardianData['email'],
+                    ],
+                    [
+                        'school_id' => $schoolId,
+                        'name' => "{$guardian->first_name} {$guardian->last_name}",
+                        'first_name' => $guardian->first_name,
+                        'last_name' => $guardian->last_name,
+                        'phone' => $guardian->phone,
+                        'password' => TemporaryPassword::generate(),
+                        'must_change_password' => true,
+                        'role' => UserRole::Parent,
+                    ]
+                );
 
-                    if ((int) $user->school_id !== (int) $schoolId) {
-                        $user->update(['school_id' => $schoolId]);
-                    }
+                if ((int) $user->school_id !== (int) $schoolId) {
+                    $user->update(['school_id' => $schoolId]);
+                }
 
+                if ($user->role !== UserRole::Parent) {
+                    // Do not hijack a non-parent account that already owns this email.
+                    $user = null;
+                }
+
+                if ($user) {
                     $guardian->update(['user_id' => $user->id]);
                 }
             }
@@ -115,18 +125,20 @@ class GuardianService
     /**
      * Get guardians for a student
      */
-    public function getStudentGuardians(int $studentId): \Illuminate\Database\Eloquent\Collection
+    public function getStudentGuardians(int $studentId): Collection
     {
         $student = Student::findOrFail($studentId);
+
         return $student->guardians;
     }
 
     /**
      * Get students for a guardian
      */
-    public function getGuardianStudents(int $guardianId): \Illuminate\Database\Eloquent\Collection
+    public function getGuardianStudents(int $guardianId): Collection
     {
         $guardian = Guardian::findOrFail($guardianId);
+
         return $guardian->students;
     }
 }

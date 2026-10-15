@@ -23,6 +23,9 @@ class AttendanceResource extends JsonResource
             'lesson_type' => $this->lesson_type,
             'marked_by' => $this->marked_by,
             'parent_notified' => (bool) ($this->parent_notified ?? false),
+            'submitted_at' => $this->submitted_at?->toIso8601String(),
+            'locked_at' => $this->locked_at?->toIso8601String(),
+            'locked_by' => $this->locked_by,
             'student' => $this->whenLoaded('student', fn () => [
                 'id' => $this->student?->id,
                 'full_name' => $this->student?->full_name,

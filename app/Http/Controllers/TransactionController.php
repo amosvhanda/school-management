@@ -11,13 +11,18 @@ use Illuminate\Validation\Rule;
 
 class TransactionController extends Controller
 {
-    public function index(Request $request)
+    private function authorizeTransactions(Request $request): void
     {
         $this->authorizeModuleAccess(
             $request,
             capabilities: ['canManageFinance'],
-            permissionSlugs: ['finance.manage', 'transactions.view'],
+            permissionSlugs: ['transactions.view', 'finance.manage'],
         );
+    }
+
+    public function index(Request $request)
+    {
+        $this->authorizeTransactions($request);
 
         $schoolId = $request->user()?->school_id;
         $query = Transaction::with(['student', 'payroll.teacher', 'incomeHead', 'expenseHead'])
@@ -105,11 +110,7 @@ class TransactionController extends Controller
 
     public function summary(Request $request)
     {
-        $this->authorizeModuleAccess(
-            $request,
-            capabilities: ['canManageFinance'],
-            permissionSlugs: ['finance.manage', 'transactions.view'],
-        );
+        $this->authorizeTransactions($request);
 
         $schoolId = $request->user()?->school_id;
         $query = Transaction::where('status', 'completed')

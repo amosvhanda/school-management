@@ -20,6 +20,7 @@ class UserResource extends JsonResource
             'avatar_url' => $this->avatar_url,
             'status' => $this->status ?? 'active',
             'school_id' => $this->school_id,
+            'must_change_password' => (bool) $this->must_change_password,
             'platform_terms_accepted' => $this->hasAcceptedCurrentPlatformTerms(),
             'platform_terms_version' => $this->platform_terms_version,
             'platform_terms_accepted_at' => $this->platform_terms_accepted_at?->toIso8601String(),

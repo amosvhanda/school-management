@@ -71,6 +71,12 @@ class TeacherPermissionsTest extends TestCase
         $this->withHeaders($headers)->getJson('/api/v1/invoices')->assertForbidden();
         $this->withHeaders($headers)->getJson('/api/v1/library/books')->assertForbidden();
         $this->withHeaders($headers)->getJson('/api/v1/audit-logs')->assertForbidden();
+        $this->withHeaders($headers)->getJson('/api/v1/hostels')->assertForbidden();
+        $this->withHeaders($headers)->getJson('/api/v1/procurement/requisitions')->assertForbidden();
+        $this->withHeaders($headers)->getJson('/api/v1/assets')->assertForbidden();
+        $this->withHeaders($headers)->getJson('/api/v1/consent-forms')->assertForbidden();
+        $this->withHeaders($headers)->getJson('/api/v1/platform/refunds')->assertForbidden();
+        $this->withHeaders($headers)->getJson('/api/v1/transactions')->assertForbidden();
     }
 
     public function test_teacher_cannot_access_unassigned_class_in_portal(): void

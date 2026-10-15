@@ -27,13 +27,27 @@ class PlatformCoreController extends Controller
         private RecordVersionService $versions,
     ) {}
 
+    private function authorizePlatformCore(Request $request): void
+    {
+        $this->authorizeModuleAccess(
+            $request,
+            capabilities: ['canManageTeachers'],
+            permissionSlugs: ['settings.manage'],
+        );
+    }
+
+
     public function policyRules(Request $request)
     {
+        $this->authorizePlatformCore($request);
+
         return response()->json(['data' => $this->policies->listRules($request->user()->school_id)]);
     }
 
     public function storePolicyRule(Request $request)
     {
+        $this->authorizePlatformCore($request);
+
         $data = Validator::make($request->all(), [
             'code' => 'required|string',
             'name' => 'required|string',
@@ -53,6 +67,8 @@ class PlatformCoreController extends Controller
 
     public function evaluatePolicy(Request $request)
     {
+        $this->authorizePlatformCore($request);
+
         $data = Validator::make($request->all(), [
             'trigger_event' => 'required|string',
             'context' => 'array',
@@ -69,11 +85,15 @@ class PlatformCoreController extends Controller
 
     public function workflowDefinitions(Request $request)
     {
+        $this->authorizePlatformCore($request);
+
         return response()->json(['data' => $this->workflowBuilder->listDefinitions($request->user()->school_id)]);
     }
 
     public function saveWorkflowDefinition(Request $request)
     {
+        $this->authorizePlatformCore($request);
+
         $data = Validator::make($request->all(), [
             'code' => 'required|string',
             'name' => 'required|string',
@@ -99,6 +119,8 @@ class PlatformCoreController extends Controller
 
     public function branchTree(Request $request)
     {
+        $this->authorizePlatformCore($request);
+
         $school = School::findOrFail($request->user()->school_id);
 
         return response()->json(['data' => $this->branches->tree($school)]);
@@ -106,6 +128,8 @@ class PlatformCoreController extends Controller
 
     public function createBranch(Request $request)
     {
+        $this->authorizePlatformCore($request);
+
         $data = Validator::make($request->all(), [
             'name' => 'required|string',
             'code' => 'required|string|unique:schools,code',
@@ -123,6 +147,8 @@ class PlatformCoreController extends Controller
 
     public function retentionPolicies(Request $request)
     {
+        $this->authorizePlatformCore($request);
+
         $policies = RetentionPolicy::where('school_id', $request->user()->school_id)->get();
 
         return response()->json(['data' => $policies]);
@@ -130,6 +156,8 @@ class PlatformCoreController extends Controller
 
     public function storeRetentionPolicy(Request $request)
     {
+        $this->authorizePlatformCore($request);
+
         $data = Validator::make($request->all(), [
             'module' => 'required|string',
             'retain_years' => 'required|integer|min:1',
@@ -151,11 +179,15 @@ class PlatformCoreController extends Controller
 
     public function maskingRules(Request $request)
     {
+        $this->authorizePlatformCore($request);
+
         return response()->json(['data' => DataMaskingRule::where('school_id', $request->user()->school_id)->get()]);
     }
 
     public function storeMaskingRule(Request $request)
     {
+        $this->authorizePlatformCore($request);
+
         $data = Validator::make($request->all(), [
             'module' => 'required|string',
             'field' => 'required|string',
@@ -182,6 +214,8 @@ class PlatformCoreController extends Controller
 
     public function studentVersions(Request $request, int $id)
     {
+        $this->authorizePlatformCore($request);
+
         $student = Student::where('school_id', $request->user()->school_id)->findOrFail($id);
 
         return response()->json(['data' => $this->versions->history($student)]);

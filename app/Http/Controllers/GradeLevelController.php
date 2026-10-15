@@ -9,6 +9,15 @@ use Illuminate\Validation\Rule;
 
 class GradeLevelController extends Controller
 {
+    private function authorizeAcademicManage(Request $request): void
+    {
+        $this->authorizeModuleAccess(
+            $request,
+            capabilities: ['canManageTeachers'],
+            permissionSlugs: ['academics.manage'],
+        );
+    }
+
     /**
      * Get all grade levels for the school
      */
@@ -31,6 +40,8 @@ class GradeLevelController extends Controller
      */
     public function store(Request $request): JsonResponse
     {
+        $this->authorizeAcademicManage($request);
+
         $schoolId = $request->user()->school_id;
 
         $validated = $request->validate([
@@ -58,6 +69,8 @@ class GradeLevelController extends Controller
      */
     public function update(Request $request, int $id): JsonResponse
     {
+        $this->authorizeAcademicManage($request);
+
         $schoolId = $request->user()->school_id;
         $gradeLevel = GradeLevel::where('school_id', $schoolId)->findOrFail($id);
 
@@ -95,6 +108,8 @@ class GradeLevelController extends Controller
      */
     public function destroy(Request $request, int $id): JsonResponse
     {
+        $this->authorizeAcademicManage($request);
+
         $schoolId = $request->user()->school_id;
         $gradeLevel = GradeLevel::where('school_id', $schoolId)->findOrFail($id);
 
