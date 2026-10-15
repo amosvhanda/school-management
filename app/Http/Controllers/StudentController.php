@@ -9,7 +9,6 @@ use App\Models\School;
 use App\Models\Student;
 use App\Models\StudentDocument;
 use App\Services\Domain\SchoolDomainRules;
-use App\Services\FileUploadService;
 use App\Services\ParentAccessService;
 use App\Services\StudentAdmissionService;
 use App\Services\Students\StudentAcademicService;
@@ -17,6 +16,7 @@ use App\Services\Students\StudentBulkActionService;
 use App\Services\Students\StudentDocumentService;
 use App\Services\Students\StudentIdCardService;
 use App\Services\Students\StudentInvoiceService;
+use App\Services\Students\StudentPhotoService;
 use App\Services\Students\StudentReportCardService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -36,6 +36,7 @@ class StudentController extends Controller
         private StudentInvoiceService $studentInvoices,
         private StudentBulkActionService $bulkActions,
         private StudentAcademicService $academic,
+        private StudentPhotoService $photos,
     ) {}
 
     /**
@@ -1055,57 +1056,24 @@ class StudentController extends Controller
     ) {
         $this->authorizeModuleAccess(
             $request,
-            capabilities: [
-                'canManageStudents',
-            ],
-            permissionSlugs: [
-                'students.manage',
-            ],
+            capabilities: ['canManageStudents'],
+            permissionSlugs: ['students.manage'],
         );
 
-        /*
-         * Route model binding is NOT trusted for tenancy.
-         */
-        $student =
-            $this->resolveTenantStudent(
-                $request,
-                $student
-            );
+        // Route model binding is NOT trusted for tenancy.
+        $student = $this->resolveTenantStudent($request, $student);
 
         $request->validate([
-            'file' => [
-                'required',
-                'file',
-                'image',
-                'max:5120',
-            ],
+            'file' => ['required', 'file', 'image', 'max:5120'],
         ]);
 
-        $schoolId =
-            (int) $student->school_id;
-
-        $result =
-            app(FileUploadService::class)
-                ->store(
-                    $request->file('file'),
-                    'student-photos',
-                    'public',
-                    $schoolId,
-                );
-
-        $student->update([
-            'photo_url' => $result['url'],
-        ]);
+        $result = $this->photos->store($student, $request->file('file'));
 
         return response()->json([
             'data' => [
-                'photo_url' => $result['url'],
-
-                'student' => new StudentResource(
-                    $student->fresh()
-                ),
+                'photo_url' => $result['photo_url'],
+                'student' => new StudentResource($result['student']),
             ],
-
             'message' => 'Student photo updated',
         ]);
     }
