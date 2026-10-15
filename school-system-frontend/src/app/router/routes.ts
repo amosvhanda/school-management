@@ -133,7 +133,12 @@ export const staffRoutes: RouteRecordRaw[] = [
     component: () => import('@/modules/people/views/PeopleHubView.vue'),
     meta: { capability: ['canManageStudents', 'canManageTeachers'] },
   },
-  staffHubRedirect('students', 'students', 'people', 'students', 'students', 'canManageStudents'),
+  {
+    path: 'students',
+    name: 'students',
+    component: () => import('@/modules/students/views/StudentDirectoryView.vue'),
+    meta: { capability: 'canManageStudents' },
+  },
   staffHubRedirect(
     'students/suspended',
     'students-suspended',

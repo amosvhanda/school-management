@@ -2,6 +2,7 @@ import { h } from 'vue'
 import { RouterLink } from 'vue-router'
 import type { ColumnDef } from '@tanstack/vue-table'
 import { Badge } from '@/components/ui/badge'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import {
   formatDate,
   formatDateTime,
@@ -236,33 +237,74 @@ export function defaultColumns(keys: string[]): ColumnDef<Record<string, unknown
   return keys.filter((key) => key !== 'id').map(smartColumn)
 }
 
+function relationName(value: unknown): string {
+  if (!value || typeof value !== 'object') return ''
+  return String((value as Record<string, unknown>).name ?? '').trim()
+}
+
+function studentAge(dateOfBirth: unknown): string {
+  if (!dateOfBirth) return '—'
+  const birth = new Date(String(dateOfBirth))
+  if (Number.isNaN(birth.getTime())) return '—'
+  const today = new Date()
+  let age = today.getFullYear() - birth.getFullYear()
+  const monthDiff = today.getMonth() - birth.getMonth()
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) age -= 1
+  return age >= 0 && age < 120 ? String(age) : '—'
+}
+
+function personInitials(name: string) {
+  return name
+    .split(' ')
+    .filter(Boolean)
+    .map((part) => part[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase() || 'S'
+}
+
+export function studentIdentityColumn(): ColumnDef<Record<string, unknown>> {
+  return {
+    id: 'student-identity',
+    header: 'Name',
+    cell: ({ row }) => {
+      const record = row.original
+      const name = String(record.full_name ?? record.fullName ?? record.name ?? '').trim() || 'Student'
+      const photo = String(record.photo_url ?? record.photoUrl ?? '').trim()
+      const classModel = record.class_model ?? record.classModel
+      const className = relationName(classModel) || String(record.class ?? '').trim()
+      const stream = relationName(record.stream)
+      const house = relationName(record.house)
+      const category = relationName(record.student_category ?? record.studentCategory)
+      const meta = [className, stream, house].filter(Boolean).join(' · ') || 'Unassigned class'
+
+      return h('div', { class: 'flex min-w-0 items-center gap-3' }, [
+        h(Avatar, { class: 'size-10', size: 'lg' }, () => [
+          photo ? h(AvatarImage, { src: photo, alt: '' }) : null,
+          h(AvatarFallback, { class: 'bg-primary/10 text-xs font-semibold text-primary' }, () => personInitials(name)),
+        ]),
+        h('div', { class: 'min-w-0' }, [
+          h('p', { class: 'truncate text-sm font-semibold text-foreground' }, name),
+          h('p', { class: 'truncate text-xs text-muted-foreground' }, meta),
+          category
+            ? h(Badge, { variant: 'secondary', class: 'mt-1 rounded-full px-2 py-0 text-[10px]' }, () => category)
+            : null,
+        ]),
+      ])
+    },
+  }
+}
+
 export const studentColumns: ColumnDef<Record<string, unknown>>[] = [
-  textColumn('Student #', 'student_number'),
-  textColumn('Name', 'full_name'),
+  textColumn('ID', 'student_number'),
+  studentIdentityColumn(),
+  textColumn('Roll', 'roll_number'),
   {
-    id: 'class',
-    header: 'Class',
-    cell: ({ row }) => {
-      const classModel = row.original.class_model ?? row.original.classModel
-      if (classModel && typeof classModel === 'object') {
-        const name = String((classModel as Record<string, unknown>).name ?? '')
-        const form = (classModel as Record<string, unknown>).form
-        return form ? `${name} · ${form}` : name || '—'
-      }
-      return String(row.original.class ?? '—')
-    },
+    id: 'age',
+    header: 'Age',
+    cell: ({ row }) => studentAge(row.original.date_of_birth ?? row.original.dateOfBirth),
   },
-  {
-    id: 'grade_level',
-    header: 'Grade',
-    cell: ({ row }) => {
-      const grade = row.original.grade_level ?? row.original.gradeLevel
-      if (grade && typeof grade === 'object') {
-        return String((grade as Record<string, unknown>).name ?? '—')
-      }
-      return '—'
-    },
-  },
+  textColumn('Gender', 'gender'),
   statusColumn(),
   viewActionColumn('student-detail'),
 ]

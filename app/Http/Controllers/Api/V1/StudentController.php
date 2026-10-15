@@ -73,13 +73,17 @@ class StudentController extends Controller
                 'students.class_id',
                 'students.grade_level_id',
                 'students.student_category_id',
+                'students.stream_id',
+                'students.house_id',
+                'students.date_of_birth',
+                'students.class',
                 'students.email',
                 'students.phone',
                 'students.school_id',
                 'students.created_at',
             ],
             'default_sort' => '-created_at',
-            'with' => ['guardians', 'classModel', 'gradeLevel', 'studentCategory'],
+            'with' => ['guardians', 'classModel', 'gradeLevel', 'studentCategory', 'stream', 'house'],
         ]);
     }
 

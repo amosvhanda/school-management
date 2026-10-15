@@ -110,6 +110,17 @@ const reverseReason = ref('')
 const idKey = computed(() => props.idKey ?? 'id')
 const subtitle = computed(() => props.description ?? `Manage records from ${props.endpoint}`)
 const hasForm = computed(() => Boolean(props.formFields?.length && props.formSchema))
+const createLabel = computed(() => {
+  if (props.listKey === 'ops-visitors') return 'Check in'
+  if (props.listKey === 'students') return 'Add Student'
+  if (props.listKey === 'teachers') return 'Add Teacher'
+  if (props.listKey === 'guardians') return 'Add Guardian'
+  return 'Add new'
+})
+const searchPlaceholder = computed(() => {
+  if (props.listKey === 'students') return 'Search name, admission number…'
+  return `Search ${props.title.toLowerCase()}…`
+})
 
 const actionPrompt = ref<{
   action: RowActionConfig
@@ -827,7 +838,7 @@ defineExpose({ load, openEdit })
       </Button>
       <Button v-if="canCreate && hasForm" @click="openCreate">
         <Plus class="mr-2 h-4 w-4" aria-hidden="true" />
-        {{ listKey === 'ops-visitors' ? 'Check in' : 'Add new' }}
+        {{ createLabel }}
       </Button>
     </template>
 
@@ -846,7 +857,7 @@ defineExpose({ load, openEdit })
         :table="table"
         :columns="displayColumns"
         :global-filter="globalFilter"
-        :search-placeholder="`Search ${title.toLowerCase()}…`"
+        :search-placeholder="searchPlaceholder"
         :server-pagination="serverPagination"
         :server-page="serverPage"
         :server-page-count="serverPageCount"
@@ -997,7 +1008,7 @@ defineExpose({ load, openEdit })
       </Button>
       <Button v-if="canCreate && hasForm" size="sm" @click="openCreate">
         <Plus class="mr-2 h-4 w-4" aria-hidden="true" />
-        {{ listKey === 'ops-visitors' ? 'Check in' : 'Add new' }}
+        {{ createLabel }}
       </Button>
     </div>
 
@@ -1009,7 +1020,7 @@ defineExpose({ load, openEdit })
       :table="table"
       :columns="displayColumns"
       :global-filter="globalFilter"
-      :search-placeholder="`Search ${title.toLowerCase()}…`"
+      :search-placeholder="searchPlaceholder"
       :server-pagination="serverPagination"
       :server-page="serverPage"
       :server-page-count="serverPageCount"
