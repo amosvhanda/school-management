@@ -21,7 +21,11 @@ class StudentPolicy
             return false;
         }
 
-        return $this->hasSchoolContext($user);
+        return $this->hasSchoolContext($user)
+            && (
+                $user->hasCapability('canManageStudents')
+                || $user->hasPermission('students.manage')
+            );
     }
 
     public function view(User $user, Student $student): bool
@@ -40,7 +44,38 @@ class StudentPolicy
                 ->contains((int) $student->id);
         }
 
-        return true;
+        return $user->hasCapability('canManageStudents')
+            || $user->hasPermission('students.manage');
+    }
+
+    /**
+     * Determine whether the user can view/download results for the student.
+     */
+    public function downloadResults(User $user, Student $student): bool
+    {
+        return $this->viewResults($user, $student);
+    }
+
+    public function viewResults(User $user, Student $student): bool
+    {
+        if (! $this->belongsToSameSchool($user, $student->school_id)) {
+            return false;
+        }
+
+        if ($user->role === UserRole::Student) {
+            return app(StudentResolutionService::class)->isLinkedTo($user, $student);
+        }
+
+        if ($user->role === UserRole::Parent) {
+            return app(ParentAccessService::class)
+                ->accessibleStudentIds($user)
+                ->contains((int) $student->id);
+        }
+
+        return $user->hasCapability('canManageStudents')
+            || $user->hasPermission('students.manage')
+            || $user->hasPermission('exams.manage')
+            || $user->hasPermission('exams.enter_results');
     }
 
     public function create(User $user): bool

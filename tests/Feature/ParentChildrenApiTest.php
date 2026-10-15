@@ -64,4 +64,23 @@ class ParentChildrenApiTest extends TestCase
             ->assertOk()
             ->assertJsonCount(0, 'data');
     }
+
+    public function test_staff_cannot_view_children_for_other_school_parent(): void
+    {
+        $auth = $this->createAuthenticatedUser();
+        $otherParent = User::factory()->create([
+            'role' => UserRole::Parent,
+        ]);
+        $otherStudent = Student::factory()->create(['school_id' => $otherParent->school_id]);
+        $otherParent->students()->attach($otherStudent->id, [
+            'school_id' => $otherStudent->school_id,
+            'relationship' => 'parent',
+            'is_primary' => true,
+        ]);
+
+        $this->withHeaders([
+            'Authorization' => 'Bearer '.$auth['token'],
+        ])->getJson("/api/v1/parents/{$otherParent->id}/children")
+            ->assertNotFound();
+    }
 }

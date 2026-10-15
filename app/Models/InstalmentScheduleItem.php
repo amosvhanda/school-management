@@ -2,16 +2,24 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\IsolatesViaSchoolRelation;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class InstalmentScheduleItem extends Model
 {
+    use IsolatesViaSchoolRelation;
+
     public $timestamps = false;
 
     protected $fillable = [
         'plan_id', 'installment_number', 'due_date', 'amount', 'amount_paid', 'status', 'paid_at',
     ];
+
+    public static function schoolIsolationRelation(): string
+    {
+        return 'plan';
+    }
 
     protected function casts(): array
     {

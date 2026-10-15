@@ -7,6 +7,7 @@ import {
   complianceIncidentColumns,
   consentColumns,
   dateColumn,
+  dateTimeColumn,
   defaultColumns,
   disciplineColumns,
   enrollmentColumns,
@@ -16,6 +17,7 @@ import {
   genericColumns,
   guardianColumns,
   healthColumns,
+  helpDeskColumns,
   holidayProgramColumns,
   hostelColumns,
   inventoryColumns,
@@ -30,7 +32,10 @@ import {
   procurementColumns,
   schoolTripColumns,
   procurementVendorColumns,
+  recruitmentApplicationColumns,
+  recruitmentJobColumns,
   statusColumn,
+  activeStatusColumn,
   studentColumns,
   teacherColumns,
   termColumns,
@@ -42,6 +47,7 @@ import {
   transportDriverColumns,
   transportRouteColumns,
   userColumns,
+  viewActionColumn,
   visitorColumns,
   workflowColumns,
 } from '@/modules/shared/columns'
@@ -59,7 +65,7 @@ export interface ListPageConfig {
 }
 
 export const listPageRegistry: Record<string, ListPageConfig> = {
-  students: { title: 'Students', description: 'Enrolled students — admission numbers are auto-assigned (SCHOOLCODE-YEAR-####)', endpoint: moduleEndpoints.students, columns: studentColumns },
+  students: { title: 'Students', description: 'Admission numbers are auto-assigned (SCHOOLCODE-YEAR-####)', endpoint: moduleEndpoints.students, columns: studentColumns },
   teachers: { title: 'Teachers', description: 'Manage teaching staff records', endpoint: moduleEndpoints.teachers, columns: teacherColumns },
   guardians: { title: 'Guardians', description: 'Manage parent and guardian records', endpoint: moduleEndpoints.guardians, columns: guardianColumns },
   enrollment: { title: 'Enrollment Applications', endpoint: moduleEndpoints.enrollment, columns: enrollmentColumns },
@@ -189,6 +195,53 @@ export const listPageRegistry: Record<string, ListPageConfig> = {
   'academics-grades': { title: 'Gradebook', endpoint: moduleEndpoints.classes, columns: genericColumns },
   'academics-timetable': { title: 'Timetable', endpoint: moduleEndpoints.timetable, columns: timetableColumns },
   'academics-exams': { title: 'Exams', endpoint: moduleEndpoints.exams, columns: genericColumns },
+  'academics-exam-schedules': {
+    title: 'Exam Schedules',
+    description: 'Timetable slots for exams by class, subject, and room.',
+    endpoint: moduleEndpoints.examSchedules,
+    columns: [
+      nestedColumn('Exam', 'exam', 'name'),
+      nestedColumn('Class', 'class_model', 'name'),
+      nestedColumn('Subject', 'subject', 'name'),
+      dateTimeColumn('Starts', 'starts_at'),
+      dateTimeColumn('Ends', 'ends_at'),
+      textColumn('Duration (min)', 'duration_minutes'),
+      textColumn('Invigilator', 'invigilator'),
+    ],
+  },
+  'academics-certificate-templates': {
+    title: 'Certificate Templates',
+    description: 'Reusable certificate layouts with merge placeholders.',
+    endpoint: moduleEndpoints.certificateTemplates,
+    columns: [
+      textColumn('Name', 'name'),
+      textColumn('Type', 'certificate_type'),
+      textColumn('Title', 'title'),
+      {
+        id: 'is_active',
+        header: 'Status',
+        cell: ({ row }) => (row.original.is_active === false ? 'Inactive' : 'Active'),
+      },
+    ],
+  },
+  'academics-school-certificates': {
+    title: 'Issued Certificates',
+    description: 'Certificates issued to students from templates.',
+    endpoint: moduleEndpoints.schoolCertificates,
+    columns: [
+      textColumn('Title', 'title'),
+      textColumn('Type', 'certificate_type'),
+      nestedColumn('Student', 'student', 'full_name'),
+      nestedColumn('Template', 'template', 'name'),
+      textColumn('Verification', 'verification_code'),
+      dateColumn('Issued', 'issued_at'),
+      {
+        id: 'revoked',
+        header: 'Status',
+        cell: ({ row }) => (row.original.revoked_at ? 'Revoked' : 'Valid'),
+      },
+    ],
+  },
   'academics-attendance': { title: 'Attendance', endpoint: moduleEndpoints.attendance, columns: attendanceColumns },
   'academics-holiday-programs': { title: 'Holiday Programs', endpoint: moduleEndpoints.holidayPrograms, columns: holidayProgramColumns },
 
@@ -207,12 +260,105 @@ export const listPageRegistry: Record<string, ListPageConfig> = {
     columns: feeCategoryColumns,
     description: 'Shared categories used by fee structures (tuition, levies, exams…).',
   },
+  'finance-fee-groups': {
+    title: 'Fee Groups',
+    description: 'Bundle fee categories for packaging on invoices and structures.',
+    endpoint: moduleEndpoints.feeGroups,
+    columns: [
+      textColumn('Name', 'name'),
+      textColumn('Description', 'description'),
+      {
+        id: 'categories_count',
+        header: 'Categories',
+        cell: ({ row }) => String(row.original.categories_count ?? 0),
+      },
+      activeStatusColumn(),
+      textColumn('Order', 'order'),
+    ],
+  },
+  'finance-fee-discounts': {
+    title: 'Fee Discounts',
+    description: 'Percentage or fixed discounts by fee and student category.',
+    endpoint: moduleEndpoints.feeDiscounts,
+    columns: [
+      textColumn('Name', 'name'),
+      textColumn('Type', 'discount_type'),
+      textColumn('Value', 'value'),
+      nestedColumn('Fee category', 'fee_category', 'name'),
+      nestedColumn('Student category', 'student_category', 'name'),
+      activeStatusColumn(),
+      dateColumn('Starts', 'starts_on'),
+      dateColumn('Ends', 'ends_on'),
+    ],
+  },
+  'finance-income-heads': {
+    title: 'Income Heads',
+    description: 'Chart-of-accounts style labels for money coming in.',
+    endpoint: moduleEndpoints.incomeHeads,
+    columns: [
+      textColumn('Name', 'name'),
+      textColumn('Code', 'code'),
+      textColumn('Description', 'description'),
+      activeStatusColumn(),
+    ],
+  },
+  'finance-budgets': {
+    title: 'Budgets',
+    description: 'Department budgets by fiscal year — draft, submit, approve, and track spend.',
+    endpoint: moduleEndpoints.budgets,
+    columns: [
+      textColumn('Name', 'name'),
+      textColumn('Fiscal year', 'fiscal_year'),
+      textColumn('Department', 'department'),
+      textColumn('Allocated', 'allocated_amount'),
+      textColumn('Spent', 'spent_amount'),
+      textColumn('Currency', 'currency'),
+      textColumn('Status', 'status'),
+    ],
+  },
+  'finance-expense-heads': {
+    title: 'Expense Heads',
+    description: 'Chart-of-accounts style labels for money going out.',
+    endpoint: moduleEndpoints.expenseHeads,
+    columns: [
+      textColumn('Name', 'name'),
+      textColumn('Code', 'code'),
+      textColumn('Description', 'description'),
+      activeStatusColumn(),
+    ],
+  },
   'finance-transactions': {
     title: 'Transactions',
     description:
       'School ledger of money in and out — fee collections, payroll expenses, and related movements.',
     endpoint: moduleEndpoints.transactions,
     columns: transactionColumns,
+  },
+  'finance-income': {
+    title: 'Income',
+    description: 'Manual income ledger entries classified by income head.',
+    endpoint: moduleEndpoints.transactions,
+    columns: [
+      dateColumn('Date', 'date'),
+      textColumn('Description', 'description'),
+      nestedColumn('Income head', 'income_head', 'name'),
+      textColumn('Amount', 'amount'),
+      textColumn('Method', 'payment_method'),
+      textColumn('Currency', 'currency'),
+    ],
+  },
+  'finance-expense': {
+    title: 'Expense',
+    description: 'Manual expense ledger entries classified by expense head.',
+    endpoint: moduleEndpoints.transactions,
+    columns: [
+      dateColumn('Date', 'date'),
+      textColumn('Description', 'description'),
+      nestedColumn('Expense head', 'expense_head', 'name'),
+      textColumn('Amount', 'amount'),
+      textColumn('Method', 'payment_method'),
+      textColumn('Currency', 'currency'),
+    ],
   },
   'finance-payroll': {
     title: 'Payroll',
@@ -238,6 +384,47 @@ export const listPageRegistry: Record<string, ListPageConfig> = {
   },
   'ops-procurement-vendors': { title: 'Procurement Vendors', endpoint: moduleEndpoints.procurementVendors, columns: procurementVendorColumns },
   'ops-library': { title: 'Library Books', endpoint: moduleEndpoints.libraryBooks, columns: libraryColumns },
+  'ops-library-members': {
+    title: 'Library Members',
+    description: 'Students, staff, and external borrowers registered with the library.',
+    endpoint: moduleEndpoints.libraryMembers,
+    columns: [
+      textColumn('Member #', 'member_number'),
+      textColumn('Name', 'name'),
+      textColumn('Type', 'member_type'),
+      {
+        id: 'linked_record',
+        header: 'Linked record',
+        cell: ({ row }) => {
+          const type = String(row.original.member_type ?? '')
+          const id = row.original.member_id
+          if (!id || type === 'external') return '—'
+          return `${type.replaceAll('_', ' ')} #${id}`
+        },
+      },
+      textColumn('Email', 'email'),
+      textColumn('Phone', 'phone'),
+      statusColumn(),
+      dateColumn('Joined', 'joined_on'),
+      viewActionColumn('library-member-detail'),
+    ],
+  },
+  'ops-library-loans': {
+    title: 'Library Loans',
+    description: 'Books currently on loan and return history.',
+    endpoint: moduleEndpoints.libraryLoans,
+    createEndpoint: endpoints.library.borrow,
+    columns: [
+      nestedColumn('Book', 'book', 'title'),
+      nestedColumn('Member', 'member', 'name'),
+      nestedColumn('Student', 'student', 'first_name'),
+      dateColumn('Borrowed', 'borrowed_at'),
+      dateColumn('Due', 'due_at'),
+      dateColumn('Returned', 'returned_at'),
+      statusColumn(),
+      textColumn('Fine', 'fine_amount'),
+    ],
+  },
   'ops-transport': {
     title: 'Transport Vehicles',
     description: 'School buses and vans. Manage drivers and routes from the Operations menu.',
@@ -265,6 +452,12 @@ export const listPageRegistry: Record<string, ListPageConfig> = {
     createEndpoint: endpoints.visitors.checkIn,
     columns: visitorColumns,
   },
+  'ops-help-desk': {
+    title: 'Help Desk',
+    description: 'Internal support tickets for staff, parents, and student issues.',
+    endpoint: moduleEndpoints.helpDeskTickets,
+    columns: helpDeskColumns,
+  },
   'ops-health': { title: 'Clinic Visits', endpoint: moduleEndpoints.healthVisits, columns: healthColumns },
   'ops-events': { title: 'Events', endpoint: moduleEndpoints.events, columns: eventColumns },
   'ops-school-trips': {
@@ -278,6 +471,111 @@ export const listPageRegistry: Record<string, ListPageConfig> = {
   'comms-threads': { title: 'Message Threads', endpoint: moduleEndpoints.threads, columns: threadColumns },
 
   'hr-leave': { title: 'Leave Requests', endpoint: moduleEndpoints.leaveRequests, columns: leaveColumns },
+  'hr-recruitment-jobs': {
+    title: 'Job Postings',
+    description: 'Open roles and hiring campaigns.',
+    endpoint: moduleEndpoints.recruitmentJobs,
+    columns: recruitmentJobColumns,
+  },
+  'hr-recruitment-applications': {
+    title: 'Applications',
+    description: 'Applicant pipeline from submission to hire.',
+    endpoint: moduleEndpoints.recruitmentApplications,
+    columns: recruitmentApplicationColumns,
+  },
+  'hr-leave-types': {
+    title: 'Leave Types',
+    description: 'Paid and unpaid leave categories with default day allowances.',
+    endpoint: moduleEndpoints.leaveTypes,
+    columns: [
+      textColumn('Name', 'name'),
+      textColumn('Code', 'code'),
+      textColumn('Default days', 'default_days'),
+      {
+        id: 'is_paid',
+        header: 'Paid',
+        cell: ({ row }) => (row.original.is_paid ? 'Yes' : 'No'),
+      },
+      activeStatusColumn(),
+    ],
+  },
+  'hr-designations': {
+    title: 'Designations',
+    description: 'Job titles for non-teaching and teaching staff.',
+    endpoint: moduleEndpoints.designations,
+    columns: [
+      textColumn('Name', 'name'),
+      textColumn('Code', 'code'),
+      textColumn('Description', 'description'),
+      activeStatusColumn(),
+    ],
+  },
+  'hr-employees': {
+    title: 'Employees',
+    description: 'Non-teaching staff records, designations, and employment status.',
+    endpoint: moduleEndpoints.employees,
+    columns: [
+      textColumn('Employee #', 'employee_number'),
+      textColumn('Name', 'name'),
+      textColumn('Email', 'email'),
+      textColumn('Phone', 'phone'),
+      nestedColumn('Designation', 'designation', 'name'),
+      textColumn('Employment', 'employment_type'),
+      statusColumn(),
+      viewActionColumn('employee-detail'),
+    ],
+  },
+  'people-student-categories': {
+    title: 'Student Categories',
+    description: 'Groupings used for fee discounts and reporting (e.g. boarder, day scholar).',
+    endpoint: moduleEndpoints.studentCategories,
+    columns: [
+      textColumn('Name', 'name'),
+      textColumn('Code', 'code'),
+      textColumn('Description', 'description'),
+      activeStatusColumn(),
+      textColumn('Order', 'order'),
+    ],
+  },
+  'settings-currencies': {
+    title: 'Currencies',
+    description: 'School currencies for fees, payroll, and reporting.',
+    endpoint: moduleEndpoints.schoolCurrencies,
+    columns: [
+      textColumn('Code', 'code'),
+      textColumn('Name', 'name'),
+      textColumn('Symbol', 'symbol'),
+      {
+        id: 'is_default',
+        header: 'Default',
+        cell: ({ row }) => (row.original.is_default ? 'Yes' : 'No'),
+      },
+      {
+        id: 'is_active',
+        header: 'Status',
+        cell: ({ row }) => (row.original.is_active === false ? 'Inactive' : 'Active'),
+      },
+    ],
+  },
+  'settings-languages': {
+    title: 'Languages',
+    description: 'Preferred languages available for school communications and UI preference.',
+    endpoint: moduleEndpoints.schoolLanguages,
+    columns: [
+      textColumn('Code', 'code'),
+      textColumn('Name', 'name'),
+      {
+        id: 'is_default',
+        header: 'Default',
+        cell: ({ row }) => (row.original.is_default ? 'Yes' : 'No'),
+      },
+      {
+        id: 'is_active',
+        header: 'Status',
+        cell: ({ row }) => (row.original.is_active === false ? 'Inactive' : 'Active'),
+      },
+    ],
+  },
   'hr-discipline': { title: 'Disciplinary Records', endpoint: moduleEndpoints.discipline, columns: disciplineColumns },
 
   compliance: { title: 'Compliance Policies', endpoint: moduleEndpoints.compliancePolicies, columns: complianceColumns },
@@ -315,7 +613,11 @@ export const listPageRegistry: Record<string, ListPageConfig> = {
 
   'enterprise-finance': { title: 'Enterprise Finance Accounts', endpoint: moduleEndpoints.enterpriseFinance, columns: defaultColumns(['code', 'name', 'type', 'balance']) },
   'enterprise-finance-instalments': { title: 'Instalment Plans', endpoint: moduleEndpoints.enterpriseFinanceInstalments, columns: defaultColumns(['name', 'student_id', 'total', 'status']) },
-  'enterprise-academic': { title: 'Academic Calendar', endpoint: moduleEndpoints.enterpriseAcademic, columns: defaultColumns(['title', 'start_date', 'end_date', 'type']) },
+  'enterprise-academic': {
+    title: 'Academic Calendar',
+    endpoint: moduleEndpoints.enterpriseAcademic,
+    columns: defaultColumns(['title', 'entry_type', 'start_date', 'end_date', 'is_holiday']),
+  },
   'enterprise-exams': { title: 'Question Bank', endpoint: moduleEndpoints.enterpriseExams, columns: defaultColumns(['question', 'subject_id', 'difficulty', 'created_at']) },
   'enterprise-hr': { title: 'Performance Reviews', endpoint: moduleEndpoints.enterpriseHr, columns: defaultColumns(['employee_id', 'period', 'rating', 'created_at']) },
   'enterprise-warnings': {
@@ -356,7 +658,11 @@ export const listPageRegistry: Record<string, ListPageConfig> = {
       },
     ],
   },
-  'enterprise-alumni': { title: 'Alumni', endpoint: moduleEndpoints.enterpriseAlumni, columns: defaultColumns(['full_name', 'graduation_year', 'email', 'status']) },
+  'enterprise-alumni': {
+    title: 'Alumni',
+    endpoint: moduleEndpoints.enterpriseAlumni,
+    columns: defaultColumns(['full_name', 'graduation_year', 'email', 'phone', 'current_occupation']),
+  },
   'enterprise-campaigns': { title: 'Campaigns', endpoint: moduleEndpoints.enterpriseCampaigns, columns: defaultColumns(['name', 'audience', 'status', 'created_at']) },
 
   'platform-licenses': { title: 'Licenses', endpoint: moduleEndpoints.adminLicenses, columns: genericColumns },

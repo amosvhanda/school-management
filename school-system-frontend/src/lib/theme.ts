@@ -16,7 +16,8 @@ export function getStoredThemePreference(): ThemePreference | null {
 }
 
 export function resolveTheme(preference: ThemePreference | null): ResolvedTheme {
-  return preference ?? getSystemTheme()
+  // PreSkool chrome is light. Only an explicit stored choice switches to dark.
+  return preference ?? 'light'
 }
 
 export function applyTheme(theme: ResolvedTheme) {

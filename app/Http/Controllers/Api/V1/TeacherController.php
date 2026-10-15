@@ -29,7 +29,7 @@ class TeacherController extends Controller
             'filters' => ['status', 'department', 'subject', 'search'],
             'search_columns' => ['name', 'email', 'employee_id', 'first_name', 'last_name'],
             'sorts' => ['name', 'created_at', 'employee_id', 'status', 'department'],
-            'includes' => [],
+            'includes' => ['designation'],
             'fields' => [
                 'teachers.id',
                 'teachers.name',
@@ -39,12 +39,14 @@ class TeacherController extends Controller
                 'teachers.phone',
                 'teachers.employee_id',
                 'teachers.department',
+                'teachers.designation_id',
                 'teachers.subject',
                 'teachers.status',
                 'teachers.school_id',
                 'teachers.created_at',
             ],
             'default_sort' => 'name',
+            'with' => ['designation:id,name,code'],
         ]);
     }
 
@@ -52,7 +54,7 @@ class TeacherController extends Controller
     {
         $this->authorize('view', $teacher);
 
-        return $this->success(new TeacherResource($teacher));
+        return $this->success(new TeacherResource($teacher->load('designation')));
     }
 
     public function store(StoreTeacherRequest $request)
@@ -74,6 +76,7 @@ class TeacherController extends Controller
             'address' => $request->address,
             'subject' => $request->subject,
             'department' => $request->department,
+            'designation_id' => $request->input('designation_id'),
             'qualification' => $request->qualification,
             'joining_date' => $request->joiningDate,
             'employee_id' => $this->staffNumbers->generateEmployeeNumber((int) $request->user()->school_id),
@@ -115,6 +118,7 @@ class TeacherController extends Controller
             'address',
             'subject',
             'department',
+            'designation_id',
             'qualification',
             'status',
             'employment_type',

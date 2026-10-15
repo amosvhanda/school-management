@@ -6,6 +6,7 @@ import PageShell from '@/components/layout/PageShell.vue'
 import WorkspaceCard from '@/components/layout/WorkspaceCard.vue'
 import ModuleHubContent from '@/components/layout/ModuleHubContent.vue'
 import RegistrySection from '@/modules/shared/RegistrySection.vue'
+import PosTillPanel from '@/modules/operations/components/PosTillPanel.vue'
 import {
   Select,
   SelectContent,
@@ -22,6 +23,7 @@ import {
   groupModuleHubTabs,
   sectionsForHubTab,
   hubLocation,
+  shouldAutoCreateSection,
   type ModuleHubTab,
 } from '@/lib/module-hub'
 
@@ -33,6 +35,7 @@ const props = withDefaults(
     tabs: ModuleHubTab[]
     defaultTab?: string
     ariaLabel?: string
+    badgeCounts?: Record<string, number>
     /**
      * Navigation chrome:
      * - pills: horizontal chip strip (default — admin Finance/People/HR/etc.)
@@ -44,6 +47,7 @@ const props = withDefaults(
     defaultTab: 'overview',
     ariaLabel: 'Module sections',
     navLayout: 'pills',
+    badgeCounts: () => ({}),
   },
 )
 
@@ -69,6 +73,8 @@ const secondaryTabs = computed(() =>
   visibleTabs.value.filter((tab) => tab.priority === 'secondary'),
 )
 
+const secondaryGroups = computed(() => groupModuleHubTabs(secondaryTabs.value))
+
 const usePriorityNav = computed(
   () => useSidebarNav.value && secondaryTabs.value.length > 0,
 )
@@ -79,6 +85,9 @@ const activeTabId = computed(() => {
   if (!hasAccess.value) return ''
   const raw = String(Array.isArray(route.query.tab) ? route.query.tab[0] : route.query.tab ?? '')
   if (raw && visibleTabs.value.some((tab) => tab.id === raw)) return raw
+  if (props.defaultTab && visibleTabs.value.some((tab) => tab.id === props.defaultTab)) {
+    return props.defaultTab
+  }
   return visibleTabs.value[0]?.id ?? props.defaultTab
 })
 
@@ -120,13 +129,22 @@ watch(
 )
 
 function selectTab(tabId: string) {
+  // Preserve deep-link params (e.g. thread) when staying on messages.
+  const keep: Record<string, unknown> = {}
+  if (tabId === 'messages' && route.query.thread) {
+    keep.thread = Array.isArray(route.query.thread) ? route.query.thread[0] : route.query.thread
+  }
+  // Intentional: switching hub tabs clears list filters (status, class_id, etc.)
+  // so filters from one module do not bleed into another.
   void router.replace(
     hubLocation(props.routeName, tabId, props.defaultTab, {
-      query: Object.fromEntries(
-        Object.entries(route.query).filter(([key]) => key !== 'tab' && key !== 'create'),
-      ),
+      query: keep,
     }),
   )
+}
+
+function tabBadge(tabId: string): number {
+  return Number(props.badgeCounts?.[tabId] ?? 0)
 }
 
 watch(
@@ -140,6 +158,10 @@ watch(
   },
   { immediate: true },
 )
+
+function shouldAutoCreate(section: { listKey: string }, index: number) {
+  return shouldAutoCreateSection(section, index, route.query)
+}
 </script>
 
 <template>
@@ -180,10 +202,13 @@ watch(
                   {{ tab.title }}
                 </SelectItem>
               </SelectGroup>
-              <SelectGroup>
-                <SelectLabel>More tools</SelectLabel>
+              <SelectGroup
+                v-for="group in secondaryGroups"
+                :key="group.label || 'more'"
+              >
+                <SelectLabel>{{ group.label || 'More' }}</SelectLabel>
                 <SelectItem
-                  v-for="tab in secondaryTabs"
+                  v-for="tab in group.tabs"
                   :key="tab.id"
                   :value="tab.id"
                 >
@@ -212,7 +237,7 @@ watch(
         class="hidden lg:block"
         :aria-label="ariaLabel"
       >
-        <div class="sticky top-20 space-y-1 rounded-2xl border border-border/60 bg-muted/20 p-2.5">
+        <div class="sticky top-20 space-y-1 rounded-2xl bg-card p-2.5 shadow-[var(--shadow-soft)] ring-1 ring-border/80">
           <template v-if="usePriorityNav">
             <button
               v-for="tab in primaryTabs"
@@ -221,7 +246,7 @@ watch(
               :class="cn(
                 'flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
                 activeTabId === tab.id
-                  ? 'bg-background text-foreground shadow-sm'
+                  ? 'bg-primary/10 text-primary shadow-none'
                   : 'text-muted-foreground hover:bg-background/70 hover:text-foreground',
               )"
               :aria-current="activeTabId === tab.id ? 'page' : undefined"
@@ -240,29 +265,41 @@ watch(
                 class="cursor-pointer list-none rounded-xl px-2.5 py-2 text-xs font-semibold tracking-wide text-muted-foreground uppercase transition-colors hover:bg-background/70 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden"
               >
                 <span class="flex items-center justify-between gap-2">
-                  More tools
+                  More
                   <span class="text-[10px] font-medium normal-case tracking-normal text-muted-foreground/80">
                     {{ secondaryTabs.length }}
                   </span>
                 </span>
               </summary>
-              <div class="mt-1 space-y-1 border-t border-border/50 pt-2">
-                <button
-                  v-for="tab in secondaryTabs"
-                  :key="tab.id"
-                  type="button"
-                  :class="cn(
-                    'flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-                    activeTabId === tab.id
-                      ? 'bg-background text-foreground shadow-sm'
-                      : 'text-muted-foreground hover:bg-background/70 hover:text-foreground',
-                  )"
-                  :aria-current="activeTabId === tab.id ? 'page' : undefined"
-                  @click="selectTab(tab.id)"
+              <div class="mt-1 space-y-3 border-t border-border/50 pt-2">
+                <div
+                  v-for="group in secondaryGroups"
+                  :key="group.label || 'more'"
+                  class="space-y-1"
                 >
-                  <component :is="tab.icon" class="size-4 shrink-0" aria-hidden="true" />
-                  <span class="truncate">{{ tab.title }}</span>
-                </button>
+                  <p
+                    v-if="group.label"
+                    class="px-2.5 pt-0.5 text-[10px] font-semibold tracking-wide text-muted-foreground/80 uppercase"
+                  >
+                    {{ group.label }}
+                  </p>
+                  <button
+                    v-for="tab in group.tabs"
+                    :key="tab.id"
+                    type="button"
+                    :class="cn(
+                      'flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                      activeTabId === tab.id
+                        ? 'bg-primary/10 text-primary shadow-none'
+                        : 'text-muted-foreground hover:bg-muted/70 hover:text-foreground',
+                    )"
+                    :aria-current="activeTabId === tab.id ? 'page' : undefined"
+                    @click="selectTab(tab.id)"
+                  >
+                    <component :is="tab.icon" class="size-4 shrink-0" aria-hidden="true" />
+                    <span class="truncate">{{ tab.title }}</span>
+                  </button>
+                </div>
               </div>
             </details>
           </template>
@@ -286,8 +323,8 @@ watch(
                 :class="cn(
                   'flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
                   activeTabId === tab.id
-                    ? 'bg-background text-foreground shadow-sm'
-                    : 'text-muted-foreground hover:bg-background/70 hover:text-foreground',
+                    ? 'bg-primary/10 text-primary shadow-none'
+                    : 'text-muted-foreground hover:bg-muted/70 hover:text-foreground',
                 )"
                 :aria-current="activeTabId === tab.id ? 'page' : undefined"
                 @click="selectTab(tab.id)"
@@ -338,9 +375,10 @@ watch(
                     {{ section.description }}
                   </p>
                 </div>
+                <PosTillPanel v-if="section.listKey === 'ops-inventory-sales'" />
                 <RegistrySection
                   :list-key="section.listKey"
-                  :auto-create="route.query.create === '1' && index === 0"
+                  :auto-create="shouldAutoCreate(section, index)"
                 />
               </section>
             </div>
@@ -362,24 +400,44 @@ watch(
         <slot name="tools" />
       </div>
 
-      <section class="overflow-x-auto rounded-2xl border border-border/60 bg-muted/30 p-2">
-        <nav class="flex min-w-max items-center gap-2" :aria-label="ariaLabel">
-          <button
-            v-for="tab in visibleTabs"
-            :key="tab.id"
-            type="button"
-            :class="cn(
-              'inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-              activeTabId === tab.id
-                ? 'bg-background text-foreground shadow-sm'
-                : 'text-muted-foreground hover:bg-background/80 hover:text-foreground',
-            )"
-            :aria-current="activeTabId === tab.id ? 'page' : undefined"
-            @click="selectTab(tab.id)"
-          >
-            <component :is="tab.icon" class="size-4" aria-hidden="true" />
-            {{ tab.title }}
-          </button>
+      <section class="overflow-x-auto rounded-2xl bg-card p-2 shadow-[var(--shadow-soft)] ring-1 ring-border/80">
+        <nav class="flex min-w-max items-center gap-1.5" :aria-label="ariaLabel">
+          <template v-for="(group, groupIndex) in tabGroups" :key="group.label || `group-${groupIndex}`">
+            <span
+              v-if="group.label && groupIndex > 0"
+              class="mx-1 h-6 w-px shrink-0 bg-border"
+              aria-hidden="true"
+            />
+            <span
+              v-if="group.label"
+              class="px-1 text-[10px] font-semibold tracking-wide text-muted-foreground uppercase"
+            >
+              {{ group.label }}
+            </span>
+            <button
+              v-for="tab in group.tabs"
+              :key="tab.id"
+              type="button"
+              :class="cn(
+                'inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                activeTabId === tab.id
+                  ? 'bg-primary text-primary-foreground shadow-sm'
+                  : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+              )"
+              :aria-current="activeTabId === tab.id ? 'page' : undefined"
+              @click="selectTab(tab.id)"
+            >
+              <component :is="tab.icon" class="size-4" aria-hidden="true" />
+              {{ tab.title }}
+              <span
+                v-if="tabBadge(tab.id) > 0"
+                class="ml-1 inline-flex min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-[10px] font-semibold text-primary-foreground"
+                :aria-label="`${tabBadge(tab.id)} unread`"
+              >
+                {{ tabBadge(tab.id) > 99 ? '99+' : tabBadge(tab.id) }}
+              </span>
+            </button>
+          </template>
         </nav>
       </section>
 
@@ -416,9 +474,10 @@ watch(
                   {{ section.description }}
                 </p>
               </div>
+              <PosTillPanel v-if="section.listKey === 'ops-inventory-sales'" />
               <RegistrySection
                 :list-key="section.listKey"
-                :auto-create="route.query.create === '1' && index === 0"
+                :auto-create="shouldAutoCreate(section, index)"
               />
             </section>
           </div>

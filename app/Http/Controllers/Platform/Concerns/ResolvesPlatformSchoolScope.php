@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Platform\Concerns;
 
+use App\Models\Scopes\SchoolScope;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
@@ -66,6 +67,7 @@ trait ResolvesPlatformSchoolScope
     protected function scopeToPlatformSchool(Builder $query, Request $request, string $column = 'school_id'): Builder
     {
         $schoolId = $this->platformSchoolId($request);
+        $query->withoutGlobalScope(SchoolScope::class);
 
         return $query->when($schoolId, fn (Builder $q) => $q->where($column, $schoolId));
     }

@@ -10,6 +10,11 @@ export type UserRole =
   | 'finance'
   | 'accounts'
   | 'examination_officer'
+  | 'receptionist'
+  | 'librarian'
+  | 'nurse'
+  | 'transport_manager'
+  | 'hostel_manager'
 
 export type UserCapabilities = Record<NavCapability, boolean>
 
@@ -18,6 +23,16 @@ export interface ParentChild {
   fullName: string
   studentNumber: string
   class: string
+}
+
+export interface AuthSchool {
+  id: number
+  name: string
+  code?: string | null
+  status?: string
+  subtitle?: string | null
+  is_current?: boolean
+  is_default?: boolean
 }
 
 export interface AuthUser {
@@ -31,6 +46,7 @@ export interface AuthUser {
   avatar_url?: string | null
   status?: string
   school_id?: number | null
+  schools?: AuthSchool[]
   student_id?: number | null
   teacher_id?: number | null
   class_id?: number | null
@@ -50,6 +66,21 @@ export interface AuthUser {
 }
 
 export interface LoginResponse {
-  user: AuthUser
-  token: string
+  user?: AuthUser
+  token?: string
+  two_factor_required?: boolean
+  challenge_token?: string
+}
+
+export interface TwoFactorStatus {
+  enabled: boolean
+  confirmed: boolean
+}
+
+export interface TwoFactorEnableResponse {
+  enabled: boolean
+  confirmed: boolean
+  qr_code_svg?: string
+  setup_key?: string
+  recovery_codes?: string[]
 }

@@ -2,6 +2,7 @@ import { h } from 'vue'
 import { RouterLink } from 'vue-router'
 import type { ColumnDef } from '@tanstack/vue-table'
 import { Badge } from '@/components/ui/badge'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import {
   formatDate,
   formatDateTime,
@@ -152,6 +153,18 @@ export function statusColumn(header = 'Status', key = 'status'): ColumnDef<Recor
   }
 }
 
+/** Boolean is_active flag rendered as Active/Inactive badge. */
+export function activeStatusColumn(header = 'Status', key = 'is_active'): ColumnDef<Record<string, unknown>> {
+  return {
+    id: key,
+    header,
+    cell: ({ row }) => {
+      const active = row.original[key] !== false && row.original[key] !== 0
+      return h(Badge, { variant: active ? 'default' : 'secondary' }, () => (active ? 'Active' : 'Inactive'))
+    },
+  }
+}
+
 export function currencyColumn(header: string, amountKey: string, currencyKey = 'currency'): ColumnDef<Record<string, unknown>> {
   return {
     id: `${amountKey}-currency`,
@@ -224,44 +237,123 @@ export function defaultColumns(keys: string[]): ColumnDef<Record<string, unknown
   return keys.filter((key) => key !== 'id').map(smartColumn)
 }
 
+function relationName(value: unknown): string {
+  if (!value || typeof value !== 'object') return ''
+  return String((value as Record<string, unknown>).name ?? '').trim()
+}
+
+function studentAge(dateOfBirth: unknown): string {
+  if (!dateOfBirth) return '—'
+  const birth = new Date(String(dateOfBirth))
+  if (Number.isNaN(birth.getTime())) return '—'
+  const today = new Date()
+  let age = today.getFullYear() - birth.getFullYear()
+  const monthDiff = today.getMonth() - birth.getMonth()
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) age -= 1
+  return age >= 0 && age < 120 ? String(age) : '—'
+}
+
+function personInitials(name: string) {
+  return name
+    .split(' ')
+    .filter(Boolean)
+    .map((part) => part[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase() || 'S'
+}
+
+export function studentIdentityColumn(): ColumnDef<Record<string, unknown>> {
+  return {
+    id: 'student-identity',
+    header: 'Name',
+    cell: ({ row }) => {
+      const record = row.original
+      const name = String(record.full_name ?? record.fullName ?? record.name ?? '').trim() || 'Student'
+      const photo = String(record.photo_url ?? record.photoUrl ?? '').trim()
+      const classModel = record.class_model ?? record.classModel
+      const className = relationName(classModel) || String(record.class ?? '').trim()
+      const stream = relationName(record.stream)
+      const house = relationName(record.house)
+      const category = relationName(record.student_category ?? record.studentCategory)
+      const meta = [className, stream, house].filter(Boolean).join(' · ') || 'Unassigned class'
+
+      return h('div', { class: 'flex min-w-0 items-center gap-3' }, [
+        h(Avatar, { class: 'size-10', size: 'lg' }, () => [
+          photo ? h(AvatarImage, { src: photo, alt: '' }) : null,
+          h(AvatarFallback, { class: 'bg-primary/10 text-xs font-semibold text-primary' }, () => personInitials(name)),
+        ]),
+        h('div', { class: 'min-w-0' }, [
+          h('p', { class: 'truncate text-sm font-semibold text-foreground' }, name),
+          h('p', { class: 'truncate text-xs text-muted-foreground' }, meta),
+          category
+            ? h(Badge, { variant: 'secondary', class: 'mt-1 rounded-full px-2 py-0 text-[10px]' }, () => category)
+            : null,
+        ]),
+      ])
+    },
+  }
+}
+
 export const studentColumns: ColumnDef<Record<string, unknown>>[] = [
-  textColumn('Student #', 'student_number'),
-  textColumn('Name', 'full_name'),
+  textColumn('ID', 'student_number'),
+  studentIdentityColumn(),
+  textColumn('Roll', 'roll_number'),
   {
-    id: 'class',
-    header: 'Class',
-    cell: ({ row }) => {
-      const classModel = row.original.class_model ?? row.original.classModel
-      if (classModel && typeof classModel === 'object') {
-        const name = String((classModel as Record<string, unknown>).name ?? '')
-        const form = (classModel as Record<string, unknown>).form
-        return form ? `${name} · ${form}` : name || '—'
-      }
-      return String(row.original.class ?? '—')
-    },
+    id: 'age',
+    header: 'Age',
+    cell: ({ row }) => studentAge(row.original.date_of_birth ?? row.original.dateOfBirth),
   },
-  {
-    id: 'grade_level',
-    header: 'Grade',
-    cell: ({ row }) => {
-      const grade = row.original.grade_level ?? row.original.gradeLevel
-      if (grade && typeof grade === 'object') {
-        return String((grade as Record<string, unknown>).name ?? '—')
-      }
-      return '—'
-    },
-  },
+  textColumn('Gender', 'gender'),
   statusColumn(),
   viewActionColumn('student-detail'),
 ]
 
+export function teacherIdentityColumn(): ColumnDef<Record<string, unknown>> {
+  return {
+    id: 'teacher-identity',
+    header: 'Name',
+    cell: ({ row }) => {
+      const record = row.original
+      const name =
+        String(
+          record.full_name
+          ?? record.fullName
+          ?? record.name
+          ?? `${record.first_name ?? ''} ${record.last_name ?? ''}`.trim(),
+        ).trim() || 'Teacher'
+      const photo = String(record.photo_url ?? record.photoUrl ?? '').trim()
+      const subject = String(record.subject ?? '').trim()
+      const department = String(record.department ?? '').trim()
+      const designation = relationName(record.designation)
+      const meta = [subject, department].filter(Boolean).join(' · ') || 'No subject assigned'
+
+      return h('div', { class: 'flex min-w-0 items-center gap-3' }, [
+        h(Avatar, { class: 'size-10', size: 'lg' }, () => [
+          photo ? h(AvatarImage, { src: photo, alt: '' }) : null,
+          h(AvatarFallback, { class: 'bg-primary/10 text-xs font-semibold text-primary' }, () =>
+            personInitials(name),
+          ),
+        ]),
+        h('div', { class: 'min-w-0' }, [
+          h('p', { class: 'truncate text-sm font-semibold text-foreground' }, name),
+          h('p', { class: 'truncate text-xs text-muted-foreground' }, meta),
+          designation
+            ? h(Badge, { variant: 'secondary', class: 'mt-1 rounded-full px-2 py-0 text-[10px]' }, () => designation)
+            : null,
+        ]),
+      ])
+    },
+  }
+}
+
 export const teacherColumns: ColumnDef<Record<string, unknown>>[] = [
   textColumn('Employee #', 'employee_id'),
-  personNameColumn('Name'),
+  teacherIdentityColumn(),
   textColumn('Email', 'email'),
-  textColumn('Subject', 'subject'),
-  textColumn('Department', 'department'),
+  textColumn('Phone', 'phone'),
   statusColumn(),
+  viewActionColumn('teacher-detail'),
 ]
 
 export const guardianColumns: ColumnDef<Record<string, unknown>>[] = [
@@ -312,6 +404,7 @@ export const guardianColumns: ColumnDef<Record<string, unknown>>[] = [
         .join(', ')
     },
   },
+  viewActionColumn('guardian-detail'),
 ]
 
 export const enrollmentColumns: ColumnDef<Record<string, unknown>>[] = [
@@ -430,7 +523,7 @@ export const feeStructureColumns: ColumnDef<Record<string, unknown>>[] = [
       return h(
         RouterLink,
         {
-          to: { path: '/finance/fee-categories', query: { highlight: String(categoryId) } },
+          to: { path: '/finance', query: { tab: 'fee-categories', highlight: String(categoryId) } },
           class: 'text-sm font-medium text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
         },
         { default: () => name },
@@ -444,11 +537,7 @@ export const feeStructureColumns: ColumnDef<Record<string, unknown>>[] = [
 export const feeCategoryColumns: ColumnDef<Record<string, unknown>>[] = [
   textColumn('Name', 'name'),
   textColumn('Description', 'description'),
-  {
-    id: 'is_active',
-    header: 'Status',
-    cell: ({ row }) => (row.original.is_active === false ? 'Inactive' : 'Active'),
-  },
+  activeStatusColumn(),
   {
     id: 'fee_structures_count',
     header: 'Fee structures',
@@ -460,7 +549,7 @@ export const feeCategoryColumns: ColumnDef<Record<string, unknown>>[] = [
       return h(
         RouterLink,
         {
-          to: { path: '/finance/fees', query: { fee_category_id: String(id) } },
+          to: { path: '/finance', query: { tab: 'fee-structures', fee_category_id: String(id) } },
           class: 'text-sm font-medium text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
           'aria-label': `View ${label} for this category`,
         },
@@ -524,7 +613,7 @@ export const payrollColumns: ColumnDef<Record<string, unknown>>[] = [
       return h(
         RouterLink,
         {
-          to: { path: '/finance/transactions', query: { payroll_id: String(id), category: 'payroll' } },
+          to: { path: '/finance', query: { tab: 'transactions', payroll_id: String(id), category: 'payroll' } },
           class: 'text-primary underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
         },
         () => `${count} payment${count === 1 ? '' : 's'}`,
@@ -573,7 +662,11 @@ export const termColumns: ColumnDef<Record<string, unknown>>[] = [
 export const threadColumns = defaultColumns(['subject', 'status', 'created_at'])
 export const leaveColumns: ColumnDef<Record<string, unknown>>[] = [
   textColumn('Staff', 'teacher_name'),
-  textColumn('Type', 'type'),
+  {
+    id: 'type',
+    header: 'Type',
+    cell: ({ row }) => String(row.original.leave_type_name ?? row.original.type ?? '—'),
+  },
   dateColumn('Start', 'start_date'),
   dateColumn('End', 'end_date'),
   textColumn('Days', 'days'),
@@ -811,6 +904,90 @@ export const visitorColumns: ColumnDef<Record<string, unknown>>[] = [
   },
 ]
 
+export const helpDeskColumns: ColumnDef<Record<string, unknown>>[] = [
+  textColumn('Ticket', 'ticket_number'),
+  textColumn('Subject', 'subject'),
+  textColumn('Category', 'category'),
+  textColumn('Priority', 'priority'),
+  textColumn('Requester', 'requester_name'),
+  textColumn('Phone', 'requester_phone'),
+  studentRelationColumn(),
+  {
+    id: 'assigned_to',
+    header: 'Assigned to',
+    cell: ({ row }) => {
+      const assignee = (row.original.assigned_to_user ?? row.original.assignedTo) as Record<string, unknown> | undefined
+      if (assignee && typeof assignee === 'object') {
+        return String(assignee.name ?? assignee.email ?? '—')
+      }
+      return '—'
+    },
+  },
+  dateTimeColumn('Created', 'created_at'),
+  {
+    id: 'status',
+    header: 'Status',
+    cell: ({ row }) => {
+      const status = String(row.original.status ?? '—').replaceAll('_', ' ')
+      const raw = String(row.original.status ?? '').toLowerCase()
+      const variant = statusVariants[raw] ?? 'outline'
+      return h(Badge, { variant }, () => status)
+    },
+  },
+]
+
+export const recruitmentJobColumns: ColumnDef<Record<string, unknown>>[] = [
+  textColumn('Title', 'title'),
+  textColumn('Department', 'department'),
+  textColumn('Type', 'employment_type'),
+  textColumn('Location', 'location'),
+  textColumn('Openings', 'openings'),
+  {
+    id: 'applications_count',
+    header: 'Applications',
+    cell: ({ row }) => String(row.original.applications_count ?? '0'),
+  },
+  dateTimeColumn('Closes', 'closes_at'),
+  {
+    id: 'status',
+    header: 'Status',
+    cell: ({ row }) => {
+      const status = String(row.original.status ?? '—').replaceAll('_', ' ')
+      const raw = String(row.original.status ?? '').toLowerCase()
+      const variant = statusVariants[raw] ?? 'outline'
+      return h(Badge, { variant }, () => status)
+    },
+  },
+]
+
+export const recruitmentApplicationColumns: ColumnDef<Record<string, unknown>>[] = [
+  textColumn('Applicant', 'applicant_name'),
+  textColumn('Email', 'email'),
+  textColumn('Phone', 'phone'),
+  {
+    id: 'job_posting',
+    header: 'Position',
+    cell: ({ row }) => {
+      const job = (row.original.job_posting ?? row.original.jobPosting) as Record<string, unknown> | undefined
+      if (job && typeof job === 'object') {
+        return String(job.title ?? '—')
+      }
+      return '—'
+    },
+  },
+  dateTimeColumn('Applied', 'created_at'),
+  {
+    id: 'status',
+    header: 'Status',
+    cell: ({ row }) => {
+      const status = String(row.original.status ?? '—').replaceAll('_', ' ')
+      const raw = String(row.original.status ?? '').toLowerCase()
+      const variant = statusVariants[raw] ?? 'outline'
+      return h(Badge, { variant }, () => status)
+    },
+  },
+]
+
 export const healthColumns: ColumnDef<Record<string, unknown>>[] = [
   studentRelationColumn(),
   dateColumn('Visit date', 'visit_date'),
@@ -899,7 +1076,7 @@ export const transactionColumns: ColumnDef<Record<string, unknown>>[] = [
           return h(
             RouterLink,
             {
-              to: { path: '/finance/payroll', query: { highlight: String(id) } },
+              to: { path: '/finance', query: { tab: 'payroll', highlight: String(id) } },
               class: 'text-primary underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
             },
             () => `${name}${period}`,
@@ -929,8 +1106,18 @@ export const invoiceColumns: ColumnDef<Record<string, unknown>>[] = [
   textColumn('Invoice #', 'invoice_number'),
   studentRelationColumn(),
   currencyColumn('Amount', 'amount'),
+  currencyColumn('Original', 'original_amount'),
+  currencyColumn('Discount', 'discount_amount'),
   currencyColumn('Paid', 'amount_paid'),
   currencyColumn('Balance', 'balance'),
+  {
+    id: 'fee_group',
+    header: 'Fee group',
+    cell: ({ row }) => {
+      const group = row.original.fee_group as { name?: string } | null | undefined
+      return group?.name ?? (row.original.fee_group_id ? String(row.original.fee_group_id) : '—')
+    },
+  },
   dateColumn('Due', 'due_date'),
   statusColumn(),
 ]

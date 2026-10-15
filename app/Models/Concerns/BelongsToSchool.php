@@ -2,12 +2,12 @@
 
 namespace App\Models\Concerns;
 
-use App\Enums\UserRole;
 use App\Models\School;
 use App\Models\Scopes\SchoolScope;
+use App\Support\Tenancy\CurrentSchoolId;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Event;
 
 trait BelongsToSchool
@@ -17,16 +17,16 @@ trait BelongsToSchool
         /** @var class-string<Model> $modelClass */
         $modelClass = static::class;
 
-        $modelClass::addGlobalScope(new SchoolScope());
+        $modelClass::addGlobalScope(new SchoolScope);
 
         Event::listen("eloquent.creating: {$modelClass}", function (Model $model) {
             if ($model->school_id !== null) {
                 return;
             }
 
-            $user = Auth::user();
-            if ($user?->school_id) {
-                $model->school_id = $user->school_id;
+            $schoolId = CurrentSchoolId::resolve();
+            if ($schoolId !== null) {
+                $model->school_id = $schoolId;
             }
         });
     }
@@ -36,21 +36,33 @@ trait BelongsToSchool
         return $this->belongsTo(School::class);
     }
 
+    public function scopeWithoutSchoolScope(Builder $query): Builder
+    {
+        return $query->withoutGlobalScope(SchoolScope::class);
+    }
+
+    /**
+     * Query a single school while bypassing the request-level tenant scope.
+     * Use from platform/admin services that already authorized a school id.
+     */
+    public function scopeForSchool(Builder $query, int $schoolId): Builder
+    {
+        return $query->withoutGlobalScope(SchoolScope::class)
+            ->where($this->getTable().'.school_id', $schoolId);
+    }
+
     public function resolveRouteBinding($value, $field = null)
     {
         $query = $this->newModelQuery();
         $field = $field ?? $this->getRouteKeyName();
-        $user = Auth::user();
+        $schoolId = CurrentSchoolId::resolve();
 
-        if ($user && $user->role !== UserRole::SuperAdmin && $user->school_id !== null) {
-            $query->where($this->getTable() . '.school_id', $user->school_id);
+        if ($schoolId !== null) {
+            $query->where($this->getTable().'.school_id', $schoolId);
+        } elseif (CurrentSchoolId::shouldFailClosed()) {
+            $query->whereRaw('0 = 1');
         }
 
         return $query->where($field, $value)->first();
-    }
-
-    public function resolveChildRouteBinding($childType, $value, $field = null)
-    {
-        return $this->newModelQuery()->where($field ?? $this->getRouteKeyName(), $value)->first();
     }
 }

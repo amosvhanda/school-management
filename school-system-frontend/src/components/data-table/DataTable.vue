@@ -77,7 +77,7 @@ defineSlots<{
           :model-value="globalFilter"
           :placeholder="searchPlaceholder ?? 'Search records…'"
           :aria-label="searchPlaceholder ?? 'Search records'"
-          class="h-10 bg-background pl-9 text-sm"
+          class="h-10 rounded-full bg-muted/40 pl-9 text-sm"
           type="search"
           @update:model-value="$emit('update:globalFilter', String($event))"
         />

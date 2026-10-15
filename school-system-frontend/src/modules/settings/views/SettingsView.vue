@@ -19,6 +19,16 @@ import ErrorState from '@/components/feedback/ErrorState.vue'
 import SchoolSetupSection from '@/modules/settings/components/SchoolSetupSection.vue'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { useToast } from '@/composables/useToast'
 import { useSchoolProfile } from '@/composables/useSchoolProfile'
@@ -37,6 +47,7 @@ import {
   type SetupTabId,
 } from '@/modules/settings/school-setup-tabs'
 import { schoolSetupLocation } from '@/modules/settings/school-setup-links'
+import { shouldAutoCreateSection } from '@/lib/module-hub'
 
 interface SchoolProfile {
   name?: string
@@ -119,6 +130,78 @@ watch(
 const activeTabConfig = computed(() => tabById(activeTab.value))
 const activeSections = computed(() => sectionsForTab(activeTabConfig.value))
 const isProfileTab = computed(() => activeTab.value === 'profile')
+const isNotificationsTab = computed(() => activeTab.value === 'notifications')
+
+const NOTIFICATION_OPTIONS = [
+  {
+    key: 'email_notices',
+    title: 'Allow email notices',
+    description: 'Preference for using email when the school sends announcements and notices.',
+  },
+  {
+    key: 'sms_notices',
+    title: 'Allow SMS notices',
+    description: 'Preference for using SMS for urgent notices when phone numbers are available.',
+  },
+  {
+    key: 'whatsapp_notices',
+    title: 'Allow WhatsApp notices',
+    description: 'Preference for sending notices via WhatsApp when phone numbers are available.',
+  },
+  {
+    key: 'parent_messages',
+    title: 'Parent message alerts',
+    description: 'Preference for notifying guardians about new staff message threads.',
+  },
+  {
+    key: 'leave_alerts',
+    title: 'Leave request alerts',
+    description: 'Preference for alerting approvers when leave requests are submitted.',
+  },
+] as const
+
+type NotificationKey = (typeof NOTIFICATION_OPTIONS)[number]['key']
+
+const notificationPrefs = ref<Record<NotificationKey, boolean>>({
+  email_notices: false,
+  sms_notices: false,
+  whatsapp_notices: false,
+  parent_messages: false,
+  leave_alerts: false,
+})
+const notificationsLoading = ref(false)
+const notificationsSaving = ref(false)
+const mailSaving = ref(false)
+const messagingSaving = ref(false)
+const mailForm = ref({
+  enabled: false,
+  from_address: '',
+  from_name: '',
+  smtp_host: '',
+  smtp_port: '587',
+  smtp_username: '',
+  smtp_password: '',
+  smtp_encryption: 'tls',
+})
+const smsForm = ref({
+  enabled: false,
+  provider: 'log',
+  twilio_sid: '',
+  twilio_token: '',
+  twilio_from: '',
+  africastalking_username: '',
+  africastalking_api_key: '',
+  africastalking_from: '',
+})
+const whatsappForm = ref({
+  enabled: false,
+  provider: 'log',
+  twilio_sid: '',
+  twilio_token: '',
+  twilio_from: '',
+  twilio_content_sid: '',
+  use_template: false,
+})
 
 const activeSectionMeta = computed(() => {
   switch (activeTab.value) {
@@ -223,7 +306,7 @@ const quickLinks = computed(() => [
   {
     title: 'Custom fields',
     description: 'Add school-specific student and staff fields.',
-    href: '/settings/custom-fields',
+    tabId: 'custom-fields' as SetupTabId,
     icon: SlidersHorizontal,
   },
   {
@@ -256,6 +339,14 @@ watch(
     if (next !== activeTab.value) {
       activeTab.value = next
     }
+  },
+  { immediate: true },
+)
+
+watch(
+  isNotificationsTab,
+  (active) => {
+    if (active) void loadNotifications()
   },
   { immediate: true },
 )
@@ -305,6 +396,162 @@ async function loadSetupCounts() {
     feeStructures: Array.isArray(feeStructures) ? feeStructures.length : 0,
     feeCategories: Array.isArray(feeCategories) ? feeCategories.length : 0,
     timetable: Array.isArray(timetable) ? timetable.length : 0,
+  }
+}
+
+async function loadNotifications() {
+  notificationsLoading.value = true
+  try {
+    const settings = (await schoolApi.settings()) as Record<string, Record<string, unknown>>
+    const group = settings?.notifications ?? {}
+    for (const option of NOTIFICATION_OPTIONS) {
+      notificationPrefs.value[option.key] = group[option.key] === true
+    }
+
+    const mail = settings?.mail ?? {}
+    mailForm.value = {
+      enabled: mail.enabled === true,
+      from_address: String(mail.from_address ?? ''),
+      from_name: String(mail.from_name ?? ''),
+      smtp_host: String(mail.smtp_host ?? ''),
+      smtp_port: String(mail.smtp_port ?? '587'),
+      smtp_username: String(mail.smtp_username ?? ''),
+      smtp_password: '',
+      smtp_encryption: String(mail.smtp_encryption ?? 'tls'),
+    }
+
+    const sms = settings?.sms ?? {}
+    smsForm.value = {
+      enabled: sms.enabled === true,
+      provider: String(sms.provider ?? 'log'),
+      twilio_sid: String(sms.twilio_sid ?? ''),
+      twilio_token: '',
+      twilio_from: String(sms.twilio_from ?? ''),
+      africastalking_username: String(sms.africastalking_username ?? ''),
+      africastalking_api_key: '',
+      africastalking_from: String(sms.africastalking_from ?? ''),
+    }
+
+    const whatsapp = settings?.whatsapp ?? {}
+    whatsappForm.value = {
+      enabled: whatsapp.enabled === true,
+      provider: String(whatsapp.provider ?? 'log'),
+      twilio_sid: String(whatsapp.twilio_sid ?? ''),
+      twilio_token: '',
+      twilio_from: String(whatsapp.twilio_from ?? ''),
+      twilio_content_sid: String(whatsapp.twilio_content_sid ?? ''),
+      use_template: whatsapp.use_template === true,
+    }
+  } catch (err) {
+    toast.error('Could not load notification settings', getErrorMessage(err))
+  } finally {
+    notificationsLoading.value = false
+  }
+}
+
+async function saveNotifications() {
+  notificationsSaving.value = true
+  try {
+    await schoolApi.updateSettings(
+      NOTIFICATION_OPTIONS.map((option) => ({
+        group: 'notifications',
+        key: option.key,
+        value: notificationPrefs.value[option.key],
+        type: 'boolean',
+      })),
+    )
+    toast.success('Notification settings saved')
+  } catch (err) {
+    toast.error('Save failed', getErrorMessage(err))
+  } finally {
+    notificationsSaving.value = false
+  }
+}
+
+async function saveMailSettings() {
+  mailSaving.value = true
+  try {
+    const payload: Array<{ group: string; key: string; value: unknown; type?: string }> = [
+      { group: 'mail', key: 'enabled', value: mailForm.value.enabled, type: 'boolean' },
+      { group: 'mail', key: 'from_address', value: mailForm.value.from_address || null },
+      { group: 'mail', key: 'from_name', value: mailForm.value.from_name || null },
+      { group: 'mail', key: 'smtp_host', value: mailForm.value.smtp_host || null },
+      { group: 'mail', key: 'smtp_port', value: Number(mailForm.value.smtp_port || 587), type: 'integer' },
+      { group: 'mail', key: 'smtp_username', value: mailForm.value.smtp_username || null },
+      { group: 'mail', key: 'smtp_encryption', value: mailForm.value.smtp_encryption || 'tls' },
+    ]
+
+    if (mailForm.value.smtp_password.trim()) {
+      payload.push({
+        group: 'mail',
+        key: 'smtp_password',
+        value: mailForm.value.smtp_password,
+        type: 'encrypted',
+      })
+    }
+
+    await schoolApi.updateSettings(payload)
+    mailForm.value.smtp_password = ''
+    toast.success('Email delivery settings saved')
+  } catch (err) {
+    toast.error('Save failed', getErrorMessage(err))
+  } finally {
+    mailSaving.value = false
+  }
+}
+
+async function saveMessagingSettings() {
+  messagingSaving.value = true
+  try {
+    const payload: Array<{ group: string; key: string; value: unknown; type?: string }> = [
+      { group: 'sms', key: 'enabled', value: smsForm.value.enabled, type: 'boolean' },
+      { group: 'sms', key: 'provider', value: smsForm.value.provider || 'log' },
+      { group: 'sms', key: 'twilio_sid', value: smsForm.value.twilio_sid || null },
+      { group: 'sms', key: 'twilio_from', value: smsForm.value.twilio_from || null },
+      { group: 'sms', key: 'africastalking_username', value: smsForm.value.africastalking_username || null },
+      { group: 'sms', key: 'africastalking_from', value: smsForm.value.africastalking_from || null },
+      { group: 'whatsapp', key: 'enabled', value: whatsappForm.value.enabled, type: 'boolean' },
+      { group: 'whatsapp', key: 'provider', value: whatsappForm.value.provider || 'log' },
+      { group: 'whatsapp', key: 'twilio_sid', value: whatsappForm.value.twilio_sid || null },
+      { group: 'whatsapp', key: 'twilio_from', value: whatsappForm.value.twilio_from || null },
+      { group: 'whatsapp', key: 'twilio_content_sid', value: whatsappForm.value.twilio_content_sid || null },
+      { group: 'whatsapp', key: 'use_template', value: whatsappForm.value.use_template, type: 'boolean' },
+    ]
+
+    if (smsForm.value.twilio_token.trim()) {
+      payload.push({
+        group: 'sms',
+        key: 'twilio_token',
+        value: smsForm.value.twilio_token,
+        type: 'encrypted',
+      })
+    }
+    if (smsForm.value.africastalking_api_key.trim()) {
+      payload.push({
+        group: 'sms',
+        key: 'africastalking_api_key',
+        value: smsForm.value.africastalking_api_key,
+        type: 'encrypted',
+      })
+    }
+    if (whatsappForm.value.twilio_token.trim()) {
+      payload.push({
+        group: 'whatsapp',
+        key: 'twilio_token',
+        value: whatsappForm.value.twilio_token,
+        type: 'encrypted',
+      })
+    }
+
+    await schoolApi.updateSettings(payload)
+    smsForm.value.twilio_token = ''
+    smsForm.value.africastalking_api_key = ''
+    whatsappForm.value.twilio_token = ''
+    toast.success('SMS & WhatsApp settings saved')
+  } catch (err) {
+    toast.error('Save failed', getErrorMessage(err))
+  } finally {
+    messagingSaving.value = false
   }
 }
 
@@ -367,7 +614,7 @@ onMounted(load)
     <ErrorState v-else-if="error" :description="error" @retry="load" />
 
     <div v-else class="space-y-6">
-      <section class="rounded-2xl border border-border/70 bg-card p-4 shadow-sm">
+      <section class="rounded-2xl bg-card p-4 shadow-[var(--shadow-soft)] ring-1 ring-border/80">
         <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
           <button
             v-for="item in setupProgressItems"
@@ -484,6 +731,260 @@ onMounted(load)
             </form>
           </div>
 
+          <div v-else-if="isNotificationsTab" class="space-y-6">
+            <PageLoader v-if="notificationsLoading" label="Loading notification settings" />
+            <template v-else>
+              <fieldset class="space-y-3">
+                <legend class="sr-only">Notification preferences</legend>
+                <label
+                  v-for="option in NOTIFICATION_OPTIONS"
+                  :key="option.key"
+                  :for="`notify-${option.key}`"
+                  class="flex cursor-pointer items-start gap-3 rounded-xl border border-border/60 px-4 py-3 transition-colors hover:bg-muted/40"
+                >
+                  <Checkbox
+                    :id="`notify-${option.key}`"
+                    class="mt-0.5"
+                    :checked="notificationPrefs[option.key]"
+                    @update:checked="(checked: boolean | 'indeterminate') => (notificationPrefs[option.key] = checked === true)"
+                  />
+                  <span class="min-w-0 space-y-1">
+                    <span class="block text-sm font-medium text-foreground">{{ option.title }}</span>
+                    <span class="block text-xs leading-relaxed text-muted-foreground">{{ option.description }}</span>
+                  </span>
+                </label>
+              </fieldset>
+              <div class="flex justify-end">
+                <Button type="button" :disabled="notificationsSaving" @click="saveNotifications">
+                  <Save class="mr-2 size-4" aria-hidden="true" />
+                  {{ notificationsSaving ? 'Saving…' : 'Save notifications' }}
+                </Button>
+              </div>
+
+              <section class="space-y-4 border-t pt-6" aria-labelledby="mail-settings-heading">
+                <div class="space-y-1">
+                  <h3 id="mail-settings-heading" class="text-sm font-semibold">Email delivery</h3>
+                  <p class="text-xs text-muted-foreground">
+                    Configure the from-address and optional SMTP server used for school notices and queued emails.
+                  </p>
+                </div>
+
+                <label class="flex items-start gap-3 rounded-xl border border-border/60 px-4 py-3">
+                  <Checkbox
+                    id="mail-enabled"
+                    class="mt-0.5"
+                    :checked="mailForm.enabled"
+                    @update:checked="(checked: boolean | 'indeterminate') => (mailForm.enabled = checked === true)"
+                  />
+                  <span class="space-y-1">
+                    <span class="block text-sm font-medium">Use school SMTP</span>
+                    <span class="block text-xs text-muted-foreground">
+                      When enabled, outbound email uses this school&apos;s SMTP credentials instead of the platform default.
+                    </span>
+                  </span>
+                </label>
+
+                <div class="grid gap-4 sm:grid-cols-2">
+                  <div class="space-y-2">
+                    <Label for="mail-from-name">From name</Label>
+                    <Input id="mail-from-name" v-model="mailForm.from_name" autocomplete="organization" />
+                  </div>
+                  <div class="space-y-2">
+                    <Label for="mail-from-address">From email</Label>
+                    <Input id="mail-from-address" v-model="mailForm.from_address" type="email" autocomplete="email" />
+                  </div>
+                  <div class="space-y-2">
+                    <Label for="mail-smtp-host">SMTP host</Label>
+                    <Input id="mail-smtp-host" v-model="mailForm.smtp_host" autocomplete="off" />
+                  </div>
+                  <div class="space-y-2">
+                    <Label for="mail-smtp-port">SMTP port</Label>
+                    <Input id="mail-smtp-port" v-model="mailForm.smtp_port" inputmode="numeric" />
+                  </div>
+                  <div class="space-y-2">
+                    <Label for="mail-smtp-username">SMTP username</Label>
+                    <Input id="mail-smtp-username" v-model="mailForm.smtp_username" autocomplete="off" />
+                  </div>
+                  <div class="space-y-2">
+                    <Label for="mail-smtp-password">SMTP password</Label>
+                    <Input
+                      id="mail-smtp-password"
+                      v-model="mailForm.smtp_password"
+                      type="password"
+                      autocomplete="new-password"
+                      placeholder="Leave blank to keep current password"
+                    />
+                  </div>
+                  <div class="space-y-2 sm:col-span-2">
+                    <Label for="mail-smtp-encryption">Encryption</Label>
+                    <Select v-model="mailForm.smtp_encryption">
+                      <SelectTrigger id="mail-smtp-encryption">
+                        <SelectValue placeholder="Select encryption" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="tls">TLS</SelectItem>
+                        <SelectItem value="ssl">SSL</SelectItem>
+                        <SelectItem value="none">None</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div class="flex justify-end">
+                  <Button type="button" :disabled="mailSaving" @click="saveMailSettings">
+                    <Save class="mr-2 size-4" aria-hidden="true" />
+                    {{ mailSaving ? 'Saving…' : 'Save email delivery' }}
+                  </Button>
+                </div>
+              </section>
+
+              <section class="space-y-4 border-t pt-6" aria-labelledby="messaging-settings-heading">
+                <div class="space-y-1">
+                  <h3 id="messaging-settings-heading" class="text-sm font-semibold">SMS & WhatsApp</h3>
+                  <p class="text-xs text-muted-foreground">
+                    Optional per-school provider credentials. When disabled, the platform defaults from
+                    environment variables are used (if enabled).
+                  </p>
+                </div>
+
+                <label class="flex items-start gap-3 rounded-xl border border-border/60 px-4 py-3">
+                  <Checkbox
+                    id="sms-enabled"
+                    class="mt-0.5"
+                    :checked="smsForm.enabled"
+                    @update:checked="(checked: boolean | 'indeterminate') => (smsForm.enabled = checked === true)"
+                  />
+                  <span class="space-y-1">
+                    <span class="block text-sm font-medium">Use school SMS credentials</span>
+                    <span class="block text-xs text-muted-foreground">
+                      Requires &quot;Allow SMS notices&quot; above. Leave blank secrets to keep current values.
+                    </span>
+                  </span>
+                </label>
+
+                <div class="grid gap-4 sm:grid-cols-2">
+                  <div class="space-y-2">
+                    <Label for="sms-provider">SMS provider</Label>
+                    <Select v-model="smsForm.provider">
+                      <SelectTrigger id="sms-provider">
+                        <SelectValue placeholder="Select provider" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="log">Log (dev)</SelectItem>
+                        <SelectItem value="twilio">Twilio</SelectItem>
+                        <SelectItem value="africastalking">Africa&apos;s Talking</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div class="space-y-2">
+                    <Label for="sms-twilio-from">Twilio from number</Label>
+                    <Input id="sms-twilio-from" v-model="smsForm.twilio_from" autocomplete="off" placeholder="+263…" />
+                  </div>
+                  <div class="space-y-2">
+                    <Label for="sms-twilio-sid">Twilio Account SID</Label>
+                    <Input id="sms-twilio-sid" v-model="smsForm.twilio_sid" autocomplete="off" />
+                  </div>
+                  <div class="space-y-2">
+                    <Label for="sms-twilio-token">Twilio auth token</Label>
+                    <Input
+                      id="sms-twilio-token"
+                      v-model="smsForm.twilio_token"
+                      type="password"
+                      autocomplete="new-password"
+                      placeholder="Leave blank to keep current token"
+                    />
+                  </div>
+                  <div class="space-y-2">
+                    <Label for="sms-at-username">Africa&apos;s Talking username</Label>
+                    <Input id="sms-at-username" v-model="smsForm.africastalking_username" autocomplete="off" />
+                  </div>
+                  <div class="space-y-2">
+                    <Label for="sms-at-key">Africa&apos;s Talking API key</Label>
+                    <Input
+                      id="sms-at-key"
+                      v-model="smsForm.africastalking_api_key"
+                      type="password"
+                      autocomplete="new-password"
+                      placeholder="Leave blank to keep current key"
+                    />
+                  </div>
+                  <div class="space-y-2 sm:col-span-2">
+                    <Label for="sms-at-from">Africa&apos;s Talking sender ID</Label>
+                    <Input id="sms-at-from" v-model="smsForm.africastalking_from" autocomplete="off" />
+                  </div>
+                </div>
+
+                <label class="flex items-start gap-3 rounded-xl border border-border/60 px-4 py-3">
+                  <Checkbox
+                    id="whatsapp-enabled"
+                    class="mt-0.5"
+                    :checked="whatsappForm.enabled"
+                    @update:checked="(checked: boolean | 'indeterminate') => (whatsappForm.enabled = checked === true)"
+                  />
+                  <span class="space-y-1">
+                    <span class="block text-sm font-medium">Use school WhatsApp credentials</span>
+                    <span class="block text-xs text-muted-foreground">
+                      Requires &quot;Allow WhatsApp notices&quot; above.
+                    </span>
+                  </span>
+                </label>
+
+                <div class="grid gap-4 sm:grid-cols-2">
+                  <div class="space-y-2">
+                    <Label for="wa-provider">WhatsApp provider</Label>
+                    <Select v-model="whatsappForm.provider">
+                      <SelectTrigger id="wa-provider">
+                        <SelectValue placeholder="Select provider" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="log">Log (dev)</SelectItem>
+                        <SelectItem value="twilio">Twilio</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div class="space-y-2">
+                    <Label for="wa-from">From (whatsapp:+…)</Label>
+                    <Input id="wa-from" v-model="whatsappForm.twilio_from" autocomplete="off" />
+                  </div>
+                  <div class="space-y-2">
+                    <Label for="wa-sid">Twilio Account SID</Label>
+                    <Input id="wa-sid" v-model="whatsappForm.twilio_sid" autocomplete="off" />
+                  </div>
+                  <div class="space-y-2">
+                    <Label for="wa-token">Twilio auth token</Label>
+                    <Input
+                      id="wa-token"
+                      v-model="whatsappForm.twilio_token"
+                      type="password"
+                      autocomplete="new-password"
+                      placeholder="Leave blank to keep current token"
+                    />
+                  </div>
+                  <div class="space-y-2">
+                    <Label for="wa-content-sid">Content template SID</Label>
+                    <Input id="wa-content-sid" v-model="whatsappForm.twilio_content_sid" autocomplete="off" />
+                  </div>
+                  <label class="flex items-start gap-3 self-end rounded-xl border border-border/60 px-4 py-3">
+                    <Checkbox
+                      id="wa-use-template"
+                      class="mt-0.5"
+                      :checked="whatsappForm.use_template"
+                      @update:checked="(checked: boolean | 'indeterminate') => (whatsappForm.use_template = checked === true)"
+                    />
+                    <span class="text-sm font-medium">Use Twilio content template</span>
+                  </label>
+                </div>
+
+                <div class="flex justify-end">
+                  <Button type="button" :disabled="messagingSaving" @click="saveMessagingSettings">
+                    <Save class="mr-2 size-4" aria-hidden="true" />
+                    {{ messagingSaving ? 'Saving…' : 'Save SMS & WhatsApp' }}
+                  </Button>
+                </div>
+              </section>
+            </template>
+          </div>
+
           <div v-else class="space-y-8">
             <section
               v-for="(section, index) in activeSections"
@@ -500,7 +1001,7 @@ onMounted(load)
               </div>
               <SchoolSetupSection
                 :list-key="section.listKey"
-                :auto-create="route.query.create === '1' && index === 0"
+                :auto-create="shouldAutoCreateSection(section, index, route.query)"
                 @saved="loadSetupCounts"
               />
             </section>

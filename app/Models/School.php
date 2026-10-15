@@ -191,6 +191,11 @@ class School extends Model
         return $this->hasMany(SchoolSetting::class);
     }
 
+    public function domains(): HasMany
+    {
+        return $this->hasMany(SchoolDomain::class);
+    }
+
     /**
      * Get the default currency for the school
      */

@@ -6,7 +6,7 @@ import type { RecentActivityItem } from '@/types/dashboard'
 export interface ToastPayload {
   title: string
   description?: string
-  variant?: 'default' | 'destructive' | 'success'
+  variant?: 'default' | 'destructive' | 'success' | 'warning'
 }
 
 /**
@@ -26,6 +26,8 @@ export const useNotificationStore = defineStore('notification', () => {
       toast.error(payload.title, { description: payload.description })
     } else if (payload.variant === 'success') {
       toast.success(payload.title, { description: payload.description })
+    } else if (payload.variant === 'warning') {
+      toast.warning(payload.title, { description: payload.description })
     } else {
       toast(payload.title, { description: payload.description })
     }

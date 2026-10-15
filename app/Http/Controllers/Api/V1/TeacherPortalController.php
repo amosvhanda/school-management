@@ -3,18 +3,21 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Contracts\TeachingAssistant;
+use App\Models\AcademicCalendarEntry;
 use App\Models\Announcement;
 use App\Models\Assignment;
 use App\Models\AssignmentSubmission;
 use App\Models\Attendance;
 use App\Models\AttendanceSession;
 use App\Models\BehaviorPoint;
+use App\Models\ClassModel;
 use App\Models\ClassParticipationRecord;
 use App\Models\ClassSubstitution;
 use App\Models\DisciplinaryRecord;
 use App\Models\Exam;
 use App\Models\Grade;
 use App\Models\LeaveRequest;
+use App\Models\LeaveType;
 use App\Models\LessonPlan;
 use App\Models\OnlineLesson;
 use App\Models\ReportCardNarrative;
@@ -54,6 +57,46 @@ class TeacherPortalController extends Controller
         abort_unless($teacher, 403, 'Teacher profile not linked to this account.');
 
         return $teacher;
+    }
+
+    /**
+     * Teachers manage their own LMS items; school admins manage the whole school LMS.
+     *
+     * @return array{0: ?Teacher, 1: bool} [resolved teacher or null, is school LMS manager]
+     */
+    protected function resolveLmsActor(Request $request): array
+    {
+        $user = $request->user();
+        abort_unless($user, 401);
+
+        $this->authorizeModuleAccess($request, capabilities: ['isStaff', 'canManageTeachers']);
+
+        $teacher = $this->teachers->resolveForUser($user);
+        $isSchoolManager = app(PermissionService::class)->hasCapability($user, 'canManageTeachers');
+
+        abort_unless($teacher || $isSchoolManager, 403, 'Teacher profile not linked to this account.');
+
+        return [$teacher, $isSchoolManager];
+    }
+
+    /**
+     * Teachers submit/lock their own class registers; school managers may do so for any class.
+     *
+     * @return array{0: ?Teacher, 1: bool}
+     */
+    protected function resolveAttendanceActor(Request $request): array
+    {
+        $user = $request->user();
+        abort_unless($user, 401);
+
+        $this->authorizeModuleAccess($request, capabilities: ['canManageStudents']);
+
+        $teacher = $this->teachers->resolveForUser($user);
+        $isSchoolManager = app(PermissionService::class)->hasCapability($user, 'canManageTeachers');
+
+        abort_unless($teacher || $isSchoolManager, 403, 'Teacher profile not linked to this account.');
+
+        return [$teacher, $isSchoolManager];
     }
 
     protected function schoolId(Request $request): int
@@ -203,16 +246,22 @@ class TeacherPortalController extends Controller
 
     public function submitAttendance(Request $request)
     {
-        $teacher = $this->requireTeacher($request, ['canManageStudents']);
+        [$teacher, $isSchoolManager] = $this->resolveAttendanceActor($request);
         $data = $request->validate([
             'class_id' => ['required', 'integer'],
             'date' => ['required', 'date'],
             'subject_id' => ['nullable', 'integer'],
             'period' => ['nullable', 'string', 'max:50'],
         ]);
-        $this->assertTeacherOwnsClass($teacher, (int) $data['class_id']);
-        if (! empty($data['subject_id'])) {
-            $this->assertTeacherOwnsSubject($teacher, $data['subject_id'], (int) $data['class_id']);
+
+        $classId = (int) $data['class_id'];
+        $this->assertClassInSchool($request, $classId);
+
+        if (! $isSchoolManager) {
+            $this->assertTeacherOwnsClass($teacher, $classId);
+            if (! empty($data['subject_id'])) {
+                $this->assertTeacherOwnsSubject($teacher, $data['subject_id'], $classId);
+            }
         }
 
         $existingSession = AttendanceSession::query()
@@ -246,7 +295,7 @@ class TeacherPortalController extends Controller
                 'period' => $data['period'] ?? null,
             ],
             [
-                'teacher_id' => $teacher->id,
+                'teacher_id' => $teacher?->id,
                 'submitted_at' => now(),
             ]
         );
@@ -263,16 +312,22 @@ class TeacherPortalController extends Controller
 
     public function lockAttendance(Request $request)
     {
-        $teacher = $this->requireTeacher($request, ['canManageStudents']);
+        [$teacher, $isSchoolManager] = $this->resolveAttendanceActor($request);
         $data = $request->validate([
             'class_id' => ['required', 'integer'],
             'date' => ['required', 'date'],
             'subject_id' => ['nullable', 'integer'],
             'period' => ['nullable', 'string', 'max:50'],
         ]);
-        $this->assertTeacherOwnsClass($teacher, (int) $data['class_id']);
-        if (! empty($data['subject_id'])) {
-            $this->assertTeacherOwnsSubject($teacher, $data['subject_id'], (int) $data['class_id']);
+
+        $classId = (int) $data['class_id'];
+        $this->assertClassInSchool($request, $classId);
+
+        if (! $isSchoolManager) {
+            $this->assertTeacherOwnsClass($teacher, $classId);
+            if (! empty($data['subject_id'])) {
+                $this->assertTeacherOwnsSubject($teacher, $data['subject_id'], $classId);
+            }
         }
 
         $session = AttendanceSession::query()->updateOrCreate(
@@ -284,7 +339,7 @@ class TeacherPortalController extends Controller
                 'period' => $data['period'] ?? null,
             ],
             [
-                'teacher_id' => $teacher->id,
+                'teacher_id' => $teacher?->id,
                 'submitted_at' => now(),
                 'locked_at' => now(),
                 'locked_by' => $request->user()->id,
@@ -311,7 +366,7 @@ class TeacherPortalController extends Controller
 
     public function attendanceReports(Request $request)
     {
-        $teacher = $this->requireTeacher($request, ['canManageStudents']);
+        [$teacher, $isSchoolManager] = $this->resolveAttendanceActor($request);
         $data = $request->validate([
             'class_id' => ['required', 'integer'],
             'from' => ['nullable', 'date'],
@@ -320,7 +375,13 @@ class TeacherPortalController extends Controller
             'student_id' => ['nullable', 'integer'],
             'format' => ['nullable', Rule::in(['json', 'csv', 'print'])],
         ]);
-        $this->assertTeacherOwnsClass($teacher, (int) $data['class_id']);
+
+        $classId = (int) $data['class_id'];
+        $this->assertClassInSchool($request, $classId);
+
+        if (! $isSchoolManager) {
+            $this->assertTeacherOwnsClass($teacher, $classId);
+        }
 
         $from = $data['from'] ?? now()->subDays(30)->toDateString();
         $to = $data['to'] ?? now()->toDateString();
@@ -453,7 +514,31 @@ class TeacherPortalController extends Controller
             ->where('school_id', $schoolId)
             ->orderBy('starts_at')
             ->limit(100)
-            ->get();
+            ->get()
+            ->map(fn (SchoolEvent $event) => [
+                'id' => $event->id,
+                'title' => $event->title,
+                'type' => $event->type,
+                'starts_at' => optional($event->starts_at)?->toIso8601String(),
+                'ends_at' => optional($event->ends_at)?->toIso8601String(),
+                'location' => $event->location,
+                'status' => $event->status,
+            ]);
+
+        $academic = AcademicCalendarEntry::query()
+            ->where('school_id', $schoolId)
+            ->whereDate('start_date', '>=', now()->subMonths(1)->toDateString())
+            ->orderBy('start_date')
+            ->limit(100)
+            ->get()
+            ->map(fn (AcademicCalendarEntry $entry) => [
+                'id' => $entry->id,
+                'title' => $entry->title,
+                'entry_type' => $entry->entry_type,
+                'start_date' => optional($entry->start_date)?->toDateString(),
+                'end_date' => optional($entry->end_date)?->toDateString(),
+                'is_holiday' => (bool) $entry->is_holiday,
+            ]);
 
         $deadlines = Assignment::query()
             ->where('teacher_id', $request->user()->teacher?->id ?? 0)
@@ -464,6 +549,7 @@ class TeacherPortalController extends Controller
 
         return $this->success([
             'events' => $events,
+            'academic_entries' => $academic,
             'assignment_deadlines' => $deadlines,
             'exams' => Exam::query()->where('school_id', $schoolId)->whereDate('exam_date', '>=', now())->limit(30)->get(),
         ]);
@@ -752,24 +838,35 @@ class TeacherPortalController extends Controller
 
     public function onlineLessons(Request $request)
     {
-        $teacher = $this->requireTeacher($request);
+        [$teacher, $isSchoolManager] = $this->resolveLmsActor($request);
+        $schoolId = $this->schoolId($request);
+
+        $query = OnlineLesson::query()
+            ->where('school_id', $schoolId)
+            ->with(['classModel:id,name', 'subject:id,name', 'teacher:id,name,email']);
+
+        if (! $isSchoolManager) {
+            $query->where('teacher_id', $teacher->id);
+        }
 
         return $this->success(
-            OnlineLesson::query()
-                ->where('teacher_id', $teacher->id)
-                ->with(['classModel:id,name', 'subject:id,name'])
-                ->latest('scheduled_at')
-                ->limit(100)
-                ->get()
+            $query->latest('scheduled_at')->limit(100)->get()
         );
     }
 
     public function storeOnlineLesson(Request $request)
     {
-        $teacher = $this->requireTeacher($request);
+        [$teacher, $isSchoolManager] = $this->resolveLmsActor($request);
+        $schoolId = $this->schoolId($request);
+
         $data = $request->validate([
             'title' => ['required', 'string', 'max:255'],
             'lesson_type' => ['nullable', Rule::in(['live', 'recorded', 'discussion', 'quiz', 'poll'])],
+            'teacher_id' => [
+                $isSchoolManager && ! $teacher ? 'required' : 'nullable',
+                'integer',
+                Rule::exists('teachers', 'id')->where(fn ($q) => $q->where('school_id', $schoolId)),
+            ],
             'class_id' => ['nullable', 'integer'],
             'subject_id' => ['nullable', 'integer'],
             'scheduled_at' => ['nullable', 'date'],
@@ -779,19 +876,25 @@ class TeacherPortalController extends Controller
             'status' => ['nullable', 'string', 'max:50'],
         ]);
 
+        $teacherId = isset($data['teacher_id']) ? (int) $data['teacher_id'] : null;
+        if (! $teacherId && $teacher) {
+            $teacherId = $teacher->id;
+        }
+        abort_unless($teacherId, 422, 'Select a teacher for this online lesson.');
+
         $row = OnlineLesson::create([
-            'school_id' => $this->schoolId($request),
-            'teacher_id' => $teacher->id,
+            'school_id' => $schoolId,
+            'teacher_id' => $teacherId,
             'lesson_type' => $data['lesson_type'] ?? 'live',
             'status' => $data['status'] ?? 'scheduled',
             // Placeholder room URL until a live video provider is wired.
             'meeting_url' => $data['meeting_url'] ?? (($data['lesson_type'] ?? 'live') === 'live'
                 ? 'https://meet.example.local/room/'.uniqid('lesson_')
                 : null),
-            ...collect($data)->except(['lesson_type', 'status', 'meeting_url'])->all(),
+            ...collect($data)->except(['lesson_type', 'status', 'meeting_url', 'teacher_id'])->all(),
         ]);
 
-        return $this->created($row);
+        return $this->created($row->load(['teacher:id,name', 'classModel:id,name', 'subject:id,name']));
     }
 
     // —— Report cards ——
@@ -1041,12 +1144,31 @@ class TeacherPortalController extends Controller
     {
         $teacher = $this->requireTeacher($request);
         $data = $request->validate([
-            'type' => ['required', Rule::in(['annual', 'sick', 'maternity', 'unpaid', 'other'])],
+            'leave_type_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('leave_types', 'id')->where(fn ($q) => $q->where('school_id', $this->schoolId($request))->where('is_active', true)),
+            ],
+            'type' => ['nullable', 'string', 'max:100'],
             'start_date' => ['required', 'date'],
             'end_date' => ['required', 'date', 'after_or_equal:start_date'],
             'reason' => ['nullable', 'string', 'max:2000'],
             'request_replacement' => ['nullable', 'boolean'],
         ]);
+
+        if (empty($data['leave_type_id']) && empty($data['type'])) {
+            return response()->json([
+                'message' => 'Validation failed',
+                'errors' => ['type' => ['Select a leave type.']],
+            ], 422);
+        }
+
+        $leaveType = null;
+        if (! empty($data['leave_type_id'])) {
+            $leaveType = LeaveType::query()
+                ->where('school_id', $this->schoolId($request))
+                ->findOrFail($data['leave_type_id']);
+        }
 
         $start = $request->date('start_date');
         $end = $request->date('end_date');
@@ -1055,8 +1177,9 @@ class TeacherPortalController extends Controller
         $leave = LeaveRequest::create([
             'school_id' => $this->schoolId($request),
             'teacher_id' => $teacher->id,
+            'leave_type_id' => $leaveType?->id,
             'requested_by' => $request->user()->id,
-            'type' => $data['type'],
+            'type' => $leaveType?->code ?: ($leaveType?->name ?: $data['type']),
             'start_date' => $start,
             'end_date' => $end,
             'days' => $days,
@@ -1341,6 +1464,16 @@ class TeacherPortalController extends Controller
     protected function teacherClassIds(Teacher $teacher)
     {
         return $this->teachers->assignedClassIds($teacher);
+    }
+
+    protected function assertClassInSchool(Request $request, int $classId): void
+    {
+        $exists = ClassModel::query()
+            ->where('school_id', $this->schoolId($request))
+            ->whereKey($classId)
+            ->exists();
+
+        abort_unless($exists, 422, 'Class not found in this school.');
     }
 
     protected function assertTeacherOwnsClass(Teacher $teacher, mixed $classId): void

@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Student extends Model
 {
@@ -18,16 +19,21 @@ class Student extends Model
 
     protected $fillable = [
         'student_number',
+        'roll_number',         // Added for PreSkool UI parity
         'first_name',
         'last_name',
         'full_name',
         'date_of_birth',
         'gender',
+        'blood_group',         // Added for PreSkool UI parity
         'national_id',
+        'passport_number',     // Added for PreSkool UI parity
         'phone',
         'email',
+        'photo_url',
         'address',
         'suburb',
+        'social_links',        // Added for PreSkool UI parity (JSON)
         'class',
         'school',
         'status',
@@ -43,12 +49,22 @@ class Student extends Model
         'stream_id',
         'house_id',
         'school_id',
+        'student_category_id',
         'grade_level_id',
         'guardian_first_name',
         'guardian_last_name',
         'guardian_phone',
         'guardian_email',
         'guardian_relationship',
+        'admission_date',
+        'religion',
+        'caste',
+        'father_name',
+        'father_phone',
+        'father_occupation',
+        'mother_name',
+        'mother_phone',
+        'mother_occupation',
     ];
 
     protected $appends = ['guardian'];
@@ -59,6 +75,10 @@ class Student extends Model
             'date_of_birth' => 'date',
             'exited_at' => 'date',
             'status_changed_at' => 'datetime',
+            'balance' => 'decimal:2',
+            'social_links' => 'array', // Automatically cast JSON to array
+            'date_of_birth' => 'date',
+            'admission_date' => 'date',
             'balance' => 'decimal:2',
         ];
     }
@@ -83,6 +103,11 @@ class Student extends Model
         return $this->hasMany(Grade::class);
     }
 
+    public function examResults(): HasMany
+    {
+        return $this->hasMany(ExamResult::class);
+    }
+
     public function attendance(): HasMany
     {
         return $this->hasMany(Attendance::class);
@@ -91,6 +116,11 @@ class Student extends Model
     public function school(): BelongsTo
     {
         return $this->belongsTo(School::class);
+    }
+
+    public function studentCategory(): BelongsTo
+    {
+        return $this->belongsTo(StudentCategory::class);
     }
 
     public function classModel(): BelongsTo
@@ -113,6 +143,11 @@ class Student extends Model
         return $this->hasMany(StudentStatusEvent::class);
     }
 
+    public function medicalProfile(): HasOne
+    {
+        return $this->hasOne(StudentMedicalProfile::class);
+    }
+
     /**
      * Get parents associated with this student
      */
@@ -129,6 +164,14 @@ class Student extends Model
     public function enrollments(): HasMany
     {
         return $this->hasMany(Enrollment::class);
+    }
+
+    /**
+     * Get active enrollment record for current academic year
+     */
+    public function activeEnrollment(): HasOne
+    {
+        return $this->hasOne(Enrollment::class)->where('status', 'active')->latestOfMany();
     }
 
     /**

@@ -11,6 +11,7 @@ export interface SchoolProfile {
   address?: string
   currency?: string
   currency_locked?: boolean
+  academic_year?: string | null
 }
 
 const school = ref<SchoolProfile | null>(null)

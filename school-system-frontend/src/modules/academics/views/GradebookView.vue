@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
-import { Plus, Search, SlidersHorizontal } from '@lucide/vue'
+import { Plus, Search, Users } from '@lucide/vue'
 import { useRoute } from 'vue-router'
 import PageLoader from '@/components/feedback/PageLoader.vue'
 import ErrorState from '@/components/feedback/ErrorState.vue'
@@ -14,7 +14,6 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import {
   Select,
   SelectContent,
@@ -35,12 +34,11 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { useToast } from '@/components/ui/toast/use-toast'
+import { cn } from '@/lib/utils'
 import { getErrorMessage } from '@/lib/api-response'
 import { academicsApi } from '@/services/api.service'
 import { fetchList } from '@/services/dashboard.service'
 import { moduleEndpoints } from '@/services'
-
-// Auth session import to safely manage teacher scopes
 import { useAuthStore } from '@/stores/auth.store'
 
 interface ClassOption { id: number; name: string }
@@ -50,12 +48,14 @@ interface TermOption { id: number; name: string; is_current?: boolean }
 interface GradeRow {
   id: number
   subject?: string
+  subject_id?: number
   score?: number
   total?: number
   grade?: string
   term?: string
   assessment_type?: string
-  student?: { full_name?: string }
+  student?: { id?: number; full_name?: string }
+  student_id?: number
 }
 
 const { toast } = useToast()
@@ -67,14 +67,13 @@ const subjects = ref<SubjectOption[]>([])
 const students = ref<StudentOption[]>([])
 const terms = ref<TermOption[]>([])
 const selectedClass = ref<string>('')
+const selectedSubjectFilter = ref('all')
 const grades = ref<GradeRow[]>([])
 const loading = ref(true)
 const gradesLoading = ref(false)
 const error = ref<string | null>(null)
 const modalOpen = ref(false)
 const saving = ref(false)
-
-// Inline Table Filters & Search State
 const searchQuery = ref('')
 const selectedTypeFilter = ref('all')
 
@@ -87,39 +86,101 @@ const form = ref({
   assessment_type: 'test',
 })
 
-// Check if the current logged-in user is a teacher role
 const isTeacher = computed(() => authStore.user?.role === 'teacher')
 const teacherId = computed(() => authStore.user?.teacher_id)
 
-// Computed reactive filter pipeline for real-time sorting
+const selectedClassName = computed(
+  () => classes.value.find((c) => String(c.id) === selectedClass.value)?.name ?? 'Class',
+)
+
 const filteredGrades = computed(() => {
   return grades.value.filter((g) => {
-    const matchesSearch = !searchQuery.value ||
-      g.student?.full_name?.toLowerCase().includes(searchQuery.value.toLowerCase())
-
-    const matchesType = selectedTypeFilter.value === 'all' ||
-      g.assessment_type === selectedTypeFilter.value
-
-    return matchesSearch && matchesType
+    const name = String(g.student?.full_name ?? '').toLowerCase()
+    const matchesSearch = !searchQuery.value || name.includes(searchQuery.value.toLowerCase())
+    const matchesType = selectedTypeFilter.value === 'all' || g.assessment_type === selectedTypeFilter.value
+    const matchesSubject =
+      selectedSubjectFilter.value === 'all'
+      || String(g.subject_id ?? '') === selectedSubjectFilter.value
+      || String(g.subject ?? '').toLowerCase() === selectedSubjectFilter.value.toLowerCase()
+    return matchesSearch && matchesType && matchesSubject
   })
 })
+
+/** Student-first marksheet rows: one learner, their recent marks. */
+const marksheetRows = computed(() => {
+  const byStudent = new Map<string, {
+    key: string
+    name: string
+    number?: string
+    marks: GradeRow[]
+  }>()
+
+  for (const student of students.value) {
+    const key = String(student.id)
+    byStudent.set(key, {
+      key,
+      name: student.full_name ?? (student.student_number ? `Student ${student.student_number}` : 'Student'),
+      number: student.student_number,
+      marks: [],
+    })
+  }
+
+  for (const grade of filteredGrades.value) {
+    const key = String(grade.student_id ?? grade.student?.id ?? grade.student?.full_name ?? grade.id)
+    const existing = byStudent.get(key)
+    if (existing) {
+      existing.marks.push(grade)
+    } else {
+      byStudent.set(key, {
+        key,
+        name: grade.student?.full_name ?? 'Student',
+        marks: [grade],
+      })
+    }
+  }
+
+  const q = searchQuery.value.trim().toLowerCase()
+  return Array.from(byStudent.values())
+    .filter((row) => !q || row.name.toLowerCase().includes(q) || String(row.number ?? '').toLowerCase().includes(q))
+    .sort((a, b) => a.name.localeCompare(b.name))
+})
+
+const avgScore = computed(() => {
+  const valid = filteredGrades.value.filter((g) => g.total && g.total > 0)
+  if (!valid.length) return null
+  const sum = valid.reduce((acc, g) => acc + ((g.score ?? 0) / (g.total ?? 1)) * 100, 0)
+  return (sum / valid.length).toFixed(1)
+})
+
+const subjectOptionsForFilter = computed(() => {
+  const fromCatalog = subjects.value.map((s) => ({ id: String(s.id), name: s.name }))
+  if (fromCatalog.length) return fromCatalog
+  const names = [...new Set(grades.value.map((g) => String(g.subject ?? '')).filter(Boolean))]
+  return names.map((name) => ({ id: name, name }))
+})
+
+function scoreLabel(g: GradeRow): string {
+  if (g.score == null) return '—'
+  return g.total ? `${g.score}/${g.total}` : String(g.score)
+}
+
+function percent(g: GradeRow): number | null {
+  if (g.score == null || !g.total || g.total <= 0) return null
+  return Math.round(((g.score / g.total) * 100) * 10) / 10
+}
 
 async function loadClasses() {
   loading.value = true
   error.value = null
 
-  // Set up filters: If they are a teacher, pin requests to their teacher_id
   const filterParams = isTeacher.value && teacherId.value
     ? { teacher_id: teacherId.value }
     : { all: true }
 
   try {
     const [classRows, subjectRows, termRows] = await Promise.all([
-      // Scopes the classes dropdown to just the classes this teacher handles
       fetchList<ClassOption>(moduleEndpoints.classes, filterParams),
-      // Scopes the subjects list to just what this teacher runs
       fetchList<SubjectOption>(moduleEndpoints.subjects, filterParams),
-      // Terms are universal for the calendar track
       fetchList<TermOption>(moduleEndpoints.terms, { all: true }),
     ])
 
@@ -134,7 +195,7 @@ async function loadClasses() {
       selectedClass.value = String(classes.value[0].id)
     }
   } catch (err) {
-    error.value = err instanceof Error ? err.message : 'Failed to load gradebook layers'
+    error.value = err instanceof Error ? err.message : 'Failed to load gradebook'
   } finally {
     loading.value = false
   }
@@ -163,18 +224,19 @@ async function loadGrades() {
   }
 }
 
-const avgScore = computed(() => {
-  const valid = grades.value.filter((g) => g.total && g.total > 0)
-  if (!valid.length) return null
-  const sum = valid.reduce((acc, g) => acc + ((g.score ?? 0) / (g.total ?? 1)) * 100, 0)
-  return (sum / valid.length).toFixed(1)
-})
+function selectClass(id: string) {
+  if (selectedClass.value === id) return
+  selectedClass.value = id
+  searchQuery.value = ''
+  selectedSubjectFilter.value = 'all'
+  selectedTypeFilter.value = 'all'
+}
 
-function openEntry() {
-  const activeTermId = terms.value.find(t => t.is_current)?.id || terms.value[0]?.id || ''
+function openEntry(prefillStudentId?: number) {
+  const activeTermId = terms.value.find((t) => t.is_current)?.id || terms.value[0]?.id || ''
 
   form.value = {
-    student_id: '',
+    student_id: prefillStudentId ? String(prefillStudentId) : '',
     subject_id: subjects.value[0] ? String(subjects.value[0].id) : '',
     score: '',
     total: '100',
@@ -188,7 +250,7 @@ async function saveGrade() {
   if (!selectedClass.value || !form.value.student_id || !form.value.subject_id) {
     toast({
       title: 'Missing fields',
-      description: 'Please select a student and subject before continuing.',
+      description: 'Select a student and subject before saving.',
       variant: 'destructive',
     })
     return
@@ -204,12 +266,12 @@ async function saveGrade() {
       term: form.value.term ? Number(form.value.term) : undefined,
       assessment_type: form.value.assessment_type,
     })
-    toast({ title: 'Grade recorded successfully' })
+    toast({ title: 'Mark saved' })
     modalOpen.value = false
     await loadGrades()
   } catch (err) {
     toast({
-      title: 'Could not save grade',
+      title: 'Could not save mark',
       description: getErrorMessage(err),
       variant: 'destructive',
     })
@@ -233,161 +295,251 @@ onMounted(async () => {
 <template>
   <PageShell
     title="Gradebook"
-    description="Enter and review marks by class"
+    description="Class-first marks — pick a class, scan the marksheet, enter scores."
     max-width="wide"
   >
     <template #actions>
-      <div class="space-y-1">
-        <Label for="class-select" class="sr-only">Class Selector</Label>
-        <Select v-model="selectedClass">
-          <SelectTrigger id="class-select" class="w-48 h-10">
-            <SelectValue placeholder="Select class" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem v-for="cls in classes" :key="cls.id" :value="String(cls.id)">
-              {{ cls.name }}
-            </SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-      <Button class="h-10 px-4" @click="openEntry">
+      <Button class="h-10 px-4" :disabled="!selectedClass" @click="openEntry()">
         <Plus class="mr-2 h-4 w-4" aria-hidden="true" />
-        Enter marks
+        Enter mark
       </Button>
     </template>
 
-    <PageLoader v-if="loading" label="Loading gradebook layers…" />
+    <PageLoader v-if="loading" label="Loading gradebook…" />
     <ErrorState v-else-if="error" :description="error" @retry="loadClasses" />
 
-    <template v-else>
-      <div class="grid gap-4 sm:grid-cols-3">
-        <Card>
-          <CardHeader class="pb-2">
-            <CardTitle class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Records</CardTitle>
-          </CardHeader>
-          <CardContent class="text-2xl font-bold text-foreground">{{ grades.length }}</CardContent>
-        </Card>
-        <Card>
-          <CardHeader class="pb-2">
-            <CardTitle class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Class average</CardTitle>
-          </CardHeader>
-          <CardContent class="text-2xl font-bold text-foreground">
-            {{ avgScore != null ? `${avgScore}%` : '—' }}
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader class="pb-2">
-            <CardTitle class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Students in class</CardTitle>
-          </CardHeader>
-          <CardContent class="text-2xl font-bold text-foreground">{{ students.length }}</CardContent>
-        </Card>
-      </div>
+    <div
+      v-else-if="!classes.length"
+      class="rounded-2xl border border-dashed border-border/70 px-6 py-16 text-center"
+      role="status"
+    >
+      <Users class="mx-auto size-8 text-muted-foreground" aria-hidden="true" />
+      <p class="mt-3 text-sm font-medium text-foreground">No classes assigned</p>
+      <p class="mt-1 text-sm text-muted-foreground">
+        When you are assigned to classes, they will appear here for mark entry.
+      </p>
+    </div>
 
-      <Card>
-        <CardHeader class="pb-4">
-          <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <CardTitle class="text-base font-semibold tracking-tight">Grade entries</CardTitle>
+    <div
+      v-else
+      class="grid gap-6 lg:grid-cols-[14rem_minmax(0,1fr)] xl:grid-cols-[15.5rem_minmax(0,1fr)]"
+    >
+      <!-- Class rail (desktop) -->
+      <nav
+        class="hidden lg:block"
+        aria-label="Classes"
+      >
+        <div class="sticky top-20 space-y-1 rounded-2xl border border-border/60 bg-muted/20 p-2.5">
+          <p class="px-2.5 pb-1 pt-0.5 text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
+            Classes
+          </p>
+          <button
+            v-for="cls in classes"
+            :key="cls.id"
+            type="button"
+            :class="cn(
+              'flex w-full items-center rounded-xl px-2.5 py-2 text-left text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+              selectedClass === String(cls.id)
+                ? 'bg-primary text-primary-foreground shadow-sm'
+                : 'text-muted-foreground hover:bg-background/70 hover:text-foreground',
+            )"
+            :aria-current="selectedClass === String(cls.id) ? 'page' : undefined"
+            @click="selectClass(String(cls.id))"
+          >
+            <span class="truncate">{{ cls.name }}</span>
+          </button>
+        </div>
+      </nav>
 
-            <!-- Table Sub-Filter & Search Input Row -->
-            <div class="flex flex-col gap-2 sm:flex-row sm:items-center w-full sm:w-auto">
-              <div class="relative w-full sm:w-64">
-                <Search class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground/70" aria-hidden="true" />
-                <Input
-                  v-model="searchQuery"
-                  placeholder="Search student name..."
-                  class="pl-9 h-9 text-sm"
-                />
-              </div>
+      <!-- Marksheet pane -->
+      <section class="min-w-0 space-y-4" aria-label="Class marksheet">
+        <!-- Mobile class select -->
+        <div class="space-y-2 lg:hidden">
+          <Label for="gradebook-class">Class</Label>
+          <Select :model-value="selectedClass" @update:model-value="(v) => v && selectClass(String(v))">
+            <SelectTrigger id="gradebook-class" class="w-full h-10">
+              <SelectValue placeholder="Select class" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem v-for="cls in classes" :key="cls.id" :value="String(cls.id)">
+                {{ cls.name }}
+              </SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
 
-              <div class="flex items-center gap-2 w-full sm:w-auto">
-                <SlidersHorizontal class="h-4 w-4 text-muted-foreground shrink-0 hidden sm:block" aria-hidden="true" />
-                <Select v-model="selectedTypeFilter">
-                  <SelectTrigger class="w-full sm:w-40 h-9 text-xs">
-                    <SelectValue placeholder="All Assessment Types" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Assessments</SelectItem>
-                    <SelectItem value="test">Tests</SelectItem>
-                    <SelectItem value="assignment">Assignments</SelectItem>
-                    <SelectItem value="exam">Exams</SelectItem>
-                    <SelectItem value="project">Projects</SelectItem>
-                    <SelectItem value="quiz">Quizzes</SelectItem>
-                    <SelectItem value="other">Other</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
+        <header class="flex flex-col gap-3 border-b border-border/60 pb-4 sm:flex-row sm:items-end sm:justify-between">
+          <div class="min-w-0 space-y-1">
+            <h2 class="font-heading text-lg font-semibold tracking-tight text-foreground">
+              {{ selectedClassName }}
+            </h2>
+            <p class="text-sm text-muted-foreground">
+              <span>{{ marksheetRows.length }} learner{{ marksheetRows.length === 1 ? '' : 's' }}</span>
+              <span aria-hidden="true"> · </span>
+              <span>{{ filteredGrades.length }} mark{{ filteredGrades.length === 1 ? '' : 's' }}</span>
+              <template v-if="avgScore != null">
+                <span aria-hidden="true"> · </span>
+                <span>Avg {{ avgScore }}%</span>
+              </template>
+            </p>
           </div>
-        </CardHeader>
 
-        <CardContent class="p-0">
-          <PageLoader v-if="gradesLoading" class="py-12" label="Syncing entry metrics…" />
-          <div v-else class="overflow-x-auto">
+          <div class="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <div class="relative w-full sm:w-56">
+              <Search
+                class="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+                aria-hidden="true"
+              />
+              <Input
+                v-model="searchQuery"
+                type="search"
+                placeholder="Search learner…"
+                class="h-9 pl-9 text-sm"
+                aria-label="Search learner"
+              />
+            </div>
+            <Select v-model="selectedSubjectFilter">
+              <SelectTrigger class="h-9 w-full sm:w-40 text-sm" aria-label="Filter by subject">
+                <SelectValue placeholder="All subjects" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All subjects</SelectItem>
+                <SelectItem
+                  v-for="s in subjectOptionsForFilter"
+                  :key="s.id"
+                  :value="s.id"
+                >
+                  {{ s.name }}
+                </SelectItem>
+              </SelectContent>
+            </Select>
+            <Select v-model="selectedTypeFilter">
+              <SelectTrigger class="h-9 w-full sm:w-36 text-sm" aria-label="Filter by assessment type">
+                <SelectValue placeholder="All types" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All types</SelectItem>
+                <SelectItem value="test">Test</SelectItem>
+                <SelectItem value="assignment">Assignment</SelectItem>
+                <SelectItem value="exam">Exam</SelectItem>
+                <SelectItem value="project">Project</SelectItem>
+                <SelectItem value="quiz">Quiz</SelectItem>
+                <SelectItem value="other">Other</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </header>
+
+        <PageLoader v-if="gradesLoading" label="Loading marks…" />
+
+        <div
+          v-else
+          class="overflow-hidden rounded-2xl border border-border/60 bg-card"
+        >
+          <div class="overflow-x-auto">
             <Table>
               <TableHeader>
-                <TableRow>
-                  <TableHead>Student</TableHead>
-                  <TableHead>Subject</TableHead>
-                  <TableHead>Term</TableHead>
-                  <TableHead>Score</TableHead>
-                  <TableHead>Grade</TableHead>
+                <TableRow class="hover:bg-transparent">
+                  <TableHead class="min-w-[10rem] sticky left-0 z-10 bg-card">Learner</TableHead>
+                  <TableHead class="min-w-[14rem]">Marks</TableHead>
+                  <TableHead class="w-28 text-right">
+                    <span class="sr-only">Actions</span>
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                <template v-if="filteredGrades.length">
-                <TableRow v-for="g in filteredGrades" :key="g.id">
-                  <TableCell class="font-medium">{{ g.student?.full_name ?? '—' }}</TableCell>
-                  <TableCell>
-                    <div class="flex flex-col gap-0.5">
-                      <span>{{ g.subject ?? '—' }}</span>
-                      <span class="text-[10px] uppercase tracking-wider text-muted-foreground font-medium sm:hidden">
-                        {{ g.assessment_type }}
-                      </span>
-                    </div>
-                  </TableCell>
-                  <TableCell class="text-muted-foreground">{{ g.term ?? '—' }}</TableCell>
-                  <TableCell class="font-mono tracking-tight">
-                    {{ g.score ?? '—' }}{{ g.total ? ` / ${g.total}` : '' }}
-                  </TableCell>
-                  <TableCell>
-                    <div class="flex items-center gap-2">
-                      <Badge variant="outline" class="font-normal text-xs px-2 py-0.5">{{ g.grade ?? '—' }}</Badge>
-                      <Badge variant="secondary" class="font-medium text-[10px] uppercase tracking-wider px-1.5 py-0 hidden sm:inline-flex">
-                        {{ g.assessment_type ?? 'test' }}
-                      </Badge>
-                    </div>
-                  </TableCell>
-                </TableRow>
+                <template v-if="marksheetRows.length">
+                  <TableRow
+                    v-for="row in marksheetRows"
+                    :key="row.key"
+                    class="align-top"
+                  >
+                    <TableCell class="sticky left-0 z-10 bg-card font-medium">
+                      <div class="min-w-0">
+                        <p class="truncate text-foreground">{{ row.name }}</p>
+                        <p v-if="row.number" class="truncate text-xs text-muted-foreground">
+                          {{ row.number }}
+                        </p>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <ul
+                        v-if="row.marks.length"
+                        class="flex flex-wrap gap-2"
+                        role="list"
+                      >
+                        <li
+                          v-for="mark in row.marks"
+                          :key="mark.id"
+                          class="inline-flex max-w-full items-center gap-1.5 rounded-lg border border-border/70 bg-muted/30 px-2 py-1"
+                        >
+                          <span class="truncate text-xs font-medium text-foreground">
+                            {{ mark.subject ?? 'Subject' }}
+                          </span>
+                          <span class="font-mono text-xs tabular-nums text-foreground">
+                            {{ scoreLabel(mark) }}
+                          </span>
+                          <Badge
+                            v-if="mark.grade"
+                            variant="outline"
+                            class="h-5 px-1.5 text-[10px] font-medium"
+                          >
+                            {{ mark.grade }}
+                          </Badge>
+                          <span
+                            v-if="percent(mark) != null"
+                            class="text-[10px] text-muted-foreground tabular-nums"
+                          >
+                            {{ percent(mark) }}%
+                          </span>
+                          <span class="sr-only">
+                            {{ mark.assessment_type ?? 'assessment' }}
+                            <template v-if="mark.term">, {{ mark.term }}</template>
+                          </span>
+                        </li>
+                      </ul>
+                      <p v-else class="text-sm text-muted-foreground">No marks yet</p>
+                    </TableCell>
+                    <TableCell class="text-right">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        class="h-8"
+                        @click="openEntry(Number(row.key) || undefined)"
+                      >
+                        Add
+                      </Button>
+                    </TableCell>
+                  </TableRow>
                 </template>
                 <TableEmpty
                   v-else
-                  :colspan="5"
-                  :title="grades.length ? 'No matching grades' : 'No grades yet'"
-                  :description="grades.length
-                    ? 'No logs match your search filters.'
-                    : 'Use Enter marks to add the first record for this class.'"
+                  :colspan="3"
+                  title="No learners to show"
+                  description="Adjust search or pick another class."
                 />
               </TableBody>
             </Table>
           </div>
-        </CardContent>
-      </Card>
-    </template>
+        </div>
+      </section>
+    </div>
 
     <Dialog v-model:open="modalOpen">
-      <DialogContent class="flex max-h-[85vh] w-full max-w-md flex-col gap-0 overflow-hidden p-0 rounded-xl shadow-lg border">
-        <DialogHeader class="shrink-0 space-y-1 border-b border-muted/60 px-6 pb-4 pt-6">
-          <DialogTitle class="text-base font-semibold tracking-tight">Enter grade</DialogTitle>
-          <DialogDescription class="text-xs leading-relaxed">
-            Record a mark for a student in the selected class.
+      <DialogContent class="flex max-h-[85vh] w-full max-w-md flex-col gap-0 overflow-hidden rounded-xl border p-0 shadow-lg">
+        <DialogHeader class="shrink-0 space-y-1 border-b border-border/60 px-6 pb-4 pt-6">
+          <DialogTitle class="text-base font-semibold tracking-tight">Enter mark</DialogTitle>
+          <DialogDescription class="text-sm leading-relaxed">
+            Record a score for {{ selectedClassName }}.
           </DialogDescription>
         </DialogHeader>
 
-        <form id="grade-entry-form" class="flex-1 overflow-y-auto px-6 py-6 space-y-4" @submit.prevent="saveGrade">
+        <form id="grade-entry-form" class="flex-1 space-y-4 overflow-y-auto px-6 py-6" @submit.prevent="saveGrade">
           <div class="space-y-2">
             <Label for="grade-student">Student</Label>
             <Select v-model="form.student_id">
-              <SelectTrigger id="grade-student" class="w-full h-10">
+              <SelectTrigger id="grade-student" class="h-10 w-full">
                 <SelectValue placeholder="Select student" />
               </SelectTrigger>
               <SelectContent>
@@ -401,7 +553,7 @@ onMounted(async () => {
           <div class="space-y-2">
             <Label for="grade-subject">Subject</Label>
             <Select v-model="form.subject_id">
-              <SelectTrigger id="grade-subject" class="w-full h-10">
+              <SelectTrigger id="grade-subject" class="h-10 w-full">
                 <SelectValue placeholder="Select subject" />
               </SelectTrigger>
               <SelectContent>
@@ -426,8 +578,8 @@ onMounted(async () => {
           <div class="space-y-2">
             <Label for="grade-term">Term</Label>
             <Select v-model="form.term">
-              <SelectTrigger id="grade-term" class="w-full h-10">
-                <SelectValue placeholder="Select active term" />
+              <SelectTrigger id="grade-term" class="h-10 w-full">
+                <SelectValue placeholder="Select term" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem v-for="t in terms" :key="t.id" :value="String(t.id)">
@@ -441,7 +593,7 @@ onMounted(async () => {
           <div class="space-y-2">
             <Label for="grade-type">Assessment type</Label>
             <Select v-model="form.assessment_type">
-              <SelectTrigger id="grade-type" class="w-full h-10">
+              <SelectTrigger id="grade-type" class="h-10 w-full">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -456,10 +608,10 @@ onMounted(async () => {
           </div>
         </form>
 
-        <DialogFooter class="shrink-0 border-t border-muted/60 px-6 py-4 sm:flex-row sm:justify-end gap-2">
+        <DialogFooter class="shrink-0 gap-2 border-t border-border/60 px-6 py-4 sm:flex-row sm:justify-end">
           <Button type="button" variant="outline" @click="modalOpen = false">Cancel</Button>
           <Button type="submit" form="grade-entry-form" :disabled="saving">
-            {{ saving ? 'Saving…' : 'Save grade' }}
+            {{ saving ? 'Saving…' : 'Save mark' }}
           </Button>
         </DialogFooter>
       </DialogContent>

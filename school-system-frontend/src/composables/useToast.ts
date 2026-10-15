@@ -10,5 +10,7 @@ export function useToast() {
       notificationStore.notify({ title, description, variant: 'destructive' }),
     info: (title: string, description?: string) =>
       notificationStore.notify({ title, description }),
+    warning: (title: string, description?: string) =>
+      notificationStore.notify({ title, description, variant: 'warning' }),
   }
 }

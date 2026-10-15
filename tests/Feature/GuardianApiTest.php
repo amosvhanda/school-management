@@ -19,11 +19,12 @@ class GuardianApiTest extends TestCase
         ])->getJson('/api/v1/guardians');
 
         $response->assertOk()
-            ->assertJsonCount(1)
-            ->assertJsonPath('0.id', $guardian->id)
-            ->assertJsonPath('0.school_id', $auth['school']->id);
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.id', $guardian->id)
+            ->assertJsonPath('data.0.school_id', $auth['school']->id)
+            ->assertJsonPath('meta.current_page', 1);
 
-        $this->assertNotContains($otherGuardian->id, array_column($response->json(), 'id'));
+        $this->assertNotContains($otherGuardian->id, array_column($response->json('data'), 'id'));
     }
 
     public function test_create_guardian_and_link_student(): void

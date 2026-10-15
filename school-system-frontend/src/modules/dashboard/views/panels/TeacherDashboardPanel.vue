@@ -11,11 +11,11 @@ import {
   Pencil,
   Users,
 } from '@lucide/vue'
-import PageLoader from '@/components/feedback/PageLoader.vue'
 import ErrorState from '@/components/feedback/ErrorState.vue'
-import DashboardHero from '@/components/dashboard/DashboardHero.vue'
-import MetricBand from '@/components/dashboard/MetricBand.vue'
-import type { MetricCard } from '@/components/dashboard/MetricBand.vue'
+import EmptyState from '@/components/feedback/EmptyState.vue'
+import DashboardSkeleton from '@/components/dashboard/DashboardSkeleton.vue'
+import TeacherGreetingCard from '@/components/dashboard/TeacherGreetingCard.vue'
+import KpiCard from '@/components/dashboard/KpiCard.vue'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -39,7 +39,6 @@ import {
   STATUS_TONE_BADGE,
 } from '@/lib/ui-status'
 import { canShowDashboardItem } from '@/lib/dashboard-access'
-import { getRoleDashboardMeta } from '@/lib/role-dashboard'
 import { useRouter } from 'vue-router'
 import { academicsApi, teachersApi, teacherPortalApi } from '@/services/api.service'
 import { fetchList } from '@/services/dashboard.service'
@@ -53,6 +52,7 @@ interface TeacherProfile {
   subject?: string
   department?: string
   title?: string
+  employee_id?: string | null
 }
 
 interface AssignmentRow {
@@ -81,6 +81,7 @@ interface ClassCard {
   subject: string
   studentCount: number
   nextLesson: string | null
+  avgMarks: number | null
 }
 
 interface LessonRow {
@@ -118,7 +119,6 @@ const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 
 const { user } = useAuth()
 const router = useRouter()
 const { school, loadSchool } = useSchoolProfile()
-const meta = getRoleDashboardMeta(user.value?.role)
 
 const loading = ref(true)
 const error = ref<string | null>(null)
@@ -137,62 +137,90 @@ const portalExtras = ref<{
   workload?: { lesson_plans_draft?: number; assignments_open?: number; submissions_to_grade?: number }
 } | null>(null)
 
+const hasTeacherProfile = computed(() => Boolean(user.value?.teacher_id))
+const teachingWorkspaceHref = computed(() =>
+  hasTeacherProfile.value ? '/teaching?tab=classes' : '/teaching?tab=lms',
+)
+
 const heroName = computed(() => teacher.value?.name || user.value?.name || 'Teacher')
-
-const subjectLine = computed(() => {
-  const subject = teacher.value?.subject || teacher.value?.department || 'Teacher'
-  const schoolName = school.value?.name || 'Your school'
-  return `${subject} Teacher · ${schoolName}`
-})
-
-const heroSubtitle = computed(() => `${subjectLine.value}. ${meta.subtitle}`)
 
 const totalStudents = computed(() =>
   classCards.value.reduce((sum, c) => sum + c.studentCount, 0),
 )
 
-const overviewCards = computed<MetricCard[]>(() => [
+const upcomingLessonCount = computed(
+  () => todayLessons.value.filter((lesson) => lesson.status === 'upcoming' || lesson.status === 'current').length,
+)
+
+const teachingHoursLabel = computed(() => {
+  let minutes = 0
+  for (const lesson of todayLessons.value) {
+    const start = toMinutes(lesson.start)
+    const end = toMinutes(lesson.end)
+    if (start != null && end != null && end > start) minutes += end - start
+  }
+  if (!minutes) return '—'
+  const hours = Math.floor(minutes / 60)
+  const rest = minutes % 60
+  return rest ? `${hours}h ${rest}m` : `${hours}h`
+})
+
+const avgClassMarks = computed(() => {
+  const scored = recentGrades.value.filter((row) => row.percent != null)
+  if (!scored.length) return null
+  return Math.round(scored.reduce((sum, row) => sum + (row.percent ?? 0), 0) / scored.length)
+})
+
+const atRiskStudents = computed(() =>
+  recentGrades.value.filter((row) => row.percent != null && (row.percent ?? 0) < 60).slice(0, 5),
+)
+
+const homeworkOpen = computed(() => portalExtras.value?.workload?.assignments_open ?? workItems.value.filter((row) => row.type !== 'test').length)
+const submissionsToGrade = computed(() => portalExtras.value?.workload?.submissions_to_grade ?? pendingGrades.value)
+
+const overviewCards = computed(() => [
   {
-    title: 'My Classes',
-    value: classCards.value.length,
-    subtitle: 'Open in Teaching',
-    icon: BookOpen,
-    href: '/teaching?tab=classes',
-    capability: 'isStaff',
-  },
-  {
-    title: 'Total Students',
-    value: totalStudents.value,
-    subtitle: 'Across your classes',
-    icon: Users,
-    href: '/teaching?tab=classes',
-    capability: 'canManageStudents',
-  },
-  {
-    title: "Today's Lessons",
+    title: "Today's Classes",
     value: todayLessons.value.length,
     subtitle: 'On your timetable today',
     icon: CalendarDays,
     href: '/academics/my-timetable',
-    capability: 'isStaff',
   },
   {
-    title: 'Pending Grades',
-    value: pendingGrades.value,
-    subtitle: 'Tests needing attention',
+    title: 'Students',
+    value: totalStudents.value,
+    subtitle: 'Across your classes',
+    icon: Users,
+    href: teachingWorkspaceHref.value,
+  },
+  {
+    title: 'Assignments pending',
+    value: submissionsToGrade.value,
+    subtitle: 'Submissions to review',
+    icon: NotebookPen,
+    href: '/teaching?tab=homework',
+    accent: submissionsToGrade.value > 0 ? ('warning' as const) : undefined,
+  },
+  {
+    title: 'Homework open',
+    value: homeworkOpen.value,
+    subtitle: 'Active assignments',
+    icon: BookOpen,
+    href: '/teaching?tab=homework',
+  },
+  {
+    title: 'Upcoming exams',
+    value: portalExtras.value?.upcoming_exams?.length ?? 0,
+    subtitle: 'Scheduled assessments',
     icon: GraduationCap,
-    href: '/academics/grades',
-    capability: ['canManageExaminations', 'canEnterExamResults'],
-    accent: pendingGrades.value > 0 ? 'warning' : undefined,
+    href: '/academics/exams',
   },
   {
-    title: 'Pending attendance',
-    value: portalExtras.value?.pending_attendance_classes ?? 0,
-    subtitle: 'Classes without today’s register',
+    title: 'Messages',
+    value: portalExtras.value?.unread_notifications ?? 0,
+    subtitle: 'Unread notifications',
     icon: ClipboardCheck,
-    href: '/academics/attendance',
-    capability: 'canManageStudents',
-    accent: (portalExtras.value?.pending_attendance_classes ?? 0) > 0 ? 'warning' : undefined,
+    href: '/teaching?tab=notifications',
   },
 ])
 
@@ -206,8 +234,15 @@ const quickActions = computed(() => {
       capability: 'canManageStudents' as const,
     },
     {
-      label: 'Open Teaching',
-      href: '/teaching',
+      label: 'Start class',
+      href: '/academics/my-timetable',
+      icon: CalendarDays,
+      primary: false,
+      capability: 'isStaff' as const,
+    },
+    {
+      label: 'Create assignment',
+      href: '/teaching?tab=homework',
       icon: BookOpen,
       primary: false,
       capability: 'isStaff' as const,
@@ -229,8 +264,10 @@ const quickActions = computed(() => {
   )
 })
 
-const canOpenClasses = computed(() =>
-  canShowDashboardItem(user.value, { href: '/teaching?tab=classes', capability: 'isStaff' }, router),
+const canOpenClasses = computed(
+  () =>
+    hasTeacherProfile.value &&
+    canShowDashboardItem(user.value, { href: '/teaching?tab=classes', capability: 'isStaff' }, router),
 )
 
 const canTakeAttendance = computed(() =>
@@ -337,7 +374,7 @@ async function load() {
       teacherId
         ? (academicsApi.tests.list({ teacher_id: teacherId, limit: 20 }) as Promise<Record<string, unknown>[]>).catch(() => [])
         : Promise.resolve([]),
-      teacherPortalApi.dashboard().catch(() => null),
+      teacherId ? teacherPortalApi.dashboard().catch(() => null) : Promise.resolve(null),
     ])
     portalExtras.value = portal as typeof portalExtras.value
 
@@ -357,6 +394,7 @@ async function load() {
           subject,
           studentCount: 0,
           nextLesson: null,
+          avgMarks: null,
         })
       }
     }
@@ -439,6 +477,22 @@ async function load() {
     }
     recentGrades.value = gradeRows.slice(0, 8)
 
+    const marksByClass = new Map<number, number[]>()
+    for (const row of gradeRows) {
+      if (row.percent == null) continue
+      const classId = classIds.find((id) => classMap.get(id)?.className === row.className)
+      if (classId == null) continue
+      const list = marksByClass.get(classId) ?? []
+      list.push(row.percent)
+      marksByClass.set(classId, list)
+    }
+    for (const [classId, marks] of marksByClass) {
+      const card = classMap.get(classId)
+      if (card && marks.length) {
+        card.avgMarks = Math.round(marks.reduce((sum, n) => sum + n, 0) / marks.length)
+      }
+    }
+
     const work: WorkRow[] = []
     for (const a of assignmentList.slice(0, 10)) {
       work.push({
@@ -486,50 +540,96 @@ onMounted(load)
 </script>
 
 <template>
-  <div class="mx-auto w-full max-w-[1600px] space-y-8 pb-8">
-    <DashboardHero
-      :name="heroName"
-      :role="meta.label"
-      :subtitle="heroSubtitle"
-      :loading="loading"
-      :last-updated="lastUpdated"
-      @refresh="refresh"
-    />
+  <div class="mx-auto w-full max-w-[1600px] space-y-6 pb-8">
+    <header class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+      <div>
+        <p class="text-xs text-muted-foreground">Dashboard / Teacher Dashboard</p>
+        <h1 class="mt-1 font-heading text-2xl font-semibold tracking-tight md:text-3xl">
+          Teacher Dashboard
+        </h1>
+      </div>
+      <div class="flex flex-wrap items-center gap-2">
+        <span
+          v-if="lastUpdated"
+          class="text-xs text-muted-foreground"
+        >
+          Updated {{ formatTime(lastUpdated) }}
+        </span>
+        <Button
+          variant="outline"
+          size="sm"
+          class="h-9 rounded-full"
+          :disabled="loading"
+          :aria-busy="loading"
+          @click="refresh"
+        >
+          Refresh
+        </Button>
+      </div>
+    </header>
 
-    <PageLoader v-if="loading" label="Loading your dashboard…" />
+    <DashboardSkeleton v-if="loading" />
     <ErrorState v-else-if="error" :description="error" @retry="refresh" />
 
     <template v-else>
-      <MetricBand
-        title="Today at a glance"
-        description="Classes, register, and marks that need attention"
-        :cards="overviewCards"
+      <EmptyState
+        v-if="!hasTeacherProfile"
+        title="Teacher profile not linked"
+        description="This account has no teacher profile, so class lists, homework, and lesson plans are unavailable. Use LMS for school-wide online lessons, or link a teacher under People → Teachers."
+      >
+        <div class="flex flex-wrap justify-center gap-2">
+          <Button as-child>
+            <RouterLink to="/teaching?tab=lms">Open LMS</RouterLink>
+          </Button>
+          <Button variant="outline" as-child>
+            <RouterLink to="/teachers">People → Teachers</RouterLink>
+          </Button>
+        </div>
+      </EmptyState>
+
+      <template v-if="hasTeacherProfile">
+      <TeacherGreetingCard
+        :name="heroName"
+        :employee-id="teacher?.employee_id"
+        :department="teacher?.department"
+        :subject="teacher?.subject"
+        :title="teacher?.title"
+        :school-name="school?.name"
+        :today-lessons="todayLessons.length"
+        :teaching-hours="teachingHoursLabel"
+        :upcoming-classes="upcomingLessonCount"
+        :pending-registers="portalExtras?.pending_attendance_classes ?? 0"
+        profile-href="/profile"
       />
 
       <section v-if="quickActions.length" aria-labelledby="teacher-quick-actions">
         <h2 id="teacher-quick-actions" class="mb-3 text-sm font-medium text-muted-foreground">
-          Start here
+          Quick actions
         </h2>
-        <div class="grid gap-3 sm:grid-cols-3">
-          <RouterLink
+        <div class="flex flex-wrap gap-2">
+          <Button
             v-for="action in quickActions"
             :key="action.label"
-            :to="action.href"
-            :class="cn(
-              'flex flex-col items-start gap-3 rounded-xl border px-4 py-4 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-              action.primary
-                ? 'border-foreground bg-foreground text-background hover:bg-foreground/90'
-                : 'border-border/70 bg-card text-foreground hover:bg-muted/40',
-            )"
+            :variant="action.primary ? 'default' : 'outline'"
+            size="sm"
+            class="h-9 rounded-full"
+            as-child
           >
-            <component
-              :is="action.icon"
-              class="size-5"
-              :class="action.primary ? 'text-background' : 'text-muted-foreground'"
-              aria-hidden="true"
-            />
-            <span class="text-sm font-semibold">{{ action.label }}</span>
-          </RouterLink>
+            <RouterLink :to="action.href">
+              <component :is="action.icon" class="mr-1.5 size-3.5" aria-hidden="true" />
+              {{ action.label }}
+            </RouterLink>
+          </Button>
+        </div>
+      </section>
+
+      <section aria-label="Teaching overview">
+        <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          <KpiCard
+            v-for="card in overviewCards"
+            :key="card.title"
+            v-bind="card"
+          />
         </div>
       </section>
 
@@ -538,7 +638,7 @@ onMounted(load)
         class="grid gap-4 lg:grid-cols-3"
         aria-label="Announcements, exams, and workload"
       >
-        <Card class="border-border/70 shadow-sm">
+        <Card>
           <CardHeader>
             <CardTitle class="text-base">School announcements</CardTitle>
             <CardDescription>Latest notices for staff.</CardDescription>
@@ -555,10 +655,10 @@ onMounted(load)
             </Button>
           </CardContent>
         </Card>
-        <Card class="border-border/70 shadow-sm">
+        <Card>
           <CardHeader class="flex flex-row items-start justify-between gap-3">
             <div>
-              <CardTitle class="text-base">Upcoming examinations</CardTitle>
+              <CardTitle class="text-base">Exam &amp; Grading</CardTitle>
             </div>
             <Button v-if="canOpenExams" variant="outline" size="sm" as-child>
               <RouterLink to="/academics/exams">Exams</RouterLink>
@@ -572,7 +672,7 @@ onMounted(load)
             </div>
           </CardContent>
         </Card>
-        <Card class="border-border/70 shadow-sm">
+        <Card>
           <CardHeader>
             <CardTitle class="text-base">Teaching workload</CardTitle>
             <CardDescription>Plans and homework waiting on you.</CardDescription>
@@ -600,98 +700,161 @@ onMounted(load)
         </Card>
       </section>
 
-      <section class="grid gap-6 lg:grid-cols-2" aria-label="Classes and lessons">
-        <Card class="border-border/70 shadow-sm">
+      <section class="grid gap-4 xl:grid-cols-12" aria-label="Timetable and performance">
+        <Card class="xl:col-span-7">
           <CardHeader class="flex flex-row items-start justify-between gap-3">
             <div>
-              <CardTitle class="text-base">My Classes</CardTitle>
-              <CardDescription>Classes you teach — open Teaching or mark the register.</CardDescription>
-            </div>
-            <Button v-if="canOpenClasses" variant="outline" size="sm" as-child>
-              <RouterLink to="/teaching?tab=classes">All classes</RouterLink>
-            </Button>
-          </CardHeader>
-          <CardContent class="space-y-3">
-            <p v-if="!classCards.length" class="py-6 text-center text-sm text-muted-foreground">
-              No class assignments yet. Ask admin to assign you to classes and subjects.
-            </p>
-            <div
-              v-for="cls in classCards"
-              :key="cls.classId"
-              class="flex flex-col gap-3 rounded-xl border border-border/60 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
-            >
-              <div class="min-w-0">
-                <p class="font-semibold text-foreground">{{ cls.className }}</p>
-                <p class="text-sm text-muted-foreground">
-                  {{ cls.subject }} · {{ cls.studentCount }} students
-                </p>
-                <p v-if="cls.nextLesson" class="mt-1 text-xs text-muted-foreground">
-                  Next lesson {{ cls.nextLesson }}
-                </p>
-              </div>
-              <div v-if="canOpenClasses || canTakeAttendance" class="flex shrink-0 gap-2">
-                <Button v-if="canOpenClasses" variant="outline" size="sm" as-child>
-                  <RouterLink :to="`/teaching?tab=classes`" :aria-label="`Open ${cls.className} in Teaching`">
-                    <Eye class="mr-1.5 size-3.5" aria-hidden="true" />
-                    Open
-                  </RouterLink>
-                </Button>
-                <Button v-if="canTakeAttendance" size="sm" as-child>
-                  <RouterLink
-                    :to="`/academics/attendance?class_id=${cls.classId}`"
-                    :aria-label="`Mark register for ${cls.className}`"
-                  >
-                    <ClipboardCheck class="mr-1.5 size-3.5" aria-hidden="true" />
-                    Mark register
-                  </RouterLink>
-                </Button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card class="border-border/70 shadow-sm">
-          <CardHeader class="flex flex-row items-start justify-between gap-3">
-            <div>
-              <CardTitle class="text-base">Today's Lessons</CardTitle>
-              <CardDescription>Your timetable for today.</CardDescription>
+              <CardTitle class="text-base">Today's Timetable</CardTitle>
+              <CardDescription>Lessons on your schedule today.</CardDescription>
             </div>
             <Button variant="outline" size="sm" as-child>
-              <RouterLink to="/academics/my-timetable">Full timetable</RouterLink>
+              <RouterLink to="/academics/my-timetable">View Full Schedule</RouterLink>
             </Button>
           </CardHeader>
           <CardContent class="space-y-3">
-            <p v-if="!todayLessons.length" class="py-6 text-center text-sm text-muted-foreground">
+            <p v-if="!todayLessons.length" class="py-8 text-center text-sm text-muted-foreground">
               No lessons scheduled for today.
             </p>
-            <div
-              v-for="lesson in todayLessons"
-              :key="lesson.id"
-              class="flex items-start justify-between gap-3 rounded-xl border border-border/60 px-4 py-3"
-            >
-              <div class="min-w-0">
-                <p class="text-sm font-semibold tabular-nums text-foreground">
-                  {{ lesson.start }} – {{ lesson.end }}
-                </p>
-                <p class="truncate text-sm text-muted-foreground">
-                  {{ lesson.subject }}, {{ lesson.className }} · Room {{ lesson.room }}
-                </p>
-              </div>
-              <Badge
-                variant="outline"
-                :class="cn(
-                  'capitalize shrink-0',
-                  STATUS_TONE_BADGE[lessonStatusTone(lesson.status)],
-                )"
+            <ol v-else class="space-y-3">
+              <li
+                v-for="lesson in todayLessons"
+                :key="lesson.id"
+                class="flex items-start gap-3 rounded-2xl bg-muted/40 px-4 py-3 ring-1 ring-border/60"
               >
-                {{ lesson.status }}
-              </Badge>
-            </div>
+                <div class="w-16 shrink-0 text-sm font-semibold tabular-nums">{{ lesson.start }}</div>
+                <div class="min-w-0 flex-1">
+                  <p class="font-semibold text-foreground">{{ lesson.subject }}</p>
+                  <p class="text-sm text-muted-foreground">
+                    {{ lesson.className }} · Room {{ lesson.room }}
+                  </p>
+                </div>
+                <Badge
+                  variant="outline"
+                  :class="cn('capitalize shrink-0', STATUS_TONE_BADGE[lessonStatusTone(lesson.status)])"
+                >
+                  {{ lesson.status === 'current' ? 'Live' : lesson.status === 'completed' ? 'Done' : 'Next' }}
+                </Badge>
+              </li>
+            </ol>
           </CardContent>
         </Card>
+
+        <div class="grid gap-4 xl:col-span-5">
+          <Card>
+            <CardHeader class="flex flex-row items-start justify-between gap-3">
+              <div>
+                <CardTitle class="text-base">Class Performance</CardTitle>
+                <CardDescription>Marks from your recent assessments.</CardDescription>
+              </div>
+              <Button v-if="canOpenGradebook" variant="outline" size="sm" as-child>
+                <RouterLink to="/academics/grades">View Details</RouterLink>
+              </Button>
+            </CardHeader>
+            <CardContent class="grid grid-cols-2 gap-3">
+              <div class="rounded-2xl bg-muted/50 p-3 ring-1 ring-border/60">
+                <p class="text-xs text-muted-foreground">Average Marks</p>
+                <p class="mt-1 text-2xl font-semibold tabular-nums">
+                  {{ avgClassMarks == null ? '—' : `${avgClassMarks}%` }}
+                </p>
+              </div>
+              <div class="rounded-2xl bg-muted/50 p-3 ring-1 ring-border/60">
+                <p class="text-xs text-muted-foreground">Registers pending</p>
+                <p class="mt-1 text-2xl font-semibold tabular-nums">
+                  {{ portalExtras?.pending_attendance_classes ?? 0 }}
+                </p>
+              </div>
+              <div class="rounded-2xl bg-muted/50 p-3 ring-1 ring-border/60">
+                <p class="text-xs text-muted-foreground">Homework open</p>
+                <p class="mt-1 text-2xl font-semibold tabular-nums">{{ homeworkOpen }}</p>
+              </div>
+              <div class="rounded-2xl bg-muted/50 p-3 ring-1 ring-border/60">
+                <p class="text-xs text-muted-foreground">To grade</p>
+                <p class="mt-1 text-2xl font-semibold tabular-nums">{{ submissionsToGrade }}</p>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle class="text-base">Students Needing Attention</CardTitle>
+              <CardDescription>Recent marks below 60%.</CardDescription>
+            </CardHeader>
+            <CardContent class="space-y-2">
+              <p v-if="!atRiskStudents.length" class="text-sm text-muted-foreground">
+                No low scores in the latest results.
+              </p>
+              <div
+                v-for="row in atRiskStudents"
+                :key="row.id"
+                class="flex items-center justify-between gap-3 rounded-xl bg-muted/40 px-3 py-2 ring-1 ring-border/60"
+              >
+                <div class="min-w-0">
+                  <p class="truncate font-medium">{{ row.student }}</p>
+                  <p class="truncate text-xs text-muted-foreground">{{ row.className }} · {{ row.assignment }}</p>
+                </div>
+                <Badge variant="outline" class="shrink-0">{{ row.percent }}%</Badge>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       </section>
 
-      <Card class="overflow-hidden border-border/70 shadow-sm">
+      <section aria-labelledby="my-classes-heading">
+        <div class="mb-3 flex items-end justify-between gap-3">
+          <div>
+            <h2 id="my-classes-heading" class="text-base font-semibold tracking-tight md:text-lg">My Classes</h2>
+            <p class="text-sm text-muted-foreground">Classes you teach this term.</p>
+          </div>
+          <Button v-if="canOpenClasses" variant="outline" size="sm" as-child>
+            <RouterLink to="/teaching?tab=classes">View all</RouterLink>
+          </Button>
+        </div>
+        <p v-if="!classCards.length" class="rounded-2xl bg-card px-4 py-10 text-center text-sm text-muted-foreground shadow-[var(--shadow-soft)] ring-1 ring-border/80">
+          No class assignments yet. Ask admin to assign you to classes and subjects.
+        </p>
+        <div v-else class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          <article
+            v-for="cls in classCards"
+            :key="cls.classId"
+            class="rounded-2xl bg-card p-4 shadow-[var(--shadow-soft)] ring-1 ring-border/80"
+          >
+            <p class="font-semibold">{{ cls.className }}</p>
+            <p class="mt-0.5 text-sm text-muted-foreground">{{ cls.subject }}</p>
+            <dl class="mt-4 grid grid-cols-2 gap-3 text-sm">
+              <div>
+                <dt class="text-xs text-muted-foreground">Students</dt>
+                <dd class="mt-0.5 text-lg font-semibold tabular-nums">{{ cls.studentCount }}</dd>
+              </div>
+              <div>
+                <dt class="text-xs text-muted-foreground">Avg Marks</dt>
+                <dd class="mt-0.5 text-lg font-semibold tabular-nums">
+                  {{ cls.avgMarks == null ? '—' : `${cls.avgMarks}%` }}
+                </dd>
+              </div>
+            </dl>
+            <p v-if="cls.nextLesson" class="mt-3 text-xs text-muted-foreground">Next lesson {{ cls.nextLesson }}</p>
+            <div v-if="canOpenClasses || canTakeAttendance" class="mt-4 flex flex-wrap gap-2">
+              <Button v-if="canOpenClasses" variant="outline" size="sm" as-child>
+                <RouterLink :to="`/teaching?tab=classes`" :aria-label="`Open ${cls.className} in Teaching`">
+                  <Eye class="mr-1.5 size-3.5" aria-hidden="true" />
+                  Open
+                </RouterLink>
+              </Button>
+              <Button v-if="canTakeAttendance" size="sm" as-child>
+                <RouterLink
+                  :to="`/academics/attendance?class_id=${cls.classId}`"
+                  :aria-label="`Mark register for ${cls.className}`"
+                >
+                  <ClipboardCheck class="mr-1.5 size-3.5" aria-hidden="true" />
+                  Mark register
+                </RouterLink>
+              </Button>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <Card class="overflow-hidden">
         <CardHeader class="flex flex-row items-center justify-between gap-3 border-b border-border/60">
           <div>
             <CardTitle class="text-base">Recent Grades</CardTitle>
@@ -745,10 +908,10 @@ onMounted(load)
         </CardContent>
       </Card>
 
-      <Card class="overflow-hidden border-border/70 shadow-sm">
+      <Card class="overflow-hidden">
         <CardHeader class="flex flex-col gap-3 border-b border-border/60 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <CardTitle class="text-base">My Assignments &amp; Tests</CardTitle>
+            <CardTitle class="text-base">Assignments</CardTitle>
             <CardDescription>Work set for your classes.</CardDescription>
           </div>
           <div v-if="canOpenGradebook || canOpenExams" class="flex flex-wrap gap-2">
@@ -815,6 +978,7 @@ onMounted(load)
           </div>
         </CardContent>
       </Card>
+      </template>
     </template>
   </div>
 </template>

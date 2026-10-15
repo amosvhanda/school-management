@@ -13,23 +13,32 @@ class TeacherPolicy
 
     public function viewAny(User $user): bool
     {
-        return $this->hasSchoolContext($user);
+        return $this->hasSchoolContext($user)
+            && (
+                $user->hasCapability('canManageTeachers')
+                || $user->hasPermission('hr.manage')
+            );
     }
 
     public function view(User $user, Teacher $teacher): bool
     {
-        return $this->belongsToSameSchool($user, $teacher->school_id);
+        return $this->belongsToSameSchool($user, $teacher->school_id)
+            && (
+                $user->hasCapability('canManageTeachers')
+                || $user->hasPermission('hr.manage')
+            );
     }
 
     public function create(User $user): bool
     {
-        return $user->role?->canManageTeachers() && $this->hasSchoolContext($user);
+        return $this->hasSchoolContext($user)
+            && $user->hasCapability('canManageTeachers');
     }
 
     public function update(User $user, Teacher $teacher): bool
     {
         return $this->belongsToSameSchool($user, $teacher->school_id)
-            && $user->role?->canManageTeachers();
+            && $user->hasCapability('canManageTeachers');
     }
 
     public function delete(User $user, Teacher $teacher): bool

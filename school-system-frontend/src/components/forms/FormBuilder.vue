@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, toRef } from 'vue'
+import { useFormValues } from 'vee-validate'
 import { useFormCascade } from '@/composables/useFormCascade'
 import { useClassNameDerive } from '@/composables/useClassNameDerive'
 import { Phone } from '@lucide/vue'
@@ -32,6 +33,7 @@ import {
 } from '@/lib/form-standards'
 import type { FormFieldSchema } from '@/components/forms/useFormBuilder'
 import RelationSelect from './RelationSelect.vue'
+import MultiRelationSelect from './MultiRelationSelect.vue'
 import GuardianLinkSection from './GuardianLinkSection.vue'
 import DatePicker from './DatePicker.vue'
 
@@ -51,16 +53,37 @@ const props = withDefaults(
 useFormCascade(toRef(() => props.fields))
 useClassNameDerive(toRef(() => props.fields))
 
+const formValues = useFormValues()
+
+function matchesVisibleWhen(field: FormFieldSchema, values: Record<string, unknown> | undefined): boolean {
+  const rule = field.visibleWhen
+  if (!rule) return true
+  const raw = values?.[rule.field]
+  const current = raw == null ? '' : String(raw)
+  const expected = Array.isArray(rule.equals) ? rule.equals : [rule.equals]
+  return expected.includes(current)
+}
+
+function fieldRenderKey(field: FormFieldSchema): string {
+  if (!field.visibleWhen) return field.name
+  const equals = Array.isArray(field.visibleWhen.equals)
+    ? field.visibleWhen.equals.join('|')
+    : field.visibleWhen.equals
+  return `${field.name}:${field.visibleWhen.field}=${equals}`
+}
+
 interface FieldGroup {
   title: string
   fields: FormFieldSchema[]
 }
 
 const groups = computed<FieldGroup[]>(() => {
+  const values = formValues.value as Record<string, unknown> | undefined
   const result: FieldGroup[] = []
   let current: FieldGroup = { title: '', fields: [] }
 
   for (const field of props.fields) {
+    if (!matchesVisibleWhen(field, values)) continue
     const section = field.section ?? ''
     if (section !== current.title) {
       if (current.fields.length) result.push(current)
@@ -85,7 +108,7 @@ const gridClass = computed(() => formGridClass(props.columns))
 // Determines column spacing rules dynamically across layout tiers
 function colClass(field: FormFieldSchema) {
   if (props.columns === 1) return ''
-  if (field.type === 'guardian-section') {
+  if (field.type === 'guardian-section' || field.type === 'multirelation') {
     return props.columns === 3 ? 'sm:col-span-2 lg:col-span-3' : 'sm:col-span-2'
   }
   if (field.colSpan === 2) {
@@ -112,7 +135,7 @@ function colClass(field: FormFieldSchema) {
       <div :class="gridClass">
         <div
           v-for="field in group.fields"
-          :key="field.name"
+          :key="fieldRenderKey(field)"
           :class="cn('min-w-0', colClass(field))"
         >
           <!-- Special composite block wrapper -->
@@ -153,8 +176,15 @@ function colClass(field: FormFieldSchema) {
                   @update:model-value="componentField['onUpdate:modelValue']"
                 />
 
+                <MultiRelationSelect
+                  v-else-if="field.type === 'multirelation' && field.relation"
+                  :field="field"
+                  :model-value="componentField.modelValue"
+                  @update:model-value="componentField['onUpdate:modelValue']"
+                />
+
                 <p
-                  v-else-if="field.type === 'relation'"
+                  v-else-if="field.type === 'relation' || field.type === 'multirelation'"
                   class="text-sm text-muted-foreground italic"
                   role="status"
                 >

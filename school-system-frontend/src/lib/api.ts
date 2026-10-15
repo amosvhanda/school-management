@@ -126,8 +126,18 @@ api.interceptors.response.use(
       }
     }
 
+    if (status === 403 && data?.code === 'two_factor_setup_required') {
+      if (routerInstance && routerInstance.currentRoute.value.name !== 'my-profile') {
+        routerInstance.push({ name: 'my-profile', query: { setup: '2fa' } })
+      }
+    }
+
     if (status === 403) {
-      onForbidden?.(getErrorMessage(error, 'You do not have permission to perform this action.'))
+      const message = getErrorMessage(error, 'You do not have permission to perform this action.')
+      // Page-level handlers already surface this soft teacher-portal failure.
+      if (!message.includes('Teacher profile not linked to this account.') && data?.code !== 'two_factor_setup_required') {
+        onForbidden?.(message)
+      }
     }
 
     return Promise.reject(error)

@@ -127,6 +127,10 @@ function coerceFieldValue(field: FormFieldSchema, raw: unknown): unknown {
     return iso || String(raw).trim().slice(0, 10)
   }
 
+  if (field.type === 'datetime-local') {
+    return toDatetimeLocalValue(raw)
+  }
+
   return raw
 }
 
@@ -217,6 +221,16 @@ export function mapRowToFormValues(
     }
   }
 
+  if (listKey === 'finance-fee-groups') {
+    const categories = row.categories
+    if (Array.isArray(categories)) {
+      values.fee_category_ids = categories
+        .map((c) => String((c as Record<string, unknown>).id ?? ''))
+        .filter(Boolean)
+        .join(', ')
+    }
+  }
+
   return values
 }
 
@@ -227,6 +241,30 @@ function sumMoneyMap(value: unknown): number | '' {
     return Number.isFinite(n) ? sum + n : sum
   }, 0)
   return total > 0 ? total : ''
+}
+
+/** Convert datetime-local (YYYY-MM-DDTHH:mm) or ISO to API-friendly datetime. */
+function toApiDateTime(value: unknown): string | undefined {
+  if (value == null || value === '') return undefined
+  const raw = String(value).trim()
+  if (!raw) return undefined
+  const normalized = raw.includes('T') ? raw.replace('T', ' ') : raw
+  if (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/.test(normalized)) {
+    return `${normalized}:00`
+  }
+  if (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}/.test(normalized)) {
+    return normalized.slice(0, 19)
+  }
+  return normalized
+}
+
+/** Convert API datetime/ISO to datetime-local input value. */
+function toDatetimeLocalValue(value: unknown): string {
+  if (value == null || value === '') return ''
+  const raw = String(value).trim()
+  if (!raw) return ''
+  const normalized = raw.includes('T') ? raw : raw.replace(' ', 'T')
+  return normalized.slice(0, 16)
 }
 
 function mapStudentPayload(
@@ -285,6 +323,12 @@ function mapStudentPayload(
     delete payload.grade_level_id
   }
 
+  if (payload.student_category_id) {
+    payload.student_category_id = Number(payload.student_category_id)
+  } else {
+    delete payload.student_category_id
+  }
+
   if (payload.dateOfBirth === '') delete payload.dateOfBirth
   delete payload.date_of_birth
 
@@ -310,6 +354,7 @@ export function mapFormToPayload(
     }
     if (values.reference) payload.reference = values.reference
     if (values.notes) payload.notes = values.notes
+    if (values.income_head_id) payload.income_head_id = Number(values.income_head_id)
     return payload
   }
 
@@ -324,12 +369,23 @@ export function mapFormToPayload(
   }
 
   if (listKey === 'finance-invoices') {
-    return {
+    const payload: Record<string, unknown> = {
       student_id: values.student_id ? Number(values.student_id) : undefined,
-      description: values.description,
-      amount: values.amount,
       due_date: values.due_date,
+      apply_discounts: values.apply_discounts !== false,
+      combine_group: values.combine_group === true,
     }
+    if (values.fee_group_id) {
+      payload.fee_group_id = Number(values.fee_group_id)
+      if (values.description) payload.description = values.description
+    } else {
+      payload.description = values.description
+      payload.amount = values.amount
+      if (values.fee_structure_id) {
+        payload.fee_structure_id = Number(values.fee_structure_id)
+      }
+    }
+    return payload
   }
 
   if (listKey === 'guardians') {
@@ -402,6 +458,169 @@ export function mapFormToPayload(
       description: values.description || null,
       is_active: values.is_active !== false,
       ...(values.order != null && values.order !== '' ? { order: Number(values.order) } : {}),
+    }
+  }
+
+  if (listKey === 'finance-fee-groups') {
+    const idsRaw = String(values.fee_category_ids ?? '').trim()
+    const feeCategoryIds = idsRaw
+      ? idsRaw.split(/[\s,]+/).map((id) => Number(id)).filter((id) => Number.isFinite(id) && id > 0)
+      : []
+    return {
+      name: values.name,
+      description: values.description || null,
+      is_active: values.is_active !== false,
+      ...(values.order != null && values.order !== '' ? { order: Number(values.order) } : {}),
+      fee_category_ids: feeCategoryIds,
+    }
+  }
+
+  if (listKey === 'finance-fee-discounts') {
+    return {
+      name: values.name,
+      discount_type: values.discount_type,
+      value: values.value,
+      description: values.description || null,
+      fee_category_id: values.fee_category_id ? Number(values.fee_category_id) : null,
+      student_category_id: values.student_category_id ? Number(values.student_category_id) : null,
+      starts_on: values.starts_on || null,
+      ends_on: values.ends_on || null,
+      is_active: values.is_active !== false,
+    }
+  }
+
+  if (listKey === 'finance-income' || listKey === 'finance-expense') {
+    const isIncome = listKey === 'finance-income'
+    const headId = isIncome ? values.income_head_id : values.expense_head_id
+    return {
+      type: isIncome ? 'income' : 'expense',
+      description: String(values.description ?? '').trim(),
+      amount: values.amount,
+      [isIncome ? 'income_head_id' : 'expense_head_id']: headId ? Number(headId) : undefined,
+      ...(values.date ? { date: values.date } : {}),
+      ...(values.payment_method ? { payment_method: values.payment_method } : {}),
+      currency: values.currency || 'USD',
+      ...(values.reference ? { reference: String(values.reference).trim() } : {}),
+      ...(values.notes ? { notes: String(values.notes).trim() } : {}),
+    }
+  }
+
+  if (listKey === 'ops-library-loans') {
+    return {
+      book_id: values.book_id ? Number(values.book_id) : undefined,
+      library_member_id: values.library_member_id ? Number(values.library_member_id) : undefined,
+      due_at: values.due_at,
+    }
+  }
+
+  if (listKey === 'finance-income-heads' || listKey === 'finance-expense-heads') {
+    return {
+      name: values.name,
+      code: values.code || null,
+      description: values.description || null,
+      is_active: values.is_active !== false,
+    }
+  }
+
+  if (listKey === 'hr-leave-types') {
+    return {
+      name: values.name,
+      code: values.code || null,
+      default_days: values.default_days != null && values.default_days !== '' ? Number(values.default_days) : null,
+      is_paid: values.is_paid === true,
+      is_active: values.is_active !== false,
+      description: values.description || null,
+    }
+  }
+
+  if (listKey === 'hr-designations' || listKey === 'people-student-categories') {
+    return {
+      name: values.name,
+      code: values.code || null,
+      description: values.description || null,
+      is_active: values.is_active !== false,
+      ...(listKey === 'people-student-categories'
+        && values.order != null
+        && values.order !== ''
+        ? { order: Number(values.order) }
+        : {}),
+    }
+  }
+
+  if (listKey === 'hr-employees') {
+    return {
+      first_name: values.first_name,
+      last_name: values.last_name,
+      employee_number: values.employee_number || null,
+      email: values.email || null,
+      phone: values.phone || null,
+      designation_id: values.designation_id ? Number(values.designation_id) : null,
+      department_id: values.department_id ? Number(values.department_id) : null,
+      employment_type: values.employment_type || null,
+      status: values.status || 'active',
+      joining_date: values.joining_date || null,
+      ...(values.base_salary != null && values.base_salary !== ''
+        ? { base_salary: Number(values.base_salary) }
+        : {}),
+    }
+  }
+
+  if (listKey === 'academics-certificate-templates') {
+    return {
+      name: values.name,
+      certificate_type: values.certificate_type,
+      title: values.title,
+      body_html: values.body_html,
+      is_active: values.is_active !== false,
+    }
+  }
+
+  if (listKey === 'academics-exam-schedules') {
+    return {
+      exam_id: values.exam_id ? Number(values.exam_id) : undefined,
+      class_id: values.class_id ? Number(values.class_id) : undefined,
+      subject_id: values.subject_id ? Number(values.subject_id) : undefined,
+      room_id: values.room_id ? Number(values.room_id) : null,
+      starts_at: toApiDateTime(values.starts_at),
+      ends_at: values.ends_at ? toApiDateTime(values.ends_at) : null,
+      ...(values.duration_minutes != null && values.duration_minutes !== ''
+        ? { duration_minutes: Number(values.duration_minutes) }
+        : {}),
+      invigilator: values.invigilator || null,
+      notes: values.notes || null,
+    }
+  }
+
+  if (listKey === 'ops-library-members') {
+    return {
+      member_type: values.member_type,
+      member_id: values.member_id != null && values.member_id !== '' ? Number(values.member_id) : null,
+      member_number: values.member_number || null,
+      name: values.name,
+      email: values.email || null,
+      phone: values.phone || null,
+      status: values.status || 'active',
+      joined_on: values.joined_on || null,
+      notes: values.notes || null,
+    }
+  }
+
+  if (listKey === 'settings-currencies') {
+    return {
+      code: String(values.code ?? '').trim().toUpperCase(),
+      name: values.name,
+      symbol: values.symbol || null,
+      is_default: values.is_default === true,
+      is_active: values.is_active !== false,
+    }
+  }
+
+  if (listKey === 'settings-languages') {
+    return {
+      code: String(values.code ?? '').trim().toLowerCase(),
+      name: values.name,
+      is_default: values.is_default === true,
+      is_active: values.is_active !== false,
     }
   }
 
@@ -506,6 +725,48 @@ export function mapFormToPayload(
     }
   }
 
+  if (listKey === 'ops-help-desk') {
+    return {
+      subject: String(values.subject ?? '').trim(),
+      description: values.description ? String(values.description).trim() : null,
+      category: values.category ?? 'general',
+      priority: values.priority ?? 'normal',
+      requester_name: String(values.requester_name ?? '').trim(),
+      requester_phone: values.requester_phone ? String(values.requester_phone).trim() : null,
+      requester_email: values.requester_email ? String(values.requester_email).trim() : null,
+      student_id: values.student_id ? Number(values.student_id) : null,
+      assigned_to: values.assigned_to ? Number(values.assigned_to) : null,
+      ...(values.status ? { status: values.status } : {}),
+    }
+  }
+
+  if (listKey === 'hr-recruitment-jobs') {
+    return {
+      title: String(values.title ?? '').trim(),
+      department: values.department ? String(values.department).trim() : null,
+      employment_type: values.employment_type ?? 'full_time',
+      location: values.location ? String(values.location).trim() : null,
+      openings: values.openings != null && values.openings !== '' ? Number(values.openings) : 1,
+      closes_at: values.closes_at || null,
+      status: values.status ?? 'draft',
+      description: values.description ? String(values.description).trim() : null,
+      requirements: values.requirements ? String(values.requirements).trim() : null,
+    }
+  }
+
+  if (listKey === 'hr-recruitment-applications') {
+    return {
+      job_posting_id: values.job_posting_id ? Number(values.job_posting_id) : null,
+      applicant_name: String(values.applicant_name ?? '').trim(),
+      email: values.email ? String(values.email).trim() : null,
+      phone: values.phone ? String(values.phone).trim() : null,
+      resume_url: values.resume_url ? String(values.resume_url).trim() : null,
+      cover_letter: values.cover_letter ? String(values.cover_letter).trim() : null,
+      notes: values.notes ? String(values.notes).trim() : null,
+      ...(values.status ? { status: values.status } : {}),
+    }
+  }
+
   if (listKey === 'ops-events') {
     return {
       title: values.title,
@@ -583,6 +844,12 @@ function mapTeacherPayload(values: Record<string, unknown>): Record<string, unkn
   }
   delete payload.department_id
 
+  if (payload.designation_id) {
+    payload.designation_id = Number(payload.designation_id)
+  } else {
+    delete payload.designation_id
+  }
+
   const allowancesTotal = Number(payload.allowances_total ?? NaN)
   const deductionsTotal = Number(payload.deductions_total ?? NaN)
   const hadAllowances = Object.prototype.hasOwnProperty.call(payload, 'allowances_total')
@@ -623,7 +890,7 @@ function mapTeacherPayload(values: Record<string, unknown>): Record<string, unkn
 export const backendCrudSupport: Record<string, { create: boolean; update: boolean; delete: boolean }> = {
   students: { create: true, update: true, delete: true },
   teachers: { create: true, update: true, delete: true },
-  guardians: { create: true, update: true, delete: false },
+  guardians: { create: true, update: true, delete: true },
   'academics-setup': { create: true, update: true, delete: true },
   'academics-streams': { create: true, update: true, delete: false },
   'academics-houses': { create: true, update: true, delete: false },
@@ -646,25 +913,48 @@ export const backendCrudSupport: Record<string, { create: boolean; update: boole
   'finance-invoices': { create: true, update: true, delete: false },
   'finance-fees': { create: true, update: true, delete: true },
   'finance-fee-categories': { create: true, update: true, delete: true },
+  'finance-fee-groups': { create: true, update: true, delete: true },
+  'finance-fee-discounts': { create: true, update: true, delete: true },
+  'finance-income-heads': { create: true, update: true, delete: true },
+  'finance-budgets': { create: true, update: true, delete: true },
+  'finance-expense-heads': { create: true, update: true, delete: true },
+  'finance-income': { create: true, update: true, delete: true },
+  'finance-expense': { create: true, update: true, delete: true },
   'finance-payroll': { create: false, update: true, delete: false },
   'ops-inventory': { create: true, update: true, delete: false },
   'ops-inventory-sales': { create: true, update: false, delete: false },
   'ops-procurement': { create: true, update: false, delete: false },
   'ops-procurement-vendors': { create: true, update: true, delete: false },
-  'ops-library': { create: true, update: true, delete: false },
+  'ops-library': { create: true, update: true, delete: true },
+  'ops-library-members': { create: true, update: true, delete: true },
+  'ops-library-loans': { create: true, update: false, delete: false },
   'ops-transport': { create: true, update: true, delete: false },
   'ops-transport-drivers': { create: true, update: true, delete: false },
   'ops-transport-routes': { create: true, update: true, delete: false },
   'ops-assets': { create: true, update: true, delete: false },
   'ops-hostels': { create: true, update: true, delete: false },
   'ops-visitors': { create: true, update: false, delete: false },
+  'ops-help-desk': { create: true, update: true, delete: false },
+  'hr-recruitment-jobs': { create: true, update: true, delete: false },
+  'hr-recruitment-applications': { create: true, update: true, delete: false },
   'ops-health': { create: true, update: true, delete: false },
-  'ops-events': { create: true, update: true, delete: false },
+  'ops-events': { create: true, update: true, delete: true },
   'comms-announcements': { create: true, update: true, delete: true },
   'hr-leave': { create: true, update: false, delete: false },
+  'hr-leave-types': { create: true, update: true, delete: true },
+  'hr-designations': { create: true, update: true, delete: true },
+  'hr-employees': { create: true, update: true, delete: true },
+  'people-student-categories': { create: true, update: true, delete: true },
+  'academics-exam-schedules': { create: true, update: true, delete: true },
+  'academics-certificate-templates': { create: true, update: true, delete: true },
+  'academics-school-certificates': { create: false, update: false, delete: false },
+  'settings-currencies': { create: true, update: true, delete: true },
+  'settings-languages': { create: true, update: true, delete: true },
   'hr-discipline': { create: true, update: true, delete: false },
   compliance: { create: true, update: true, delete: false },
   'compliance-incidents': { create: true, update: true, delete: false },
   'compliance-consent': { create: true, update: true, delete: false },
   'settings-custom-fields': { create: true, update: true, delete: true },
+  'enterprise-academic': { create: true, update: true, delete: true },
+  'enterprise-alumni': { create: true, update: true, delete: true },
 }

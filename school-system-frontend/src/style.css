@@ -49,80 +49,84 @@
     --radius-xl: calc(var(--radius) + 4px);
 }
 
-/* Slate neutrals + teal primary — calm school ERP, not indigo SaaS default */
+/* PreSkool-inspired: cool canvas, indigo primary, large cards */
 :root {
-    --background: oklch(0.985 0.004 200);
-    --foreground: oklch(0.22 0.02 250);
+    --background: oklch(0.975 0.006 264);
+    --foreground: oklch(0.24 0.03 264);
     --card: oklch(1 0 0);
-    --card-foreground: oklch(0.22 0.02 250);
+    --card-foreground: oklch(0.24 0.03 264);
     --popover: oklch(1 0 0);
-    --popover-foreground: oklch(0.22 0.02 250);
-    --primary: oklch(0.48 0.1 192);
-    --primary-foreground: oklch(0.99 0.005 200);
-    --secondary: oklch(0.955 0.008 220);
-    --secondary-foreground: oklch(0.3 0.03 250);
-    --muted: oklch(0.96 0.006 220);
-    --muted-foreground: oklch(0.42 0.02 250);
-    --accent: oklch(0.95 0.02 192);
-    --accent-foreground: oklch(0.28 0.05 192);
+    --popover-foreground: oklch(0.24 0.03 264);
+    --primary: oklch(0.5 0.2 277);
+    --primary-foreground: oklch(0.99 0.01 264);
+    --secondary: oklch(0.955 0.012 264);
+    --secondary-foreground: oklch(0.3 0.04 264);
+    --muted: oklch(0.96 0.01 264);
+    --muted-foreground: oklch(0.45 0.03 264);
+    --accent: oklch(0.945 0.03 277);
+    --accent-foreground: oklch(0.32 0.12 277);
     --destructive: oklch(0.55 0.22 25);
-    --border: oklch(0.9 0.01 220);
-    --input: oklch(0.9 0.01 220);
-    --ring: oklch(0.55 0.09 192);
-    --chart-1: oklch(0.55 0.1 192);
-    --chart-2: oklch(0.58 0.12 160);
-    --chart-3: oklch(0.65 0.1 75);
-    --chart-4: oklch(0.52 0.08 250);
-    --chart-5: oklch(0.6 0.08 30);
-    --radius: 0.625rem;
-    --sidebar: oklch(0.992 0.003 220);
-    --sidebar-foreground: oklch(0.28 0.02 250);
-    --sidebar-primary: oklch(0.48 0.1 192);
-    --sidebar-primary-foreground: oklch(0.99 0.005 200);
-    --sidebar-accent: oklch(0.95 0.018 192);
-    --sidebar-accent-foreground: oklch(0.28 0.05 192);
-    --sidebar-border: oklch(0.91 0.01 220);
-    --sidebar-ring: oklch(0.55 0.09 192);
+    --border: oklch(0.91 0.015 264);
+    --input: oklch(0.91 0.015 264);
+    --ring: oklch(0.55 0.18 277);
+    --chart-1: oklch(0.5 0.2 277);
+    --chart-2: oklch(0.62 0.16 155);
+    --chart-3: oklch(0.65 0.14 75);
+    --chart-4: oklch(0.58 0.14 250);
+    --chart-5: oklch(0.6 0.12 30);
+    --radius: 1rem;
+    --sidebar: oklch(1 0 0);
+    --sidebar-foreground: oklch(0.32 0.03 264);
+    --sidebar-primary: oklch(0.5 0.2 277);
+    --sidebar-primary-foreground: oklch(0.99 0.01 264);
+    --sidebar-accent: oklch(0.96 0.02 277);
+    --sidebar-accent-foreground: oklch(0.42 0.16 277);
+    --sidebar-border: oklch(0.93 0.012 264);
+    --sidebar-ring: oklch(0.55 0.18 277);
     --surface-elevated: oklch(1 0 0);
-    --shadow-soft: 0 1px 2px oklch(0.25 0.02 250 / 0.04), 0 6px 16px oklch(0.25 0.02 250 / 0.05);
-    --auth-glow: oklch(0.72 0.08 192 / 0.35);
+    --shadow-soft: 0 1px 2px oklch(0.3 0.04 264 / 0.04), 0 10px 28px oklch(0.3 0.04 264 / 0.06);
+    --auth-glow: oklch(0.7 0.12 277 / 0.28);
+    --highlight-teacher: oklch(0.62 0.15 155);
+    --highlight-student: oklch(0.55 0.16 264);
 }
 
 .dark {
-    --background: oklch(0.16 0.015 240);
-    --foreground: oklch(0.96 0.008 200);
-    --card: oklch(0.2 0.018 240);
-    --card-foreground: oklch(0.96 0.008 200);
-    --popover: oklch(0.2 0.018 240);
-    --popover-foreground: oklch(0.96 0.008 200);
-    --primary: oklch(0.72 0.1 192);
-    --primary-foreground: oklch(0.18 0.03 200);
-    --secondary: oklch(0.26 0.02 240);
-    --secondary-foreground: oklch(0.96 0.008 200);
-    --muted: oklch(0.26 0.018 240);
-    --muted-foreground: oklch(0.76 0.02 220);
-    --accent: oklch(0.28 0.035 192);
-    --accent-foreground: oklch(0.92 0.03 192);
+    --background: oklch(0.17 0.02 264);
+    --foreground: oklch(0.96 0.01 264);
+    --card: oklch(0.21 0.024 264);
+    --card-foreground: oklch(0.96 0.01 264);
+    --popover: oklch(0.21 0.024 264);
+    --popover-foreground: oklch(0.96 0.01 264);
+    --primary: oklch(0.7 0.16 277);
+    --primary-foreground: oklch(0.18 0.04 277);
+    --secondary: oklch(0.26 0.03 264);
+    --secondary-foreground: oklch(0.96 0.01 264);
+    --muted: oklch(0.26 0.024 264);
+    --muted-foreground: oklch(0.76 0.02 264);
+    --accent: oklch(0.28 0.05 277);
+    --accent-foreground: oklch(0.92 0.04 277);
     --destructive: oklch(0.68 0.18 22);
     --border: oklch(1 0 0 / 10%);
     --input: oklch(1 0 0 / 12%);
-    --ring: oklch(0.68 0.09 192);
-    --chart-1: oklch(0.72 0.1 192);
-    --chart-2: oklch(0.7 0.12 160);
-    --chart-3: oklch(0.75 0.1 75);
-    --chart-4: oklch(0.65 0.08 250);
-    --chart-5: oklch(0.68 0.08 30);
-    --sidebar: oklch(0.18 0.016 240);
-    --sidebar-foreground: oklch(0.96 0.008 200);
-    --sidebar-primary: oklch(0.72 0.1 192);
-    --sidebar-primary-foreground: oklch(0.18 0.03 200);
-    --sidebar-accent: oklch(0.26 0.03 192);
-    --sidebar-accent-foreground: oklch(0.92 0.03 192);
+    --ring: oklch(0.7 0.14 277);
+    --chart-1: oklch(0.7 0.16 277);
+    --chart-2: oklch(0.7 0.14 155);
+    --chart-3: oklch(0.75 0.12 75);
+    --chart-4: oklch(0.68 0.1 250);
+    --chart-5: oklch(0.68 0.1 30);
+    --sidebar: oklch(0.19 0.022 264);
+    --sidebar-foreground: oklch(0.96 0.01 264);
+    --sidebar-primary: oklch(0.7 0.16 277);
+    --sidebar-primary-foreground: oklch(0.18 0.04 277);
+    --sidebar-accent: oklch(0.28 0.05 277);
+    --sidebar-accent-foreground: oklch(0.92 0.04 277);
     --sidebar-border: oklch(1 0 0 / 10%);
-    --sidebar-ring: oklch(0.68 0.09 192);
-    --surface-elevated: oklch(0.22 0.02 240);
+    --sidebar-ring: oklch(0.7 0.14 277);
+    --surface-elevated: oklch(0.23 0.028 264);
     --shadow-soft: 0 1px 2px oklch(0 0 0 / 0.25), 0 10px 28px oklch(0 0 0 / 0.3);
-    --auth-glow: oklch(0.45 0.08 192 / 0.4);
+    --auth-glow: oklch(0.45 0.12 277 / 0.35);
+    --highlight-teacher: oklch(0.55 0.12 155);
+    --highlight-student: oklch(0.5 0.14 264);
 }
 
 @layer base {
@@ -145,16 +149,13 @@
 @layer utilities {
   /* Align with shadcn Card: ring surface, no soft-shadow dialect */
   .surface-card {
-    @apply rounded-xl bg-card text-card-foreground ring-1 ring-foreground/10;
+    @apply rounded-2xl bg-card text-card-foreground shadow-[var(--shadow-soft)] ring-1 ring-border/80;
   }
   .surface-muted {
     @apply rounded-xl bg-muted/40 ring-1 ring-foreground/5;
   }
   .page-canvas {
-    background:
-      radial-gradient(1200px 480px at 0% -10%, color-mix(in oklch, var(--primary) 8%, transparent), transparent 55%),
-      radial-gradient(900px 400px at 100% 0%, color-mix(in oklch, var(--primary) 5%, transparent), transparent 50%),
-      color-mix(in oklch, var(--muted) 35%, var(--background));
+    background: var(--background);
   }
   .auth-canvas {
     background:
@@ -164,11 +165,11 @@
   }
   .auth-brand-panel {
     background:
-      linear-gradient(155deg, oklch(0.32 0.06 220) 0%, oklch(0.38 0.09 192) 48%, oklch(0.45 0.08 175) 100%);
+      linear-gradient(155deg, oklch(0.32 0.08 277) 0%, oklch(0.4 0.14 270) 48%, oklch(0.48 0.12 250) 100%);
   }
   .dark .auth-brand-panel {
     background:
-      linear-gradient(155deg, oklch(0.22 0.04 240) 0%, oklch(0.28 0.07 192) 50%, oklch(0.3 0.06 175) 100%);
+      linear-gradient(155deg, oklch(0.22 0.06 277) 0%, oklch(0.28 0.1 270) 50%, oklch(0.3 0.08 250) 100%);
   }
   .skip-to-content {
     @apply sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-50 focus:rounded-lg focus:bg-primary focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-primary-foreground focus:shadow-lg focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2;

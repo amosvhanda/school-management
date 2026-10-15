@@ -1,17 +1,22 @@
 import type { Component } from 'vue'
 import {
+  Bell,
   BookMarked,
   Building2,
   CalendarDays,
+  Coins,
   DoorOpen,
   GitBranch,
   GraduationCap,
   Home,
+  IdCard,
+  Languages,
   Layers,
   Package,
   School,
   SlidersHorizontal,
   Tags,
+  Users,
 } from '@lucide/vue'
 
 export type SetupTabId =
@@ -27,6 +32,12 @@ export type SetupTabId =
   | 'grading'
   | 'rooms'
   | 'fees'
+  | 'student-categories'
+  | 'currencies'
+  | 'languages'
+  | 'designations'
+  | 'custom-fields'
+  | 'notifications'
 
 export interface SetupSection {
   listKey: string
@@ -150,16 +161,73 @@ export const SETUP_TABS: SetupTab[] = [
     progressKey: 'rooms',
   },
   {
+    id: 'student-categories',
+    title: 'Student Categories',
+    description:
+      'Groupings used for fee discounts and reporting (e.g. boarder, day scholar).',
+    icon: Users,
+    listKey: 'people-student-categories',
+  },
+  {
+    id: 'designations',
+    title: 'Designations',
+    description:
+      'Job titles for teaching and non-teaching staff used in HR and payroll.',
+    icon: IdCard,
+    listKey: 'hr-designations',
+  },
+  {
+    id: 'notifications',
+    title: 'Notification',
+    description:
+      'Channel preferences plus school email delivery settings for notices, attendance alerts, and queued messages.',
+    icon: Bell,
+  },
+  {
+    id: 'currencies',
+    title: 'Currencies',
+    description:
+      'School currencies for fees, payroll, and multi-currency reporting.',
+    icon: Coins,
+    listKey: 'settings-currencies',
+  },
+  {
+    id: 'languages',
+    title: 'Languages',
+    description:
+      'Preferred languages for school communications and UI preference.',
+    icon: Languages,
+    listKey: 'settings-languages',
+  },
+  {
+    id: 'custom-fields',
+    title: 'Custom Fields',
+    description:
+      'School-specific fields for students, teachers, and staff forms.',
+    icon: SlidersHorizontal,
+    listKey: 'settings-custom-fields',
+  },
+  {
     id: 'fees',
     title: 'Fees',
     description:
-      'Define fee categories first, then set amounts by class so invoices and student accounts stay consistent.',
+      'Define fee categories, groups, and discounts, then set amounts by class so invoices stay consistent.',
     icon: Tags,
     sections: [
       {
         listKey: 'finance-fee-categories',
         title: 'Fee categories',
         description: 'Tuition, levies, and other charge types used when building fee structures.',
+      },
+      {
+        listKey: 'finance-fee-groups',
+        title: 'Fee groups',
+        description: 'Bundle fee categories for packaging on invoices.',
+      },
+      {
+        listKey: 'finance-fee-discounts',
+        title: 'Fee discounts',
+        description: 'Percent or fixed discounts by fee and student category.',
       },
       {
         listKey: 'finance-fees',

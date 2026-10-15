@@ -87,6 +87,37 @@ class ExaminationEnterpriseService
         ]);
     }
 
+    /**
+     * Student-safe session payload (no correct answers).
+     *
+     * @return array<string, mixed>
+     */
+    public function sessionPayloadForStudent(CbtExamSession $session): array
+    {
+        $ids = is_array($session->question_ids) ? $session->question_ids : [];
+        $questions = QuestionBankItem::query()
+            ->where('school_id', $session->school_id)
+            ->whereIn('id', $ids)
+            ->get(['id', 'question_text', 'question_type', 'options', 'marks', 'difficulty']);
+
+        return [
+            'id' => $session->id,
+            'status' => $session->status,
+            'exam_id' => $session->exam_id,
+            'started_at' => $session->started_at?->toIso8601String(),
+            'submitted_at' => $session->submitted_at?->toIso8601String(),
+            'score' => $session->score,
+            'questions' => $questions->map(fn (QuestionBankItem $q) => [
+                'id' => $q->id,
+                'question_text' => $q->question_text,
+                'question_type' => $q->question_type,
+                'options' => $q->options,
+                'marks' => $q->marks,
+                'difficulty' => $q->difficulty,
+            ])->values()->all(),
+        ];
+    }
+
     public function requestRemark(int $schoolId, array $data): RemarkRequest
     {
         return RemarkRequest::create(array_merge($data, ['school_id' => $schoolId]));

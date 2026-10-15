@@ -7,24 +7,31 @@ use App\Http\Controllers\Api\V1\AdminLicenseController;
 use App\Http\Controllers\Api\V1\AdminSchoolController;
 use App\Http\Controllers\Api\V1\AssistantController;
 use App\Http\Controllers\Api\V1\AuthController;
+use App\Http\Controllers\Api\V1\TwoFactorAuthController;
 use App\Http\Controllers\Api\V1\LicenseController;
+use App\Http\Controllers\Api\V1\PaymentWebhookController;
 use App\Http\Controllers\Api\V1\ProfileController;
 use App\Http\Controllers\Api\V1\SchoolController;
 use App\Http\Controllers\Api\V1\SettingsController;
 use App\Http\Controllers\Api\V1\StudentPortalController;
 use App\Http\Controllers\Api\V1\TeacherPortalController;
+use App\Http\Controllers\Api\V1\PeopleImportController;
 use App\Http\Controllers\Api\V1\UploadController;
 use App\Http\Controllers\AssetController;
 use App\Http\Controllers\AssignmentController;
 use App\Http\Controllers\AttendanceController;
 use App\Http\Controllers\AuditLogController;
+use App\Http\Controllers\BudgetController;
+use App\Http\Controllers\CertificateTemplateController;
 use App\Http\Controllers\ClassController;
 use App\Http\Controllers\CommunicationController;
 use App\Http\Controllers\ComplianceController;
 use App\Http\Controllers\ConsentFormController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DepartmentController;
+use App\Http\Controllers\DesignationController;
 use App\Http\Controllers\DisciplinaryRecordController;
+use App\Http\Controllers\EmployeeController;
 use App\Http\Controllers\EnrollmentController;
 use App\Http\Controllers\Enterprise\EnterpriseAcademicController;
 use App\Http\Controllers\Enterprise\EnterpriseExamController;
@@ -32,7 +39,11 @@ use App\Http\Controllers\Enterprise\EnterpriseFinanceController;
 use App\Http\Controllers\Enterprise\EnterpriseGovernanceController;
 use App\Http\Controllers\Enterprise\EnterpriseIntelligenceController;
 use App\Http\Controllers\ExamController;
+use App\Http\Controllers\ExamScheduleController;
+use App\Http\Controllers\ExpenseHeadController;
 use App\Http\Controllers\FeeCategoryController;
+use App\Http\Controllers\FeeDiscountController;
+use App\Http\Controllers\FeeGroupController;
 use App\Http\Controllers\FeeStructureController;
 use App\Http\Controllers\FinanceController;
 use App\Http\Controllers\GradeController;
@@ -40,12 +51,16 @@ use App\Http\Controllers\GradeLevelController;
 use App\Http\Controllers\GradingScaleController;
 use App\Http\Controllers\GuardianController;
 use App\Http\Controllers\HealthController;
+use App\Http\Controllers\HelpDeskController;
 use App\Http\Controllers\HolidayProgramController;
 use App\Http\Controllers\HostelController;
+use App\Http\Controllers\IncomeHeadController;
 use App\Http\Controllers\InventoryController;
 use App\Http\Controllers\InvoiceController;
 use App\Http\Controllers\LeaveRequestController;
+use App\Http\Controllers\LeaveTypeController;
 use App\Http\Controllers\LibraryController;
+use App\Http\Controllers\LibraryMemberController;
 use App\Http\Controllers\ParentController;
 use App\Http\Controllers\ParentPortalController;
 use App\Http\Controllers\PaymentController;
@@ -59,11 +74,17 @@ use App\Http\Controllers\Platform\PlatformFinanceController;
 use App\Http\Controllers\Platform\PlatformOperationsController;
 use App\Http\Controllers\Platform\PlatformStaffController;
 use App\Http\Controllers\ProcurementController;
+use App\Http\Controllers\RecruitmentController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\RoomController;
+use App\Http\Controllers\SchoolCertificateController;
+use App\Http\Controllers\SchoolCurrencyController;
 use App\Http\Controllers\SchoolEventController;
+use App\Http\Controllers\SchoolLanguageController;
 use App\Http\Controllers\SchoolTripController;
+use App\Http\Controllers\StaffAttendanceController;
+use App\Http\Controllers\StudentCategoryController;
 use App\Http\Controllers\StudentController;
 use App\Http\Controllers\StudentLifecycleController;
 use App\Http\Controllers\SubjectController;
@@ -99,6 +120,8 @@ use Illuminate\Support\Facades\Route;
 // ─── Public (rate-limited per Fortify starter-kit) ─────────────────────────
 Route::post('/auth/login', [AuthController::class, 'login'])
     ->middleware('throttle:login');
+Route::post('/auth/two-factor/challenge', [TwoFactorAuthController::class, 'challenge'])
+    ->middleware('throttle:login');
 Route::post('/auth/forgot-password', [AuthController::class, 'forgotPassword'])
     ->middleware('throttle:password-reset');
 Route::post('/auth/reset-password', [AuthController::class, 'resetPassword'])
@@ -107,13 +130,20 @@ Route::post('/schools/register', [SchoolController::class, 'register'])
     ->middleware('throttle:registration');
 
 Route::get('/platform/certificates/verify/{code}', [PlatformDocumentController::class, 'verifyCertificate']);
+Route::get('/certificates/verify/{code}', [SchoolCertificateController::class, 'verify']);
 Route::get('/auth/platform-terms', [AuthController::class, 'platformTerms']);
 Route::get('/auth/privacy-policy', [AuthController::class, 'privacyPolicy']);
+Route::get('/settings/config', [SettingsController::class, 'publicConfig']);
 Route::post('/integrations/token', [ExternalIntegrationController::class, 'token'])
     ->middleware('throttle:login');
+Route::post('/webhooks/payments/{provider}', [PaymentWebhookController::class, 'handle'])
+    ->middleware('throttle:60,1');
+Route::get('/webhooks/payments/{provider}/sandbox-checkout', [PaymentWebhookController::class, 'sandboxCheckout'])
+    ->middleware('throttle:30,1');
 
 // ─── Authenticated ────────────────────────────────────────────────────────
-Route::middleware(['auth:sanctum', 'password.changed', 'school.isolated', 'school.licensed'])->group(function () {
+// staff.or.portal: parents/students may only use auth, profile, license, and portal routes.
+Route::middleware(['auth:sanctum', 'password.changed', 'school.isolated', 'school.licensed', '2fa.enabled', 'staff.or.portal'])->group(function () {
 
     // License (accessible even when expired — middleware excludes these paths)
     Route::get('/license/status', [LicenseController::class, 'status']);
@@ -124,6 +154,19 @@ Route::middleware(['auth:sanctum', 'password.changed', 'school.isolated', 'schoo
     Route::middleware('super_admin')->group(function () {
         Route::get('/admin/schools', [AdminSchoolController::class, 'index']);
         Route::post('/admin/schools', [AdminSchoolController::class, 'store']);
+        Route::get('/admin/schools/{school}', [AdminSchoolController::class, 'show']);
+        Route::patch('/admin/schools/{school}/status', [AdminSchoolController::class, 'updateStatus']);
+        Route::delete('/admin/schools/{school}', [AdminSchoolController::class, 'destroy']);
+        Route::get('/admin/schools/{school}/usage', [AdminSchoolController::class, 'usage']);
+        Route::get('/admin/schools/{school}/backups', [AdminSchoolController::class, 'listBackups']);
+        Route::post('/admin/schools/{school}/backups', [AdminSchoolController::class, 'createBackup']);
+        Route::post('/admin/schools/{school}/backups/{backup}/restore', [AdminSchoolController::class, 'restoreBackup']);
+        Route::get('/admin/schools/{school}/domains', [AdminSchoolController::class, 'domains']);
+        Route::post('/admin/schools/{school}/domains', [AdminSchoolController::class, 'storeDomain']);
+        Route::patch('/admin/schools/{school}/domains/{domain}', [AdminSchoolController::class, 'updateDomain']);
+        Route::get('/admin/schools/{school}/domains/{domain}/verification', [AdminSchoolController::class, 'checkDomainVerification']);
+        Route::post('/admin/schools/{school}/domains/{domain}/verify', [AdminSchoolController::class, 'verifyDomain']);
+        Route::delete('/admin/schools/{school}/domains/{domain}', [AdminSchoolController::class, 'destroyDomain']);
         Route::prefix('admin/licenses')->group(function () {
             Route::get('/', [AdminLicenseController::class, 'index']);
             Route::post('/', [AdminLicenseController::class, 'store']);
@@ -134,12 +177,20 @@ Route::middleware(['auth:sanctum', 'password.changed', 'school.isolated', 'schoo
     // Auth & profile
     Route::post('/auth/logout', [AuthController::class, 'logout']);
     Route::get('/auth/me', [AuthController::class, 'me']);
+    Route::get('/auth/schools', [AuthController::class, 'schools']);
+    Route::post('/auth/switch-school', [AuthController::class, 'switchSchool']);
+    Route::get('/auth/two-factor', [TwoFactorAuthController::class, 'status']);
+    Route::post('/auth/two-factor', [TwoFactorAuthController::class, 'enable']);
+    Route::post('/auth/two-factor/confirm', [TwoFactorAuthController::class, 'confirm']);
+    Route::delete('/auth/two-factor', [TwoFactorAuthController::class, 'disable']);
+    Route::post('/auth/two-factor/recovery-codes', [TwoFactorAuthController::class, 'recoveryCodes']);
     Route::get('/user/profile', [ProfileController::class, 'show']);
     Route::put('/user/profile', [ProfileController::class, 'update']);
     Route::post('/user/change-password', [AuthController::class, 'changePassword']);
 
     // Generic staff file upload (resources, homework, avatars, report cards).
-    Route::post('/uploads', [UploadController::class, 'store']);
+    Route::post('/uploads', [UploadController::class, 'store'])
+        ->middleware('capability:isStaff');
 
     // Teacher portal (scoped to the authenticated teacher).
     Route::prefix('teacher-portal')->group(function () {
@@ -207,7 +258,6 @@ Route::middleware(['auth:sanctum', 'password.changed', 'school.isolated', 'schoo
     // School settings, terminology & custom fields (SaaS customization)
     Route::get('/settings/school', [SettingsController::class, 'schoolSettings']);
     Route::put('/settings/school', [SettingsController::class, 'updateSchoolSettings']);
-    Route::get('/settings/config', [SettingsController::class, 'publicConfig']);
     Route::get('/settings/terminology', [SettingsController::class, 'terminology']);
     Route::put('/settings/terminology', [SettingsController::class, 'updateTerminology']);
     Route::get('/settings/custom-fields', [SettingsController::class, 'customFields']);
@@ -224,6 +274,9 @@ Route::middleware(['auth:sanctum', 'password.changed', 'school.isolated', 'schoo
 
     // Dashboard (operational)
     Route::get('/dashboard/kpis', [DashboardController::class, 'kpis']);
+    Route::get('/dashboard/school-widgets', [DashboardController::class, 'schoolWidgets']);
+    Route::get('/dashboard/lms-widgets', [DashboardController::class, 'lmsWidgets']);
+    Route::get('/dashboard/role-preview/{role}', [DashboardController::class, 'rolePreview']);
     Route::get('/dashboard/activity', [DashboardController::class, 'activity']);
     Route::get('/dashboard/monthly-stats', [DashboardController::class, 'monthlyStats']);
     Route::get('/dashboard/recent-activity', [DashboardController::class, 'recentActivity']);
@@ -252,6 +305,10 @@ Route::middleware(['auth:sanctum', 'password.changed', 'school.isolated', 'schoo
     Route::post('/students/bulk/invoices', [StudentController::class, 'bulkInvoices']);
     Route::post('/students/bulk/status', [StudentController::class, 'bulkStatus']);
     Route::post('/students/bulk/promote', [StudentController::class, 'bulkPromote']);
+    Route::get('/imports/{type}/template', [PeopleImportController::class, 'template'])
+        ->whereIn('type', ['students', 'teachers', 'employees', 'guardians']);
+    Route::post('/imports/{type}', [PeopleImportController::class, 'import'])
+        ->whereIn('type', ['students', 'teachers', 'employees', 'guardians']);
     Route::get('/students/{student}', [App\Http\Controllers\Api\V1\StudentController::class, 'show']);
     Route::put('/students/{student}', [App\Http\Controllers\Api\V1\StudentController::class, 'update']);
     Route::delete('/students/{student}', [App\Http\Controllers\Api\V1\StudentController::class, 'destroy']);
@@ -264,9 +321,14 @@ Route::middleware(['auth:sanctum', 'password.changed', 'school.isolated', 'schoo
     Route::get('/students/{student}/transcript', [StudentLifecycleController::class, 'transcript']);
     Route::get('/students/{student}/invoices', [StudentController::class, 'invoices']);
     Route::post('/students/{student}/invoices', [StudentController::class, 'createInvoice']);
+    Route::get('/students/{student}/documents', [StudentController::class, 'documents']);
     Route::post('/students/{student}/documents', [StudentController::class, 'uploadDocuments']);
+    Route::delete('/students/{student}/documents/{document}', [StudentController::class, 'destroyDocument']);
     Route::get('/students/{student}/exams', [StudentController::class, 'exams']);
     Route::get('/students/{student}/results/download', [StudentController::class, 'downloadResults']);
+    Route::get('/students/{student}/id-card/print', [StudentController::class, 'printIdCard']);
+    Route::post('/students/id-cards/bulk-print', [StudentController::class, 'bulkPrintIdCards']);
+    Route::post('/students/{student}/photo', [StudentController::class, 'uploadPhoto']);
     Route::get('/students/{student}/guardians', [GuardianController::class, 'forStudent']);
 
     Route::get('/streams', [AcademicStructureController::class, 'streams']);
@@ -282,12 +344,14 @@ Route::middleware(['auth:sanctum', 'password.changed', 'school.isolated', 'schoo
     Route::delete('/subject-packages/{id}', [AcademicStructureController::class, 'destroySubjectPackage']);
 
     // Inventory / uniform store
-    Route::get('/inventory/items', [InventoryController::class, 'index']);
-    Route::post('/inventory/items', [InventoryController::class, 'store']);
-    Route::put('/inventory/items/{id}', [InventoryController::class, 'update']);
-    Route::post('/inventory/items/{id}/restock', [InventoryController::class, 'restock']);
-    Route::get('/inventory/sales', [InventoryController::class, 'sales']);
-    Route::post('/inventory/sales', [InventoryController::class, 'createSale']);
+    Route::middleware('capability:canManageInventory')->group(function () {
+        Route::get('/inventory/items', [InventoryController::class, 'index']);
+        Route::post('/inventory/items', [InventoryController::class, 'store']);
+        Route::put('/inventory/items/{id}', [InventoryController::class, 'update']);
+        Route::post('/inventory/items/{id}/restock', [InventoryController::class, 'restock']);
+        Route::get('/inventory/sales', [InventoryController::class, 'sales']);
+        Route::post('/inventory/sales', [InventoryController::class, 'createSale']);
+    });
 
     // Holiday lessons (separate from regular term)
     Route::get('/holiday-programs', [HolidayProgramController::class, 'index']);
@@ -367,6 +431,11 @@ Route::middleware(['auth:sanctum', 'password.changed', 'school.isolated', 'schoo
     Route::post('/exams/{id}/results/approve', [ExamController::class, 'approveResults']);
     Route::post('/exams/{id}/publish', [ExamController::class, 'publish']);
     Route::post('/exams/{id}/results', [ExamController::class, 'recordResults']);
+    Route::get('/exam-schedules', [ExamScheduleController::class, 'index']);
+    Route::get('/exam-schedules/{id}', [ExamScheduleController::class, 'show']);
+    Route::post('/exam-schedules', [ExamScheduleController::class, 'store']);
+    Route::put('/exam-schedules/{id}', [ExamScheduleController::class, 'update']);
+    Route::delete('/exam-schedules/{id}', [ExamScheduleController::class, 'destroy']);
     Route::get('/tests', [TestController::class, 'index']);
     Route::get('/tests/{test}', [TestController::class, 'show']);
     Route::post('/tests', [TestController::class, 'store']);
@@ -378,6 +447,7 @@ Route::middleware(['auth:sanctum', 'password.changed', 'school.isolated', 'schoo
     Route::get('/attendance/today/summary', [AttendanceController::class, 'todaySummary']);
     Route::get('/attendance/student/{id}/summary', [AttendanceController::class, 'studentSummary']);
     Route::get('/attendance/class/{id}/report', [AttendanceController::class, 'classReport']);
+    Route::delete('/attendance/class/{classId}/date/{date}', [AttendanceController::class, 'clearClassAttendance']);
     Route::get('/timetable', [TimetableController::class, 'index']);
     Route::post('/timetable', [TimetableController::class, 'store']);
     Route::put('/timetable/{id}', [TimetableController::class, 'update']);
@@ -397,19 +467,52 @@ Route::middleware(['auth:sanctum', 'password.changed', 'school.isolated', 'schoo
     Route::delete('/payments/{payment}', [PaymentController::class, 'destroy']);
     Route::get('/transactions', [TransactionController::class, 'index']);
     Route::get('/transactions/summary', [TransactionController::class, 'summary']);
+    Route::post('/transactions', [TransactionController::class, 'store']);
+    Route::put('/transactions/{id}', [TransactionController::class, 'update']);
+    Route::delete('/transactions/{id}', [TransactionController::class, 'destroy']);
     Route::get('/invoices', [InvoiceController::class, 'index']);
     Route::post('/invoices', [InvoiceController::class, 'store']);
+    Route::get('/invoices/{invoice}/print', [InvoiceController::class, 'print']);
     Route::get('/invoices/{invoice}', [InvoiceController::class, 'show']);
     Route::put('/invoices/{invoice}', [InvoiceController::class, 'update']);
     Route::get('/fee-structures', [FeeStructureController::class, 'index']);
     Route::post('/fee-structures', [FeeStructureController::class, 'store']);
     Route::put('/fee-structures/{id}', [FeeStructureController::class, 'update']);
     Route::delete('/fee-structures/{id}', [FeeStructureController::class, 'destroy']);
+    Route::post('/fee-structures/bulk-assign', [FeeStructureController::class, 'bulkAssign']);
     Route::get('/fee-categories', [FeeCategoryController::class, 'index']);
     Route::get('/fee-categories/{id}', [FeeCategoryController::class, 'show']);
     Route::post('/fee-categories', [FeeCategoryController::class, 'store']);
     Route::put('/fee-categories/{id}', [FeeCategoryController::class, 'update']);
     Route::delete('/fee-categories/{id}', [FeeCategoryController::class, 'destroy']);
+    Route::get('/fee-groups', [FeeGroupController::class, 'index']);
+    Route::get('/fee-groups/{id}', [FeeGroupController::class, 'show']);
+    Route::post('/fee-groups', [FeeGroupController::class, 'store']);
+    Route::put('/fee-groups/{id}', [FeeGroupController::class, 'update']);
+    Route::delete('/fee-groups/{id}', [FeeGroupController::class, 'destroy']);
+    Route::get('/fee-discounts', [FeeDiscountController::class, 'index']);
+    Route::get('/fee-discounts/{id}', [FeeDiscountController::class, 'show']);
+    Route::post('/fee-discounts', [FeeDiscountController::class, 'store']);
+    Route::put('/fee-discounts/{id}', [FeeDiscountController::class, 'update']);
+    Route::delete('/fee-discounts/{id}', [FeeDiscountController::class, 'destroy']);
+    Route::get('/income-heads', [IncomeHeadController::class, 'index']);
+    Route::get('/income-heads/{id}', [IncomeHeadController::class, 'show']);
+    Route::post('/income-heads', [IncomeHeadController::class, 'store']);
+    Route::put('/income-heads/{id}', [IncomeHeadController::class, 'update']);
+    Route::delete('/income-heads/{id}', [IncomeHeadController::class, 'destroy']);
+    Route::get('/budgets', [BudgetController::class, 'index']);
+    Route::get('/budgets/{id}', [BudgetController::class, 'show']);
+    Route::post('/budgets', [BudgetController::class, 'store']);
+    Route::put('/budgets/{id}', [BudgetController::class, 'update']);
+    Route::delete('/budgets/{id}', [BudgetController::class, 'destroy']);
+    Route::post('/budgets/{id}/submit', [BudgetController::class, 'submit']);
+    Route::post('/budgets/{id}/approve', [BudgetController::class, 'approve']);
+    Route::post('/budgets/{id}/spend', [BudgetController::class, 'recordSpend']);
+    Route::get('/expense-heads', [ExpenseHeadController::class, 'index']);
+    Route::get('/expense-heads/{id}', [ExpenseHeadController::class, 'show']);
+    Route::post('/expense-heads', [ExpenseHeadController::class, 'store']);
+    Route::put('/expense-heads/{id}', [ExpenseHeadController::class, 'update']);
+    Route::delete('/expense-heads/{id}', [ExpenseHeadController::class, 'destroy']);
     Route::get('/payroll', [PayrollController::class, 'index']);
     Route::get('/payroll/teachers', [PayrollController::class, 'getTeachers']);
     Route::get('/payroll/summary', [PayrollController::class, 'summary']);
@@ -420,12 +523,14 @@ Route::middleware(['auth:sanctum', 'password.changed', 'school.isolated', 'schoo
     Route::post('/payroll/generate', [PayrollController::class, 'generate']);
     Route::put('/payroll/{id}', [PayrollController::class, 'update']);
     Route::post('/payroll/{id}/process', [PayrollController::class, 'process']);
-    Route::get('/finance/summary', [FinanceController::class, 'summary']);
-    Route::get('/finance/outstanding-balances', [FinanceController::class, 'outstandingBalances']);
-    Route::get('/finance/aging', [FinanceController::class, 'aging']);
-    Route::get('/finance/reconciliation', [FinanceController::class, 'reconciliation']);
-    Route::get('/finance/cash-flow', [FinanceController::class, 'cashFlow']);
-    Route::get('/finance/reports/{period}', [FinanceController::class, 'periodReport']);
+    Route::middleware('capability:canManageFinance')->group(function () {
+        Route::get('/finance/summary', [FinanceController::class, 'summary']);
+        Route::get('/finance/outstanding-balances', [FinanceController::class, 'outstandingBalances']);
+        Route::get('/finance/aging', [FinanceController::class, 'aging']);
+        Route::get('/finance/reconciliation', [FinanceController::class, 'reconciliation']);
+        Route::get('/finance/cash-flow', [FinanceController::class, 'cashFlow']);
+        Route::get('/finance/reports/{period}', [FinanceController::class, 'periodReport']);
+    });
 
     // People & enrollment
     Route::get('/parents/{id}/children', [ParentController::class, 'children']);
@@ -439,7 +544,14 @@ Route::middleware(['auth:sanctum', 'password.changed', 'school.isolated', 'schoo
         Route::get('/fees', [StudentPortalController::class, 'fees']);
         Route::get('/timetable', [StudentPortalController::class, 'timetable']);
         Route::get('/assignments', [StudentPortalController::class, 'assignments']);
+        Route::get('/assignments/{id}', [StudentPortalController::class, 'showAssignment']);
+        Route::post('/assignments/{id}/submit', [StudentPortalController::class, 'submitAssignment']);
         Route::get('/announcements', [StudentPortalController::class, 'announcements']);
+        Route::get('/cbt/available', [StudentPortalController::class, 'cbtAvailable']);
+        Route::post('/cbt/start', [StudentPortalController::class, 'startCbt']);
+        Route::get('/cbt/sessions/{id}', [StudentPortalController::class, 'showCbtSession']);
+        Route::post('/cbt/sessions/{id}/submit', [StudentPortalController::class, 'submitCbt']);
+        Route::post('/cbt/sessions/{id}/anti-cheat', [StudentPortalController::class, 'cbtAntiCheat']);
     });
 
     // Parent / guardian portal
@@ -457,6 +569,7 @@ Route::middleware(['auth:sanctum', 'password.changed', 'school.isolated', 'schoo
         Route::post('/notifications/read-all', [ParentPortalController::class, 'markAllNotificationsRead']);
         Route::get('/communications/threads', [ParentPortalController::class, 'threads']);
         Route::post('/communications/threads', [ParentPortalController::class, 'createThread']);
+        Route::patch('/communications/threads/{threadId}', [ParentPortalController::class, 'updateThread']);
         Route::get('/communications/threads/{threadId}/messages', [ParentPortalController::class, 'threadMessages']);
         Route::post('/communications/threads/{threadId}/messages', [ParentPortalController::class, 'sendMessage']);
         Route::get('/store/items', [ParentPortalController::class, 'storeItems']);
@@ -471,7 +584,13 @@ Route::middleware(['auth:sanctum', 'password.changed', 'school.isolated', 'schoo
     Route::put('/disciplinary-records/{id}', [DisciplinaryRecordController::class, 'update']);
 
     Route::get('/communications/threads', [CommunicationController::class, 'index']);
+    Route::get('/communications/threads/unread-count', [CommunicationController::class, 'unreadCount']);
+    Route::get('/communications/parents', [CommunicationController::class, 'parents']);
+    Route::get('/communications/parents/{parentUserId}/students', [CommunicationController::class, 'parentStudents']);
+    Route::get('/communications/staff', [CommunicationController::class, 'staff']);
+    Route::post('/communications/threads', [CommunicationController::class, 'store']);
     Route::get('/communications/threads/{id}', [CommunicationController::class, 'show']);
+    Route::patch('/communications/threads/{id}', [CommunicationController::class, 'update']);
     Route::post('/communications/threads/{id}/messages', [CommunicationController::class, 'reply']);
 
     Route::get('/guardians', [GuardianController::class, 'index']);
@@ -479,16 +598,61 @@ Route::middleware(['auth:sanctum', 'password.changed', 'school.isolated', 'schoo
     Route::get('/guardians/{id}/students', [GuardianController::class, 'students']);
     Route::post('/guardians', [GuardianController::class, 'store']);
     Route::put('/guardians/{id}', [GuardianController::class, 'update']);
+    Route::delete('/guardians/{id}', [GuardianController::class, 'destroy']);
     Route::post('/guardians/{id}/link-student', [GuardianController::class, 'linkToStudent']);
     Route::get('/enrollment-applications', [EnrollmentController::class, 'index']);
     Route::post('/enrollment-applications', [EnrollmentController::class, 'store']);
     Route::get('/enrollment-applications/{id}', [EnrollmentController::class, 'show']);
     Route::put('/enrollment-applications/{id}/approve', [EnrollmentController::class, 'approve']);
     Route::put('/enrollment-applications/{id}/reject', [EnrollmentController::class, 'reject']);
+    Route::get('/leave-types', [LeaveTypeController::class, 'index']);
+    Route::get('/leave-types/{id}', [LeaveTypeController::class, 'show']);
+    Route::post('/leave-types', [LeaveTypeController::class, 'store']);
+    Route::put('/leave-types/{id}', [LeaveTypeController::class, 'update']);
+    Route::delete('/leave-types/{id}', [LeaveTypeController::class, 'destroy']);
     Route::get('/leave-requests', [LeaveRequestController::class, 'index']);
     Route::post('/leave-requests', [LeaveRequestController::class, 'store']);
     Route::post('/leave-requests/{id}/approve', [LeaveRequestController::class, 'approve']);
     Route::post('/leave-requests/{id}/reject', [LeaveRequestController::class, 'reject']);
+    Route::get('/designations', [DesignationController::class, 'index']);
+    Route::get('/designations/{id}', [DesignationController::class, 'show']);
+    Route::post('/designations', [DesignationController::class, 'store']);
+    Route::put('/designations/{id}', [DesignationController::class, 'update']);
+    Route::delete('/designations/{id}', [DesignationController::class, 'destroy']);
+    Route::get('/employees', [EmployeeController::class, 'index']);
+    Route::get('/employees/{id}', [EmployeeController::class, 'show']);
+    Route::post('/employees', [EmployeeController::class, 'store']);
+    Route::put('/employees/{id}', [EmployeeController::class, 'update']);
+    Route::delete('/employees/{id}', [EmployeeController::class, 'destroy']);
+    Route::get('/staff-attendance', [StaffAttendanceController::class, 'index']);
+    Route::get('/staff-attendance/roster', [StaffAttendanceController::class, 'roster']);
+    Route::get('/staff-attendance/summary', [StaffAttendanceController::class, 'summary']);
+    Route::post('/staff-attendance', [StaffAttendanceController::class, 'store']);
+    Route::get('/student-categories', [StudentCategoryController::class, 'index']);
+    Route::get('/student-categories/{id}', [StudentCategoryController::class, 'show']);
+    Route::post('/student-categories', [StudentCategoryController::class, 'store']);
+    Route::put('/student-categories/{id}', [StudentCategoryController::class, 'update']);
+    Route::delete('/student-categories/{id}', [StudentCategoryController::class, 'destroy']);
+    Route::get('/certificate-templates', [CertificateTemplateController::class, 'index']);
+    Route::get('/certificate-templates/{id}', [CertificateTemplateController::class, 'show']);
+    Route::post('/certificate-templates', [CertificateTemplateController::class, 'store']);
+    Route::put('/certificate-templates/{id}', [CertificateTemplateController::class, 'update']);
+    Route::delete('/certificate-templates/{id}', [CertificateTemplateController::class, 'destroy']);
+    Route::post('/certificate-templates/{id}/issue', [CertificateTemplateController::class, 'issue']);
+    Route::get('/school-certificates', [SchoolCertificateController::class, 'index']);
+    Route::get('/school-certificates/{id}/download', [SchoolCertificateController::class, 'download']);
+    Route::post('/school-certificates/{id}/revoke', [SchoolCertificateController::class, 'revoke']);
+    Route::get('/school-certificates/{id}', [SchoolCertificateController::class, 'show']);
+    Route::get('/school-currencies', [SchoolCurrencyController::class, 'index']);
+    Route::get('/school-currencies/{id}', [SchoolCurrencyController::class, 'show']);
+    Route::post('/school-currencies', [SchoolCurrencyController::class, 'store']);
+    Route::put('/school-currencies/{id}', [SchoolCurrencyController::class, 'update']);
+    Route::delete('/school-currencies/{id}', [SchoolCurrencyController::class, 'destroy']);
+    Route::get('/school-languages', [SchoolLanguageController::class, 'index']);
+    Route::get('/school-languages/{id}', [SchoolLanguageController::class, 'show']);
+    Route::post('/school-languages', [SchoolLanguageController::class, 'store']);
+    Route::put('/school-languages/{id}', [SchoolLanguageController::class, 'update']);
+    Route::delete('/school-languages/{id}', [SchoolLanguageController::class, 'destroy']);
 
     // Reports & announcements
     Route::get('/reports/export', [ReportController::class, 'export']);
@@ -541,15 +705,39 @@ Route::middleware(['auth:sanctum', 'password.changed', 'school.isolated', 'schoo
     Route::put('/hostels/{id}', [HostelController::class, 'update']);
     Route::post('/hostels/{id}/rooms', [HostelController::class, 'storeRoom']);
     Route::post('/hostels/allocations', [HostelController::class, 'allocate']);
-    Route::get('/library/books', [LibraryController::class, 'books']);
-    Route::post('/library/books', [LibraryController::class, 'storeBook']);
-    Route::put('/library/books/{id}', [LibraryController::class, 'updateBook']);
-    Route::post('/library/loans', [LibraryController::class, 'borrow']);
+    Route::get('/library/books', [LibraryController::class, 'books'])->middleware('capability:canManageLibrary,isStaff');
+    Route::post('/library/books', [LibraryController::class, 'storeBook'])->middleware('capability:canManageLibrary');
+    Route::put('/library/books/{id}', [LibraryController::class, 'updateBook'])->middleware('capability:canManageLibrary');
+    Route::delete('/library/books/{id}', [LibraryController::class, 'destroyBook'])->middleware('capability:canManageLibrary');
+    Route::get('/library/loans', [LibraryController::class, 'loans'])->middleware('capability:canManageLibrary,isStaff');
+    Route::post('/library/loans', [LibraryController::class, 'borrow'])->middleware('capability:canManageLibrary');
     Route::post('/library/loans/{id}/return', [LibraryController::class, 'returnBook']);
+    Route::get('/library/members', [LibraryMemberController::class, 'index']);
+    Route::get('/library/members/{id}', [LibraryMemberController::class, 'show']);
+    Route::post('/library/members', [LibraryMemberController::class, 'store']);
+    Route::put('/library/members/{id}', [LibraryMemberController::class, 'update']);
+    Route::delete('/library/members/{id}', [LibraryMemberController::class, 'destroy']);
     Route::get('/visitors', [VisitorController::class, 'index']);
     Route::post('/visitors', [VisitorController::class, 'checkIn']);
     Route::post('/visitors/check-in', [VisitorController::class, 'checkIn']);
     Route::post('/visitors/{id}/check-out', [VisitorController::class, 'checkOut']);
+    Route::get('/help-desk/tickets', [HelpDeskController::class, 'index']);
+    Route::post('/help-desk/tickets', [HelpDeskController::class, 'store']);
+    Route::put('/help-desk/tickets/{id}', [HelpDeskController::class, 'update']);
+    Route::post('/help-desk/tickets/{id}/resolve', [HelpDeskController::class, 'resolve']);
+    Route::post('/help-desk/tickets/{id}/close', [HelpDeskController::class, 'close']);
+    Route::get('/recruitment/jobs', [RecruitmentController::class, 'jobs']);
+    Route::post('/recruitment/jobs', [RecruitmentController::class, 'storeJob']);
+    Route::put('/recruitment/jobs/{id}', [RecruitmentController::class, 'updateJob']);
+    Route::post('/recruitment/jobs/{id}/close', [RecruitmentController::class, 'closeJob']);
+    Route::get('/recruitment/applications', [RecruitmentController::class, 'applications']);
+    Route::post('/recruitment/applications', [RecruitmentController::class, 'storeApplication']);
+    Route::put('/recruitment/applications/{id}', [RecruitmentController::class, 'updateApplication']);
+    Route::post('/recruitment/applications/{id}/shortlist', [RecruitmentController::class, 'shortlistApplication']);
+    Route::post('/recruitment/applications/{id}/interview', [RecruitmentController::class, 'interviewApplication']);
+    Route::post('/recruitment/applications/{id}/offer', [RecruitmentController::class, 'offerApplication']);
+    Route::post('/recruitment/applications/{id}/hire', [RecruitmentController::class, 'hireApplication']);
+    Route::post('/recruitment/applications/{id}/reject', [RecruitmentController::class, 'rejectApplication']);
     Route::get('/health/students/{id}/profile', [HealthController::class, 'profile']);
     Route::put('/health/students/{id}/profile', [HealthController::class, 'updateProfile']);
     Route::get('/health/clinic-visits', [HealthController::class, 'visits']);
@@ -558,6 +746,7 @@ Route::middleware(['auth:sanctum', 'password.changed', 'school.isolated', 'schoo
     Route::get('/events', [SchoolEventController::class, 'index']);
     Route::post('/events', [SchoolEventController::class, 'store']);
     Route::put('/events/{id}', [SchoolEventController::class, 'update']);
+    Route::delete('/events/{id}', [SchoolEventController::class, 'destroy']);
     Route::get('/compliance/policies', [ComplianceController::class, 'policies']);
     Route::post('/compliance/policies', [ComplianceController::class, 'storePolicy']);
     Route::put('/compliance/policies/{id}', [ComplianceController::class, 'updatePolicy']);
@@ -610,6 +799,7 @@ Route::middleware(['auth:sanctum', 'password.changed', 'school.isolated', 'schoo
         Route::get('/payment-gateways', [PlatformFinanceController::class, 'gatewayConfigs']);
         Route::post('/payment-gateways', [PlatformFinanceController::class, 'storeGatewayConfig']);
         Route::post('/payments/initiate', [PlatformFinanceController::class, 'initiatePayment']);
+        Route::get('/payments/status/{reference}', [PaymentWebhookController::class, 'status']);
         Route::get('/fee-penalty-rules', [PlatformFinanceController::class, 'penaltyRules']);
         Route::post('/fee-penalty-rules', [PlatformFinanceController::class, 'storePenaltyRule']);
         Route::get('/refunds', [PlatformFinanceController::class, 'refunds']);
@@ -656,6 +846,8 @@ Route::middleware(['auth:sanctum', 'password.changed', 'school.isolated', 'schoo
         Route::get('/academic/students/{studentId}/promotion-evaluation', [EnterpriseAcademicController::class, 'evaluatePromotion']);
         Route::get('/academic/calendar', [EnterpriseAcademicController::class, 'calendar']);
         Route::post('/academic/calendar', [EnterpriseAcademicController::class, 'storeCalendarEntry']);
+        Route::put('/academic/calendar/{id}', [EnterpriseAcademicController::class, 'updateCalendarEntry']);
+        Route::delete('/academic/calendar/{id}', [EnterpriseAcademicController::class, 'destroyCalendarEntry']);
 
         Route::post('/finance/accounts/seed', [EnterpriseFinanceController::class, 'seedAccounts']);
         Route::get('/finance/accounts', [EnterpriseFinanceController::class, 'accounts']);
@@ -673,16 +865,16 @@ Route::middleware(['auth:sanctum', 'password.changed', 'school.isolated', 'schoo
         Route::get('/finance/revenue-rules', [EnterpriseFinanceController::class, 'revenueRules']);
         Route::post('/finance/revenue-rules', [EnterpriseFinanceController::class, 'storeRevenueRule']);
 
-        Route::get('/exams/question-bank', [EnterpriseExamController::class, 'questions']);
-        Route::post('/exams/question-bank', [EnterpriseExamController::class, 'storeQuestion']);
-        Route::post('/exams/generate-paper', [EnterpriseExamController::class, 'generatePaper']);
-        Route::post('/exams/cbt/start', [EnterpriseExamController::class, 'startCbt']);
-        Route::post('/exams/cbt/{id}/submit', [EnterpriseExamController::class, 'submitCbt']);
-        Route::post('/exams/cbt/{sessionId}/anti-cheat', [EnterpriseExamController::class, 'antiCheatLog']);
-        Route::get('/exams/remark-requests', [EnterpriseExamController::class, 'remarkRequests']);
-        Route::post('/exams/remark-requests', [EnterpriseExamController::class, 'requestRemark']);
-        Route::get('/workflows/delegations', [EnterpriseExamController::class, 'delegations']);
-        Route::post('/workflows/delegations', [EnterpriseExamController::class, 'storeDelegation']);
+        Route::get('/exams/question-bank', [EnterpriseExamController::class, 'questions'])->middleware('capability:canManageExaminations');
+        Route::post('/exams/question-bank', [EnterpriseExamController::class, 'storeQuestion'])->middleware('capability:canManageExaminations');
+        Route::post('/exams/generate-paper', [EnterpriseExamController::class, 'generatePaper'])->middleware('capability:canManageExaminations');
+        Route::post('/exams/cbt/start', [EnterpriseExamController::class, 'startCbt'])->middleware('capability:canManageExaminations');
+        Route::post('/exams/cbt/{id}/submit', [EnterpriseExamController::class, 'submitCbt'])->middleware('capability:canManageExaminations');
+        Route::post('/exams/cbt/{sessionId}/anti-cheat', [EnterpriseExamController::class, 'antiCheatLog'])->middleware('capability:canManageExaminations');
+        Route::get('/exams/remark-requests', [EnterpriseExamController::class, 'remarkRequests'])->middleware('capability:canManageExaminations');
+        Route::post('/exams/remark-requests', [EnterpriseExamController::class, 'requestRemark'])->middleware('capability:canManageExaminations');
+        Route::get('/workflows/delegations', [EnterpriseExamController::class, 'delegations'])->middleware('capability:canManageTeachers');
+        Route::post('/workflows/delegations', [EnterpriseExamController::class, 'storeDelegation'])->middleware('capability:canManageTeachers');
 
         Route::post('/admissions/score', [EnterpriseIntelligenceController::class, 'admissionScore']);
         Route::get('/students/{id}/profile', [EnterpriseIntelligenceController::class, 'studentProfile']);
@@ -690,6 +882,10 @@ Route::middleware(['auth:sanctum', 'password.changed', 'school.isolated', 'schoo
         Route::post('/students/{id}/timeline', [EnterpriseIntelligenceController::class, 'recordTimelineEvent']);
         Route::get('/early-warnings', [EnterpriseIntelligenceController::class, 'earlyWarnings']);
         Route::get('/alumni', [EnterpriseIntelligenceController::class, 'alumni']);
+        Route::post('/alumni', [EnterpriseIntelligenceController::class, 'storeAlumni']);
+        Route::put('/alumni/{id}', [EnterpriseIntelligenceController::class, 'updateAlumni']);
+        Route::delete('/alumni/{id}', [EnterpriseIntelligenceController::class, 'destroyAlumni']);
+        Route::post('/alumni/{id}/engagements', [EnterpriseIntelligenceController::class, 'recordAlumniEngagement']);
         Route::post('/alumni/students/{studentId}', [EnterpriseIntelligenceController::class, 'registerAlumni']);
         Route::get('/campaigns', [EnterpriseIntelligenceController::class, 'campaigns']);
         Route::post('/campaigns', [EnterpriseIntelligenceController::class, 'storeCampaign']);
@@ -705,7 +901,12 @@ Route::middleware(['auth:sanctum', 'password.changed', 'school.isolated', 'schoo
         Route::post('/compliance/requirements', [EnterpriseGovernanceController::class, 'storeComplianceRequirement']);
         Route::get('/integrations/connectors', [EnterpriseGovernanceController::class, 'connectors']);
         Route::post('/integrations/connectors', [EnterpriseGovernanceController::class, 'storeConnector']);
+        Route::get('/integrations/webhooks', [EnterpriseGovernanceController::class, 'webhooks']);
         Route::post('/integrations/webhooks', [EnterpriseGovernanceController::class, 'storeWebhook']);
+        Route::get('/integrations/webhooks/deliveries', [EnterpriseGovernanceController::class, 'webhookDeliveries']);
+        Route::post('/integrations/webhooks/deliveries/{id}/retry', [EnterpriseGovernanceController::class, 'retryWebhookDelivery']);
+        Route::put('/integrations/webhooks/{id}', [EnterpriseGovernanceController::class, 'updateWebhook']);
+        Route::delete('/integrations/webhooks/{id}', [EnterpriseGovernanceController::class, 'destroyWebhook']);
         Route::get('/security/abac-policies', [EnterpriseGovernanceController::class, 'abacPolicies']);
         Route::post('/security/abac-policies', [EnterpriseGovernanceController::class, 'storeAbacPolicy']);
         Route::get('/group/policies', [EnterpriseGovernanceController::class, 'groupPolicies']);

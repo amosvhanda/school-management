@@ -2,7 +2,6 @@
 
 namespace App\Policies;
 
-use App\Enums\UserRole;
 use App\Models\School;
 use App\Models\User;
 use App\Policies\Concerns\ChecksSchoolOwnership;
@@ -20,6 +19,9 @@ class SchoolPolicy
     public function update(User $user, School $school): bool
     {
         return $this->belongsToSameSchool($user, $school->id)
-            && $user->role?->canManageTeachers();
+            && (
+                $user->hasCapability('canManageTeachers')
+                || $user->hasPermission('settings.manage')
+            );
     }
 }

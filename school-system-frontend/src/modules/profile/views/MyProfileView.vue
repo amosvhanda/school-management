@@ -24,6 +24,12 @@ import { useAuth } from '@/composables/useAuth'
 import { getErrorMessage } from '@/lib/api-response'
 import { formatDate } from '@/lib/format'
 import { profileApi, uploadsApi } from '@/services/api.service'
+import {
+  confirmTwoFactor,
+  disableTwoFactor,
+  enableTwoFactor,
+  fetchTwoFactorStatus,
+} from '@/services/auth.service'
 
 interface ProfileData {
   id: number
@@ -83,6 +89,15 @@ const passwordForm = reactive({
   new_password_confirmation: '',
 })
 
+const twoFactorEnabled = ref(false)
+const twoFactorConfirmed = ref(false)
+const twoFactorBusy = ref(false)
+const twoFactorSetupKey = ref('')
+const twoFactorQrSvg = ref('')
+const twoFactorRecoveryCodes = ref<string[]>([])
+const twoFactorConfirmCode = ref('')
+const twoFactorDisablePassword = ref('')
+
 const isTeacher = computed(() => profile.value?.role === 'teacher')
 
 const initials = computed(() => {
@@ -122,10 +137,72 @@ async function loadProfile() {
   error.value = null
   try {
     hydrate((await profileApi.show()) as ProfileData)
+    const status = await fetchTwoFactorStatus()
+    twoFactorEnabled.value = status.enabled
+    twoFactorConfirmed.value = status.confirmed
   } catch (err) {
     error.value = getErrorMessage(err, 'Failed to load your profile')
   } finally {
     loading.value = false
+  }
+}
+
+async function startTwoFactor() {
+  twoFactorBusy.value = true
+  try {
+    const result = await enableTwoFactor()
+    twoFactorEnabled.value = true
+    twoFactorConfirmed.value = false
+    twoFactorSetupKey.value = result.setup_key ?? ''
+    twoFactorQrSvg.value = result.qr_code_svg ?? ''
+    twoFactorRecoveryCodes.value = result.recovery_codes ?? []
+    toast.success('Scan the QR code, then confirm with a code from your app')
+  } catch (err) {
+    toast.error(getErrorMessage(err, 'Could not enable two-factor authentication'))
+  } finally {
+    twoFactorBusy.value = false
+  }
+}
+
+async function confirmTwoFactorSetup() {
+  if (!twoFactorConfirmCode.value.trim()) {
+    toast.error('Enter the authenticator code')
+    return
+  }
+  twoFactorBusy.value = true
+  try {
+    const status = await confirmTwoFactor(twoFactorConfirmCode.value.trim())
+    twoFactorEnabled.value = status.enabled
+    twoFactorConfirmed.value = status.confirmed
+    twoFactorConfirmCode.value = ''
+    twoFactorQrSvg.value = ''
+    toast.success('Two-factor authentication is now active')
+    await fetchMe()
+  } catch (err) {
+    toast.error(getErrorMessage(err, 'Invalid confirmation code'))
+  } finally {
+    twoFactorBusy.value = false
+  }
+}
+
+async function turnOffTwoFactor() {
+  if (!twoFactorDisablePassword.value) {
+    toast.error('Enter your password to disable two-factor authentication')
+    return
+  }
+  twoFactorBusy.value = true
+  try {
+    const status = await disableTwoFactor(twoFactorDisablePassword.value)
+    twoFactorEnabled.value = status.enabled
+    twoFactorConfirmed.value = status.confirmed
+    twoFactorDisablePassword.value = ''
+    twoFactorRecoveryCodes.value = []
+    toast.success('Two-factor authentication disabled')
+    await fetchMe()
+  } catch (err) {
+    toast.error(getErrorMessage(err, 'Could not disable two-factor authentication'))
+  } finally {
+    twoFactorBusy.value = false
   }
 }
 
@@ -412,10 +489,10 @@ onMounted(loadProfile)
               Security
             </CardTitle>
             <CardDescription>
-              Change your password. You'll be signed out and asked to log in again.
+              Change your password or enable two-factor authentication for stronger account protection.
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent class="space-y-8">
             <form class="space-y-5" @submit.prevent="changePassword">
               <div class="grid gap-4 sm:grid-cols-2">
                 <div class="space-y-2 sm:col-span-2">
@@ -464,6 +541,79 @@ onMounted(loadProfile)
                 </Button>
               </div>
             </form>
+
+            <section class="space-y-4 border-t border-border/60 pt-6" aria-labelledby="two-factor-heading">
+              <div class="space-y-1">
+                <h3 id="two-factor-heading" class="text-sm font-semibold text-foreground">
+                  Two-factor authentication
+                </h3>
+                <p class="text-sm text-muted-foreground">
+                  {{
+                    twoFactorConfirmed
+                      ? 'Enabled. Sign-in requires an authenticator code.'
+                      : twoFactorEnabled
+                        ? 'Setup started — confirm with a code from your authenticator app.'
+                        : 'Add an authenticator app for an extra login step.'
+                  }}
+                </p>
+              </div>
+
+              <div v-if="twoFactorQrSvg" class="space-y-3 rounded-xl border border-border/60 p-4">
+                <div class="mx-auto max-w-[180px]" v-html="twoFactorQrSvg" />
+                <p class="text-xs text-muted-foreground">
+                  Setup key: <code class="rounded bg-muted px-1">{{ twoFactorSetupKey }}</code>
+                </p>
+                <ul v-if="twoFactorRecoveryCodes.length" class="grid gap-1 text-xs text-muted-foreground sm:grid-cols-2">
+                  <li v-for="code in twoFactorRecoveryCodes" :key="code">
+                    <code>{{ code }}</code>
+                  </li>
+                </ul>
+                <div class="flex flex-col gap-2 sm:flex-row sm:items-end">
+                  <div class="flex-1 space-y-2">
+                    <Label for="two-factor-confirm">Confirmation code</Label>
+                    <Input
+                      id="two-factor-confirm"
+                      v-model="twoFactorConfirmCode"
+                      inputmode="numeric"
+                      autocomplete="one-time-code"
+                      placeholder="123456"
+                    />
+                  </div>
+                  <Button type="button" :disabled="twoFactorBusy" @click="confirmTwoFactorSetup">
+                    Confirm
+                  </Button>
+                </div>
+              </div>
+
+              <div v-else-if="twoFactorConfirmed" class="flex flex-col gap-3 sm:flex-row sm:items-end">
+                <div class="flex-1 space-y-2">
+                  <Label for="two-factor-disable-password">Password to disable</Label>
+                  <Input
+                    id="two-factor-disable-password"
+                    v-model="twoFactorDisablePassword"
+                    type="password"
+                    autocomplete="current-password"
+                  />
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  :disabled="twoFactorBusy"
+                  @click="turnOffTwoFactor"
+                >
+                  Disable 2FA
+                </Button>
+              </div>
+
+              <Button
+                v-else
+                type="button"
+                :disabled="twoFactorBusy"
+                @click="startTwoFactor"
+              >
+                {{ twoFactorBusy ? 'Working…' : 'Enable two-factor authentication' }}
+              </Button>
+            </section>
           </CardContent>
         </Card>
       </div>

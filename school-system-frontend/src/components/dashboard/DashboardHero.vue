@@ -1,8 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { RefreshCw } from '@lucide/vue'
+import { GraduationCap, RefreshCw } from '@lucide/vue'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import { formatDate, formatTime } from '@/lib/format'
 
 const props = defineProps<{
@@ -11,21 +10,22 @@ const props = defineProps<{
   subtitle?: string
   loading?: boolean
   lastUpdated?: Date | null
+  pageTitle?: string
 }>()
 
 defineEmits<{ refresh: [] }>()
 
 const greeting = computed(() => {
   const hour = new Date().getHours()
-  if (hour < 12) return 'Good morning'
-  if (hour < 17) return 'Good afternoon'
-  return 'Good evening'
+  if (hour < 12) return 'Good Morning'
+  if (hour < 17) return 'Good Afternoon'
+  return 'Good Evening'
 })
 
 const todayLabel = computed(() => {
   const now = new Date()
   const weekday = now.toLocaleDateString('en-GB', {
-    weekday: 'long',
+    weekday: 'short',
     timeZone: 'Africa/Harare',
   })
   return `${weekday}, ${formatDate(now)}`
@@ -46,40 +46,56 @@ const heroSubtitle = computed(() =>
 </script>
 
 <template>
-  <header class="flex flex-col gap-4 border-b border-border/60 pb-6 sm:flex-row sm:items-end sm:justify-between">
-    <div class="min-w-0 space-y-2">
-      <div class="flex flex-wrap items-center gap-2">
-        <Badge variant="secondary" class="px-2.5 py-0.5 text-xs font-normal capitalize">
-          {{ roleLabel }}
-        </Badge>
-        <span class="text-xs text-muted-foreground">{{ todayLabel }}</span>
-      </div>
-      <div class="space-y-1">
-        <h1 class="font-heading text-2xl font-semibold tracking-tight text-foreground md:text-[1.75rem]">
-          {{ greeting }}, {{ name?.split(' ')[0] ?? 'there' }}
-        </h1>
-        <p class="max-w-2xl text-sm leading-relaxed text-muted-foreground">
-          {{ heroSubtitle }}
-        </p>
-      </div>
-    </div>
+  <div class="space-y-4">
+    <header v-if="pageTitle" class="flex flex-col gap-1">
+      <p class="text-xs text-muted-foreground">Dashboard / {{ pageTitle }}</p>
+      <h1 class="font-heading text-2xl font-semibold tracking-tight md:text-3xl">
+        {{ pageTitle }}
+      </h1>
+    </header>
 
-    <div class="flex shrink-0 flex-wrap items-center gap-3">
-      <p v-if="lastUpdated" class="hidden text-xs text-muted-foreground sm:block">
-        Updated {{ updatedLabel }}
-      </p>
-      <slot name="actions" />
-      <Button
-        variant="outline"
-        size="sm"
-        class="h-9 gap-2 px-3 text-xs"
-        :disabled="loading"
-        :aria-busy="loading"
-        @click="$emit('refresh')"
-      >
-        <RefreshCw class="size-3.5" :class="loading && 'animate-spin'" aria-hidden="true" />
-        Refresh
-      </Button>
-    </div>
-  </header>
+    <section
+      class="flex flex-col gap-4 overflow-hidden rounded-2xl bg-card p-4 shadow-[var(--shadow-soft)] ring-1 ring-border/80 sm:flex-row sm:items-center sm:justify-between sm:p-5"
+      :aria-labelledby="pageTitle ? undefined : 'dashboard-greeting'"
+    >
+      <div class="flex min-w-0 items-start gap-4 sm:items-center">
+        <div
+          class="flex size-14 shrink-0 items-center justify-center rounded-2xl bg-primary text-primary-foreground"
+          aria-hidden="true"
+        >
+          <GraduationCap class="size-7" />
+        </div>
+        <div class="min-w-0 space-y-1">
+          <p class="text-xs font-medium capitalize text-muted-foreground">{{ roleLabel }} · {{ todayLabel }}</p>
+          <h2
+            :id="pageTitle ? undefined : 'dashboard-greeting'"
+            class="text-xl font-semibold tracking-tight sm:text-2xl"
+          >
+            {{ greeting }}, {{ name?.split(' ')[0] ?? 'there' }}
+          </h2>
+          <p class="max-w-2xl text-sm leading-relaxed text-muted-foreground">
+            {{ heroSubtitle }}
+          </p>
+        </div>
+      </div>
+
+      <div class="flex shrink-0 flex-wrap items-center gap-2">
+        <p v-if="lastUpdated" class="hidden text-xs text-muted-foreground lg:block">
+          Updated {{ updatedLabel }}
+        </p>
+        <slot name="actions" />
+        <Button
+          variant="outline"
+          size="sm"
+          class="h-9 gap-2 rounded-full px-4 text-xs"
+          :disabled="loading"
+          :aria-busy="loading"
+          @click="$emit('refresh')"
+        >
+          <RefreshCw class="size-3.5" :class="loading && 'animate-spin'" aria-hidden="true" />
+          Refresh
+        </Button>
+      </div>
+    </section>
+  </div>
 </template>

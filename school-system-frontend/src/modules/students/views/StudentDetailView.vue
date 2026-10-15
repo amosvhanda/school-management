@@ -3,12 +3,18 @@ import { computed, nextTick, onMounted, ref } from 'vue'
 import { useRoute, RouterLink } from 'vue-router'
 import {
   ArrowLeft,
+  Banknote,
+  Camera,
   Download,
+  FileText,
+  IdCard,
   Mail,
   MapPin,
   Pencil,
   Phone,
   Plus,
+  Printer,
+  Trash2,
   User,
   Users,
 } from '@lucide/vue'
@@ -18,7 +24,7 @@ import FormSheet from '@/components/forms/FormSheet.vue'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import {
   Table,
@@ -40,8 +46,12 @@ import {
   studentInvoiceFields,
   studentInvoiceSchema,
 } from '@/modules/students/student-form'
-import { studentsApi } from '@/services/api.service'
+import { studentsApi, financeApi, platformApi } from '@/services/api.service'
 import StudentJourneyPanel from '@/modules/students/components/StudentJourneyPanel.vue'
+import InvoicePrintSheet from '@/modules/finance/components/InvoicePrintSheet.vue'
+import StudentIdCardSheet from '@/modules/students/components/StudentIdCardSheet.vue'
+import PaymentReceiptSheet from '@/modules/finance/components/PaymentReceiptSheet.vue'
+import { feePaymentPromptForm } from '@/modules/shared/action-prompt-forms'
 
 interface Student {
   id: number
@@ -53,6 +63,7 @@ interface Student {
   gender?: string
   phone?: string
   email?: string
+  photo_url?: string | null
   address?: string
   suburb?: string
   class?: string
@@ -102,6 +113,16 @@ interface Invoice {
   due_date?: string
 }
 
+interface StudentDocumentRow {
+  id: number
+  name?: string
+  type?: string | null
+  mime_type?: string | null
+  size?: number | null
+  url?: string | null
+  created_at?: string | null
+}
+
 const route = useRoute()
 const toast = useToast()
 const { checkCapability } = useAuth()
@@ -115,12 +136,43 @@ const performance = ref<PerformanceData | null>(null)
 const invoices = ref<Invoice[]>([])
 const editOpen = ref(false)
 const invoiceOpen = ref(false)
+const invoicePrintOpen = ref(false)
+const invoicePrintLoading = ref(false)
+const invoicePrintData = ref<Record<string, unknown> | null>(null)
+const idCardPrintOpen = ref(false)
+const idCardPrintLoading = ref(false)
+const idCardPrintData = ref<Record<string, unknown> | null>(null)
+const paymentOpen = ref(false)
+const paymentTarget = ref<Invoice | null>(null)
+const paymentFormResetValues = ref<Record<string, unknown> | undefined>()
+const paymentFormSheetRef = ref<{ applyServerErrors: (error: unknown) => void } | null>(null)
+const receiptOpen = ref(false)
+const receiptLoading = ref(false)
+const receiptData = ref<Record<string, unknown> | null>(null)
 const saving = ref(false)
 const formEditLoading = ref(false)
 const studentFormResetValues = ref<Record<string, unknown> | undefined>()
 const invoiceFormResetValues = ref<Record<string, unknown> | undefined>()
 const studentFormSheetRef = ref<{ applyServerErrors: (error: unknown) => void } | null>(null)
 const invoiceFormSheetRef = ref<{ applyServerErrors: (error: unknown) => void } | null>(null)
+const photoInput = ref<HTMLInputElement | null>(null)
+const uploadingPhoto = ref(false)
+const documents = ref<StudentDocumentRow[]>([])
+const documentsLoading = ref(false)
+const documentsError = ref<string | null>(null)
+const documentInput = ref<HTMLInputElement | null>(null)
+const uploadingDocuments = ref(false)
+const deletingDocumentId = ref<number | null>(null)
+const documentType = ref('birth_certificate')
+const initiatingOnlinePaymentId = ref<number | null>(null)
+
+const DOCUMENT_TYPE_OPTIONS = [
+  { label: 'Birth certificate', value: 'birth_certificate' },
+  { label: 'ID / passport', value: 'identity' },
+  { label: 'Medical', value: 'medical' },
+  { label: 'Report / transcript', value: 'academic' },
+  { label: 'Other', value: 'other' },
+]
 
 const id = String(route.params.id)
 
@@ -133,6 +185,44 @@ const displayName = computed(() =>
 const initials = computed(() =>
   displayName.value.split(' ').map((p) => p[0]).join('').slice(0, 2).toUpperCase(),
 )
+
+const studentPhotoUrl = computed(() => student.value?.photo_url ?? null)
+
+function pickPhoto() {
+  photoInput.value?.click()
+}
+
+async function onPhotoSelected(event: Event) {
+  if (!student.value?.id) return
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  if (!file) return
+
+  if (!file.type.startsWith('image/')) {
+    toast.warning('Invalid file', 'Please choose an image file.')
+    input.value = ''
+    return
+  }
+  if (file.size > 5 * 1024 * 1024) {
+    toast.warning('File too large', 'Choose an image under 5 MB.')
+    input.value = ''
+    return
+  }
+
+  uploadingPhoto.value = true
+  try {
+    const result = await studentsApi.uploadPhoto(student.value.id, file)
+    if (student.value) {
+      student.value = { ...student.value, photo_url: result.photo_url }
+    }
+    toast.success('Student photo updated')
+  } catch (err) {
+    toast.error('Could not upload photo', getErrorMessage(err))
+  } finally {
+    uploadingPhoto.value = false
+    input.value = ''
+  }
+}
 
 const guardianName = computed(() => {
   const g = student.value?.guardian
@@ -169,6 +259,129 @@ function invoiceTotal(inv: Invoice) {
   return inv.amount ?? inv.total
 }
 
+async function openInvoicePrint(invoiceId: number) {
+  invoicePrintOpen.value = true
+  invoicePrintLoading.value = true
+  invoicePrintData.value = null
+  try {
+    invoicePrintData.value = (await financeApi.invoices.print(invoiceId)) as Record<string, unknown>
+  } catch (err) {
+    toast.error('Invoice unavailable', getErrorMessage(err))
+    invoicePrintOpen.value = false
+  } finally {
+    invoicePrintLoading.value = false
+  }
+}
+
+async function openIdCardPrint() {
+  if (!student.value?.id) return
+  idCardPrintOpen.value = true
+  idCardPrintLoading.value = true
+  idCardPrintData.value = null
+  try {
+    idCardPrintData.value = (await studentsApi.printIdCard(student.value.id)) as Record<string, unknown>
+  } catch (err) {
+    toast.error('Could not load ID card', getErrorMessage(err))
+    idCardPrintOpen.value = false
+  } finally {
+    idCardPrintLoading.value = false
+  }
+}
+
+function canRecordPayment(inv: Invoice) {
+  const status = String(inv.status ?? '').toLowerCase()
+  const balance = Number(inv.balance ?? 0)
+  return ['pending', 'partial', 'overdue'].includes(status) && balance > 0
+}
+
+async function openRecordPayment(inv: Invoice) {
+  paymentTarget.value = inv
+  const defaults =
+    typeof feePaymentPromptForm.defaults === 'function'
+      ? feePaymentPromptForm.defaults(inv as unknown as Record<string, unknown>)
+      : (feePaymentPromptForm.defaults ?? {})
+  paymentFormResetValues.value = { ...defaults }
+  paymentOpen.value = true
+  await nextTick()
+  await preloadRelationFields(feePaymentPromptForm.fields)
+}
+
+async function payOnline(inv: Invoice) {
+  if (!canRecordPayment(inv)) return
+  initiatingOnlinePaymentId.value = inv.id
+  try {
+    const result = await platformApi.initiatePayment({
+      invoice_id: inv.id,
+      student_id: Number(id),
+      amount: Number(inv.balance),
+      payment_method: 'mobile_money',
+      provider: 'paynow',
+      return_url: window.location.href,
+    }) as {
+      checkout_url?: string | null
+      instructions?: string | null
+      transaction?: { internal_reference?: string }
+    }
+
+    if (result.checkout_url) {
+      window.location.assign(result.checkout_url)
+      return
+    }
+
+    toast.success(
+      'Payment initiated',
+      result.instructions
+        ?? (result.transaction?.internal_reference
+          ? `Reference ${result.transaction.internal_reference}`
+          : 'Awaiting gateway confirmation.'),
+    )
+    await load()
+  } catch (err) {
+    toast.error('Online payment failed', getErrorMessage(err))
+  } finally {
+    initiatingOnlinePaymentId.value = null
+  }
+}
+
+async function onRecordPayment(values: Record<string, unknown>) {
+  if (!paymentTarget.value) return
+  saving.value = true
+  try {
+    const payload: Record<string, unknown> = {
+      invoice_id: paymentTarget.value.id,
+      amount: Number(values.amount),
+      method: values.method,
+    }
+    if (values.reference) payload.reference = values.reference
+    if (values.notes) payload.notes = values.notes
+    if (values.income_head_id) payload.income_head_id = Number(values.income_head_id)
+
+    const payment = await financeApi.payments.create(payload) as { id?: number }
+    toast.success('Payment recorded')
+    paymentOpen.value = false
+    paymentTarget.value = null
+    await load()
+
+    if (payment?.id) {
+      receiptOpen.value = true
+      receiptLoading.value = true
+      receiptData.value = null
+      try {
+        receiptData.value = (await financeApi.payments.receipt(payment.id)) as Record<string, unknown>
+      } catch {
+        receiptOpen.value = false
+      } finally {
+        receiptLoading.value = false
+      }
+    }
+  } catch (err) {
+    paymentFormSheetRef.value?.applyServerErrors(err)
+    toast.error('Payment failed', getErrorMessage(err))
+  } finally {
+    saving.value = false
+  }
+}
+
 function statusVariant(status?: string) {
   if (status === 'active' || status === 'paid') return 'default'
   if (status === 'pending' || status === 'partial') return 'secondary'
@@ -201,11 +414,70 @@ async function load() {
     student.value = await studentsApi.get(id) as Student
     performance.value = await studentsApi.performance(id) as PerformanceData
     invoices.value = await studentsApi.invoices(id) as Invoice[]
+    void loadDocuments()
   } catch (err) {
     error.value = getErrorMessage(err, 'Failed to load student')
   } finally {
     loading.value = false
   }
+}
+
+async function loadDocuments() {
+  if (!canEditStudent.value) {
+    documents.value = []
+    return
+  }
+  documentsLoading.value = true
+  documentsError.value = null
+  try {
+    documents.value = await studentsApi.documents(id) as StudentDocumentRow[]
+  } catch (err) {
+    documentsError.value = getErrorMessage(err, 'Failed to load documents')
+  } finally {
+    documentsLoading.value = false
+  }
+}
+
+function pickDocuments() {
+  documentInput.value?.click()
+}
+
+async function onDocumentsSelected(event: Event) {
+  const input = event.target as HTMLInputElement
+  const files = Array.from(input.files ?? [])
+  if (!files.length) return
+
+  uploadingDocuments.value = true
+  try {
+    await studentsApi.uploadDocuments(id, files, documentType.value)
+    toast.success(files.length === 1 ? 'Document uploaded' : `${files.length} documents uploaded`)
+    await loadDocuments()
+  } catch (err) {
+    toast.error('Upload failed', getErrorMessage(err))
+  } finally {
+    uploadingDocuments.value = false
+    input.value = ''
+  }
+}
+
+async function removeDocument(doc: StudentDocumentRow) {
+  deletingDocumentId.value = doc.id
+  try {
+    await studentsApi.deleteDocument(id, doc.id)
+    toast.success('Document deleted')
+    documents.value = documents.value.filter((row) => row.id !== doc.id)
+  } catch (err) {
+    toast.error('Could not delete document', getErrorMessage(err))
+  } finally {
+    deletingDocumentId.value = null
+  }
+}
+
+function formatFileSize(bytes?: number | null) {
+  if (!bytes || bytes < 1) return '—'
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
 
 async function openEdit() {
@@ -226,7 +498,7 @@ async function openEdit() {
 }
 
 async function openInvoice() {
-  invoiceFormResetValues.value = {}
+  invoiceFormResetValues.value = { apply_discounts: true }
   invoiceOpen.value = true
 }
 
@@ -249,10 +521,25 @@ async function onSaveStudent(values: Record<string, unknown>) {
 async function onCreateInvoice(values: Record<string, unknown>) {
   saving.value = true
   try {
-    await studentsApi.createInvoice(id, values)
+    const payload: Record<string, unknown> = {
+      dueDate: values.dueDate,
+      apply_discounts: values.apply_discounts !== false,
+      combine_group: values.combine_group === true,
+    }
+    if (values.fee_group_id) {
+      payload.fee_group_id = Number(values.fee_group_id)
+      if (values.description) payload.description = values.description
+    } else {
+      payload.description = values.description
+      payload.amount = values.amount
+      if (values.fee_structure_id) {
+        payload.fee_structure_id = Number(values.fee_structure_id)
+      }
+    }
+    await studentsApi.createInvoice(id, payload)
     toast.success('Invoice created')
     invoiceOpen.value = false
-    invoiceFormResetValues.value = {}
+    invoiceFormResetValues.value = { apply_discounts: true }
     await load()
   } catch (err) {
     invoiceFormSheetRef.value?.applyServerErrors(err)
@@ -266,7 +553,7 @@ onMounted(load)
 </script>
 
 <template>
-  <div class="space-y-6">
+  <div class="mx-auto w-full max-w-[1600px] space-y-6 pb-8">
     <div class="flex items-center justify-between gap-3">
       <Button variant="ghost" size="sm" as-child>
         <RouterLink to="/students">
@@ -275,6 +562,15 @@ onMounted(load)
         </RouterLink>
       </Button>
       <div class="flex flex-wrap gap-2">
+        <Button
+          v-if="student && !loading"
+          variant="outline"
+          size="sm"
+          @click="openIdCardPrint"
+        >
+          <IdCard class="mr-1 h-4 w-4" aria-hidden="true" />
+          Print ID card
+        </Button>
         <Button
           v-if="student && !loading"
           variant="outline"
@@ -298,12 +594,34 @@ onMounted(load)
     <template v-else-if="student">
       <Card>
         <CardContent class="flex flex-col gap-6 p-6 sm:flex-row sm:items-center">
-          <Avatar class="h-16 w-16">
-            <AvatarFallback class="text-lg">{{ initials }}</AvatarFallback>
-          </Avatar>
+          <div class="relative shrink-0">
+            <Avatar class="h-16 w-16">
+              <AvatarImage v-if="studentPhotoUrl" :src="studentPhotoUrl" :alt="displayName" />
+              <AvatarFallback class="text-lg">{{ initials }}</AvatarFallback>
+            </Avatar>
+            <button
+              v-if="canEditStudent"
+              type="button"
+              class="absolute -right-1 -bottom-1 flex size-7 items-center justify-center rounded-full border border-border bg-background text-muted-foreground shadow-sm transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60"
+              :disabled="uploadingPhoto"
+              :aria-busy="uploadingPhoto"
+              aria-label="Change student photo"
+              @click="pickPhoto"
+            >
+              <Camera class="size-3.5" aria-hidden="true" />
+            </button>
+            <input
+              ref="photoInput"
+              type="file"
+              accept="image/*"
+              class="sr-only"
+              @change="onPhotoSelected"
+            />
+          </div>
           <div class="flex-1 space-y-1">
+            <p class="text-xs text-muted-foreground">Dashboard / Students / {{ displayName }}</p>
             <div class="flex flex-wrap items-center gap-2">
-              <h1 class="text-2xl font-semibold tracking-tight">{{ displayName }}</h1>
+              <h1 class="font-heading text-2xl font-semibold tracking-tight md:text-3xl">{{ displayName }}</h1>
               <Badge :variant="statusVariant(student.status)">{{ student.status ?? 'unknown' }}</Badge>
             </div>
             <p class="text-muted-foreground">
@@ -412,6 +730,7 @@ onMounted(load)
           <TabsTrigger value="journey">Journey</TabsTrigger>
           <TabsTrigger value="performance">Performance</TabsTrigger>
           <TabsTrigger value="fees">Fees & invoices</TabsTrigger>
+          <TabsTrigger value="documents">Documents</TabsTrigger>
           <TabsTrigger value="attendance">Attendance</TabsTrigger>
         </TabsList>
 
@@ -483,6 +802,9 @@ onMounted(load)
                     <TableHead>Balance</TableHead>
                     <TableHead>Due</TableHead>
                     <TableHead>Status</TableHead>
+                    <TableHead class="w-24">
+                      <span class="sr-only">Actions</span>
+                    </TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -494,10 +816,148 @@ onMounted(load)
                     <TableCell>
                       <Badge :variant="statusVariant(inv.status)">{{ inv.status ?? '—' }}</Badge>
                     </TableCell>
+                    <TableCell>
+                      <div class="flex flex-wrap justify-end gap-2">
+                        <Button
+                          v-if="canCreateInvoice && canRecordPayment(inv)"
+                          variant="outline"
+                          size="sm"
+                          :aria-label="`Record payment for invoice ${inv.invoice_number ?? inv.id}`"
+                          @click="openRecordPayment(inv)"
+                        >
+                          <Banknote class="h-4 w-4" aria-hidden="true" />
+                          <span class="sr-only sm:not-sr-only sm:ml-1">Record</span>
+                        </Button>
+                        <Button
+                          v-if="canCreateInvoice && canRecordPayment(inv)"
+                          variant="secondary"
+                          size="sm"
+                          :disabled="initiatingOnlinePaymentId === inv.id"
+                          :aria-busy="initiatingOnlinePaymentId === inv.id"
+                          :aria-label="`Pay online for invoice ${inv.invoice_number ?? inv.id}`"
+                          @click="payOnline(inv)"
+                        >
+                          Pay online
+                        </Button>
+                        <Button
+                          v-if="canCreateInvoice"
+                          variant="outline"
+                          size="sm"
+                          :aria-label="`Print invoice ${inv.invoice_number ?? inv.id}`"
+                          @click="openInvoicePrint(inv.id)"
+                        >
+                          <Printer class="h-4 w-4" aria-hidden="true" />
+                        </Button>
+                      </div>
+                    </TableCell>
                   </TableRow>
                 </TableBody>
               </Table>
               <p v-else class="text-sm text-muted-foreground">No invoices for this student.</p>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="documents" class="mt-4">
+          <Card>
+            <CardHeader class="flex flex-col gap-4 space-y-0 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <CardTitle class="flex items-center gap-2">
+                  <FileText class="h-4 w-4" aria-hidden="true" />
+                  Student documents
+                </CardTitle>
+                <CardDescription>Birth certificates, IDs, medical notes, and other files.</CardDescription>
+              </div>
+              <div v-if="canEditStudent" class="flex flex-wrap items-end gap-2">
+                <div class="space-y-1">
+                  <label for="student-document-type" class="text-xs font-medium text-muted-foreground">Type</label>
+                  <select
+                    id="student-document-type"
+                    v-model="documentType"
+                    class="flex h-9 w-full min-w-[10rem] rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  >
+                    <option
+                      v-for="option in DOCUMENT_TYPE_OPTIONS"
+                      :key="option.value"
+                      :value="option.value"
+                    >
+                      {{ option.label }}
+                    </option>
+                  </select>
+                </div>
+                <Button
+                  size="sm"
+                  :disabled="uploadingDocuments"
+                  :aria-busy="uploadingDocuments"
+                  @click="pickDocuments"
+                >
+                  <Plus class="mr-1 h-4 w-4" aria-hidden="true" />
+                  {{ uploadingDocuments ? 'Uploading…' : 'Upload' }}
+                </Button>
+                <input
+                  ref="documentInput"
+                  type="file"
+                  multiple
+                  accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,application/pdf,image/*"
+                  class="sr-only"
+                  @change="onDocumentsSelected"
+                />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <PageLoader v-if="documentsLoading" label="Loading documents" />
+              <ErrorState
+                v-else-if="documentsError"
+                :description="documentsError"
+                @retry="loadDocuments"
+              />
+              <Table v-else-if="documents.length">
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Type</TableHead>
+                    <TableHead>Size</TableHead>
+                    <TableHead>Uploaded</TableHead>
+                    <TableHead class="w-28">
+                      <span class="sr-only">Actions</span>
+                    </TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  <TableRow v-for="doc in documents" :key="doc.id">
+                    <TableCell class="font-medium">{{ doc.name ?? '—' }}</TableCell>
+                    <TableCell class="capitalize">{{ (doc.type ?? 'other').replaceAll('_', ' ') }}</TableCell>
+                    <TableCell>{{ formatFileSize(doc.size) }}</TableCell>
+                    <TableCell>{{ formatDate(doc.created_at) }}</TableCell>
+                    <TableCell>
+                      <div class="flex justify-end gap-2">
+                        <Button
+                          v-if="doc.url"
+                          variant="outline"
+                          size="sm"
+                          as-child
+                        >
+                          <a :href="doc.url" target="_blank" rel="noopener noreferrer">
+                            <Download class="h-4 w-4" aria-hidden="true" />
+                            <span class="sr-only">Download {{ doc.name }}</span>
+                          </a>
+                        </Button>
+                        <Button
+                          v-if="canEditStudent"
+                          variant="outline"
+                          size="sm"
+                          :disabled="deletingDocumentId === doc.id"
+                          :aria-label="`Delete ${doc.name ?? 'document'}`"
+                          @click="removeDocument(doc)"
+                        >
+                          <Trash2 class="h-4 w-4" aria-hidden="true" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                </TableBody>
+              </Table>
+              <p v-else class="text-sm text-muted-foreground">No documents uploaded yet.</p>
             </CardContent>
           </Card>
         </TabsContent>
@@ -557,6 +1017,38 @@ onMounted(load)
       save-label="Create invoice"
       saving-label="Creating…"
       @submit="onCreateInvoice"
+    />
+
+    <FormSheet
+      ref="paymentFormSheetRef"
+      v-model:open="paymentOpen"
+      :title="feePaymentPromptForm.title"
+      :description="feePaymentPromptForm.description"
+      :fields="feePaymentPromptForm.fields"
+      :schema="feePaymentPromptForm.schema"
+      :reset-values="paymentFormResetValues"
+      :form-key="`student-payment-${paymentTarget?.id ?? 'new'}`"
+      :saving="saving"
+      :save-label="feePaymentPromptForm.saveLabel ?? 'Record payment'"
+      @submit="onRecordPayment"
+    />
+
+    <InvoicePrintSheet
+      v-model:open="invoicePrintOpen"
+      :document="invoicePrintData"
+      :loading="invoicePrintLoading"
+    />
+
+    <StudentIdCardSheet
+      v-model:open="idCardPrintOpen"
+      :document="idCardPrintData"
+      :loading="idCardPrintLoading"
+    />
+
+    <PaymentReceiptSheet
+      v-model:open="receiptOpen"
+      :receipt="receiptData"
+      :loading="receiptLoading"
     />
   </div>
 </template>

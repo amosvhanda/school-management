@@ -2,15 +2,19 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\RespondsWithPaginatedList;
+use App\Http\Requests\Api\V1\Finance\BulkAssignFeeStructureRequest;
+use App\Http\Requests\Api\V1\Finance\StoreFeeStructureRequest;
+use App\Http\Requests\Api\V1\Finance\UpdateFeeStructureRequest;
 use App\Models\ClassModel;
 use App\Models\FeeCategory;
 use App\Models\FeeStructure;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Validator;
-use Illuminate\Validation\Rule;
 
 class FeeStructureController extends Controller
 {
+    use RespondsWithPaginatedList;
+
     public function index(Request $request)
     {
         $this->authorizeModuleAccess(
@@ -26,6 +30,7 @@ class FeeStructureController extends Controller
         $feeCategoryId = $request->input('fee_category_id', $filters['fee_category_id'] ?? null);
         $category = $request->input('category', $filters['category'] ?? null);
         $currency = $request->input('currency', $filters['currency'] ?? null);
+        $search = $request->input('search', $filters['search'] ?? null);
 
         if (filled($classId)) {
             $query->where('class_id', $classId);
@@ -39,68 +44,28 @@ class FeeStructureController extends Controller
         if (filled($currency)) {
             $query->where('currency', $currency);
         }
-
-        if ($request->boolean('all')) {
-            $feeStructures = $query->orderBy('class_name')->orderBy('category')->get();
-        } else {
-            $limit = min(max((int) $request->get('limit', 50), 1), 200);
-            $feeStructures = $query->orderBy('class_name')->orderBy('category')->limit($limit)->get();
+        if (filled($search)) {
+            $query->where(function ($q) use ($search) {
+                $q->where('category', 'like', "%{$search}%")
+                    ->orWhere('class_name', 'like', "%{$search}%");
+            });
         }
 
-        return response()->json([
-            'data' => $feeStructures,
-        ]);
+        $query->orderBy('class_name')->orderBy('category');
+
+        return $this->indexResponse($request, $query);
     }
 
-    public function store(Request $request)
+    public function store(StoreFeeStructureRequest $request)
     {
-        $this->authorizeModuleAccess(
-            $request,
-            capabilities: ['canManageFinance'],
-            permissionSlugs: ['finance.manage'],
-        );
-
         $schoolId = $request->user()->school_id;
-
-        $validator = Validator::make($request->all(), [
-            'class' => 'nullable|string',
-            'class_id' => [
-                'nullable',
-                'integer',
-                Rule::exists('classes', 'id')->where(fn ($q) => $q->where('school_id', $schoolId)),
-            ],
-            'fee_category_id' => [
-                'nullable',
-                'integer',
-                Rule::exists('fee_categories', 'id')->where(fn ($q) => $q->where('school_id', $schoolId)),
-            ],
-            'category' => 'nullable|string|max:255',
-            'amount' => 'required|numeric|min:0.01',
-            'currency' => 'nullable|string|in:USD,ZWG,ZWL',
-        ]);
-
-        $validator->after(function ($validator) use ($request) {
-            if (! $request->filled('fee_category_id') && ! $request->filled('category')) {
-                $validator->errors()->add('fee_category_id', 'Select a fee category.');
-            }
-            if (! $request->filled('class_id') && ! $request->filled('class')) {
-                $validator->errors()->add('class_id', 'Select a class.');
-            }
-        });
-
-        if ($validator->fails()) {
-            return response()->json([
-                'message' => 'Validation failed',
-                'errors' => $validator->errors(),
-            ], 422);
-        }
 
         [$classId, $className] = $this->resolveClass($request, $schoolId);
         [$categoryId, $categoryName] = $this->resolveCategory($request, $schoolId);
 
         $schoolCurrency = $request->user()->school?->getDefaultCurrency() ?? 'USD';
         $currency = $request->filled('currency')
-            ? ($request->currency === 'ZWL' ? 'ZWG' : $request->currency)
+            ? ($request->input('currency') === 'ZWL' ? 'ZWG' : $request->input('currency'))
             : $schoolCurrency;
 
         $feeStructure = FeeStructure::create([
@@ -108,7 +73,7 @@ class FeeStructureController extends Controller
             'class_name' => $className,
             'fee_category_id' => $categoryId,
             'category' => $categoryName,
-            'amount' => $request->amount,
+            'amount' => $request->validated('amount'),
             'currency' => $currency,
             'school_id' => $schoolId,
         ]);
@@ -119,40 +84,14 @@ class FeeStructureController extends Controller
         ], 201);
     }
 
-    public function update(Request $request, $id)
+    public function update(UpdateFeeStructureRequest $request, $id)
     {
-        $this->authorizeModuleAccess(
-            $request,
-            capabilities: ['canManageFinance'],
-            permissionSlugs: ['finance.manage'],
-        );
-
         $schoolId = $request->user()->school_id;
-        $feeStructure = FeeStructure::findOrFail($id);
+        $feeStructure = FeeStructure::query()
+            ->where('school_id', $schoolId)
+            ->findOrFail($id);
 
-        $validator = Validator::make($request->all(), [
-            'class' => 'nullable|string',
-            'class_id' => [
-                'nullable',
-                'integer',
-                Rule::exists('classes', 'id')->where(fn ($q) => $q->where('school_id', $schoolId)),
-            ],
-            'fee_category_id' => [
-                'nullable',
-                'integer',
-                Rule::exists('fee_categories', 'id')->where(fn ($q) => $q->where('school_id', $schoolId)),
-            ],
-            'category' => 'nullable|string|max:255',
-            'amount' => 'sometimes|numeric|min:0.01',
-            'currency' => 'sometimes|string|in:USD,ZWG,ZWL',
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json([
-                'message' => 'Validation failed',
-                'errors' => $validator->errors(),
-            ], 422);
-        }
+        $data = $request->validated();
 
         if ($request->filled('class_id') || $request->filled('class')) {
             [$classId, $className] = $this->resolveClass($request, $schoolId);
@@ -166,11 +105,11 @@ class FeeStructureController extends Controller
             $feeStructure->category = $categoryName;
         }
 
-        if ($request->filled('amount')) {
-            $feeStructure->amount = $request->amount;
+        if (array_key_exists('amount', $data)) {
+            $feeStructure->amount = $data['amount'];
         }
-        if ($request->filled('currency')) {
-            $feeStructure->currency = $request->currency === 'ZWL' ? 'ZWG' : $request->currency;
+        if (array_key_exists('currency', $data)) {
+            $feeStructure->currency = $data['currency'] === 'ZWL' ? 'ZWG' : $data['currency'];
         }
 
         $feeStructure->save();
@@ -189,11 +128,82 @@ class FeeStructureController extends Controller
             permissionSlugs: ['finance.manage'],
         );
 
-        $feeStructure = FeeStructure::findOrFail($id);
+        $feeStructure = FeeStructure::query()
+            ->where('school_id', $request->user()->school_id)
+            ->findOrFail($id);
         $feeStructure->delete();
 
         return response()->json([
             'message' => 'Fee structure deleted successfully',
+        ]);
+    }
+
+    public function bulkAssign(BulkAssignFeeStructureRequest $request)
+    {
+        $schoolId = $request->user()?->school_id;
+        if (! $schoolId) {
+            abort(403, 'User is not associated with a school.');
+        }
+
+        $data = $request->validated();
+
+        $source = FeeStructure::query()
+            ->where('school_id', $schoolId)
+            ->findOrFail((int) $data['fee_structure_id']);
+
+        $classIds = collect($data['class_ids'])
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values();
+
+        $classes = ClassModel::query()
+            ->where('school_id', $schoolId)
+            ->whereIn('id', $classIds->all())
+            ->get()
+            ->keyBy('id');
+
+        $assigned = [];
+
+        foreach ($classIds as $classId) {
+            $class = $classes->get($classId);
+            if (! $class) {
+                continue;
+            }
+
+            $existing = FeeStructure::query()
+                ->where('school_id', $schoolId)
+                ->where('class_id', $class->id)
+                ->where(function ($q) use ($source) {
+                    if ($source->fee_category_id) {
+                        $q->where('fee_category_id', $source->fee_category_id);
+                    } else {
+                        $q->where('category', $source->category);
+                    }
+                })
+                ->first();
+
+            $payload = [
+                'class_id' => $class->id,
+                'class_name' => $class->name,
+                'fee_category_id' => $source->fee_category_id,
+                'category' => $source->category,
+                'amount' => $source->amount,
+                'currency' => $source->currency,
+                'school_id' => $schoolId,
+            ];
+
+            if ($existing) {
+                $existing->update($payload);
+                $assigned[] = $existing->fresh()->load(['feeCategory:id,name,is_active', 'classModel:id,name']);
+            } else {
+                $assigned[] = FeeStructure::create($payload)
+                    ->load(['feeCategory:id,name,is_active', 'classModel:id,name']);
+            }
+        }
+
+        return response()->json([
+            'data' => $assigned,
+            'message' => 'Fee structure assigned to selected classes',
         ]);
     }
 

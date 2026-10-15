@@ -35,4 +35,37 @@ return [
         ],
     ],
 
+    'sms' => [
+        'enabled' => env('SMS_ENABLED', false),
+        'provider' => env('SMS_PROVIDER', 'log'),
+        'twilio_sid' => env('SMS_TWILIO_SID'),
+        'twilio_token' => env('SMS_TWILIO_TOKEN'),
+        'twilio_from' => env('SMS_TWILIO_FROM'),
+        'africastalking_username' => env('SMS_AT_USERNAME'),
+        'africastalking_api_key' => env('SMS_AT_API_KEY'),
+        'africastalking_from' => env('SMS_AT_FROM'),
+    ],
+
+    'whatsapp' => [
+        'enabled' => env('WHATSAPP_ENABLED', false),
+        'provider' => env('WHATSAPP_PROVIDER', 'log'),
+        'twilio_sid' => env('WHATSAPP_TWILIO_SID'),
+        'twilio_token' => env('WHATSAPP_TWILIO_TOKEN'),
+        'twilio_from' => env('WHATSAPP_TWILIO_FROM', 'whatsapp:+14155238886'),
+        'twilio_content_sid' => env('WHATSAPP_TWILIO_CONTENT_SID'),
+        'twilio_content_variables' => env('WHATSAPP_TWILIO_CONTENT_VARIABLES'),
+        'use_template' => env('WHATSAPP_TWILIO_USE_TEMPLATE', false),
+    ],
+
+    'payments' => [
+        'mode' => env('PAYMENTS_MODE', 'sandbox'),
+    ],
+
+    'paynow' => [
+        'initiate_url' => env('PAYNOW_INITIATE_URL', 'https://www.paynow.co.zw/interface/initiatetransaction'),
+        'remote_url' => env('PAYNOW_REMOTE_URL', 'https://www.paynow.co.zw/interface/remotetransaction'),
+        'timeout' => (int) env('PAYNOW_TIMEOUT', 30),
+        'result_url' => env('PAYNOW_RESULT_URL'),
+    ],
+
 ];

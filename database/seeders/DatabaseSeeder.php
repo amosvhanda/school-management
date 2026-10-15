@@ -122,6 +122,9 @@ class DatabaseSeeder extends Seeder
 
             // 32. Teacher portal demo data (assignments, lessons, LMS, leave, etc.)
             TeacherPortalSeeder::class,
+
+            // 33. EduDash parity defaults (leave types, student categories, currencies)
+            EduDashParityDefaultsSeeder::class,
         ]);
 
         if (app()->environment(['local', 'testing']) || filter_var(env('SEED_DEMO_DATA', false), FILTER_VALIDATE_BOOL)) {

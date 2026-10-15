@@ -81,6 +81,7 @@ onMounted(refresh)
 <template>
   <div class="mx-auto w-full max-w-[1600px] space-y-8 pb-8">
     <DashboardHero
+      page-title="Finance Dashboard"
       :name="user?.name"
       :role="meta.label"
       :subtitle="meta.subtitle"

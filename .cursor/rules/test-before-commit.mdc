@@ -1,0 +1,11 @@
+---
+description: Always run tests before implementing and before committing
+alwaysApply: true
+---
+
+# Test before implement and commit
+
+1. **Before implementing** a non-trivial change: run the relevant PHPUnit filter (and Vue `npm run build` if touching `school-system-frontend/`) to establish a green baseline.
+2. **After implementing**: re-run the same tests (prefer full `php artisan test` before any commit that touches backend; always `npm run build` for frontend TypeScript/Vue changes).
+3. **Only commit when tests are green.** If tests fail, fix them first — never commit broken suites.
+4. Do not skip hooks (`--no-verify`) unless the user explicitly asks.

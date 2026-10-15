@@ -1,8 +1,10 @@
 import { z } from 'zod'
 import type { FormFieldSchema } from '@/components/forms/useFormBuilder'
-import { PAYROLL_PAYMENT_METHOD_OPTIONS } from '@/lib/finance-constants'
+import { PAYMENT_METHOD_OPTIONS, PAYROLL_PAYMENT_METHOD_OPTIONS } from '@/lib/finance-constants'
 import type { FormSheetSize } from '@/lib/form-standards'
+import { classRelation, expenseHeadRelation, incomeHeadRelation, studentRelation } from '@/lib/form-relations'
 import { endpoints } from '@/services/endpoints'
+import { moduleEndpoints } from '@/services'
 
 export interface ActionPromptForm {
   title: string
@@ -173,6 +175,14 @@ export const spendDisbursePromptForm: ActionPromptForm = {
       label: 'Payment date',
       type: 'date',
     },
+    {
+      name: 'expense_head_id',
+      label: 'Expense head',
+      type: 'relation',
+      description: 'Optional ledger classification for this expense.',
+      colSpan: 2,
+      relation: expenseHeadRelation(),
+    },
   ],
   schema: z.object({
     payment_method: z.enum([
@@ -187,6 +197,7 @@ export const spendDisbursePromptForm: ActionPromptForm = {
     amount_paid: z.coerce.number().positive('Enter an amount greater than zero'),
     payment_reference: z.string().optional(),
     paid_at: z.string().optional(),
+    expense_head_id: z.coerce.number().optional(),
   }),
   defaults: (row) => ({
     payment_method: 'bank_transfer',
@@ -194,6 +205,42 @@ export const spendDisbursePromptForm: ActionPromptForm = {
     paid_at: new Date().toISOString().slice(0, 10),
     payment_reference: '',
   }),
+}
+
+export const libraryBorrowPromptForm: ActionPromptForm = {
+  title: 'Lend book',
+  description: 'Issue this book to a registered library member. Due date must be in the future.',
+  saveLabel: 'Lend book',
+  size: 'md',
+  fields: [
+    {
+      name: 'library_member_id',
+      label: 'Library member',
+      type: 'relation',
+      required: true,
+      colSpan: 2,
+      relation: {
+        endpoint: moduleEndpoints.libraryMembers,
+        moduleLabel: 'library member',
+        params: { all: true, status: 'active' },
+      },
+    },
+    {
+      name: 'due_at',
+      label: 'Due date',
+      type: 'date',
+      required: true,
+    },
+  ],
+  schema: z.object({
+    library_member_id: z.coerce.number().min(1, 'Select a library member'),
+    due_at: z.string().min(1, 'Due date is required'),
+  }),
+  defaults: () => {
+    const due = new Date()
+    due.setDate(due.getDate() + 14)
+    return { due_at: due.toISOString().slice(0, 10) }
+  },
 }
 
 export const receiveGoodsPromptForm: ActionPromptForm = {
@@ -243,6 +290,133 @@ export const schoolTripEnrollPromptForm: ActionPromptForm = {
   ],
   schema: z.object({
     student_id: z.coerce.number().min(1, 'Select a student'),
+  }),
+}
+
+export const certificateIssuePromptForm: ActionPromptForm = {
+  title: 'Issue certificate',
+  description: 'Generate a certificate for a student from this template. Placeholders {{student_name}}, {{school_name}}, and {{date}} are filled automatically.',
+  saveLabel: 'Issue',
+  size: 'md',
+  fields: [
+    {
+      name: 'student_id',
+      label: 'Student',
+      type: 'relation',
+      required: true,
+      colSpan: 2,
+      relation: { endpoint: endpoints.students.list },
+    },
+  ],
+  schema: z.object({
+    student_id: z.coerce.number().min(1, 'Select a student'),
+  }),
+}
+
+export const feePaymentPromptForm: ActionPromptForm = {
+  title: 'Record payment',
+  description: 'Apply a fee payment against this invoice. Partial amounts leave the balance outstanding.',
+  saveLabel: 'Record payment',
+  size: 'md',
+  fields: [
+    {
+      name: 'amount',
+      label: 'Amount',
+      type: 'number',
+      required: true,
+      description: 'Defaults to the outstanding balance.',
+    },
+    {
+      name: 'method',
+      label: 'Payment method',
+      type: 'select',
+      required: true,
+      options: [...PAYMENT_METHOD_OPTIONS],
+    },
+    {
+      name: 'income_head_id',
+      label: 'Income head (optional)',
+      type: 'relation',
+      description: 'Classify this receipt for accounting reports.',
+      colSpan: 2,
+      relation: incomeHeadRelation(),
+    },
+    {
+      name: 'reference',
+      label: 'Reference / receipt no.',
+      type: 'text',
+      placeholder: 'Optional transaction reference',
+    },
+    {
+      name: 'notes',
+      label: 'Notes',
+      type: 'textarea',
+      placeholder: 'Optional internal note',
+      colSpan: 2,
+    },
+  ],
+  schema: z.object({
+    amount: z.coerce.number().positive('Enter an amount greater than zero'),
+    method: z.enum([
+      'cash',
+      'ecocash',
+      'onemoney',
+      'innbucks',
+      'bank_transfer',
+      'card',
+      'cheque',
+      'other',
+    ]),
+    income_head_id: z.union([z.coerce.number(), z.literal('')]).optional(),
+    reference: z.string().optional(),
+    notes: z.string().optional(),
+  }),
+  defaults: (row) => ({
+    amount: Number(row.balance ?? row.amount ?? 0),
+    method: 'cash',
+    income_head_id: '',
+    reference: '',
+    notes: '',
+  }),
+}
+
+export const bulkIdCardPrintPromptForm: ActionPromptForm = {
+  title: 'Print student ID cards',
+  description: 'Select up to 100 students from this school. Cards open in a printable sheet.',
+  saveLabel: 'Load ID cards',
+  size: 'md',
+  fields: [
+    {
+      name: 'student_ids',
+      label: 'Students',
+      type: 'multirelation',
+      required: true,
+      colSpan: 2,
+      relation: studentRelation({ moduleLabel: 'student' }),
+    },
+  ],
+  schema: z.object({
+    student_ids: z.array(z.coerce.number()).min(1, 'Select at least one student').max(100),
+  }),
+}
+
+export const feeStructureAssignPromptForm: ActionPromptForm = {
+  title: 'Assign fee structure',
+  description: 'Copy this fee amount and category onto the selected classes in this school.',
+  saveLabel: 'Assign',
+  size: 'md',
+  fields: [
+    {
+      name: 'class_ids',
+      label: 'Classes',
+      type: 'multirelation',
+      required: true,
+      colSpan: 2,
+      relation: classRelation({ moduleLabel: 'class' }),
+    },
+  ],
+  schema: z.object({
+    class_ids: z.array(z.coerce.number()).min(1, 'Select at least one class'),
   }),
 }
 

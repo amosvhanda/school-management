@@ -1,0 +1,286 @@
+<?php
+
+namespace Tests\Feature;
+
+use App\Models\FeeCategory;
+use App\Models\FeeDiscount;
+use App\Models\FeeGroup;
+use App\Models\FeeStructure;
+use App\Models\School;
+use App\Models\Student;
+use App\Models\StudentCategory;
+use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Laravel\Sanctum\Sanctum;
+use Tests\TestCase;
+
+class InvoiceDiscountAndFeeGroupTest extends TestCase
+{
+    use RefreshDatabase;
+
+    private function actingFinanceAdmin(): array
+    {
+        $school = School::factory()->create();
+        $user = User::factory()->create([
+            'school_id' => $school->id,
+            'role' => 'admin',
+        ]);
+        Sanctum::actingAs($user);
+
+        return compact('school', 'user');
+    }
+
+    public function test_invoice_applies_percent_discount_for_student_category(): void
+    {
+        ['school' => $school] = $this->actingFinanceAdmin();
+
+        $category = StudentCategory::create([
+            'school_id' => $school->id,
+            'name' => 'Bursary',
+            'is_active' => true,
+        ]);
+
+        $student = Student::factory()->create([
+            'school_id' => $school->id,
+            'student_category_id' => $category->id,
+            'currency' => 'USD',
+            'balance' => 0,
+        ]);
+
+        FeeDiscount::create([
+            'school_id' => $school->id,
+            'name' => 'Bursary 50%',
+            'discount_type' => 'percent',
+            'value' => 50,
+            'student_category_id' => $category->id,
+            'is_active' => true,
+        ]);
+
+        $response = $this->postJson('/api/v1/invoices', [
+            'student_id' => $student->id,
+            'description' => 'Term fees',
+            'amount' => 200,
+            'due_date' => now()->addMonth()->toDateString(),
+            'apply_discounts' => true,
+        ]);
+
+        $response->assertCreated()
+            ->assertJsonPath('data.amount', '100.00')
+            ->assertJsonPath('data.discount_amount', '100.00')
+            ->assertJsonPath('data.original_amount', '200.00');
+
+        $this->assertEquals(100.0, (float) $student->fresh()->balance);
+    }
+
+    public function test_fee_group_creates_invoices_for_class_structures(): void
+    {
+        ['school' => $school] = $this->actingFinanceAdmin();
+
+        $class = \App\Models\ClassModel::factory()->create(['school_id' => $school->id]);
+
+        $student = Student::factory()->create([
+            'school_id' => $school->id,
+            'class_id' => $class->id,
+            'class' => $class->name,
+            'currency' => 'USD',
+            'balance' => 0,
+        ]);
+
+        $feeCategory = FeeCategory::create([
+            'school_id' => $school->id,
+            'name' => 'Tuition',
+            'is_active' => true,
+        ]);
+
+        FeeStructure::create([
+            'school_id' => $school->id,
+            'class_id' => $class->id,
+            'class_name' => $class->name,
+            'fee_category_id' => $feeCategory->id,
+            'category' => 'Tuition',
+            'amount' => 150,
+            'currency' => 'USD',
+        ]);
+
+        $group = FeeGroup::create([
+            'school_id' => $school->id,
+            'name' => 'Term bundle',
+            'is_active' => true,
+        ]);
+        $group->categories()->sync([$feeCategory->id]);
+
+        $response = $this->postJson('/api/v1/invoices', [
+            'student_id' => $student->id,
+            'fee_group_id' => $group->id,
+            'due_date' => now()->addMonth()->toDateString(),
+            'combine_group' => true,
+            'apply_discounts' => false,
+        ]);
+
+        $response->assertCreated()
+            ->assertJsonPath('meta.created_count', 1)
+            ->assertJsonPath('data.amount', '150.00')
+            ->assertJsonPath('data.fee_group_id', $group->id);
+
+        $this->assertDatabaseHas('invoices', [
+            'student_id' => $student->id,
+            'fee_group_id' => $group->id,
+            'amount' => 150,
+        ]);
+    }
+
+    public function test_fee_group_prefers_class_structure_over_school_wide(): void
+    {
+        ['school' => $school] = $this->actingFinanceAdmin();
+
+        $class = \App\Models\ClassModel::factory()->create(['school_id' => $school->id]);
+        $student = Student::factory()->create([
+            'school_id' => $school->id,
+            'class_id' => $class->id,
+            'class' => $class->name,
+            'currency' => 'USD',
+            'balance' => 0,
+        ]);
+
+        $feeCategory = FeeCategory::create([
+            'school_id' => $school->id,
+            'name' => 'Tuition',
+            'is_active' => true,
+        ]);
+
+        FeeStructure::create([
+            'school_id' => $school->id,
+            'class_id' => null,
+            'class_name' => 'All classes',
+            'fee_category_id' => $feeCategory->id,
+            'category' => 'Tuition',
+            'amount' => 200,
+            'currency' => 'USD',
+        ]);
+
+        FeeStructure::create([
+            'school_id' => $school->id,
+            'class_id' => $class->id,
+            'class_name' => $class->name,
+            'fee_category_id' => $feeCategory->id,
+            'category' => 'Tuition',
+            'amount' => 120,
+            'currency' => 'USD',
+        ]);
+
+        $group = FeeGroup::create([
+            'school_id' => $school->id,
+            'name' => 'Tuition pack',
+            'is_active' => true,
+        ]);
+        $group->categories()->sync([$feeCategory->id]);
+
+        $this->postJson('/api/v1/invoices', [
+            'student_id' => $student->id,
+            'fee_group_id' => $group->id,
+            'due_date' => now()->addMonth()->toDateString(),
+            'combine_group' => true,
+            'apply_discounts' => false,
+        ])->assertCreated()
+            ->assertJsonPath('meta.created_count', 1)
+            ->assertJsonPath('data.amount', '120.00');
+
+        $this->assertDatabaseCount('invoices', 1);
+        $this->assertEquals(120.0, (float) $student->fresh()->balance);
+    }
+
+    public function test_rejects_cross_school_fee_structure_on_student_invoice(): void
+    {
+        ['school' => $school] = $this->actingFinanceAdmin();
+        $otherSchool = School::factory()->create();
+
+        $student = Student::factory()->create([
+            'school_id' => $school->id,
+            'currency' => 'USD',
+            'balance' => 0,
+        ]);
+
+        $foreignStructure = FeeStructure::create([
+            'school_id' => $otherSchool->id,
+            'class_id' => null,
+            'class_name' => 'All classes',
+            'category' => 'Foreign',
+            'amount' => 99,
+            'currency' => 'USD',
+        ]);
+
+        $this->postJson('/api/v1/students/'.$student->id.'/invoices', [
+            'amount' => 50,
+            'description' => 'Should fail',
+            'dueDate' => now()->addMonth()->toDateString(),
+            'fee_structure_id' => $foreignStructure->id,
+            'apply_discounts' => false,
+        ])->assertStatus(422);
+    }
+
+    public function test_student_invoice_supports_fee_group_and_payment_income_head(): void
+    {
+        ['school' => $school, 'user' => $user] = $this->actingFinanceAdmin();
+
+        $class = \App\Models\ClassModel::factory()->create(['school_id' => $school->id]);
+        $student = Student::factory()->create([
+            'school_id' => $school->id,
+            'class_id' => $class->id,
+            'class' => $class->name,
+            'currency' => 'USD',
+            'balance' => 0,
+        ]);
+
+        $feeCategory = FeeCategory::create([
+            'school_id' => $school->id,
+            'name' => 'Levies',
+            'is_active' => true,
+        ]);
+
+        FeeStructure::create([
+            'school_id' => $school->id,
+            'class_id' => $class->id,
+            'class_name' => $class->name,
+            'fee_category_id' => $feeCategory->id,
+            'category' => 'Levies',
+            'amount' => 80,
+            'currency' => 'USD',
+        ]);
+
+        $group = FeeGroup::create([
+            'school_id' => $school->id,
+            'name' => 'Levies pack',
+            'is_active' => true,
+        ]);
+        $group->categories()->sync([$feeCategory->id]);
+
+        $invoice = $this->postJson('/api/v1/students/'.$student->id.'/invoices', [
+            'fee_group_id' => $group->id,
+            'dueDate' => now()->addMonth()->toDateString(),
+            'combine_group' => true,
+            'apply_discounts' => false,
+        ])->assertCreated()
+            ->json('data');
+
+        $incomeHead = \App\Models\IncomeHead::create([
+            'school_id' => $school->id,
+            'name' => 'Fee collections',
+            'code' => 'FEES',
+            'is_active' => true,
+        ]);
+
+        $this->postJson('/api/v1/payments', [
+            'invoice_id' => $invoice['id'],
+            'amount' => 80,
+            'method' => 'cash',
+            'income_head_id' => $incomeHead->id,
+        ])->assertCreated();
+
+        $this->assertDatabaseHas('transactions', [
+            'invoice_id' => $invoice['id'],
+            'income_head_id' => $incomeHead->id,
+            'type' => 'payment',
+            'created_by' => $user->id,
+        ]);
+    }
+}

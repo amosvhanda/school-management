@@ -18,8 +18,12 @@ class Invoice extends Model
         'student_id',
         'parent_id',
         'fee_structure_id',
+        'fee_discount_id',
+        'fee_group_id',
         'description',
         'amount',
+        'original_amount',
+        'discount_amount',
         'amount_paid',
         'balance',
         'currency',
@@ -31,11 +35,13 @@ class Invoice extends Model
     protected function casts(): array
     {
         return [
-        'amount' => 'decimal:2',
-        'amount_paid' => 'decimal:2',
-        'balance' => 'decimal:2',
-        'due_date' => 'date',
-    ];
+            'amount' => 'decimal:2',
+            'original_amount' => 'decimal:2',
+            'discount_amount' => 'decimal:2',
+            'amount_paid' => 'decimal:2',
+            'balance' => 'decimal:2',
+            'due_date' => 'date',
+        ];
     }
 
     public function student(): BelongsTo
@@ -56,6 +62,16 @@ class Invoice extends Model
     public function feeStructure(): BelongsTo
     {
         return $this->belongsTo(FeeStructure::class);
+    }
+
+    public function feeDiscount(): BelongsTo
+    {
+        return $this->belongsTo(FeeDiscount::class);
+    }
+
+    public function feeGroup(): BelongsTo
+    {
+        return $this->belongsTo(FeeGroup::class);
     }
 
     public function transactions(): HasMany

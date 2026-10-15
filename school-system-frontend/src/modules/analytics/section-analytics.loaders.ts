@@ -299,7 +299,7 @@ async function loadHrKpis(): Promise<SectionKpi[]> {
       value: String(policies.length),
       subtitle: 'Compliance documents',
       icon: Building2,
-      href: '/compliance',
+      href: '/hr?tab=policies',
     },
   ]
 }
@@ -330,7 +330,7 @@ async function loadOperationsKpis(): Promise<SectionKpi[]> {
       value: String(visitorsToday),
       subtitle: 'Campus sign-ins',
       icon: Users,
-      href: '/operations/visitors',
+      href: '/operations/front-office',
     },
     {
       title: 'Upcoming events',

@@ -18,7 +18,11 @@ class ParentController extends Controller
     public function children(Request $request, $id)
     {
         $caller = $request->user();
-        $parent = User::find($id);
+        $parentQuery = User::query();
+        if ($caller?->school_id) {
+            $parentQuery->where('school_id', $caller->school_id);
+        }
+        $parent = $parentQuery->find($id);
         $role = $parent?->role instanceof UserRole
             ? $parent->role
             : UserRole::tryFromMixed($parent?->role);

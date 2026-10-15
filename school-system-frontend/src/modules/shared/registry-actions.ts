@@ -6,7 +6,12 @@ import {
   payrollProcessPromptForm,
   receiveGoodsPromptForm,
   schoolTripEnrollPromptForm,
+  certificateIssuePromptForm,
   spendDisbursePromptForm,
+  libraryBorrowPromptForm,
+  feePaymentPromptForm,
+  bulkIdCardPrintPromptForm,
+  feeStructureAssignPromptForm,
 } from '@/modules/shared/action-prompt-forms'
 
 export type RowActionMethod = 'post' | 'put' | 'patch' | 'delete'
@@ -23,6 +28,15 @@ export interface RowActionConfig {
   successMessage?: string
   /** Opens payment receipt sheet instead of calling API directly */
   openReceipt?: boolean
+  /** Opens printable invoice sheet */
+  openInvoicePrint?: boolean
+  /** Opens printable student ID card sheet (GET for one, POST for bulk) */
+  openIdCardPrint?: boolean
+  /** Download response as a file blob (e.g. HTML certificate) */
+  downloadBlob?: boolean
+  downloadFilename?: (row: Record<string, unknown>) => string
+  /** Copy text to clipboard instead of calling the API */
+  copyText?: (row: Record<string, unknown>) => string | null
   /** Prompt for reason before destructive API action */
   confirmReason?: boolean
   /** Opens a validated FormSheet before calling the API */
@@ -30,6 +44,25 @@ export interface RowActionConfig {
 }
 
 export const moduleActionsRegistry: Record<string, RowActionConfig[]> = {
+  students: [
+    {
+      label: 'Print ID card',
+      method: 'post',
+      path: (id) => endpoints.students.idCardPrint(id),
+      variant: 'outline',
+      openIdCardPrint: true,
+    },
+  ],
+  'finance-fees': [
+    {
+      label: 'Assign to classes',
+      method: 'post',
+      path: () => endpoints.feeStructures.bulkAssign,
+      body: (row) => ({ fee_structure_id: row.id }),
+      promptForm: feeStructureAssignPromptForm,
+      successMessage: 'Fee structure assigned to selected classes',
+    },
+  ],
   workflows: [
     {
       label: 'Approve',
@@ -63,6 +96,54 @@ export const moduleActionsRegistry: Record<string, RowActionConfig[]> = {
       when: (row) => String(row.status ?? '').toLowerCase() === 'pending',
       confirmReason: true,
       successMessage: 'Leave rejected',
+    },
+  ],
+  'hr-recruitment-jobs': [
+    {
+      label: 'Close posting',
+      method: 'post',
+      path: (id) => endpoints.recruitment.closeJob(id),
+      when: (row) => String(row.status ?? '').toLowerCase() === 'open',
+      successMessage: 'Job posting closed',
+    },
+  ],
+  'hr-recruitment-applications': [
+    {
+      label: 'Shortlist',
+      method: 'post',
+      path: (id) => endpoints.recruitment.shortlist(id),
+      when: (row) => String(row.status ?? '').toLowerCase() === 'submitted',
+      successMessage: 'Applicant shortlisted',
+    },
+    {
+      label: 'Interview',
+      method: 'post',
+      path: (id) => endpoints.recruitment.interview(id),
+      when: (row) => String(row.status ?? '').toLowerCase() === 'screening',
+      successMessage: 'Moved to interview',
+    },
+    {
+      label: 'Offer',
+      method: 'post',
+      path: (id) => endpoints.recruitment.offer(id),
+      when: (row) => String(row.status ?? '').toLowerCase() === 'interview',
+      successMessage: 'Offer recorded',
+    },
+    {
+      label: 'Hire',
+      method: 'post',
+      path: (id) => endpoints.recruitment.hire(id),
+      when: (row) => String(row.status ?? '').toLowerCase() === 'offered',
+      successMessage: 'Applicant hired',
+    },
+    {
+      label: 'Reject',
+      method: 'post',
+      path: (id) => endpoints.recruitment.reject(id),
+      variant: 'outline',
+      when: (row) => !['hired', 'rejected'].includes(String(row.status ?? '').toLowerCase()),
+      confirmReason: true,
+      successMessage: 'Application rejected',
     },
   ],
   'academics-exams': [
@@ -108,6 +189,29 @@ export const moduleActionsRegistry: Record<string, RowActionConfig[]> = {
       when: (row) => String(row.status ?? '').toLowerCase() === 'completed',
       confirmReason: true,
       successMessage: 'Payment reversed',
+    },
+  ],
+  'finance-invoices': [
+    {
+      label: 'Record payment',
+      method: 'post',
+      path: () => endpoints.payments.list,
+      variant: 'outline',
+      when: (row) => {
+        const status = String(row.status ?? '').toLowerCase()
+        const balance = Number(row.balance ?? 0)
+        return ['pending', 'partial', 'overdue'].includes(status) && balance > 0
+      },
+      body: (row) => ({ invoice_id: row.id }),
+      promptForm: feePaymentPromptForm,
+      successMessage: 'Payment recorded',
+    },
+    {
+      label: 'Print',
+      method: 'post',
+      path: (id) => endpoints.invoices.print(id),
+      variant: 'outline',
+      openInvoicePrint: true,
     },
   ],
   'finance-payroll': [
@@ -174,6 +278,22 @@ export const moduleActionsRegistry: Record<string, RowActionConfig[]> = {
       successMessage: 'Visitor checked out',
     },
   ],
+  'ops-help-desk': [
+    {
+      label: 'Resolve',
+      method: 'post',
+      path: (id) => endpoints.helpDesk.resolve(id),
+      when: (row) => ['open', 'in_progress'].includes(String(row.status ?? '').toLowerCase()),
+      successMessage: 'Ticket resolved',
+    },
+    {
+      label: 'Close',
+      method: 'post',
+      path: (id) => endpoints.helpDesk.close(id),
+      when: (row) => ['open', 'in_progress', 'resolved'].includes(String(row.status ?? '').toLowerCase()),
+      successMessage: 'Ticket closed',
+    },
+  ],
   'ops-school-trips': [
     {
       label: 'Enroll student',
@@ -186,6 +306,73 @@ export const moduleActionsRegistry: Record<string, RowActionConfig[]> = {
         && row.open_for_registration !== 0,
       promptForm: schoolTripEnrollPromptForm,
       successMessage: 'Student enrolled for the trip',
+    },
+  ],
+  'academics-certificate-templates': [
+    {
+      label: 'Issue certificate',
+      method: 'post',
+      path: (id) => endpoints.certificateTemplates.issue(id),
+      when: (row) => row.is_active !== false && row.is_active !== 0,
+      promptForm: certificateIssuePromptForm,
+      successMessage: 'Certificate issued',
+    },
+  ],
+  'academics-school-certificates': [
+    {
+      label: 'Download',
+      method: 'post',
+      path: (id) => endpoints.schoolCertificates.download(id),
+      variant: 'outline',
+      when: (row) => !row.revoked_at,
+      downloadBlob: true,
+      downloadFilename: (row) => {
+        const code = String(row.verification_code ?? row.id ?? 'certificate')
+        return `certificate_${code}.html`
+      },
+      successMessage: 'Certificate downloaded',
+    },
+    {
+      label: 'Copy verify link',
+      method: 'post',
+      path: () => '',
+      variant: 'outline',
+      when: (row) => Boolean(row.verification_code) && !row.revoked_at,
+      copyText: (row) => {
+        const code = String(row.verification_code ?? '').trim()
+        if (!code) return null
+        return `${window.location.origin}/api/v1${endpoints.schoolCertificates.verify(code)}`
+      },
+      successMessage: 'Verify link copied',
+    },
+    {
+      label: 'Revoke',
+      method: 'post',
+      path: (id) => endpoints.schoolCertificates.revoke(id),
+      variant: 'destructive',
+      when: (row) => !row.revoked_at,
+      confirmReason: true,
+      successMessage: 'Certificate revoked',
+    },
+  ],
+  'ops-library': [
+    {
+      label: 'Lend',
+      method: 'post',
+      path: () => endpoints.library.borrow,
+      when: (row) => Number(row.available_copies ?? 0) > 0,
+      body: (row) => ({ book_id: row.id }),
+      promptForm: libraryBorrowPromptForm,
+      successMessage: 'Book lent',
+    },
+  ],
+  'ops-library-loans': [
+    {
+      label: 'Return',
+      method: 'post',
+      path: (id) => endpoints.library.return(id),
+      when: (row) => String(row.status ?? '').toLowerCase() === 'borrowed',
+      successMessage: 'Book returned',
     },
   ],
   'ops-assets': [
@@ -224,6 +411,16 @@ export const moduleActionsRegistry: Record<string, RowActionConfig[]> = {
 }
 
 export const moduleToolbarActionsRegistry: Record<string, RowActionConfig[]> = {
+  students: [
+    {
+      label: 'Print ID cards',
+      method: 'post',
+      path: () => endpoints.students.idCardsBulkPrint,
+      promptForm: bulkIdCardPrintPromptForm,
+      openIdCardPrint: true,
+      successMessage: 'ID cards ready to print',
+    },
+  ],
   'finance-payroll': [
     {
       label: 'Generate payroll',

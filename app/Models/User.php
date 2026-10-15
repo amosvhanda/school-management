@@ -5,8 +5,9 @@ namespace App\Models;
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use App\Enums\UserRole;
 use App\Models\Concerns\Auditable;
+use App\Models\Scopes\UserSchoolScope;
 use App\Services\PermissionService;
-use Database\Factories\UserFactory;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -15,12 +16,13 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Ai\Concerns\HasConversations;
+use Laravel\Fortify\TwoFactorAuthenticatable;
 use Laravel\Sanctum\HasApiTokens;
 
 class User extends Authenticatable
 {
-    /** @use HasFactory<UserFactory> */
-    use Auditable, HasApiTokens, HasConversations, HasFactory, Notifiable;
+    /** @use HasFactory<\Database\Factories\UserFactory> */
+    use Auditable, HasApiTokens, HasConversations, HasFactory, Notifiable, TwoFactorAuthenticatable;
 
     /**
      * The attributes that are mass assignable.
@@ -47,9 +49,31 @@ class User extends Authenticatable
         'avatar_url',
     ];
 
+    protected static function booted(): void
+    {
+        static::addGlobalScope(new UserSchoolScope());
+    }
+
+    public function scopeWithoutSchoolScope(Builder $query): Builder
+    {
+        return $query->withoutGlobalScope(UserSchoolScope::class);
+    }
+
     public function school(): BelongsTo
     {
         return $this->belongsTo(School::class);
+    }
+
+    public function schoolMemberships(): HasMany
+    {
+        return $this->hasMany(SchoolUserMembership::class);
+    }
+
+    public function schools(): BelongsToMany
+    {
+        return $this->belongsToMany(School::class, 'school_user_memberships')
+            ->withPivot('role', 'is_default')
+            ->withTimestamps();
     }
 
     public function teacher(): HasOne

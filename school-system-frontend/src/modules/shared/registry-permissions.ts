@@ -30,13 +30,24 @@ const modulePermissionRegistry: Record<string, ModulePermissionConfig> = {
   'settings-custom-fields': { create: ADMIN, edit: ADMIN, delete: ADMIN },
   'compliance-audit': { create: AUDIT, edit: AUDIT, delete: AUDIT },
   'compliance-login-history': { create: AUDIT, edit: AUDIT, delete: AUDIT },
+  'finance-income': { create: FINANCE, edit: FINANCE, delete: FINANCE },
+  'finance-expense': { create: FINANCE, edit: FINANCE, delete: FINANCE },
+  'finance-budgets': { create: FINANCE, edit: FINANCE, delete: FINANCE },
   'ops-assets': { create: FINANCE, edit: FINANCE, delete: FINANCE },
   'ops-procurement': { create: FINANCE, edit: FINANCE, delete: FINANCE },
   'ops-procurement-vendors': { create: FINANCE, edit: FINANCE, delete: FINANCE },
   'ops-hostels': { create: ADMIN, edit: ADMIN, delete: ADMIN },
   'ops-health': { create: ADMIN, edit: ADMIN, delete: ADMIN },
   'ops-events': { create: ADMIN, edit: ADMIN, delete: ADMIN },
+  'enterprise-academic': { create: ADMIN, edit: ADMIN, delete: ADMIN },
+  'enterprise-alumni': { create: ADMIN, edit: ADMIN, delete: ADMIN },
   'ops-school-trips': { create: ADMIN, edit: ADMIN, delete: ADMIN },
+  'people-student-categories': { create: STUDENTS, edit: STUDENTS, delete: ADMIN },
+  'hr-employees': { create: ADMIN, edit: ADMIN, delete: ADMIN },
+  'hr-designations': { create: ADMIN, edit: ADMIN, delete: ADMIN },
+  'hr-leave-types': { create: ADMIN, edit: ADMIN, delete: ADMIN },
+  'settings-currencies': { create: ADMIN, edit: ADMIN, delete: ADMIN },
+  'settings-languages': { create: ADMIN, edit: ADMIN, delete: ADMIN },
   compliance: { create: ADMIN, edit: ADMIN, delete: ADMIN },
   'compliance-incidents': { create: ADMIN, edit: ADMIN, delete: ADMIN },
   'compliance-consent': { create: ADMIN, edit: ADMIN, delete: ADMIN },
@@ -70,6 +81,9 @@ function inferPermissions(listKey: string): ModulePermissionConfig {
     return { create: 'canManageInventory', edit: 'canManageInventory', delete: 'canManageInventory' }
   }
   if (listKey.startsWith('ops-visitors')) {
+    return { create: 'canManageReception', edit: 'canManageReception', delete: 'canManageReception' }
+  }
+  if (listKey.startsWith('ops-help-desk')) {
     return { create: 'canManageReception', edit: 'canManageReception', delete: 'canManageReception' }
   }
   if (listKey.startsWith('enterprise-exams')) {

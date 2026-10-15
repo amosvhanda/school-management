@@ -35,5 +35,7 @@ return [
     'transport.manage' => ['isStaff', 'canManageTransport'],
     'inventory.manage' => ['isStaff', 'canManageInventory'],
     'reception.manage' => ['isStaff', 'canManageReception'],
+    'health.manage' => ['isStaff', 'canManageHealth'],
+    'hostel.manage' => ['isStaff', 'canManageHostel'],
     'compliance.manage' => ['isStaff', 'canManageTeachers'],
 ];
