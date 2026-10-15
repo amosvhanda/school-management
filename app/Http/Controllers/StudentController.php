@@ -6,19 +6,17 @@ use App\Enums\UserRole;
 use App\Http\Resources\Api\V1\StudentResource;
 use App\Models\ClassModel;
 use App\Models\Exam;
-use App\Models\FeeGroup;
 use App\Models\School;
-use App\Models\Setting;
 use App\Models\Student;
 use App\Models\StudentDocument;
 use App\Services\Domain\SchoolDomainRules;
 use App\Services\FileUploadService;
-use App\Services\FinancialLedgerService;
 use App\Services\ParentAccessService;
 use App\Services\StudentAdmissionService;
-use App\Services\StudentPromotionService;
+use App\Services\Students\StudentBulkActionService;
 use App\Services\Students\StudentDocumentService;
 use App\Services\Students\StudentIdCardService;
+use App\Services\Students\StudentInvoiceService;
 use App\Services\Students\StudentReportCardService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -29,14 +27,14 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 class StudentController extends Controller
 {
     public function __construct(
-        private StudentPromotionService $promotionService,
         private ParentAccessService $parentAccess,
         private SchoolDomainRules $domainRules,
         private StudentAdmissionService $admissionService,
-        private FinancialLedgerService $ledgerService,
         private StudentReportCardService $reportCards,
         private StudentDocumentService $documents,
         private StudentIdCardService $idCards,
+        private StudentInvoiceService $studentInvoices,
+        private StudentBulkActionService $bulkActions,
     ) {}
 
     /**
@@ -971,70 +969,32 @@ class StudentController extends Controller
     ) {
         $this->authorizeModuleAccess(
             $request,
-            capabilities: [
-                'canManageFinance',
-            ],
-            permissionSlugs: [
-                'finance.manage',
-            ],
+            capabilities: ['canManageFinance'],
+            permissionSlugs: ['finance.manage'],
         );
 
-        $user = $request->user();
+        $studentModel = $this->findSchoolStudent($request, $student);
+        $schoolId = (int) $studentModel->school_id;
 
-        $studentModel =
-            $this->findSchoolStudent(
-                $request,
-                $student
-            );
-
-        $schoolId =
-            (int) $studentModel->school_id;
-
-        $validator = Validator::make(
-            $request->all(),
-            [
-                'amount' => 'required_without:fee_group_id|nullable|numeric|min:0.01',
-
-                'description' => 'required_without:fee_group_id|nullable|string',
-
-                'dueDate' => 'required|date',
-
-                'fee_structure_id' => [
-                    'nullable',
-                    'integer',
-                    Rule::exists(
-                        'fee_structures',
-                        'id'
-                    )->where(
-                        fn ($q) => $q->where(
-                            'school_id',
-                            $schoolId
-                        )
-                    ),
-                ],
-
-                'fee_group_id' => [
-                    'nullable',
-                    'integer',
-                    Rule::exists(
-                        'fee_groups',
-                        'id'
-                    )->where(
-                        fn ($q) => $q->where(
-                            'school_id',
-                            $schoolId
-                        )->where(
-                            'is_active',
-                            true
-                        )
-                    ),
-                ],
-
-                'apply_discounts' => 'nullable|boolean',
-
-                'combine_group' => 'nullable|boolean',
-            ]
-        );
+        $validator = Validator::make($request->all(), [
+            'amount' => 'required_without:fee_group_id|nullable|numeric|min:0.01',
+            'description' => 'required_without:fee_group_id|nullable|string',
+            'dueDate' => 'required|date',
+            'fee_structure_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('fee_structures', 'id')->where(fn ($q) => $q->where('school_id', $schoolId)),
+            ],
+            'fee_group_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('fee_groups', 'id')->where(
+                    fn ($q) => $q->where('school_id', $schoolId)->where('is_active', true)
+                ),
+            ],
+            'apply_discounts' => 'nullable|boolean',
+            'combine_group' => 'nullable|boolean',
+        ]);
 
         if ($validator->fails()) {
             return response()->json([
@@ -1043,172 +1003,56 @@ class StudentController extends Controller
             ], 422);
         }
 
-        $dueDate =
-            new \DateTimeImmutable(
-                $request->input('dueDate')
-            );
-
-        $applyDiscounts =
-            $request->boolean(
-                'apply_discounts',
-                true
-            );
-
-        if ($request->filled(
-            'fee_group_id'
-        )) {
-            $group =
-                FeeGroup::query()
-                    ->where(
-                        'school_id',
-                        $schoolId
-                    )
-                    ->where(
-                        'is_active',
-                        true
-                    )
-                    ->findOrFail(
-                        (int) $request->input(
-                            'fee_group_id'
-                        )
-                    );
-
-            $invoices =
-                $this->ledgerService
-                    ->applyFeeGroup(
-                        student: $studentModel,
-                        group: $group,
-                        dueDate: $dueDate,
-                        createdBy: $user?->id,
-                        applyDiscounts: $applyDiscounts,
-                        combine: $request->boolean(
-                            'combine_group',
-                            false
-                        ),
-                    );
-
-            if ($invoices->isEmpty()) {
-                return response()->json([
-                    'message' => 'No fee structures found for this student\'s class in the selected fee group.',
-                ], 422);
-            }
-
-            return response()->json([
-                'data' => $invoices->first(),
-
-                'meta' => [
-                    'created_count' => $invoices->count(),
-
-                    'invoice_ids' => $invoices->pluck('id'),
-                ],
-
-                'message' => $invoices->count() === 1
-                        ? 'Invoice created successfully'
-                        : "{$invoices->count()} invoices created from fee group",
-            ], 201);
-        }
-
         try {
-            $invoice =
-                $this->ledgerService
-                    ->createInvoice(
-                        student: $studentModel,
-
-                        amount: (float) $request->input(
-                            'amount'
-                        ),
-
-                        description: (string) $request->input(
-                            'description'
-                        ),
-
-                        feeStructureId: $request->filled(
-                            'fee_structure_id'
-                        )
-                                ? (int) $request->input(
-                                    'fee_structure_id'
-                                )
-                                : null,
-
-                        dueDate: $dueDate,
-
-                        createdBy: $user?->id,
-
-                        applyDiscounts: $applyDiscounts,
-                    );
-        } catch (
-            \InvalidArgumentException $e
-        ) {
-            return response()->json([
-                'message' => $e->getMessage(),
-            ], 422);
+            $result = $this->studentInvoices->createForStudent(
+                student: $studentModel,
+                dueDate: new \DateTimeImmutable($request->input('dueDate')),
+                createdBy: $request->user()?->id,
+                applyDiscounts: $request->boolean('apply_discounts', true),
+                feeGroupId: $request->filled('fee_group_id') ? (int) $request->input('fee_group_id') : null,
+                combineGroup: $request->boolean('combine_group', false),
+                amount: $request->filled('amount') ? (float) $request->input('amount') : null,
+                description: $request->input('description'),
+                feeStructureId: $request->filled('fee_structure_id') ? (int) $request->input('fee_structure_id') : null,
+            );
+        } catch (\InvalidArgumentException $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
         }
 
-        return response()->json([
-            'data' => $invoice,
+        $payload = [
+            'data' => $result['invoice'],
+            'message' => $result['message'],
+        ];
 
-            'message' => 'Invoice created successfully',
-        ], 201);
+        if (($result['created_count'] ?? 1) > 1) {
+            $payload['meta'] = [
+                'created_count' => $result['created_count'],
+                'invoice_ids' => $result['invoices']->pluck('id'),
+            ];
+        }
+
+        return response()->json($payload, 201);
     }
 
     public function promote(Request $request)
     {
         $this->authorizeModuleAccess(
             $request,
-            capabilities: [
-                'canManageStudents',
-                'canManageTeachers',
-            ],
-            permissionSlugs: [
-                'students.manage',
-            ],
+            capabilities: ['canManageStudents', 'canManageTeachers'],
+            permissionSlugs: ['students.manage'],
         );
 
-        $schoolId =
-            $this->getSchoolId($request);
-
-        $academicYear =
-            $request->input(
-                'academic_year',
-                Setting::get(
-                    'academic.academicYear',
-                    (string) now()->year
-                )
-            );
-
-        $nextAcademicYear =
-            $request->input(
-                'next_academic_year',
-                (string) (
-                    (int) $academicYear + 1
-                )
-            );
-
-        $passMark =
-            (float) $request->input(
-                'pass_mark',
-                50
-            );
-
-        $result =
-            $this->promotionService
-                ->runYearEnd(
-                    schoolId: $schoolId,
-
-                    academicYear: $academicYear,
-
-                    nextAcademicYear: $nextAcademicYear,
-
-                    passMark: $passMark,
-
-                    studentIds: null,
-
-                    processedBy: $request->user()->id,
-                );
+        $result = $this->bulkActions->promote(
+            schoolId: $this->getSchoolId($request),
+            studentIds: null,
+            processedBy: $request->user()->id,
+            academicYear: $request->input('academic_year'),
+            nextAcademicYear: $request->input('next_academic_year'),
+            passMark: (float) $request->input('pass_mark', 50),
+        );
 
         return response()->json([
             'data' => $result,
-
             'message' => 'Year-end complete: '.
                 "{$result['promoted']} promoted, ".
                 "{$result['repeated']} repeating, ".
@@ -1216,87 +1060,42 @@ class StudentController extends Controller
         ]);
     }
 
-    public function bulkInvoices(
-        Request $request
-    ) {
+    public function bulkInvoices(Request $request)
+    {
         $this->authorizeModuleAccess(
             $request,
-            capabilities: [
-                'canManageFinance',
-            ],
-            permissionSlugs: [
-                'finance.manage',
-            ],
+            capabilities: ['canManageFinance'],
+            permissionSlugs: ['finance.manage'],
         );
 
-        $user = $request->user();
+        $schoolId = $this->getSchoolId($request);
 
-        $schoolId =
-            $this->getSchoolId($request);
-
-        $validator = Validator::make(
-            $request->all(),
-            [
-                'studentIds' => 'required|array|min:1',
-
-                'studentIds.*' => 'required|integer',
-
-                'description' => 'required_without:fee_group_id|nullable|string',
-
-                'dueDate' => 'required|date',
-
-                'amount' => 'required_without:fee_group_id|nullable|numeric|min:0.01',
-
-                'fee_structure_id' => [
-                    'nullable',
-                    'integer',
-                    Rule::exists(
-                        'fee_structures',
-                        'id'
-                    )->where(
-                        fn ($q) => $q->where(
-                            'school_id',
-                            $schoolId
-                        )
-                    ),
-                ],
-
-                'feeStructureId' => [
-                    'nullable',
-                    'integer',
-                    Rule::exists(
-                        'fee_structures',
-                        'id'
-                    )->where(
-                        fn ($q) => $q->where(
-                            'school_id',
-                            $schoolId
-                        )
-                    ),
-                ],
-
-                'fee_group_id' => [
-                    'nullable',
-                    'integer',
-                    Rule::exists(
-                        'fee_groups',
-                        'id'
-                    )->where(
-                        fn ($q) => $q->where(
-                            'school_id',
-                            $schoolId
-                        )->where(
-                            'is_active',
-                            true
-                        )
-                    ),
-                ],
-
-                'apply_discounts' => 'nullable|boolean',
-
-                'combine_group' => 'nullable|boolean',
-            ]
-        );
+        $validator = Validator::make($request->all(), [
+            'studentIds' => 'required|array|min:1',
+            'studentIds.*' => 'required|integer',
+            'description' => 'required_without:fee_group_id|nullable|string',
+            'dueDate' => 'required|date',
+            'amount' => 'required_without:fee_group_id|nullable|numeric|min:0.01',
+            'fee_structure_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('fee_structures', 'id')->where(fn ($q) => $q->where('school_id', $schoolId)),
+            ],
+            'feeStructureId' => [
+                'nullable',
+                'integer',
+                Rule::exists('fee_structures', 'id')->where(fn ($q) => $q->where('school_id', $schoolId)),
+            ],
+            'fee_group_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('fee_groups', 'id')->where(
+                    fn ($q) => $q->where('school_id', $schoolId)->where('is_active', true)
+                ),
+            ],
+            'apply_discounts' => 'nullable|boolean',
+            'combine_group' => 'nullable|boolean',
+        ]);
 
         if ($validator->fails()) {
             return response()->json([
@@ -1305,175 +1104,40 @@ class StudentController extends Controller
             ], 422);
         }
 
-        $dueDate =
-            new \DateTimeImmutable(
-                $request->input('dueDate')
-            );
+        $feeStructureId = $request->input('fee_structure_id', $request->input('feeStructureId'));
 
-        $applyDiscounts =
-            $request->boolean(
-                'apply_discounts',
-                true
-            );
-
-        $feeStructureId =
-            $request->input(
-                'fee_structure_id',
-                $request->input(
-                    'feeStructureId'
-                )
-            );
-
-        $feeGroupId =
-            $request->input(
-                'fee_group_id'
-            );
-
-        $combineGroup =
-            $request->boolean(
-                'combine_group',
-                false
-            );
-
-        /*
-         * IMPORTANT:
-         * Only load students from the current school.
-         */
-        $students =
-            Student::query()
-                ->where(
-                    'school_id',
-                    $schoolId
-                )
-                ->whereIn(
-                    'id',
-                    $request->input(
-                        'studentIds'
-                    )
-                )
-                ->get()
-                ->keyBy('id');
-
-        $created = 0;
-
-        foreach (
-            $request->input(
-                'studentIds'
-            ) as $studentId
-        ) {
-            $studentModel =
-                $students->get(
-                    (int) $studentId
-                );
-
-            if (! $studentModel) {
-                continue;
-            }
-
-            if ($feeGroupId) {
-                $group =
-                    FeeGroup::query()
-                        ->where(
-                            'school_id',
-                            $studentModel->school_id
-                        )
-                        ->where(
-                            'is_active',
-                            true
-                        )
-                        ->find(
-                            (int) $feeGroupId
-                        );
-
-                if (! $group) {
-                    continue;
-                }
-
-                $created +=
-                    $this->ledgerService
-                        ->applyFeeGroup(
-                            student: $studentModel,
-
-                            group: $group,
-
-                            dueDate: $dueDate,
-
-                            createdBy: $user?->id,
-
-                            applyDiscounts: $applyDiscounts,
-
-                            combine: $combineGroup,
-                        )
-                        ->count();
-
-                continue;
-            }
-
-            try {
-                $this->ledgerService
-                    ->createInvoice(
-                        student: $studentModel,
-
-                        amount: (float) $request->input(
-                            'amount'
-                        ),
-
-                        description: (string) $request->input(
-                            'description'
-                        ),
-
-                        feeStructureId: $feeStructureId
-                                ? (int) $feeStructureId
-                                : null,
-
-                        dueDate: $dueDate,
-
-                        createdBy: $user?->id,
-
-                        applyDiscounts: $applyDiscounts,
-                    );
-
-                $created++;
-            } catch (
-                \InvalidArgumentException
-            ) {
-                continue;
-            }
-        }
+        $result = $this->studentInvoices->createBulk(
+            schoolId: $schoolId,
+            studentIds: $request->input('studentIds'),
+            dueDate: new \DateTimeImmutable($request->input('dueDate')),
+            createdBy: $request->user()?->id,
+            applyDiscounts: $request->boolean('apply_discounts', true),
+            feeGroupId: $request->filled('fee_group_id') ? (int) $request->input('fee_group_id') : null,
+            combineGroup: $request->boolean('combine_group', false),
+            amount: $request->filled('amount') ? (float) $request->input('amount') : null,
+            description: $request->input('description'),
+            feeStructureId: $feeStructureId ? (int) $feeStructureId : null,
+        );
 
         return response()->json([
-            'data' => [
-                'created' => $created,
-            ],
-
-            'message' => "Invoices created for {$created} students",
+            'data' => ['created' => $result['created']],
+            'message' => "Invoices created for {$result['created']} students",
         ], 201);
     }
 
-    public function bulkStatus(
-        Request $request
-    ) {
+    public function bulkStatus(Request $request)
+    {
         $this->authorizeModuleAccess(
             $request,
-            capabilities: [
-                'canManageStudents',
-                'canManageTeachers',
-            ],
-            permissionSlugs: [
-                'students.manage',
-            ],
+            capabilities: ['canManageStudents', 'canManageTeachers'],
+            permissionSlugs: ['students.manage'],
         );
 
-        $validator = Validator::make(
-            $request->all(),
-            [
-                'studentIds' => 'required|array|min:1',
-
-                'studentIds.*' => 'required|integer',
-
-                'status' => 'required|string|in:active,inactive,suspended,graduated',
-            ]
-        );
+        $validator = Validator::make($request->all(), [
+            'studentIds' => 'required|array|min:1',
+            'studentIds.*' => 'required|integer',
+            'status' => 'required|string|in:active,inactive,suspended,graduated',
+        ]);
 
         if ($validator->fails()) {
             return response()->json([
@@ -1482,68 +1146,33 @@ class StudentController extends Controller
             ], 422);
         }
 
-        /*
-         * This is one of the most important fixes.
-         *
-         * The old code:
-         *
-         * Student::whereIn('id', $request->studentIds)
-         *
-         * could update another school's students.
-         *
-         * This query first restricts by school.
-         */
-        $updated =
-            $this->studentQuery($request)
-                ->whereIn(
-                    'id',
-                    $request->input(
-                        'studentIds'
-                    )
-                )
-                ->update([
-                    'status' => $request->input(
-                        'status'
-                    ),
-                ]);
+        $updated = $this->bulkActions->updateStatus(
+            $this->studentQuery($request),
+            $request->input('studentIds'),
+            (string) $request->input('status'),
+        );
 
         return response()->json([
-            'data' => [
-                'updated' => $updated,
-            ],
-
+            'data' => ['updated' => $updated],
             'message' => "Status updated for {$updated} students",
         ]);
     }
 
-    public function bulkPromote(
-        Request $request
-    ) {
+    public function bulkPromote(Request $request)
+    {
         $this->authorizeModuleAccess(
             $request,
-            capabilities: [
-                'canManageStudents',
-                'canManageTeachers',
-            ],
-            permissionSlugs: [
-                'students.manage',
-            ],
+            capabilities: ['canManageStudents', 'canManageTeachers'],
+            permissionSlugs: ['students.manage'],
         );
 
-        $validator = Validator::make(
-            $request->all(),
-            [
-                'studentIds' => 'required|array|min:1',
-
-                'studentIds.*' => 'required|integer',
-
-                'academic_year' => 'nullable|string',
-
-                'next_academic_year' => 'nullable|string',
-
-                'pass_mark' => 'nullable|numeric|min:0|max:100',
-            ]
-        );
+        $validator = Validator::make($request->all(), [
+            'studentIds' => 'required|array|min:1',
+            'studentIds.*' => 'required|integer',
+            'academic_year' => 'nullable|string',
+            'next_academic_year' => 'nullable|string',
+            'pass_mark' => 'nullable|numeric|min:0|max:100',
+        ]);
 
         if ($validator->fails()) {
             return response()->json([
@@ -1552,74 +1181,21 @@ class StudentController extends Controller
             ], 422);
         }
 
-        $schoolId =
-            $this->getSchoolId($request);
-
-        /*
-         * Only pass IDs belonging to this school
-         * to the promotion service.
-         */
-        $studentIds =
-            Student::query()
-                ->where(
-                    'school_id',
-                    $schoolId
-                )
-                ->whereIn(
-                    'id',
-                    $request->input(
-                        'studentIds'
-                    )
-                )
-                ->pluck('id')
-                ->values()
-                ->all();
-
-        if (empty($studentIds)) {
-            return response()->json([
-                'message' => 'No valid students were found for this school.',
-            ], 422);
+        try {
+            $result = $this->bulkActions->promote(
+                schoolId: $this->getSchoolId($request),
+                studentIds: $request->input('studentIds'),
+                processedBy: $request->user()->id,
+                academicYear: $request->input('academic_year'),
+                nextAcademicYear: $request->input('next_academic_year'),
+                passMark: (float) $request->input('pass_mark', 50),
+            );
+        } catch (\InvalidArgumentException $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
         }
-
-        $academicYear =
-            $request->input(
-                'academic_year',
-                Setting::get(
-                    'academic.academicYear',
-                    (string) now()->year
-                )
-            );
-
-        $nextAcademicYear =
-            $request->input(
-                'next_academic_year',
-                (string) (
-                    (int) $academicYear + 1
-                )
-            );
-
-        $result =
-            $this->promotionService
-                ->runYearEnd(
-                    schoolId: $schoolId,
-
-                    academicYear: $academicYear,
-
-                    nextAcademicYear: $nextAcademicYear,
-
-                    passMark: (float) $request->input(
-                        'pass_mark',
-                        50
-                    ),
-
-                    studentIds: $studentIds,
-
-                    processedBy: $request->user()->id,
-                );
 
         return response()->json([
             'data' => $result,
-
             'message' => 'Promotion completed: '.
                 "{$result['promoted']} promoted, ".
                 "{$result['repeated']} repeated, ".
