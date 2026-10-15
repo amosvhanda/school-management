@@ -3,18 +3,20 @@
 namespace App\Http\Controllers\Enterprise;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Api\V1\Finance\CreateInstalmentPlanRequest;
+use App\Http\Requests\Api\V1\Finance\ImportBankLineRequest;
 use App\Http\Requests\Api\V1\Finance\PostJournalRequest;
+use App\Http\Requests\Api\V1\Finance\ReconcileBankLineRequest;
+use App\Http\Requests\Api\V1\Finance\StoreExchangeRateRequest;
+use App\Http\Requests\Api\V1\Finance\StoreRevenueRuleRequest;
 use App\Models\BankStatementLine;
 use App\Models\ChartOfAccount;
 use App\Models\ExchangeRate;
 use App\Models\InstalmentPlan;
-use App\Models\JournalEntry;
 use App\Models\Payment;
 use App\Models\RevenueRecognitionRule;
 use App\Services\Enterprise\FinanceEnterpriseService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Validator;
-use Illuminate\Validation\Rule;
 
 class EnterpriseFinanceController extends Controller
 {
@@ -63,18 +65,13 @@ class EnterpriseFinanceController extends Controller
         return response()->json(['data' => ExchangeRate::where('school_id', $request->user()->school_id)->orderByDesc('effective_date')->get()]);
     }
 
-    public function storeExchangeRate(Request $request)
+    public function storeExchangeRate(StoreExchangeRateRequest $request)
     {
-        $this->authorizeEnterpriseFinance($request);
-
-        $data = Validator::make($request->all(), [
-            'from_currency' => 'required|string|size:3',
-            'to_currency' => 'required|string|size:3',
-            'rate' => 'required|numeric|min:0',
-            'effective_date' => 'required|date',
-        ])->validate();
-
-        return response()->json(['data' => ExchangeRate::create(array_merge($data, ['school_id' => $request->user()->school_id]))], 201);
+        return response()->json([
+            'data' => ExchangeRate::create(array_merge($request->validated(), [
+                'school_id' => $request->user()->school_id,
+            ])),
+        ], 201);
     }
 
     public function instalmentPlans(Request $request)
@@ -84,30 +81,10 @@ class EnterpriseFinanceController extends Controller
         return response()->json(['data' => InstalmentPlan::where('school_id', $request->user()->school_id)->with('items')->get()]);
     }
 
-    public function createInstalmentPlan(Request $request)
+    public function createInstalmentPlan(CreateInstalmentPlanRequest $request)
     {
-        $this->authorizeEnterpriseFinance($request);
-
-        $data = Validator::make($request->all(), [
-            'student_id' => [
-                'required',
-                Rule::exists('students', 'id')
-                    ->where('school_id', $request->user()->school_id),
-            ],
-            'invoice_id' => [
-                'nullable',
-                Rule::exists('invoices', 'id')
-                    ->where('school_id', $request->user()->school_id),
-            ],
-            'total_amount' => 'required|numeric',
-            'currency' => 'nullable|string|size:3',
-            'schedule' => 'required|array|min:1',
-            'schedule.*.due_date' => 'required|date',
-            'schedule.*.amount' => 'required|numeric',
-        ])->validate();
-
         return response()->json([
-            'data' => $this->finance->createInstalmentPlan($request->user()->school_id, $data),
+            'data' => $this->finance->createInstalmentPlan($request->user()->school_id, $request->validated()),
         ], 201);
     }
 
@@ -118,34 +95,19 @@ class EnterpriseFinanceController extends Controller
         return response()->json(['data' => BankStatementLine::where('school_id', $request->user()->school_id)->orderByDesc('transaction_date')->limit(100)->get()]);
     }
 
-    public function importBankLine(Request $request)
+    public function importBankLine(ImportBankLineRequest $request)
     {
-        $this->authorizeEnterpriseFinance($request);
-
-        $data = Validator::make($request->all(), [
-            'transaction_date' => 'required|date',
-            'amount' => 'required|numeric',
-            'reference' => 'nullable|string',
-            'description' => 'nullable|string',
-            'currency' => 'nullable|string|size:3',
-        ])->validate();
-
-        return response()->json(['data' => BankStatementLine::create(array_merge($data, ['school_id' => $request->user()->school_id]))], 201);
+        return response()->json([
+            'data' => BankStatementLine::create(array_merge($request->validated(), [
+                'school_id' => $request->user()->school_id,
+            ])),
+        ], 201);
     }
 
-    public function reconcile(Request $request, BankStatementLine $line)
+    public function reconcile(ReconcileBankLineRequest $request, BankStatementLine $line)
     {
-        $this->authorizeEnterpriseFinance($request);
-
-        $data = Validator::make($request->all(), [
-            'payment_id' => [
-                'required',
-                Rule::exists('payments', 'id')
-                    ->where('school_id', $request->user()->school_id),
-            ],
-        ])->validate();
-
-        $payment = Payment::where('school_id', $request->user()->school_id)->findOrFail($data['payment_id']);
+        $payment = Payment::where('school_id', $request->user()->school_id)
+            ->findOrFail($request->validated('payment_id'));
 
         return response()->json(['data' => $this->finance->reconcileBankLine($line->id, $payment->id)]);
     }
@@ -181,16 +143,12 @@ class EnterpriseFinanceController extends Controller
         return response()->json(['data' => RevenueRecognitionRule::where('school_id', $request->user()->school_id)->get()]);
     }
 
-    public function storeRevenueRule(Request $request)
+    public function storeRevenueRule(StoreRevenueRuleRequest $request)
     {
-        $this->authorizeEnterpriseFinance($request);
-
-        $data = Validator::make($request->all(), [
-            'name' => 'required|string',
-            'recognition_method' => 'required|in:immediate,monthly,term_based',
-            'config' => 'nullable|array',
-        ])->validate();
-
-        return response()->json(['data' => RevenueRecognitionRule::create(array_merge($data, ['school_id' => $request->user()->school_id]))], 201);
+        return response()->json([
+            'data' => RevenueRecognitionRule::create(array_merge($request->validated(), [
+                'school_id' => $request->user()->school_id,
+            ])),
+        ], 201);
     }
 }

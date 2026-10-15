@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Http\Concerns\HandlesResourceQueries;
+use App\Http\Requests\Api\V1\Finance\StoreInvoiceRequest;
+use App\Http\Requests\Api\V1\Finance\UpdateInvoiceRequest;
 use App\Http\Resources\Api\V1\InvoiceResource;
 use App\Models\FeeGroup;
 use App\Models\FeeStructure;
@@ -11,8 +13,6 @@ use App\Models\NotificationQueue;
 use App\Models\Student;
 use App\Services\FinancialLedgerService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Validator;
-use Illuminate\Validation\Rule;
 use Spatie\QueryBuilder\AllowedFilter;
 
 class InvoiceController extends Controller
@@ -100,51 +100,16 @@ class InvoiceController extends Controller
         ]);
     }
 
-    public function store(Request $request)
+    public function store(StoreInvoiceRequest $request)
     {
-        $this->authorize('create', Invoice::class);
-
         $schoolId = $request->user()?->school_id;
         if (! $schoolId) {
             abort(403, 'User is not associated with a school.');
         }
 
-        $validator = Validator::make($request->all(), [
-            'student_id' => [
-                'required',
-                Rule::exists('students', 'id')->where('school_id', $schoolId),
-            ],
-            'description' => ['required_without:fee_group_id', 'nullable', 'string', 'max:500'],
-            'amount' => ['required_without:fee_group_id', 'nullable', 'numeric', 'min:0.01'],
-            'due_date' => ['required', 'date'],
-            'fee_structure_id' => [
-                'nullable',
-                Rule::exists('fee_structures', 'id')->where('school_id', $schoolId),
-            ],
-            'fee_group_id' => [
-                'nullable',
-                Rule::exists('fee_groups', 'id')->where('school_id', $schoolId)->where('is_active', true),
-            ],
-            'apply_discounts' => ['nullable', 'boolean'],
-            'combine_group' => ['nullable', 'boolean'],
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json([
-                'message' => 'Validation failed',
-                'errors' => $validator->errors(),
-            ], 422);
-        }
-
-        if (! $request->filled('fee_group_id') && ! $request->filled('amount')) {
-            return response()->json([
-                'message' => 'Validation failed',
-                'errors' => ['amount' => ['Enter an amount or select a fee group.']],
-            ], 422);
-        }
-
-        $student = Student::where('school_id', $schoolId)->findOrFail($request->student_id);
-        $dueDate = new \DateTimeImmutable($request->due_date);
+        $data = $request->validated();
+        $student = Student::where('school_id', $schoolId)->findOrFail($data['student_id']);
+        $dueDate = new \DateTimeImmutable($data['due_date']);
         $applyDiscounts = $request->boolean('apply_discounts', true);
 
         if ($request->filled('fee_group_id')) {
@@ -152,7 +117,7 @@ class InvoiceController extends Controller
                 ->where('school_id', $schoolId)
                 ->where('is_active', true)
                 ->with('categories:id')
-                ->findOrFail((int) $request->fee_group_id);
+                ->findOrFail((int) $data['fee_group_id']);
 
             $invoices = $this->ledgerService->applyFeeGroup(
                 student: $student,
@@ -187,9 +152,9 @@ class InvoiceController extends Controller
             ], 201);
         }
 
-        $amount = (float) $request->amount;
-        $description = (string) $request->description;
-        $feeStructureId = $request->fee_structure_id ? (int) $request->fee_structure_id : null;
+        $amount = (float) ($data['amount'] ?? 0);
+        $description = (string) ($data['description'] ?? '');
+        $feeStructureId = isset($data['fee_structure_id']) ? (int) $data['fee_structure_id'] : null;
 
         if ($feeStructureId && ! $request->filled('amount')) {
             $structure = FeeStructure::query()
@@ -263,45 +228,26 @@ class InvoiceController extends Controller
         }
     }
 
-    public function update(Request $request, Invoice $invoice)
+    public function update(UpdateInvoiceRequest $request, Invoice $invoice)
     {
-        $this->authorize('update', $invoice);
-
         if (in_array($invoice->status, ['paid'], true)) {
             return response()->json(['message' => 'Paid invoices cannot be edited.'], 422);
         }
 
-        $validator = Validator::make($request->all(), [
-            'description' => 'sometimes|string|max:500',
-            'amount' => 'sometimes|numeric|min:0.01',
-            'due_date' => 'sometimes|date',
-        ]);
+        $data = $request->validated();
 
-        if ($validator->fails()) {
-            return response()->json([
-                'message' => 'Validation failed',
-                'errors' => $validator->errors(),
-            ], 422);
+        if (array_key_exists('description', $data)) {
+            $invoice->description = $data['description'];
+        }
+        if (array_key_exists('due_date', $data)) {
+            $invoice->due_date = $data['due_date'];
         }
 
-        if ($request->has('amount') && (float) $request->amount < (float) $invoice->amount_paid) {
-            return response()->json([
-                'message' => 'Invoice amount cannot be less than amount already paid.',
-            ], 422);
-        }
-
-        if ($request->filled('description')) {
-            $invoice->description = $request->input('description');
-        }
-        if ($request->filled('due_date')) {
-            $invoice->due_date = $request->input('due_date');
-        }
-
-        if ($request->has('amount') && (float) $request->amount !== (float) $invoice->amount) {
+        if (array_key_exists('amount', $data) && (float) $data['amount'] !== (float) $invoice->amount) {
             try {
                 $invoice = $this->ledgerService->adjustInvoiceAmount(
                     $invoice,
-                    (float) $request->amount,
+                    (float) $data['amount'],
                     $request->user()?->id,
                 );
             } catch (\InvalidArgumentException $e) {

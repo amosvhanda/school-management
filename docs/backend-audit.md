@@ -74,12 +74,12 @@ Shared database, row-level isolation via `school_id`.
 |----|---------|----------|--------|--------|
 | T1 | Several child tables lacked `IsolatesViaSchoolRelation` (`HostelBed`, `HostelAllocation`, `AssetDisposal`, `AssetMaintenanceLog`, `JournalLine`, `InstalmentScheduleItem`, `PurchaseRequisitionItem`, `WorkflowDefinitionStep`, `DocumentSignature`, later `HubMessageDelivery`, `SecureDocumentAccessLog`). Controllers often filtered via parents, but raw model queries were unscoped. | Medium | **Fixed** | Traits + relationships + regression tests |
 | T2 | `BelongsToSchool::resolveChildRouteBinding` queried the parent model class without relationship resolution (incorrect vs Laravel default). No nested bindings found in routes today, but override was unsafe. | Low | **Fixed** | Removed override |
-| T3 | Sparse Eloquent policies vs ~191 models. Most authz is middleware + `authorizeModuleAccess`. | Medium | **Improved** | Added `InvoicePolicy` + `PaymentPolicy`; base Controller uses `AuthorizesRequests`. Still expand for Journal/Exam |
+| T3 | Sparse Eloquent policies vs ~191 models. Most authz is middleware + `authorizeModuleAccess`. | Medium | **Improved** | Added `InvoicePolicy`, `PaymentPolicy`, `ExamPolicy`, `JournalEntryPolicy`; base Controller uses `AuthorizesRequests` |
 | T4 | ~25 models used `$guarded = []`. Mass-assignment risk if a future controller uses `$request->all()`. | Medium | **Fixed** | ERP models switched to `$fillable`; only `SchoolUserMembership` remains guarded |
 | T5 | `authorizeModuleAccess` short-circuits for SuperAdmin. Mitigated by `ValidateSchoolIsolation` blocking school paths; platform routes rely on `super_admin` middleware. | Low | Accepted | Keep middleware order; do not remove SuperAdmin gate casually |
 | T6 | Attendance upsert matches `school_id` **or null** for the same `student_id` (legacy merge). Cross-tenant safe while student IDs are global; do not drop without data migration. | Low | Intentional | Documented in controller comment |
 | T7 | Platform/group models (`GroupPolicy`, `CrossSchoolTransfer`, `LicenseKey`, `HubMessageDelivery`, etc.) intentionally lack school scopes — must stay behind SuperAdmin / platform services. | Info | By design | Keep reviewing platform controllers |
-| T8 | Few Form Requests (26) vs many inline `$request->validate` / `Validator::make`. Consistency and reuse suffer; not automatically insecure. | Low | Partially implemented | Adopt Form Requests for complex writes |
+| T8 | Few Form Requests vs many inline `$request->validate` / `Validator::make`. Consistency and reuse suffer; not automatically insecure. | Low | **Improved** | Exam + invoice/payment + enterprise finance writes use Form Requests; continue for remaining modules |
 
 ### Explicitly out of scope (per product decision)
 
@@ -116,7 +116,7 @@ Status key: **Implemented and verified** | **Partially implemented** | **Not imp
 
 | Feature | Paths | Notes | Tests | Status |
 |---------|-------|-------|-------|--------|
-| Students CRUD / documents / photos / ID card | `StudentController` (~2800 LOC), `StudentPolicy` | Fat controller; high regression risk | `StudentApiTest`, photo/doc/id tests | Implemented and verified (refactor candidate) |
+| Students CRUD / documents / photos / ID card | `StudentController` (~1169 LOC) + `Students/*` services, `StudentPolicy` | CRUD remains in controller; domain ops extracted | `StudentApiTest`, photo/doc/id tests | Implemented and verified |
 | Student lifecycle / placement / promotion | `StudentLifecycleController`, services | Status transitions + hostel/transport end | `StudentLifecycleTest`, `StudentPlacementLifecycleTest` | Implemented and verified |
 | Classes, subjects, grade levels, terms, rooms, departments | Controllers + `ManagesSchoolResourceCrud` | Capability-gated | `ClassApiTest`, `DepartmentApiTest`, `AcademicApiTest` | Implemented and verified |
 | Teachers / assignments | `TeacherController`, `TeacherAssignmentController`, `TeacherPolicy` | Portal vs staff split | `TeacherApiTest`, `TeacherRelationshipsTest`, `TeacherPermissionsTest` | Implemented and verified |
@@ -233,10 +233,10 @@ php artisan test --filter='SchoolErp|EnterpriseErp|WorkflowApi|HelpDesk|Procurem
 ## Recommended corrective actions (priority)
 
 1. **P0 — Done:** Relation-scope unscoped child models + regression test; remove unsafe `resolveChildRouteBinding`.  
-2. **P1 — Done:** IDOR tests (`CrossTenantIdorTest`) for invoices, payments, hostel allocate, results download.  
-3. **P1 — Done:** Invoice/Payment policies + `$fillable` hardening on ERP models.  
-4. **P1:** Split `StudentController` into domain services/actions without changing routes.  
-5. **P2:** Form Requests for journal / complex finance writes; more policies (Exam, Journal).  
+2. **P1 — Done:** IDOR tests (`CrossTenantIdorTest`) for invoices, payments, hostel allocate, results download, exams/journals.  
+3. **P1 — Done:** Invoice/Payment/Exam/Journal policies + `$fillable` hardening on ERP models.  
+4. **P1 — Done:** Split `StudentController` into domain services (report card, documents, ID card, invoices, bulk, academic, photo).  
+5. **P2 — Done:** Form Requests for exam CRUD/results, journal, invoice/payment, and enterprise finance writes.  
 6. **P2:** Introduce Larastan at a baseline level when ready (separate PR).  
 7. **P3:** Staging verification of Horizon/Pulse with Redis; SuperAdmin-only UI access.  
 

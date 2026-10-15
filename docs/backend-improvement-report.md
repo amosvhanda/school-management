@@ -39,8 +39,8 @@ Evidence primarily from Feature tests + controller/service wiring:
 | Area | Notes |
 |------|-------|
 | Formal requirements tracker | Not in repo; audit is code/test-driven |
-| Eloquent policies | Only Student/Teacher/School/CustomField |
-| Form Requests | 26 vs many inline validators |
+| Eloquent policies | Expanded: Invoice, Payment, Exam, JournalEntry (+ existing Student/Teacher/School/CustomField) |
+| Form Requests | Exam, invoice/payment, enterprise finance writes extracted; many modules still inline |
 | Horizon/Pulse runtime | Packages + config present; staging Redis check still required |
 | Enterprise/platform breadth | Large surface; not every endpoint has dedicated tests |
 | AI assistant | Present with tools/stubs; treat as partial product surface |
@@ -147,12 +147,20 @@ None.
 | `StudentController` split | Done for domain ops: report card, documents, ID cards, invoices, bulk actions, academic, photo (~1200 LOC controller remaining = CRUD + thin wrappers) |
 | Horizon/Pulse SuperAdmin gates | Verified via `OpsDashboardAccessTest` |
 
+## Follow-up completed (later same day)
+
+| Item | Outcome |
+|------|---------|
+| `ExamPolicy` + `JournalEntryPolicy`; wire authorize | Done; IDOR coverage extended |
+| Exam Form Requests (`Store`/`Update`/`RecordExamResults`) | Done |
+| Invoice/Payment Form Requests + enterprise finance Form Requests | Done |
+| Ops dashboard SuperAdmin gates | `OpsDashboardAccessTest` |
+
 ## Recommended next steps (priority order)
 
-1. Extract slices from `StudentController` into services/actions (no route churn).  
-2. Add Form Requests for journal / complex finance writes.  
-3. Staging: Redis + Horizon terminate-on-deploy + Pulse SuperAdmin gate verification.  
-4. Optional: introduce Larastan at level 0/1 in a dedicated PR.  
+1. Staging: Redis + Horizon terminate-on-deploy + Pulse SuperAdmin gate verification.  
+2. Optional: introduce Larastan at level 0/1 in a dedicated PR.  
+3. Continue Form Requests for remaining high-traffic writes (attendance, fees, payroll).  
 
 ---
 
