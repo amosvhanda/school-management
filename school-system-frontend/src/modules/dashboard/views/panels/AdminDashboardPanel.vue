@@ -60,7 +60,7 @@ const overviewCards = computed<MetricCard[]>(() => [
     subtitle: 'Active teaching staff',
     icon: Users,
     trend: kpis.value?.usersChange ?? 0,
-    href: '/people?tab=teachers',
+    href: '/teachers',
     capability: 'canManageTeachers',
   },
   {

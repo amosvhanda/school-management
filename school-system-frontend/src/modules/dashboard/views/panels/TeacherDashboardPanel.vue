@@ -582,7 +582,7 @@ onMounted(load)
             <RouterLink to="/teaching?tab=lms">Open LMS</RouterLink>
           </Button>
           <Button variant="outline" as-child>
-            <RouterLink to="/people?tab=teachers">People → Teachers</RouterLink>
+            <RouterLink to="/teachers">People → Teachers</RouterLink>
           </Button>
         </div>
       </EmptyState>

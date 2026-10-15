@@ -39,7 +39,7 @@ export const staffNavigation: NavGroup[] = [
         icon: 'Users',
         capability: 'canManageTeachers',
         items: [
-          { title: 'Add New', href: '/people?tab=teachers&create=1', capability: 'canManageTeachers' },
+          { title: 'Add New', href: '/teachers?create=1', capability: 'canManageTeachers' },
           { title: 'Teacher List', href: '/teachers', capability: 'canManageTeachers' },
           { title: 'Teacher Timetable', href: '/academics/timetable', capability: 'canManageTeachers' },
         ],

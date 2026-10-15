@@ -228,7 +228,7 @@ const initials = computed(() =>
           <DropdownMenuItem
             v-if="checkCapability('canManageTeachers')"
             class="cursor-pointer"
-            @click="router.push('/people?tab=teachers&create=1')"
+            @click="router.push('/teachers?create=1')"
           >
             Add teacher
           </DropdownMenuItem>

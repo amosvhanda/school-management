@@ -145,6 +145,12 @@ export const staffRoutes: RouteRecordRaw[] = [
     component: () => import('@/modules/students/views/StudentDirectoryView.vue'),
     meta: { capability: 'canManageStudents' },
   },
+  {
+    path: 'teachers',
+    name: 'teachers',
+    component: () => import('@/modules/teachers/views/TeachersView.vue'),
+    meta: { capability: 'canManageTeachers' },
+  },
   staffHubRedirect(
     'students/suspended',
     'students-suspended',
@@ -155,7 +161,6 @@ export const staffRoutes: RouteRecordRaw[] = [
     { status: 'suspended' },
   ),
   sectionAnalyticsRoute('people/analytics', 'people-analytics', 'people', 'canManageStudents'),
-  staffHubRedirect('teachers', 'teachers', 'people', 'teachers', 'students', 'canManageTeachers'),
   staffHubRedirect('guardians', 'guardians', 'people', 'guardians', 'students', 'canManageTeachers'),
   staffHubRedirect('enrollment', 'enrollment', 'people', 'enrollment', 'students', 'canManageTeachers'),
   {

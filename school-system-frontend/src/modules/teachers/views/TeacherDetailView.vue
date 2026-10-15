@@ -114,7 +114,7 @@ onMounted(load)
   <EntityDetailShell
     :title="displayName"
     :subtitle="subtitle"
-    back-to="/people?tab=teachers"
+    back-to="/teachers"
     back-label="Back to teachers"
     :loading="loading"
     :error="error"

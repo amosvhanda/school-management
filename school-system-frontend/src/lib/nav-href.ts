@@ -14,9 +14,7 @@ export interface NavTarget {
 
 /** Pretty redirect paths → where the router actually lands. */
 const REDIRECT_TARGETS: Record<string, NavTarget> = {
-  '/students': { path: '/people', tab: null, status: null },
   '/students/suspended': { path: '/people', tab: null, status: 'suspended' },
-  '/teachers': { path: '/people', tab: 'teachers' },
   '/guardians': { path: '/people', tab: 'guardians' },
   '/enrollment': { path: '/people', tab: 'enrollment' },
   '/people/categories': { path: '/people', tab: 'student-categories' },
@@ -203,6 +201,8 @@ export const DIRECT_PAGE_PATHS = [
   '/analytics',
   '/reports',
   '/teaching',
+  '/students',
+  '/teachers',
   '/academics/exams',
   '/academics/exam-schedules',
   '/academics/grades',

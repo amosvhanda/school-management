@@ -34,7 +34,7 @@ export const SECTION_HUBS: Record<SectionKey, SectionHubDefinition> = {
     capability: 'canManageStudents',
     quickLinks: [
       { title: 'Students', description: 'Browse and manage learners', href: '/people?tab=students', icon: 'GraduationCap', capability: 'canManageStudents' },
-      { title: 'Teachers', description: 'Staff records and assignments', href: '/people?tab=teachers', icon: 'Users', capability: 'canManageTeachers' },
+      { title: 'Teachers', description: 'Staff records and assignments', href: '/teachers', icon: 'Users', capability: 'canManageTeachers' },
       { title: 'Guardians', description: 'Parents and contacts', href: '/people?tab=guardians', icon: 'UserCheck', capability: 'canManageTeachers' },
       { title: 'Enrollment', description: 'Applications and intake', href: '/people?tab=enrollment', icon: 'ClipboardList', capability: 'canManageTeachers' },
       { title: 'Add student', description: 'Register a new learner', href: '/people?tab=students&create=1', icon: 'UserPlus', capability: 'canManageStudents' },

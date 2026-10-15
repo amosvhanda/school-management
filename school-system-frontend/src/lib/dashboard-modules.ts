@@ -352,7 +352,7 @@ export const STAFF_DASHBOARD_MODULE_GROUPS: DashboardModuleGroup[] = [
       {
         title: 'Teachers',
         description: 'Staff records and profiles',
-        href: '/people?tab=teachers',
+        href: '/teachers',
         icon: 'Users',
         capability: 'canManageTeachers',
       },

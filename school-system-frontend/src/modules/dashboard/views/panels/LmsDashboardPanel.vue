@@ -54,7 +54,7 @@ const cards = computed<MetricCard[]>(() => {
       value: k?.instructors ?? 0,
       subtitle: 'Teachers with LMS sessions',
       icon: Users,
-      href: '/people?tab=teachers',
+      href: '/teachers',
       capability: 'canManageTeachers',
     },
     {

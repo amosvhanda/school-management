@@ -309,12 +309,49 @@ export const studentColumns: ColumnDef<Record<string, unknown>>[] = [
   viewActionColumn('student-detail'),
 ]
 
+export function teacherIdentityColumn(): ColumnDef<Record<string, unknown>> {
+  return {
+    id: 'teacher-identity',
+    header: 'Name',
+    cell: ({ row }) => {
+      const record = row.original
+      const name =
+        String(
+          record.full_name
+          ?? record.fullName
+          ?? record.name
+          ?? `${record.first_name ?? ''} ${record.last_name ?? ''}`.trim(),
+        ).trim() || 'Teacher'
+      const photo = String(record.photo_url ?? record.photoUrl ?? '').trim()
+      const subject = String(record.subject ?? '').trim()
+      const department = String(record.department ?? '').trim()
+      const designation = relationName(record.designation)
+      const meta = [subject, department].filter(Boolean).join(' · ') || 'No subject assigned'
+
+      return h('div', { class: 'flex min-w-0 items-center gap-3' }, [
+        h(Avatar, { class: 'size-10', size: 'lg' }, () => [
+          photo ? h(AvatarImage, { src: photo, alt: '' }) : null,
+          h(AvatarFallback, { class: 'bg-primary/10 text-xs font-semibold text-primary' }, () =>
+            personInitials(name),
+          ),
+        ]),
+        h('div', { class: 'min-w-0' }, [
+          h('p', { class: 'truncate text-sm font-semibold text-foreground' }, name),
+          h('p', { class: 'truncate text-xs text-muted-foreground' }, meta),
+          designation
+            ? h(Badge, { variant: 'secondary', class: 'mt-1 rounded-full px-2 py-0 text-[10px]' }, () => designation)
+            : null,
+        ]),
+      ])
+    },
+  }
+}
+
 export const teacherColumns: ColumnDef<Record<string, unknown>>[] = [
   textColumn('Employee #', 'employee_id'),
-  personNameColumn('Name'),
+  teacherIdentityColumn(),
   textColumn('Email', 'email'),
-  textColumn('Subject', 'subject'),
-  textColumn('Department', 'department'),
+  textColumn('Phone', 'phone'),
   statusColumn(),
   viewActionColumn('teacher-detail'),
 ]

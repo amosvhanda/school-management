@@ -229,7 +229,7 @@ function personInitials(name: string) {
             <CardDescription>Active teaching staff</CardDescription>
           </div>
           <Button variant="ghost" size="sm" class="shrink-0" as-child>
-            <RouterLink to="/people?tab=teachers" aria-label="View teachers">
+            <RouterLink to="/teachers" aria-label="View teachers">
               <Users class="size-4" aria-hidden="true" />
             </RouterLink>
           </Button>
