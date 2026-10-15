@@ -232,8 +232,9 @@ async function load() {
     if (!selectedChildId.value || !children.value.some((child) => child.id === selectedChildId.value)) {
       selectedChildId.value = children.value[0]?.id ?? null
     }
-    const noticePayload = await parentPortalApi.announcements().catch(() => [])
-    notices.value = Array.isArray(noticePayload) ? noticePayload.slice(0, 6) : []
+    const noticePayload = await parentPortalApi.announcements().catch(() => [] as NoticeRow[])
+    const noticeList: NoticeRow[] = Array.isArray(noticePayload) ? (noticePayload as NoticeRow[]) : []
+    notices.value = noticeList.slice(0, 6)
     await loadChildProgress(children.value)
     lastUpdated.value = new Date()
   } catch (err) {

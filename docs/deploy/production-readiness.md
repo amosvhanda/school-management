@@ -28,9 +28,9 @@ Per-tenant databases are intentionally out of scope.
    - Follow [wildcard-ingress.md](./wildcard-ingress.md)
    - Run `scripts/provision-wildcard-tls.sh` for `*.yourdomain`
 
-4. **Payments & messaging**
-   - Follow [paynow-webhooks-staging.md](./paynow-webhooks-staging.md)
-   - Configure per-school SMS/WhatsApp credentials in School Settings (or platform env fallbacks)
+4. **Payments & messaging** *(deferred — not required for current go-live)*
+   - Paynow and SMS/WhatsApp are optional until you enable them
+   - When ready: follow [paynow-webhooks-staging.md](./paynow-webhooks-staging.md) and set per-school SMS/WhatsApp credentials
 
 5. **Health**
    - `GET /up` and platform System Health (`/platform/system/health`)
@@ -57,3 +57,16 @@ Bearer-token API clients do not use cookie CSRF. Sanctum SPA cookie auth should 
 | Privileged 2FA | `2fa.enabled` middleware + Profile setup (production default) |
 | Online exams | Student CBT under `/student/exams` + staff question bank |
 | POS | Inventory till panel on Operations → Sales |
+
+## Local verification log
+
+| Gate | Result | Notes |
+|------|--------|-------|
+| `php artisan test` | **515 passed** (2212 assertions) | Full suite green |
+| `school-system-frontend` `npm run build` | **green** | `vue-tsc -b && vite build` |
+| `php artisan saas:go-live-check` | **green** | Local/non-production skips strict prod env asserts |
+| Staging env + Redis/HTTPS/2FA | pending | Needs staging host |
+| `saas:go-live-check --strict` on staging | pending | Run after staging env mirrors production |
+| Paynow + SMS/WhatsApp staging | deferred | Not in current go-live scope |
+| Wildcard TLS + subdomain smoke | pending | See wildcard-ingress.md |
+| Production cutover | blocked | After staging drill passes |

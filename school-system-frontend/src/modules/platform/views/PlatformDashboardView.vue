@@ -19,7 +19,6 @@ import DashboardModulesGrid from '@/components/dashboard/DashboardModulesGrid.vu
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { useAuth } from '@/composables/useAuth'
 import { getErrorMessage } from '@/lib/api-response'
 import {
   platformApi,
@@ -59,7 +58,6 @@ interface HealthSnapshot {
   server?: { php_version?: string; memory_usage_mb?: number }
 }
 
-const { user } = useAuth()
 const loading = ref(true)
 const error = ref<string | null>(null)
 const licenseSummary = ref<PlatformLicenseSummary | null>(null)
