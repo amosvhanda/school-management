@@ -114,14 +114,31 @@ jobs:
           } > .env.deploy.local
           python3 scripts/deploy-cpanel-local.py
 
+      - name: Run post-deploy artisan commands (no SSH on this host)
+        env:
+          CPANEL_FTP_HOST: ${{ secrets.CPANEL_FTP_HOST }}
+          CPANEL_FTP_USERNAME: ${{ secrets.CPANEL_FTP_USERNAME }}
+          CPANEL_FTP_PASSWORD: ${{ secrets.CPANEL_FTP_PASSWORD }}
+          CPANEL_FTP_PORT: ${{ secrets.CPANEL_FTP_PORT }}
+          CPANEL_FTP_REMOTE_DIR: ${{ secrets.CPANEL_FTP_REMOTE_DIR }}
+          APP_URL: ${{ secrets.APP_URL }}
+          VITE_API_URL: ${{ secrets.VITE_API_URL }}
+        run: |
+          {
+            echo "CPANEL_FTP_HOST=${CPANEL_FTP_HOST}"
+            echo "CPANEL_FTP_USERNAME=${CPANEL_FTP_USERNAME}"
+            echo "CPANEL_FTP_PASSWORD=${CPANEL_FTP_PASSWORD}"
+            echo "CPANEL_FTP_PORT=${CPANEL_FTP_PORT:-22}"
+            echo "CPANEL_FTP_REMOTE_DIR=${CPANEL_FTP_REMOTE_DIR}"
+            echo "APP_URL=${APP_URL:-$VITE_API_URL}"
+            echo "VITE_API_URL=${VITE_API_URL}"
+          } > .env.deploy.local
+          python3 scripts/run-artisan-remote.py migrate storage-link config-cache route-cache view-cache
+
       - name: Post-deploy reminder
         if: ${{ github.event.inputs.skip_migrate_reminder != 'true' }}
         run: |
           echo "Deploy finished (SFTP zip + PHP extract)."
-          echo "On the server (cPanel Terminal / enable SSH shell if needed):"
-          echo "  cd ~/school-management"
-          echo "  # create .env once if missing, then:"
-          echo "  php artisan migrate --force"
-          echo "  php artisan storage:link"
-          echo "  php artisan config:cache && php artisan route:cache && php artisan view:cache"
+          echo "Migrations + caches were run remotely via a self-deleting token-gated script"
+          echo "(no SSH/Terminal needed on this host)."
           echo "Point a subdomain document root at school-management/public (do not wipe existing public_html)."
