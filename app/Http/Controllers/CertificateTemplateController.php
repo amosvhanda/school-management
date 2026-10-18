@@ -95,12 +95,14 @@ class CertificateTemplateController extends Controller
         $verificationCode = Str::upper(Str::random(10));
         $dateLabel = $issuedAt->timezone('Africa/Harare')->format('d M Y');
 
+        // ENT_COMPAT keeps apostrophes in names (O'Brien) while still neutralizing XSS.
+        // Laravel's e() uses ENT_QUOTES and turns names into O&#039;Brien in stored HTML.
         $body = str_replace(
             ['{{student_name}}', '{{date}}', '{{school_name}}'],
             [
-                e((string) $student->full_name),
-                e($dateLabel),
-                e((string) ($school?->name ?? '')),
+                $this->escapeCertificateMergeValue((string) $student->full_name),
+                $this->escapeCertificateMergeValue($dateLabel),
+                $this->escapeCertificateMergeValue((string) ($school?->name ?? '')),
             ],
             (string) $template->body_html,
         );
@@ -123,5 +125,13 @@ class CertificateTemplateController extends Controller
             'message' => 'Certificate issued successfully',
             'data' => $certificate,
         ], 201);
+    }
+
+    /**
+     * Escape merge fields for HTML certificate bodies without mangling apostrophes in names.
+     */
+    private function escapeCertificateMergeValue(string $value): string
+    {
+        return htmlspecialchars(strip_tags($value), ENT_COMPAT | ENT_HTML5, 'UTF-8');
     }
 }

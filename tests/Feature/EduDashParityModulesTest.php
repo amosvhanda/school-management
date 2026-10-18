@@ -129,7 +129,13 @@ class EduDashParityModulesTest extends TestCase
     public function test_certificate_template_issue(): void
     {
         ['school' => $school] = $this->actingAdmin();
-        $student = \App\Models\Student::factory()->create(['school_id' => $school->id]);
+        // Apostrophe must survive merge escaping (ENT_COMPAT) — e()/ENT_QUOTES used to break this.
+        $student = \App\Models\Student::factory()->create([
+            'school_id' => $school->id,
+            'first_name' => "O'Brien",
+            'last_name' => 'Ndlovu',
+            'full_name' => "O'Brien Ndlovu",
+        ]);
 
         $template = $this->postJson('/api/v1/certificate-templates', [
             'name' => 'Character',
@@ -143,7 +149,9 @@ class EduDashParityModulesTest extends TestCase
         ])->assertCreated()->json('data');
 
         $this->assertNotEmpty($issued['verification_code']);
-        $this->assertStringContainsString($student->full_name, $issued['content_html']);
+        $this->assertStringContainsString("O'Brien Ndlovu", $issued['content_html']);
+        $this->assertStringContainsString($school->name, $issued['content_html']);
+        $this->assertStringNotContainsString('&#039;', $issued['content_html']);
     }
 
     public function test_income_and_expense_heads_crud(): void
