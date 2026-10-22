@@ -10,6 +10,7 @@ use App\Models\StaffFeedPost;
 use App\Models\StaffTask;
 use App\Models\Student;
 use App\Models\StudentIntervention;
+use App\Models\TeacherNotification;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
@@ -65,7 +66,7 @@ class PlatformStaffController extends Controller
             'recorded_on' => 'nullable|date',
         ])->validate();
 
-        Student::where('school_id', $schoolId)->findOrFail($data['student_id']);
+        Student::query()->forSchool($schoolId)->findOrFail($data['student_id']);
 
         $point = BehaviorPoint::create([
             'school_id' => $schoolId,
@@ -85,7 +86,9 @@ class PlatformStaffController extends Controller
         $this->authorizePlatformStaffStudents($request);
 
         $schoolId = $this->platformSchoolId($request);
-        $studentQuery = Student::query()->when($schoolId, fn ($q) => $q->where('school_id', $schoolId));
+        $studentQuery = $schoolId
+            ? Student::query()->forSchool($schoolId)
+            : Student::query();
         $studentQuery->findOrFail($studentId);
         $total = BehaviorPoint::where('student_id', $studentId)->sum('points');
 
@@ -122,7 +125,7 @@ class PlatformStaffController extends Controller
             'follow_up_date' => 'nullable|date',
         ])->validate();
 
-        Student::where('school_id', $schoolId)->findOrFail($data['student_id']);
+        Student::query()->forSchool($schoolId)->findOrFail($data['student_id']);
 
         $intervention = StudentIntervention::create([
             'school_id' => $schoolId,
@@ -207,6 +210,17 @@ class PlatformStaffController extends Controller
             'priority' => $data['priority'] ?? 'normal',
             'status' => 'pending',
             'due_date' => $data['due_date'] ?? null,
+        ]);
+
+        TeacherNotification::create([
+            'school_id' => $schoolId,
+            'user_id' => $assignee->id,
+            'type' => 'staff_task',
+            'title' => 'New task assigned',
+            'body' => $data['title'],
+            'link' => $assignee->role?->value === 'teacher' || (string) $assignee->role === 'teacher'
+                ? '/teaching?tab=my-tasks'
+                : '/hr?tab=staff-tasks',
         ]);
 
         $task->load(['school:id,name,code', 'assignee:id,name,email,role', 'assigner:id,name,email']);

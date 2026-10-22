@@ -7,6 +7,11 @@ const STAFF_ROLES: UserRole[] = [
   'finance',
   'accounts',
   'examination_officer',
+  'receptionist',
+  'librarian',
+  'nurse',
+  'transport_manager',
+  'hostel_manager',
 ]
 
 export function hasPermission(user: AuthUser | null, slug: string): boolean {
@@ -44,10 +49,17 @@ export function hasCapability(user: AuthUser | null, capability: NavCapability):
     case 'canEnterExamResults':
       return ['super_admin', 'admin', 'teacher', 'examination_officer'].includes(role)
     case 'canManageLibrary':
+      return ['super_admin', 'admin', 'librarian'].includes(role)
     case 'canManageTransport':
+      return ['super_admin', 'admin', 'transport_manager'].includes(role)
     case 'canManageInventory':
-    case 'canManageReception':
       return ['super_admin', 'admin'].includes(role)
+    case 'canManageReception':
+      return ['super_admin', 'admin', 'receptionist'].includes(role)
+    case 'canManageHealth':
+      return ['super_admin', 'admin', 'nurse'].includes(role)
+    case 'canManageHostel':
+      return ['super_admin', 'admin', 'hostel_manager'].includes(role)
     default:
       return false
   }
@@ -73,6 +85,11 @@ const STAFF_DASHBOARD_ROLES: UserRole[] = [
   'finance',
   'accounts',
   'examination_officer',
+  'receptionist',
+  'librarian',
+  'nurse',
+  'transport_manager',
+  'hostel_manager',
 ]
 
 export function isStaffDashboardRole(role: UserRole): boolean {

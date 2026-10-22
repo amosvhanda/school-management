@@ -397,8 +397,9 @@ onMounted(async () => {
 
 <template>
   <PageShell
-    title="Timetable Management"
+    title="Timetable management"
     description="Create and manage class timetables"
+    :breadcrumbs="['Academics', 'Timetable']"
     max-width="wide"
   >
     <template #actions>

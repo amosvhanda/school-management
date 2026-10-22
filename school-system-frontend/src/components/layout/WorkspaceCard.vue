@@ -7,13 +7,9 @@ withDefaults(
   defineProps<{
     title: string
     description?: string
-    /** Optional icon shown in the meta panel. */
     icon?: Component
-    /** Label above the meta value (e.g. Records). */
     metaLabel?: string
-    /** Large meta value (e.g. record count). */
     metaValue?: string | number
-    /** Remove content padding (e.g. full-bleed tables). */
     flush?: boolean
     class?: string
   }>(),
@@ -24,11 +20,11 @@ withDefaults(
 </script>
 
 <template>
-  <Card :class="cn('overflow-hidden border-border/70 shadow-sm', $props.class)">
-    <CardHeader class="border-b border-border/60 bg-gradient-to-r from-background via-background to-muted/40 px-6 py-6">
+  <Card :class="cn('overflow-hidden', $props.class)">
+    <CardHeader class="border-b border-border/50 px-5 py-5 sm:px-6 dark:border-border/40">
       <div class="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-        <div class="min-w-0 space-y-2">
-          <CardTitle class="text-xl">{{ title }}</CardTitle>
+        <div class="min-w-0 space-y-1.5">
+          <CardTitle class="text-lg font-semibold tracking-tight">{{ title }}</CardTitle>
           <CardDescription v-if="description || $slots.description" class="max-w-2xl text-sm leading-relaxed">
             <slot name="description">{{ description }}</slot>
           </CardDescription>
@@ -36,20 +32,20 @@ withDefaults(
 
         <div
           v-if="$slots.meta || metaLabel != null || metaValue != null"
-          class="flex items-center gap-4 rounded-2xl border border-border/60 bg-background px-5 py-4"
+          class="flex items-center gap-3 rounded-2xl bg-muted/45 px-4 py-3 ring-1 ring-border/50"
         >
           <slot name="meta">
             <div
               v-if="icon"
-              class="inline-flex size-16 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground"
+              class="inline-flex size-11 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary"
             >
-              <component :is="icon" class="size-7" aria-hidden="true" />
+              <component :is="icon" class="size-5" aria-hidden="true" />
             </div>
-            <div class="space-y-1.5">
-              <p v-if="metaLabel" class="text-sm font-medium text-foreground">{{ metaLabel }}</p>
+            <div class="space-y-0.5">
+              <p v-if="metaLabel" class="text-xs text-muted-foreground">{{ metaLabel }}</p>
               <p
                 v-if="metaValue != null"
-                class="text-2xl font-semibold tracking-tight text-foreground"
+                class="text-2xl font-semibold tracking-tight tabular-nums text-foreground"
               >
                 {{ metaValue }}
               </p>
@@ -59,7 +55,7 @@ withDefaults(
       </div>
     </CardHeader>
 
-    <CardContent :class="flush ? 'p-0' : 'px-6 py-6'">
+    <CardContent :class="flush ? 'p-0' : 'px-5 py-5 sm:px-6'">
       <slot />
     </CardContent>
   </Card>

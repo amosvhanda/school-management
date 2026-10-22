@@ -174,7 +174,9 @@ onMounted(load)
   <PageShell
     title="Roles & permissions"
     description="Define who can access what — assign permission groups to each role."
-   max-width="wide">
+    :breadcrumbs="['Administration', 'Roles & permissions']"
+    max-width="wide"
+  >
     <template #actions>
       <Button v-if="activeTab === 'roles'" @click="openCreate">
         <Plus class="mr-2 h-4 w-4" aria-hidden="true" />

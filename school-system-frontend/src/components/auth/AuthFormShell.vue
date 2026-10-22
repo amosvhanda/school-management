@@ -16,7 +16,7 @@ defineProps<{
   <div :class="cn('flex w-full max-w-sm flex-col gap-5 md:max-w-4xl', $props.class)">
     <slot name="above" />
 
-    <Card class="overflow-hidden p-0">
+    <Card class="overflow-hidden p-0 shadow-[var(--shadow-lift)]">
       <CardContent class="grid p-0 md:grid-cols-2">
         <div class="space-y-6 bg-card p-6 md:p-8">
           <slot />
@@ -27,13 +27,17 @@ defineProps<{
           aria-hidden="true"
         >
           <div
-            class="pointer-events-none absolute inset-0 opacity-30"
+            class="pointer-events-none absolute inset-0 opacity-25"
             style="
               background-image:
                 linear-gradient(rgba(255,255,255,0.08) 1px, transparent 1px),
                 linear-gradient(90deg, rgba(255,255,255,0.08) 1px, transparent 1px);
               background-size: 28px 28px;
             "
+          />
+          <div
+            class="pointer-events-none absolute -right-16 -top-16 size-48 rounded-full bg-white/10 blur-2xl"
+            aria-hidden="true"
           />
           <div class="relative space-y-4 text-white">
             <p class="text-xs font-semibold tracking-[0.18em] text-white/80 uppercase">

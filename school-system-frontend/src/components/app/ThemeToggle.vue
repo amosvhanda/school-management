@@ -4,10 +4,14 @@ import { Moon, Sun } from '@lucide/vue'
 import { Button } from '@/components/ui/button'
 import { useUiStore } from '@/stores/ui.store'
 
-withDefaults(
+import type { HTMLAttributes } from 'vue'
+import { cn } from '@/lib/utils'
+
+const props = withDefaults(
   defineProps<{
     variant?: 'ghost' | 'outline'
     size?: 'default' | 'sm' | 'icon'
+    class?: HTMLAttributes['class']
   }>(),
   {
     variant: 'ghost',
@@ -22,7 +26,7 @@ const uiStore = useUiStore()
   <Button
     :variant="variant"
     :size="size"
-    :class="size === 'icon' ? 'size-9' : undefined"
+    :class="cn(size === 'icon' ? 'size-9' : undefined, props.class)"
     :aria-label="uiStore.theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'"
     @click="uiStore.toggleTheme()"
   >

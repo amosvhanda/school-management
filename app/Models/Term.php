@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\Auditable;
 use App\Models\Concerns\BelongsToSchool;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -10,7 +11,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Term extends Model
 {
-    use BelongsToSchool, HasFactory;
+    use Auditable, BelongsToSchool, HasFactory;
 
     protected $fillable = [
         'school_id',
@@ -27,12 +28,12 @@ class Term extends Model
     protected function casts(): array
     {
         return [
-        'start_date' => 'date',
-        'end_date' => 'date',
-        'is_current' => 'boolean',
-        'is_active' => 'boolean',
-        'order' => 'integer',
-    ];
+            'start_date' => 'date',
+            'end_date' => 'date',
+            'is_current' => 'boolean',
+            'is_active' => 'boolean',
+            'order' => 'integer',
+        ];
     }
 
     public function school(): BelongsTo

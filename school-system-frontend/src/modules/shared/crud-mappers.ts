@@ -1,5 +1,4 @@
 import type { FormFieldSchema } from '@/components/forms/useFormBuilder'
-import { isoDateFromValue } from '@/lib/date-picker'
 import { findRelationIdByLabel, findRelationLabel, findRelationRaw } from '@/lib/relation-options'
 import { moduleEndpoints } from '@/services'
 import { mapLeaveFormToPayload } from '@/modules/hr/leave-form'
@@ -20,14 +19,6 @@ const rowAliases: Record<string, Record<string, string>> = {
     firstName: 'first_name',
     surname: 'last_name',
     joiningDate: 'joining_date',
-    base_salary: 'base_salary',
-    period_rate: 'period_rate',
-    salary_currency: 'salary_currency',
-    bank_name: 'bank_name',
-    bank_account_number: 'bank_account_number',
-    payment_method: 'payment_method',
-    employment_type: 'employment_type',
-    status: 'status',
   },
 }
 
@@ -121,12 +112,6 @@ function coerceFieldValue(field: FormFieldSchema, raw: unknown): unknown {
     return Boolean(raw)
   }
 
-  if (field.type === 'date') {
-    if (raw === '' || raw == null) return ''
-    const iso = isoDateFromValue(String(raw))
-    return iso || String(raw).trim().slice(0, 10)
-  }
-
   return raw
 }
 
@@ -205,28 +190,7 @@ export function mapRowToFormValues(
     values[field.name] = coerceFieldValue(field, raw)
   }
 
-  if (listKey === 'teachers') {
-    values.allowances_total = sumMoneyMap(row.allowances)
-    values.deductions_total = sumMoneyMap(row.deductions)
-    if (values.status == null || values.status === '') values.status = 'active'
-    if (values.employment_type == null || values.employment_type === '') {
-      values.employment_type = 'full_time'
-    }
-    if (values.salary_currency == null || values.salary_currency === '') {
-      values.salary_currency = 'USD'
-    }
-  }
-
   return values
-}
-
-function sumMoneyMap(value: unknown): number | '' {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) return ''
-  const total = Object.values(value as Record<string, unknown>).reduce<number>((sum, item) => {
-    const n = Number(item)
-    return Number.isFinite(n) ? sum + n : sum
-  }, 0)
-  return total > 0 ? total : ''
 }
 
 function mapStudentPayload(
@@ -269,13 +233,9 @@ function mapStudentPayload(
 
   if (payload.class_id) {
     payload.class_id = Number(payload.class_id)
-    const raw = findRelationRaw(moduleEndpoints.classes, payload.class_id)
-    const label = findRelationLabel(moduleEndpoints.classes, payload.class_id)
-    const className = raw?.name
-      ? String(raw.name)
-      : label?.split(' · ')[0]
+    const className = findRelationLabel(moduleEndpoints.classes, payload.class_id)
     if (className) {
-      payload.class = className
+      payload.class = className.split(' · ')[0]
     }
   }
 
@@ -310,16 +270,6 @@ export function mapFormToPayload(
     }
     if (values.reference) payload.reference = values.reference
     if (values.notes) payload.notes = values.notes
-    return payload
-  }
-
-  if (listKey === 'finance-payroll') {
-    const payload: Record<string, unknown> = {
-      base_salary: Number(values.base_salary ?? 0),
-    }
-    if (values.notes != null && String(values.notes).trim() !== '') {
-      payload.notes = String(values.notes).trim()
-    }
     return payload
   }
 
@@ -359,195 +309,6 @@ export function mapFormToPayload(
     return mapLeaveFormToPayload(values)
   }
 
-  if (listKey === 'academics-assignments') {
-    const subjectLabel = values.subject_id
-      ? findRelationLabel(moduleEndpoints.subjects, values.subject_id)
-      : undefined
-    return {
-      title: values.title,
-      subject: subjectLabel?.split(' · ')[0] ?? values.subject,
-      class_id: values.class_id ? Number(values.class_id) : undefined,
-      teacher_id: values.teacher_id ? Number(values.teacher_id) : undefined,
-      due_date: values.due_date,
-      ...(values.total_marks != null && values.total_marks !== '' ? { total_marks: Number(values.total_marks) } : {}),
-      ...(values.description ? { description: String(values.description).trim() } : {}),
-    }
-  }
-
-  if (listKey === 'ops-inventory-sales') {
-    return {
-      items: [
-        {
-          item_id: values.item_id ? Number(values.item_id) : undefined,
-          quantity: values.quantity,
-        },
-      ],
-      payment_method: values.payment_method,
-      ...(values.student_id ? { student_id: Number(values.student_id) } : {}),
-      ...(values.notes ? { notes: String(values.notes).trim() } : {}),
-    }
-  }
-
-  if (listKey === 'finance-fees') {
-    return {
-      class_id: values.class_id ? Number(values.class_id) : undefined,
-      fee_category_id: values.fee_category_id ? Number(values.fee_category_id) : undefined,
-      amount: values.amount,
-    }
-  }
-
-  if (listKey === 'finance-fee-categories') {
-    return {
-      name: values.name,
-      description: values.description || null,
-      is_active: values.is_active !== false,
-      ...(values.order != null && values.order !== '' ? { order: Number(values.order) } : {}),
-    }
-  }
-
-  if (listKey === 'academics-terms') {
-    return {
-      name: String(values.name ?? '').trim(),
-      academic_year: String(values.academic_year ?? '').trim(),
-      start_date: values.start_date,
-      end_date: values.end_date,
-      description: values.description ? String(values.description).trim() : null,
-      is_current: values.is_current === true,
-      is_active: values.is_active !== false,
-      ...(values.order != null && values.order !== '' ? { order: Number(values.order) } : {}),
-    }
-  }
-
-  if (listKey === 'academics-setup') {
-    const capacity =
-      values.capacity === '' || values.capacity == null
-        ? 40
-        : Number(values.capacity)
-
-    const levelRaw = values.grade_level_id
-      ? findRelationRaw(moduleEndpoints.gradeLevels, values.grade_level_id)
-      : undefined
-    // `form` mirrors grade level — same concept, kept for API/filtering only.
-    const levelName = levelRaw?.name != null ? String(levelRaw.name).trim() : null
-
-    return {
-      name: String(values.name ?? '').trim(),
-      form: levelName,
-      capacity: Number.isFinite(capacity) && capacity >= 1 ? capacity : 40,
-      grade_level_id: values.grade_level_id ? Number(values.grade_level_id) : null,
-      stream_id: values.stream_id ? Number(values.stream_id) : null,
-      teacher_id: values.teacher_id ? Number(values.teacher_id) : null,
-    }
-  }
-
-  if (listKey === 'academics-subject-packages') {
-    return {
-      grade_level_id: values.grade_level_id ? Number(values.grade_level_id) : undefined,
-      subject_id: values.subject_id ? Number(values.subject_id) : undefined,
-      stream_id: values.stream_id ? Number(values.stream_id) : null,
-      is_core: values.is_core === 'true' || values.is_core === true,
-    }
-  }
-
-  if (listKey === 'ops-inventory') {
-    return {
-      name: String(values.name ?? '').trim(),
-      sku: values.sku ? String(values.sku).trim() : null,
-      type: values.type ?? 'uniform',
-      size: values.size ? String(values.size).trim() : null,
-      description: values.description ? String(values.description).trim() : null,
-      stock_quantity: Number(values.stock_quantity ?? 0),
-      reorder_level: values.reorder_level != null && values.reorder_level !== ''
-        ? Number(values.reorder_level)
-        : 5,
-      unit_price: Number(values.unit_price ?? 0),
-      billing_mode: values.billing_mode ?? 'direct_sale',
-      is_active: values.is_active !== false,
-    }
-  }
-
-  if (listKey === 'ops-transport') {
-    return {
-      registration_number: String(values.registration_number ?? '').trim(),
-      make: values.make ? String(values.make).trim() : null,
-      model: values.model ? String(values.model).trim() : null,
-      ...(values.capacity != null && values.capacity !== '' ? { capacity: Number(values.capacity) } : {}),
-      status: values.status ?? 'active',
-    }
-  }
-
-  if (listKey === 'ops-transport-drivers') {
-    return {
-      name: String(values.name ?? '').trim(),
-      license_number: values.license_number ? String(values.license_number).trim() : null,
-      phone: values.phone ? String(values.phone).trim() : null,
-      status: values.status ?? 'active',
-    }
-  }
-
-  if (listKey === 'ops-transport-routes') {
-    return {
-      name: String(values.name ?? '').trim(),
-      vehicle_id: values.vehicle_id ? Number(values.vehicle_id) : null,
-      driver_id: values.driver_id ? Number(values.driver_id) : null,
-      route_description: values.route_description ? String(values.route_description).trim() : null,
-      status: values.status ?? 'active',
-    }
-  }
-
-  if (listKey === 'ops-visitors') {
-    return {
-      name: String(values.name ?? '').trim(),
-      purpose: String(values.purpose ?? '').trim(),
-      phone: values.phone ? String(values.phone).trim() : null,
-      id_number: values.id_number ? String(values.id_number).trim() : null,
-      host_user_id: values.host_user_id ? Number(values.host_user_id) : null,
-      student_id: values.student_id ? Number(values.student_id) : null,
-    }
-  }
-
-  if (listKey === 'ops-events') {
-    return {
-      title: values.title,
-      starts_at: values.starts_at,
-      ...(values.type ? { type: String(values.type).trim() } : {}),
-      ...(values.ends_at ? { ends_at: values.ends_at } : {}),
-      ...(values.location ? { location: String(values.location).trim() } : {}),
-      ...(values.status ? { status: values.status } : {}),
-      ...(values.description ? { description: String(values.description).trim() } : {}),
-    }
-  }
-
-  if (listKey === 'ops-assets') {
-    return {
-      name: values.name,
-      category: values.category,
-      ...(values.asset_tag ? { asset_tag: String(values.asset_tag).trim() } : {}),
-      ...(values.purchase_date ? { purchase_date: values.purchase_date } : {}),
-      ...(values.purchase_cost != null && values.purchase_cost !== '' ? { purchase_cost: Number(values.purchase_cost) } : {}),
-      ...(values.location ? { location: String(values.location).trim() } : {}),
-      ...(values.custodian_user_id ? { custodian_user_id: Number(values.custodian_user_id) } : {}),
-      ...(values.status ? { status: values.status } : {}),
-    }
-  }
-
-  if (listKey === 'ops-procurement') {
-    return {
-      title: values.title,
-      spend_type: values.spend_type ?? 'procurement',
-      ...(values.department_id ? { department_id: Number(values.department_id) } : {}),
-      ...(values.description ? { description: String(values.description).trim() } : {}),
-      items: [
-        {
-          description: values.item_description,
-          quantity: values.item_quantity,
-          unit_cost: values.item_unit_cost,
-        },
-      ],
-      submit: values.submit === true,
-    }
-  }
-
   const payload = { ...values }
 
   for (const field of mappingFields) {
@@ -583,37 +344,8 @@ function mapTeacherPayload(values: Record<string, unknown>): Record<string, unkn
   }
   delete payload.department_id
 
-  const allowancesTotal = Number(payload.allowances_total ?? NaN)
-  const deductionsTotal = Number(payload.deductions_total ?? NaN)
-  const hadAllowances = Object.prototype.hasOwnProperty.call(payload, 'allowances_total')
-  const hadDeductions = Object.prototype.hasOwnProperty.call(payload, 'deductions_total')
-  delete payload.allowances_total
-  delete payload.deductions_total
-
-  if (hadAllowances) {
-    payload.allowances =
-      Number.isFinite(allowancesTotal) && allowancesTotal > 0 ? { other: allowancesTotal } : {}
-  }
-
-  if (hadDeductions) {
-    payload.deductions =
-      Number.isFinite(deductionsTotal) && deductionsTotal > 0 ? { other: deductionsTotal } : {}
-  }
-
-  for (const key of [
-    'phone',
-    'address',
-    'subject',
-    'department',
-    'qualification',
-    'joiningDate',
-    'bank_name',
-    'bank_account_number',
-    'payment_method',
-    'base_salary',
-    'period_rate',
-  ]) {
-    if (payload[key] === '' || payload[key] == null) delete payload[key]
+  for (const key of ['phone', 'address', 'subject', 'department', 'qualification', 'joiningDate']) {
+    if (payload[key] === '') delete payload[key]
   }
 
   delete payload.name
@@ -625,9 +357,6 @@ export const backendCrudSupport: Record<string, { create: boolean; update: boole
   teachers: { create: true, update: true, delete: true },
   guardians: { create: true, update: true, delete: false },
   'academics-setup': { create: true, update: true, delete: true },
-  'academics-streams': { create: true, update: true, delete: false },
-  'academics-houses': { create: true, update: true, delete: false },
-  'academics-subject-packages': { create: true, update: true, delete: true },
   'academics-subjects': { create: true, update: true, delete: true },
   'academics-departments': { create: true, update: true, delete: true },
   'academics-grade-levels': { create: true, update: true, delete: true },
@@ -640,7 +369,6 @@ export const backendCrudSupport: Record<string, { create: boolean; update: boole
   'academics-attendance': { create: true, update: false, delete: false },
   'academics-timetable': { create: true, update: true, delete: true },
   'academics-holiday-programs': { create: true, update: true, delete: false },
-  'ops-school-trips': { create: true, update: true, delete: false },
   'academics-exams': { create: true, update: true, delete: true },
   'finance-payments': { create: true, update: false, delete: false },
   'finance-invoices': { create: true, update: true, delete: false },
@@ -648,23 +376,7 @@ export const backendCrudSupport: Record<string, { create: boolean; update: boole
   'finance-fee-categories': { create: true, update: true, delete: true },
   'finance-payroll': { create: false, update: true, delete: false },
   'ops-inventory': { create: true, update: true, delete: false },
-  'ops-inventory-sales': { create: true, update: false, delete: false },
-  'ops-procurement': { create: true, update: false, delete: false },
-  'ops-procurement-vendors': { create: true, update: true, delete: false },
-  'ops-library': { create: true, update: true, delete: false },
-  'ops-transport': { create: true, update: true, delete: false },
-  'ops-transport-drivers': { create: true, update: true, delete: false },
-  'ops-transport-routes': { create: true, update: true, delete: false },
-  'ops-assets': { create: true, update: true, delete: false },
-  'ops-hostels': { create: true, update: true, delete: false },
-  'ops-visitors': { create: true, update: false, delete: false },
-  'ops-health': { create: true, update: true, delete: false },
-  'ops-events': { create: true, update: true, delete: false },
   'comms-announcements': { create: true, update: true, delete: true },
   'hr-leave': { create: true, update: false, delete: false },
-  'hr-discipline': { create: true, update: true, delete: false },
-  compliance: { create: true, update: true, delete: false },
-  'compliance-incidents': { create: true, update: true, delete: false },
-  'compliance-consent': { create: true, update: true, delete: false },
-  'settings-custom-fields': { create: true, update: true, delete: true },
+  'settings-custom-fields': { create: true, update: false, delete: true },
 }

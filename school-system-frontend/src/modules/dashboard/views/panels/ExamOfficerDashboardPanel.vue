@@ -3,6 +3,7 @@ import { computed, onMounted, ref } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
 import { BookOpen, CheckCircle2, FileText, Upload } from '@lucide/vue'
 import DashboardHero from '@/components/dashboard/DashboardHero.vue'
+import StaffDashboardPageShell from '@/components/dashboard/StaffDashboardPageShell.vue'
 import RoleQuickActions from '@/components/dashboard/RoleQuickActions.vue'
 import DashboardModulesGrid from '@/components/dashboard/DashboardModulesGrid.vue'
 import DashboardSkeleton from '@/components/dashboard/DashboardSkeleton.vue'
@@ -11,7 +12,6 @@ import type { MetricCard } from '@/components/dashboard/MetricBand.vue'
 import ErrorState from '@/components/feedback/ErrorState.vue'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Alert, AlertDescription } from '@/components/ui/alert'
 import { useAuth } from '@/composables/useAuth'
 import { canShowDashboardItem } from '@/lib/dashboard-access'
 import { lazy } from '@/lib/lazy'
@@ -148,23 +148,28 @@ onMounted(refreshAll)
 </script>
 
 <template>
-  <div class="mx-auto w-full max-w-[1600px] space-y-8 pb-8">
+  <StaffDashboardPageShell
+    :title="meta.pageTitle"
+    :description="meta.subtitle"
+    :breadcrumbs="[meta.pageTitle]"
+    :loading="loading"
+    :last-updated="lastUpdated"
+    @refresh="refreshAll"
+  >
     <DashboardHero
+      hide-page-header
+      hide-toolbar
       :name="user?.name"
       :role="meta.label"
       :subtitle="meta.subtitle"
       :loading="loading"
-      :last-updated="lastUpdated"
-      @refresh="refreshAll"
     />
 
     <DashboardSkeleton v-if="loading" />
 
-    <template v-else>
-      <Alert v-if="error" variant="destructive">
-        <AlertDescription>{{ error }}</AlertDescription>
-      </Alert>
+    <ErrorState v-else-if="error" :description="error" @retry="refreshAll" />
 
+    <template v-else>
       <MetricBand
         title="Examination overview"
         description="Schedule, approvals, and publishing status"
@@ -201,7 +206,5 @@ onMounted(refreshAll)
         <ActivityFeed :items="recent" class="min-h-72" />
       </section>
     </template>
-
-    <ErrorState v-if="!loading && error && examStats.total === 0" :description="error" @retry="refreshAll" />
-  </div>
+  </StaffDashboardPageShell>
 </template>

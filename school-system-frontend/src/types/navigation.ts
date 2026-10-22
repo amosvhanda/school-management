@@ -11,6 +11,8 @@ export type NavCapability =
   | 'canManageTransport'
   | 'canManageInventory'
   | 'canManageReception'
+  | 'canManageHealth'
+  | 'canManageHostel'
   | 'isSuperAdmin'
   | 'isParent'
   | 'isStaff'
@@ -18,6 +20,8 @@ export type NavCapability =
 export interface NavItem {
   title: string
   href?: string
+  /** Quick-create shortcut shown as a + control on the nav row (PreSkool). */
+  createHref?: string
   icon?: string
   capability?: NavCapability | NavCapability[]
   roles?: UserRole[]

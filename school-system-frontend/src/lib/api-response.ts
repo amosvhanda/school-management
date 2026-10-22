@@ -74,10 +74,61 @@ export function unwrapPaginator<T>(body: unknown): Paginator<T> {
   }
 }
 
+/** When axios uses responseType:'blob', error bodies are Blobs — parse JSON message if present. */
+export async function messageFromBlobError(error: unknown, fallback = 'Request failed'): Promise<string> {
+  if (typeof error === 'object' && error !== null && 'response' in error) {
+    const response = (error as { response?: { data?: unknown; status?: number } }).response
+    const data = response?.data
+    if (data instanceof Blob) {
+      try {
+        const text = await data.text()
+        const json = JSON.parse(text) as { message?: string }
+        if (json.message) return json.message
+      } catch {
+        /* not JSON */
+      }
+    }
+  }
+  return getErrorMessage(error, fallback)
+}
+
+/** Reject HTML/JSON error payloads that arrived as a "successful" blob download. */
+export async function assertDownloadBlob(blob: Blob): Promise<Blob> {
+  const type = (blob.type || '').toLowerCase()
+  if (type.includes('application/json') || type.includes('text/json')) {
+    const text = await blob.text()
+    let message = 'Download failed'
+    try {
+      const json = JSON.parse(text) as { message?: string }
+      if (json.message) message = json.message
+    } catch {
+      /* keep default */
+    }
+    throw new Error(message)
+  }
+  return blob
+}
+
+export function triggerBrowserDownload(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = filename
+  link.rel = 'noopener'
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
+  // Revoke after the browser has started the download.
+  window.setTimeout(() => URL.revokeObjectURL(url), 2_000)
+}
+
 export function getErrorMessage(error: unknown, fallback = 'Something went wrong'): string {
   if (typeof error === 'object' && error !== null && 'response' in error) {
-    const response = (error as { response?: { data?: { message?: string }; status?: number } }).response
-    if (response?.data?.message) return response.data.message
+    const response = (error as { response?: { data?: { message?: string } | Blob; status?: number } }).response
+    const data = response?.data
+    if (data && typeof data === 'object' && !(data instanceof Blob) && 'message' in data && data.message) {
+      return String(data.message)
+    }
     if (response?.status === 401) return 'Session expired. Please sign in again.'
     if (response?.status === 402) return 'School license required. Activate your license to continue.'
     if (response?.status === 403) return 'You do not have permission to access this resource.'

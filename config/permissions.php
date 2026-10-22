@@ -209,4 +209,20 @@ return [
         'action' => 'manage',
         'description' => 'Visitor check-in and front-desk reception',
     ],
+    [
+        'id' => 27,
+        'name' => 'Manage Health Clinic',
+        'slug' => 'health.manage',
+        'resource' => 'health',
+        'action' => 'manage',
+        'description' => 'Clinic visits and student health records',
+    ],
+    [
+        'id' => 28,
+        'name' => 'Manage Hostels',
+        'slug' => 'hostel.manage',
+        'resource' => 'hostel',
+        'action' => 'manage',
+        'description' => 'Boarding houses and room assignments',
+    ],
 ];

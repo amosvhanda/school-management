@@ -1,6 +1,6 @@
 import type { ListQueryParams } from '@/types/api'
 import { api } from '@/lib/api'
-import { unwrapOne } from '@/lib/api-response'
+import { assertDownloadBlob, unwrapOne, unwrapList } from '@/lib/api-response'
 import {
   createRecord,
   deleteRecord,
@@ -63,9 +63,8 @@ export const uploadsApi = {
     const form = new FormData()
     form.append('file', file)
     if (directory) form.append('directory', directory)
-    const { data } = await api.post(e.uploads, form, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    })
+    // Leave Content-Type unset so axios/browser add the multipart boundary.
+    const { data } = await api.post(e.uploads, form)
     return unwrapOne<UploadedFileMeta>(data)
   },
 }
@@ -149,7 +148,23 @@ export const studentPortalApi = {
   fees: () => fetchOne(e.studentPortal.fees),
   timetable: () => fetchOne(e.studentPortal.timetable),
   assignments: () => fetchOne(e.studentPortal.assignments),
+  assignment: (id: number | string) => fetchOne(e.studentPortal.assignment(id)),
+  submitAssignment: async (id: number | string, payload: { content?: string; file?: File | null }) => {
+    const form = new FormData()
+    if (payload.content) form.append('content', payload.content)
+    if (payload.file) form.append('file', payload.file)
+    const { data } = await api.post(e.studentPortal.submitAssignment(id), form)
+    return (data as { data?: unknown }).data ?? data
+  },
   announcements: () => fetchOne(e.studentPortal.announcements),
+  cbtAvailable: () => fetchOne(e.studentPortal.cbtAvailable),
+  cbtStart: (payload: { subject_id: number; count?: number; exam_id?: number }) =>
+    postRecord(e.studentPortal.cbtStart, payload),
+  cbtSession: (id: number | string) => fetchOne(e.studentPortal.cbtSession(id)),
+  cbtSubmit: (id: number | string, answers: Array<{ question_id: number; answer: string }>) =>
+    postRecord(e.studentPortal.cbtSubmit(id), { answers }),
+  cbtAntiCheat: (id: number | string, event_type: string, metadata?: Record<string, unknown>) =>
+    postRecord(e.studentPortal.cbtAntiCheat(id), { event_type, metadata }),
 }
 
 export const studentsApi = {
@@ -177,17 +192,49 @@ export const studentsApi = {
   invoices: (id: number | string) => fetchList(e.students.invoices(id)),
   createInvoice: (id: number | string, payload: Record<string, unknown>) =>
     createRecord(e.students.createInvoice(id), payload),
-  uploadDocuments: (id: number | string, payload: Record<string, unknown>) =>
-    postRecord(e.students.documents(id), payload),
+  documents: (id: number | string) => fetchList(e.students.documents(id)),
+  documentsIndex: async (params?: ListQueryParams) => {
+    const { data } = await api.get(e.students.documentsIndex, { params })
+    return data as {
+      data: Record<string, unknown>[]
+      meta?: Record<string, unknown>
+      counts?: Record<string, number>
+    }
+  },
+  promotionPreview: (params?: ListQueryParams) =>
+    fetchOne<{ eligible: number; academic_year?: string; next_academic_year?: string }>(
+      e.students.promotionPreview,
+      params,
+    ),
+  uploadDocuments: async (id: number | string, files: File[], type?: string) => {
+    const form = new FormData()
+    files.forEach((file, index) => form.append(`documents[${index}]`, file))
+    if (type) form.append('type', type)
+    const { data } = await api.post(e.students.documents(id), form)
+    return unwrapList(data)
+  },
+  deleteDocument: (id: number | string, documentId: number | string) =>
+    deleteRecord(`${e.students.documents(id)}/${documentId}`),
   exams: (id: number | string) => fetchList(e.students.exams(id)),
   downloadResults: async (id: number | string, format: 'html' | 'csv' = 'html') => {
     const { data } = await api.get(e.students.resultsDownload(id), {
       params: { format },
       responseType: 'blob',
     })
-    return data as Blob
+    return assertDownloadBlob(data as Blob)
+  },
+  printIdCard: (id: number | string) =>
+    fetchOne<Record<string, unknown>>(e.students.idCardPrint(id)),
+  bulkPrintIdCards: (studentIds: Array<number | string>) =>
+    postRecord(e.students.idCardsBulkPrint, { student_ids: studentIds }),
+  uploadPhoto: async (id: number | string, file: File) => {
+    const form = new FormData()
+    form.append('file', file)
+    const { data } = await api.post(e.students.photo(id), form)
+    return unwrapOne<{ photo_url: string; student: Record<string, unknown> }>(data)
   },
   guardians: (id: number | string) => fetchList(e.students.guardians(id)),
+  categories: crud(e.studentCategories.list, e.studentCategories.detail),
 }
 
 export const academicStructureApi = {
@@ -231,6 +278,8 @@ export const enrollmentApi = {
     updateRecord(e.enrollment.approve(id), payload ?? {}),
   reject: (id: number | string, payload?: Record<string, unknown>) =>
     updateRecord(e.enrollment.reject(id), payload ?? { notes: 'Rejected' }),
+  updateStatus: (id: number | string, payload: Record<string, unknown>) =>
+    updateRecord(e.enrollment.status(id), payload),
 }
 
 export const usersApi = {
@@ -288,12 +337,24 @@ export const academicsApi = {
     recordResults: (id: number | string, payload: Record<string, unknown>) =>
       postRecord(e.exams.recordResults(id), payload),
   },
+  examSchedules: crud(e.examSchedules.list, e.examSchedules.detail),
+  certificateTemplates: {
+    ...crud(e.certificateTemplates.list, e.certificateTemplates.detail),
+    issue: (id: number | string, payload: Record<string, unknown>) =>
+      postRecord(e.certificateTemplates.issue(id), payload),
+  },
+  schoolCertificates: crud(e.schoolCertificates.list, e.schoolCertificates.detail),
   attendance: {
     list: (params?: ListQueryParams) => fetchList(e.attendance.list, params),
     record: (payload: Record<string, unknown>) => createRecord(e.attendance.list, payload),
     todaySummary: () => fetchOne(e.attendance.todaySummary),
-    studentSummary: (id: number | string) => fetchOne(e.attendance.studentSummary(id)),
+    studentSummary: (id: number | string, params?: ListQueryParams) =>
+      fetchOne(e.attendance.studentSummary(id), params),
     classReport: (id: number | string) => fetchOne(e.attendance.classReport(id)),
+    clearClass: async (classId: number | string, date: string) => {
+      const { data } = await api.delete(e.attendance.clearClass(classId, date))
+      return unwrapOne<{ message?: string; deleted?: number }>(data)
+    },
   },
   timetable: {
     ...crud(e.timetable.list, e.timetable.detail),
@@ -340,7 +401,8 @@ export const financeApi = {
       postRecord(e.payments.reverse(id), payload ?? {}),
   },
   transactions: {
-    list: (params?: ListQueryParams) => fetchList(e.transactions.list, params),
+    list: (params?: ListQueryParams) => fetchPaginatedList(e.transactions.list, params),
+    listAll: (params?: ListQueryParams) => fetchList(e.transactions.list, { ...params, all: true }),
     summary: (params?: ListQueryParams) => fetchOne(e.transactions.summary, params),
   },
   invoices: {
@@ -348,9 +410,20 @@ export const financeApi = {
     create: (payload: Record<string, unknown>) => createRecord(e.invoices.list, payload),
     update: (id: number | string, payload: Record<string, unknown>) =>
       updateRecord(e.invoices.detail(id), payload),
+    print: (id: number | string) => fetchOne(e.invoices.print(id)),
   },
-  feeStructures: crud(e.feeStructures.list, e.feeStructures.detail),
+  feeStructures: {
+    ...crud(e.feeStructures.list, e.feeStructures.detail),
+    bulkAssign: (payload: { fee_structure_id: number | string; class_ids: Array<number | string> }) =>
+      postRecord(e.feeStructures.bulkAssign, payload),
+  },
   feeCategories: crud(e.feeCategories.list, e.feeCategories.detail),
+  feeGroups: crud(e.feeGroups.list, e.feeGroups.detail),
+  feeDiscounts: crud(e.feeDiscounts.list, e.feeDiscounts.detail),
+  incomeHeads: crud(e.incomeHeads.list, e.incomeHeads.detail),
+  expenseHeads: crud(e.expenseHeads.list, e.expenseHeads.detail),
+  schoolCurrencies: crud(e.schoolCurrencies.list, e.schoolCurrencies.detail),
+  schoolLanguages: crud(e.schoolLanguages.list, e.schoolLanguages.detail),
   payroll: {
     list: (params?: ListQueryParams) => fetchList(e.payroll.list, params),
     teachers: () => fetchList(e.payroll.teachers),
@@ -427,6 +500,7 @@ export const operationsApi = {
       list: (params?: ListQueryParams) => fetchList(e.library.books, params),
       create: (payload: Record<string, unknown>) => createRecord(e.library.books, payload),
     },
+    members: crud(e.libraryMembers.list, e.libraryMembers.detail),
     borrow: (payload: Record<string, unknown>) => postRecord(e.library.borrow, payload),
     returnBook: (id: number | string, payload?: Record<string, unknown>) =>
       postRecord(e.library.return(id), payload ?? {}),
@@ -451,12 +525,22 @@ export const operationsApi = {
 
 export const hrApi = {
   leaveRequests: {
-    list: (params?: ListQueryParams) => fetchList(e.leaveRequests.list, params),
+    list: (params?: ListQueryParams) => fetchPaginatedList(e.leaveRequests.list, params),
+    listAll: (params?: ListQueryParams) => fetchList(e.leaveRequests.list, { ...params, all: true }),
     create: (payload: Record<string, unknown>) => createRecord(e.leaveRequests.list, payload),
     approve: (id: number | string, payload?: Record<string, unknown>) =>
       postRecord(e.leaveRequests.approve(id), payload ?? {}),
     reject: (id: number | string, payload?: Record<string, unknown>) =>
       postRecord(e.leaveRequests.reject(id), payload ?? {}),
+  },
+  leaveTypes: crud(e.leaveTypes.list, e.leaveTypes.detail),
+  designations: crud(e.designations.list, e.designations.detail),
+  employees: crud(e.employees.list, e.employees.detail),
+  staffAttendance: {
+    list: (params?: ListQueryParams) => fetchList(e.staffAttendance.list, params),
+    roster: (params?: ListQueryParams) => fetchOne(e.staffAttendance.roster, params),
+    summary: (params?: ListQueryParams) => fetchOne(e.staffAttendance.summary, params),
+    store: (payload: Record<string, unknown>) => createRecord(e.staffAttendance.store, payload),
   },
   discipline: {
     list: (params?: ListQueryParams) => fetchList(e.discipline.list, params),
@@ -467,9 +551,18 @@ export const hrApi = {
 
 export const commsApi = {
   announcements: crud(e.announcements.list, e.announcements.detail),
+  parents: (params?: ListQueryParams) => fetchList(e.communications.parents, params),
+  parentStudents: (parentUserId: number | string) =>
+    fetchList(e.communications.parentStudents(parentUserId)),
+  staff: (params?: ListQueryParams) => fetchList(e.communications.staff, params),
+  unreadCount: () => fetchOne<{ unread_threads: number }>(e.communications.unreadCount),
   threads: {
     list: (params?: ListQueryParams) => fetchList(e.communications.threads, params),
     get: (id: number | string) => fetchOne(e.communications.thread(id)),
+    create: (payload: Record<string, unknown>) =>
+      postRecord(e.communications.threads, payload),
+    update: (id: number | string, payload: Record<string, unknown>) =>
+      patchRecord(e.communications.thread(id), payload),
     reply: (id: number | string, payload: Record<string, unknown>) =>
       postRecord(e.communications.reply(id), payload),
   },
@@ -627,6 +720,8 @@ export const parentPortalApi = {
   markAllNotificationsRead: () => postRecord(e.parentPortal.markAllNotificationsRead),
   threads: () => fetchList(e.parentPortal.threads),
   createThread: (payload: Record<string, unknown>) => createRecord(e.parentPortal.threads, payload),
+  updateThread: (threadId: number | string, payload: Record<string, unknown>) =>
+    patchRecord(e.parentPortal.thread(threadId), payload),
   threadMessages: (threadId: number | string) =>
     fetchOne<{ thread?: Record<string, unknown>; messages?: Record<string, unknown>[] }>(
       e.parentPortal.threadMessages(threadId),
@@ -700,6 +795,13 @@ export const assistantApi = {
 export interface PlatformLicenseSummary {
   schools: { total: number; licensed: number; unlicensed: number; expired: number }
   keys: { total: number; unused: number; active: number; expired: number; revoked: number }
+  revenue?: {
+    currency: string
+    mtd: number
+    ytd: number
+    recognized_total: number
+    by_plan: Record<string, number>
+  }
 }
 
 export interface SchoolLicenseRow {
@@ -762,6 +864,35 @@ export const platformApi = {
       license_status?: string | null
       login_hint?: string
     }>(e.license.admin.createSchool, payload),
+  getSchool: (id: number | string) =>
+    fetchOne<{
+      school: SchoolLicenseRow & Record<string, unknown>
+      domains: Array<Record<string, unknown>>
+      usage?: Record<string, unknown>
+    }>(e.license.admin.school(id)),
+  updateSchoolStatus: (id: number | string, status: 'active' | 'suspended') =>
+    patchRecord<{ school: SchoolLicenseRow }>(e.license.admin.schoolStatus(id), { status }),
+  deleteSchool: async (id: number | string, payload?: { backup?: boolean }) => {
+    const { data } = await api.delete(e.license.admin.school(id), { data: payload })
+    return unwrapOne(data)
+  },
+  schoolUsage: (id: number | string) => fetchOne<{ usage: Record<string, number | string | null> }>(e.license.admin.schoolUsage(id)),
+  listSchoolBackups: (id: number | string) =>
+    fetchOne<{ backups: Array<Record<string, unknown>> }>(e.license.admin.schoolBackups(id)),
+  createSchoolBackup: (id: number | string) =>
+    createRecord<{ backup: Record<string, unknown> }>(e.license.admin.schoolBackups(id), {}),
+  restoreSchoolBackup: (schoolId: number | string, backupId: number | string) =>
+    postRecord<{ backup: Record<string, unknown> }>(e.license.admin.restoreBackup(schoolId, backupId)),
+  listSchoolDomains: (id: number | string) =>
+    fetchOne<{ domains: Array<Record<string, unknown>> }>(e.license.admin.schoolDomains(id)),
+  addSchoolDomain: (id: number | string, payload: { domain: string; is_primary?: boolean }) =>
+    createRecord<{ domain: Record<string, unknown> }>(e.license.admin.schoolDomains(id), payload),
+  verifySchoolDomain: (schoolId: number | string, domainId: number | string, force = false) =>
+    postRecord<{ domain: Record<string, unknown> }>(
+      `${e.license.admin.verifyDomain(schoolId, domainId)}${force ? '?force=1' : ''}`,
+    ),
+  deleteSchoolDomain: (schoolId: number | string, domainId: number | string) =>
+    deleteRecord(e.license.admin.schoolDomain(schoolId, domainId)),
   licenses: async (params?: ListQueryParams) => {
     const payload = await platformApi.licenseOverview(params)
     return Array.isArray(payload?.keys) ? payload.keys : []
@@ -776,6 +907,7 @@ export const platformApi = {
   policyRules: () => fetchList(e.platform.policyRules),
   workflowDefinitions: () => fetchList(e.platform.workflowDefinitions),
   branchTree: () => fetchOne(e.platform.branchTree),
+  createBranch: (payload: Record<string, unknown>) => createRecord(e.platform.branches, payload),
   retentionPolicies: () => fetchList(e.platform.retentionPolicies),
   maskingRules: () => fetchList(e.platform.maskingRules),
   documents: (params?: ListQueryParams) => fetchList(e.platform.documents, params),
@@ -786,6 +918,11 @@ export const platformApi = {
   vault: () => fetchList(e.platform.vault),
   scholarships: () => fetchList(e.platform.scholarships),
   paymentGateways: () => fetchList(e.platform.paymentGateways),
+  savePaymentGateway: (payload: Record<string, unknown>) =>
+    createRecord(e.platform.paymentGateways, payload),
+  initiatePayment: (payload: Record<string, unknown>) =>
+    createRecord(e.platform.initiatePayment, payload),
+  paymentStatus: (reference: string) => fetchOne(e.platform.paymentStatus(reference)),
   refunds: () => fetchList(e.platform.refunds),
   behaviorPoints: () => fetchList(e.platform.behaviorPoints),
   storeBehaviorPoint: (payload: Record<string, unknown>) =>

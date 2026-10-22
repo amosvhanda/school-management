@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\RespondsWithPaginatedList;
 use App\Models\GoodsReceipt;
 use App\Models\PurchaseRequisition;
 use App\Models\Vendor;
@@ -14,6 +15,8 @@ use Illuminate\Validation\Rule;
 
 class ProcurementController extends Controller
 {
+    use RespondsWithPaginatedList;
+
     public function __construct(
         private WorkflowService $workflows,
         private FinancialLedgerService $ledger,
@@ -41,19 +44,31 @@ class ProcurementController extends Controller
     public function requisitions(Request $request)
     {
         $this->authorizeProcurement($request);
+        $filters = is_array($request->input('filter')) ? $request->input('filter') : [];
+        $status = $request->input('status', $filters['status'] ?? null);
+        $spendType = $request->input('spend_type', $filters['spend_type'] ?? null);
+        $search = $request->input('search', $filters['search'] ?? null);
 
         $query = PurchaseRequisition::query()
             ->where('school_id', $request->user()->school_id)
             ->with(['requester:id,name', 'items', 'vendor:id,name', 'workflowInstance']);
 
-        if ($request->filled('status')) {
-            $query->where('status', $request->string('status'));
+        if (filled($status)) {
+            $query->where('status', $status);
         }
-        if ($request->filled('spend_type')) {
-            $query->where('spend_type', $request->string('spend_type'));
+        if (filled($spendType)) {
+            $query->where('spend_type', $spendType);
+        }
+        if (filled($search)) {
+            $query->where(function ($q) use ($search) {
+                $q->where('title', 'like', "%{$search}%")
+                    ->orWhere('description', 'like', "%{$search}%");
+            });
         }
 
-        return response()->json(['data' => $query->orderByDesc('created_at')->get()]);
+        $query->orderByDesc('created_at');
+
+        return $this->indexResponse($request, $query);
     }
 
     public function storeRequisition(Request $request)
@@ -188,6 +203,10 @@ class ProcurementController extends Controller
     public function disburse(Request $request, int $id)
     {
         $this->authorizeProcurementDisburse($request);
+        $schoolId = (int) $request->user()->school_id;
+        $expenseHeadRule = Rule::exists('expense_heads', 'id')
+            ->where('school_id', $schoolId)
+            ->where('is_active', true);
 
         $validator = Validator::make($request->all(), [
             'payment_method' => 'required|string|in:bank_transfer,cash,ecocash,onemoney,zipit,swipe,cheque',
@@ -195,6 +214,7 @@ class ProcurementController extends Controller
             'amount_paid' => 'nullable|numeric|min:0.01',
             'vendor_id' => 'nullable|exists:vendors,id',
             'paid_at' => 'nullable|date',
+            'expense_head_id' => ['nullable', 'integer', $expenseHeadRule],
         ]);
 
         if ($validator->fails()) {
@@ -222,8 +242,9 @@ class ProcurementController extends Controller
         }
 
         $currency = $this->ledger->schoolCurrency((int) $user->school_id);
+        $expenseHeadId = $request->filled('expense_head_id') ? (int) $request->expense_head_id : null;
 
-        $result = DB::transaction(function () use ($request, $user, $requisition, $amount, $currency) {
+        $result = DB::transaction(function () use ($request, $user, $requisition, $amount, $currency, $expenseHeadId) {
             if ($request->filled('vendor_id')) {
                 $requisition->vendor_id = $request->vendor_id;
             }
@@ -238,6 +259,7 @@ class ProcurementController extends Controller
                 reference: $request->payment_reference ?? "SPEND-{$requisition->id}",
                 createdBy: $user->id,
                 notes: "requisition_id:{$requisition->id}; spend_type:{$requisition->spend_type}",
+                expenseHeadId: $expenseHeadId,
             );
 
             $requisition->update([

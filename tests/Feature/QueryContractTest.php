@@ -286,4 +286,66 @@ class QueryContractTest extends TestCase
             ->getJson('/api/v1/attendance?filter[unknown]=1')
             ->assertStatus(422);
     }
+
+    public function test_edudash_list_endpoints_return_pagination_meta(): void
+    {
+        $auth = $this->createAuthenticatedUser();
+        $headers = $this->authHeaders($auth);
+        $schoolId = $auth['school']->id;
+
+        \App\Models\FeeGroup::create([
+            'school_id' => $schoolId,
+            'name' => 'Tuition Pack',
+            'is_active' => true,
+            'order' => 1,
+        ]);
+        \App\Models\Employee::create([
+            'school_id' => $schoolId,
+            'first_name' => 'Clerk',
+            'last_name' => 'One',
+            'name' => 'Clerk One',
+            'email' => 'clerk.one@example.com',
+            'status' => 'active',
+            'employment_type' => 'full_time',
+        ]);
+        Guardian::factory()->create([
+            'school_id' => $schoolId,
+            'first_name' => 'Pat',
+            'last_name' => 'Pager',
+        ]);
+        \App\Models\LibraryBook::create([
+            'school_id' => $schoolId,
+            'title' => 'Paged Book',
+            'total_copies' => 1,
+            'available_copies' => 1,
+        ]);
+        \App\Models\IncomeHead::create([
+            'school_id' => $schoolId,
+            'name' => 'Fees Income',
+            'code' => 'INC-FEES',
+            'is_active' => true,
+        ]);
+
+        foreach ([
+            '/api/v1/fee-groups?per_page=10&page=1',
+            '/api/v1/employees?per_page=10&page=1',
+            '/api/v1/guardians?per_page=10&page=1',
+            '/api/v1/library/books?per_page=10&page=1',
+            '/api/v1/income-heads?per_page=10&page=1',
+            '/api/v1/transactions?per_page=10&page=1',
+            '/api/v1/fee-structures?per_page=10&page=1',
+            '/api/v1/inventory/items?per_page=10&page=1',
+            '/api/v1/procurement/requisitions?per_page=10&page=1',
+            '/api/v1/leave-requests?per_page=10&page=1',
+        ] as $url) {
+            $this->withHeaders($headers)
+                ->getJson($url)
+                ->assertOk()
+                ->assertJsonPath('meta.current_page', 1)
+                ->assertJsonStructure([
+                    'data',
+                    'meta' => ['current_page', 'last_page', 'per_page', 'total'],
+                ]);
+        }
+    }
 }

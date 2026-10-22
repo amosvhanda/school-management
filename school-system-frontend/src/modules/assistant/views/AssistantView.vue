@@ -171,6 +171,7 @@ onMounted(load)
   <PageShell
     title="School assistant"
     description="Ask about enrollment, fees, attendance, students, and staff — answers use your school’s live data."
+    :breadcrumbs="['Assistant']"
     max-width="wide"
   >
     <template #actions>

@@ -194,7 +194,12 @@ onMounted(load)
 </script>
 
 <template>
-  <PageShell title="Users" description="Manage staff accounts, roles, and access" max-width="wide">
+  <PageShell
+    title="Users"
+    description="Manage staff accounts, roles, and access"
+    :breadcrumbs="['Administration', 'Users']"
+    max-width="wide"
+  >
     <template #actions>
       <Button @click="openCreate">
         <UserPlus class="mr-2 h-4 w-4" aria-hidden="true" />

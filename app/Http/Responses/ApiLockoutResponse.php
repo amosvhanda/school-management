@@ -12,8 +12,9 @@ class ApiLockoutResponse implements LockoutResponseContract
 {
     public function __construct(private LoginRateLimiter $limiter) {}
 
-    public function toResponse(Request $request): JsonResponse
+    public function toResponse($request): JsonResponse
     {
+        /** @var Request $request */
         $seconds = $this->limiter->availableIn($request);
 
         return response()->json([

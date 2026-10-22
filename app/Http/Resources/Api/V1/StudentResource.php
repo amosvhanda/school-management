@@ -12,6 +12,7 @@ class StudentResource extends JsonResource
         return [
             'id' => $this->id,
             'student_number' => $this->student_number,
+            'roll_number' => $this->roll_number,
             'first_name' => $this->first_name,
             'last_name' => $this->last_name,
             'full_name' => $this->full_name,
@@ -19,6 +20,7 @@ class StudentResource extends JsonResource
             'gender' => $this->gender,
             'phone' => $this->phone,
             'email' => $this->email,
+            'photo_url' => $this->photo_url,
             'address' => $this->address,
             'suburb' => $this->suburb,
             'class' => $this->class,
@@ -28,10 +30,26 @@ class StudentResource extends JsonResource
                 'name' => $this->classModel?->name,
                 'form' => $this->classModel?->form,
             ]),
+            'stream_id' => $this->stream_id,
+            'stream' => $this->whenLoaded('stream', fn () => [
+                'id' => $this->stream?->id,
+                'name' => $this->stream?->name,
+                'code' => $this->stream?->code,
+            ]),
+            'house_id' => $this->house_id,
+            'house' => $this->whenLoaded('house', fn () => [
+                'id' => $this->house?->id,
+                'name' => $this->house?->name,
+            ]),
             'grade_level_id' => $this->grade_level_id,
             'grade_level' => $this->whenLoaded('gradeLevel', fn () => [
                 'id' => $this->gradeLevel?->id,
                 'name' => $this->gradeLevel?->name,
+            ]),
+            'student_category_id' => $this->student_category_id,
+            'student_category' => $this->whenLoaded('studentCategory', fn () => [
+                'id' => $this->studentCategory?->id,
+                'name' => $this->studentCategory?->name,
             ]),
             'status' => $this->status,
             'balance' => $this->balance,

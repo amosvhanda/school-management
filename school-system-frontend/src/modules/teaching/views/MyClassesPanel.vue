@@ -138,15 +138,6 @@ onMounted(load)
 
 <template>
   <div class="space-y-6">
-    <header class="space-y-1">
-      <h2 class="font-heading text-xl font-semibold tracking-tight text-foreground">
-        Your classes
-      </h2>
-      <p class="max-w-xl text-sm text-muted-foreground">
-        Select a class, then do the next job — register, marks, homework, or plans.
-      </p>
-    </header>
-
     <PageLoader v-if="loading" label="Loading your classes…" />
     <ErrorState v-else-if="error" :description="error" @retry="load" />
 

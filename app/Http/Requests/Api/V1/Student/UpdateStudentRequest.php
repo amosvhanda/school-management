@@ -50,10 +50,34 @@ class UpdateStudentRequest extends ApiFormRequest
                     fn ($rule) => $rule->where('school_id', $schoolId)
                 ),
             ],
+            'stream_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('streams', 'id')->when(
+                    $schoolId !== null,
+                    fn ($rule) => $rule->where('school_id', $schoolId)
+                ),
+            ],
+            'house_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('houses', 'id')->when(
+                    $schoolId !== null,
+                    fn ($rule) => $rule->where('school_id', $schoolId)
+                ),
+            ],
             'grade_level_id' => [
                 'nullable',
                 'integer',
                 Rule::exists('grade_levels', 'id')->when(
+                    $schoolId !== null,
+                    fn ($rule) => $rule->where('school_id', $schoolId)
+                ),
+            ],
+            'student_category_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('student_categories', 'id')->when(
                     $schoolId !== null,
                     fn ($rule) => $rule->where('school_id', $schoolId)
                 ),

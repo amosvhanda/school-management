@@ -42,6 +42,7 @@ import { getErrorMessage } from '@/lib/api-response'
 import { enrichRelationLabelsDeep } from '@/lib/relation-display'
 import { formatDate, formatDateTime } from '@/lib/format'
 import { cn } from '@/lib/utils'
+import { STATUS_TONE_BADGE, STATUS_TONE_ICON } from '@/lib/ui-status'
 import { formatMoney } from '@/lib/finance-constants'
 import { financeApi, reportsApi } from '@/services/api.service'
 
@@ -216,13 +217,13 @@ function templateStatus(template: ReportTemplate): TemplateStatus {
 function statusBadgeClass(status: TemplateStatus) {
   switch (status) {
     case 'scheduled':
-      return 'border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-900 dark:bg-sky-950/40 dark:text-sky-300'
+      return STATUS_TONE_BADGE.info
     case 'active':
-      return 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300'
+      return STATUS_TONE_BADGE.success
     case 'due':
-      return 'border-destructive/30 bg-destructive/10 text-destructive'
+      return STATUS_TONE_BADGE.danger
     default:
-      return 'border-border bg-muted text-muted-foreground'
+      return STATUS_TONE_BADGE.neutral
   }
 }
 
@@ -409,8 +410,9 @@ onMounted(async () => {
 
 <template>
   <PageShell
-    title="Reports & Analytics"
+    title="Reports & analytics"
     description="Generate, schedule, and manage school reports."
+    :breadcrumbs="['Reports']"
     max-width="wide"
   >
     <template #actions>
@@ -462,9 +464,9 @@ onMounted(async () => {
             <div class="space-y-1">
               <p class="text-xs font-medium tracking-wide text-muted-foreground uppercase">Total Downloads</p>
               <p class="text-3xl font-semibold tabular-nums">{{ kpis.downloads }}</p>
-              <p class="text-xs text-emerald-600">Session history</p>
+              <p class="text-xs text-chart-2">Session history</p>
             </div>
-            <div class="flex size-10 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-600">
+            <div :class="cn('flex size-10 items-center justify-center rounded-xl', STATUS_TONE_ICON.success)">
               <Download class="size-5" aria-hidden="true" />
             </div>
           </CardContent>

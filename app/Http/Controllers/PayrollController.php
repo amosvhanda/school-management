@@ -2,18 +2,18 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\Api\V1\Finance\GeneratePayrollRequest;
+use App\Http\Requests\Api\V1\Finance\ProcessPayrollRequest;
+use App\Http\Requests\Api\V1\Finance\UpdatePayrollRequest;
 use App\Http\Resources\Api\V1\PayrollPayslipResource;
 use App\Http\Resources\Api\V1\PayrollResource;
 use App\Http\Resources\Api\V1\TransactionResource;
 use App\Models\Payroll;
-use App\Models\School;
 use App\Models\Teacher;
 use App\Models\Transaction;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Validator;
-use Illuminate\Validation\Rule;
 
 class PayrollController extends Controller
 {
@@ -88,39 +88,19 @@ class PayrollController extends Controller
      * Generate/Assign payroll for given month/year and teacher_ids.
      * Automatically calculates from teacher's salary settings.
      */
-    public function generate(Request $request)
+    public function generate(GeneratePayrollRequest $request)
     {
-        $this->authorizePayrollAccess($request);
         $schoolId = $request->user()?->school_id;
-
-        $teacherRule = Rule::exists('teachers', 'id');
-        if ($schoolId) {
-            $teacherRule = $teacherRule->where('school_id', $schoolId);
-        }
-
-        $validator = Validator::make($request->all(), [
-            'month' => 'required|integer|min:1|max:12',
-            'year' => 'required|integer|min:2020|max:2100',
-            'teacher_ids' => 'nullable|array',
-            'teacher_ids.*' => $teacherRule,
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json([
-                'message' => 'Validation failed',
-                'errors' => $validator->errors(),
-            ], 422);
-        }
-
-        $month = (int) $request->month;
-        $year = (int) $request->year;
-        $schoolId = $request->user()?->school_id ?? School::first()?->id;
 
         if (! $schoolId) {
             return response()->json(['message' => 'No school context'], 400);
         }
 
-        $teacherIds = $request->input('teacher_ids', []);
+        $data = $request->validated();
+        $month = (int) $data['month'];
+        $year = (int) $data['year'];
+
+        $teacherIds = $data['teacher_ids'] ?? [];
         if (empty($teacherIds)) {
             $teacherIds = Teacher::query()
                 ->where('school_id', $schoolId)
@@ -264,25 +244,11 @@ class PayrollController extends Controller
     /**
      * Update payroll record (for manual adjustments)
      */
-    public function update(Request $request, $id)
+    public function update(UpdatePayrollRequest $request, $id)
     {
-        $this->authorizePayrollAccess($request);
-        $validator = Validator::make($request->all(), [
-            'base_salary' => 'nullable|numeric|min:0',
-            'allowances' => 'nullable|array',
-            'deductions' => 'nullable|array',
-            'notes' => 'nullable|string',
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json([
-                'message' => 'Validation failed',
-                'errors' => $validator->errors(),
-            ], 422);
-        }
-
         $schoolId = $request->user()?->school_id;
-        $payroll = Payroll::when($schoolId, fn ($q) => $q->where('school_id', $schoolId))
+        $payroll = Payroll::query()
+            ->when($schoolId, fn ($q) => $q->where('school_id', $schoolId))
             ->findOrFail($id);
 
         if ($payroll->status !== 'pending') {
@@ -291,21 +257,23 @@ class PayrollController extends Controller
             ], 422);
         }
 
+        $data = $request->validated();
+
         DB::beginTransaction();
         try {
-            if ($request->has('base_salary')) {
-                $payroll->base_salary = $request->base_salary;
+            if (array_key_exists('base_salary', $data)) {
+                $payroll->base_salary = $data['base_salary'];
             }
-            if ($request->has('allowances')) {
-                $payroll->allowances = $request->allowances;
-                $payroll->allowances_total = array_sum(array_values($request->allowances));
+            if (array_key_exists('allowances', $data)) {
+                $payroll->allowances = $data['allowances'];
+                $payroll->allowances_total = array_sum(array_values($data['allowances'] ?? []));
             }
-            if ($request->has('deductions')) {
-                $payroll->deductions = $request->deductions;
-                $payroll->deductions_total = array_sum(array_values($request->deductions));
+            if (array_key_exists('deductions', $data)) {
+                $payroll->deductions = $data['deductions'];
+                $payroll->deductions_total = array_sum(array_values($data['deductions'] ?? []));
             }
-            if ($request->has('notes')) {
-                $payroll->notes = $request->notes;
+            if (array_key_exists('notes', $data)) {
+                $payroll->notes = $data['notes'];
             }
 
             // Recalculate
@@ -333,23 +301,8 @@ class PayrollController extends Controller
      * Process payment for a payroll record.
      * This marks the payroll as paid and creates an expense transaction.
      */
-    public function process(Request $request, $id)
+    public function process(ProcessPayrollRequest $request, $id)
     {
-        $this->authorizePayrollAccess($request);
-        $validator = Validator::make($request->all(), [
-            'payment_method' => 'required|string|in:bank_transfer,cash,ecocash,onemoney,zipit,swipe',
-            'payment_reference' => 'nullable|string|max:255',
-            'paid_at' => 'nullable|date',
-            'amount_paid' => 'nullable|numeric|min:0.01',
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json([
-                'message' => 'Validation failed',
-                'errors' => $validator->errors(),
-            ], 422);
-        }
-
         $schoolId = $request->user()?->school_id;
         $payroll = Payroll::with('teacher')
             ->when($schoolId, fn ($q) => $q->where('school_id', $schoolId))

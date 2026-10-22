@@ -10,22 +10,24 @@ import {
   GraduationCap,
   Megaphone,
   MessageSquare,
-  ShieldAlert,
   TrendingDown,
   UserX,
 } from '@lucide/vue'
-import PageLoader from '@/components/feedback/PageLoader.vue'
+import DashboardSkeleton from '@/components/dashboard/DashboardSkeleton.vue'
 import ErrorState from '@/components/feedback/ErrorState.vue'
-import DashboardHero from '@/components/dashboard/DashboardHero.vue'
-import MetricBand from '@/components/dashboard/MetricBand.vue'
-import type { MetricCard } from '@/components/dashboard/MetricBand.vue'
+import ParentGreetingCard from '@/components/dashboard/ParentGreetingCard.vue'
+import KpiCard from '@/components/dashboard/KpiCard.vue'
 import DashboardModulesGrid from '@/components/dashboard/DashboardModulesGrid.vue'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
 import { useAuth } from '@/composables/useAuth'
 import { parentPortalApi } from '@/services/index'
 import { PARENT_DASHBOARD_MODULE_GROUPS } from '@/lib/dashboard-modules'
+import { formatMoney } from '@/lib/finance-constants'
+import { formatDate } from '@/lib/format'
+import StaffDashboardPageShell from '@/components/dashboard/StaffDashboardPageShell.vue'
 
 interface PortalDashboard {
   children_count?: number
@@ -44,9 +46,18 @@ interface Child {
   full_name?: string
   fullName?: string
   student_number?: string
+  studentNumber?: string
   class?: string
   balance?: number
   currency?: string
+}
+
+interface NoticeRow {
+  id?: number
+  title?: string
+  date?: string
+  created_at?: string
+  message?: string
 }
 
 interface ChildProgressSnippet {
@@ -62,15 +73,17 @@ const lastUpdated = ref<Date | null>(null)
 const dashboard = ref<PortalDashboard | null>(null)
 const children = ref<Child[]>([])
 const progressByChild = ref<Record<number, ChildProgressSnippet>>({})
+const selectedChildId = ref<number | null>(null)
+const notices = ref<NoticeRow[]>([])
 
-const overviewCards = computed<MetricCard[]>(() => {
+const overviewCards = computed(() => {
   const d = dashboard.value
   if (!d) return []
   return [
     {
       title: 'My children',
       value: d.children_count ?? 0,
-      subtitle: 'Tap a child below to see progress',
+      subtitle: 'Linked student profiles',
       icon: GraduationCap,
       href: '/portal/children',
     },
@@ -83,10 +96,10 @@ const overviewCards = computed<MetricCard[]>(() => {
     },
     {
       title: 'Outstanding fees',
-      value: `$${Number(d.outstanding_balance ?? 0).toLocaleString()}`,
+      value: formatMoney(d.outstanding_balance ?? 0),
       subtitle: 'Total balance due',
       icon: TrendingDown,
-      accent: 'warning',
+      accent: (d.outstanding_balance ?? 0) > 0 ? ('warning' as const) : undefined,
       href: '/portal/children',
     },
     {
@@ -94,22 +107,15 @@ const overviewCards = computed<MetricCard[]>(() => {
       value: d.unread_notifications ?? 0,
       subtitle: 'Unread alerts',
       icon: Bell,
-      accent: (d.unread_notifications ?? 0) > 0 ? 'danger' : undefined,
+      accent: (d.unread_notifications ?? 0) > 0 ? ('danger' as const) : undefined,
       href: '/portal/hub?tab=notifications',
     },
-  ]
-})
-
-const activityCards = computed<MetricCard[]>(() => {
-  const d = dashboard.value
-  if (!d) return []
-  const cards: MetricCard[] = [
     {
       title: 'Recent absences',
       value: d.recent_absences ?? 0,
       subtitle: 'Last 30 days',
       icon: UserX,
-      accent: (d.recent_absences ?? 0) > 0 ? 'danger' : undefined,
+      accent: (d.recent_absences ?? 0) > 0 ? ('danger' as const) : undefined,
       href: '/portal/children',
     },
     {
@@ -119,39 +125,50 @@ const activityCards = computed<MetricCard[]>(() => {
       icon: MessageSquare,
       href: '/portal/hub?tab=messages',
     },
-    {
-      title: 'Consent forms',
-      value: d.pending_consent_forms ?? 0,
-      subtitle: 'Awaiting your response',
-      icon: FileCheck,
-      accent: (d.pending_consent_forms ?? 0) > 0 ? 'warning' : undefined,
-      href: '/portal/hub?tab=consent',
-    },
-    {
-      title: 'Announcements',
-      value: d.recent_announcements ?? 0,
-      subtitle: 'Last 30 days',
-      icon: Megaphone,
-      href: '/portal/hub?tab=announcements',
-    },
   ]
-  if ((d.open_discipline ?? 0) > 0) {
-    cards.push({
-      title: 'Discipline notes',
-      value: d.open_discipline ?? 0,
-      subtitle: 'Recent incidents (90 days)',
-      icon: ShieldAlert,
-      accent: 'danger',
-      href: '/portal/children',
-    })
-  }
-  return cards
+})
+
+const selectedChild = computed(() =>
+  children.value.find((child) => child.id === selectedChildId.value) ?? children.value[0] ?? null,
+)
+
+const selectedProgress = computed(() =>
+  selectedChild.value ? progressByChild.value[selectedChild.value.id] : undefined,
+)
+
+function childNumber(child: Child) {
+  return child.studentNumber ?? child.student_number ?? ''
+}
+
+const attendanceLabel = computed(() => {
+  const absences = dashboard.value?.recent_absences ?? 0
+  if (!children.value.length) return '—'
+  return absences > 0 ? `${absences} absences` : 'No absences'
+})
+
+const quickActions = computed(() => {
+  const child = selectedChild.value
+  const feesTo = child
+    ? { name: 'parent-child-detail' as const, params: { id: child.id }, query: { tab: 'fees' } }
+    : '/portal/children'
+  const reportTo = child ? progressHref(child.id) : '/portal/children'
+  const attendanceTo = child
+    ? { name: 'parent-child-detail' as const, params: { id: child.id }, query: { tab: 'attendance' } }
+    : '/portal/children'
+  return [
+    { label: 'Pay Fees', to: feesTo, icon: TrendingDown },
+    { label: 'Message Teacher', to: '/portal/hub?tab=messages', icon: MessageSquare },
+    { label: 'Report Card', to: reportTo, icon: FileText },
+    { label: 'Attendance', to: attendanceTo, icon: UserX },
+    { label: 'Consent', to: '/portal/hub?tab=consent', icon: FileCheck },
+    { label: 'Announcements', to: '/portal/hub?tab=announcements', icon: Megaphone },
+  ]
 })
 
 function childName(child: Child) {
   return child.fullName
     ?? child.full_name
-    ?? (child.student_number ? `Student ${child.student_number}` : 'Student')
+    ?? (childNumber(child) ? `Student ${childNumber(child)}` : 'Student')
 }
 
 function progressHref(childId: number) {
@@ -213,6 +230,12 @@ async function load() {
   try {
     dashboard.value = await parentPortalApi.dashboard() as PortalDashboard
     children.value = await parentPortalApi.children() as Child[]
+    if (!selectedChildId.value || !children.value.some((child) => child.id === selectedChildId.value)) {
+      selectedChildId.value = children.value[0]?.id ?? null
+    }
+    const noticePayload = await parentPortalApi.announcements().catch(() => [] as NoticeRow[])
+    const noticeList: NoticeRow[] = Array.isArray(noticePayload) ? (noticePayload as NoticeRow[]) : []
+    notices.value = noticeList.slice(0, 6)
     await loadChildProgress(children.value)
     lastUpdated.value = new Date()
   } catch (err) {
@@ -230,130 +253,223 @@ onMounted(load)
 </script>
 
 <template>
-  <div class="mx-auto w-full max-w-[1600px] space-y-8 pb-8">
-    <DashboardHero
-      :name="user?.name"
-      role="Parent"
-      subtitle="See how each child is doing at school — marks, attendance, and fees in one place."
-      :loading="loading"
-      :last-updated="lastUpdated"
-      @refresh="refresh"
-    />
-
-    <PageLoader v-if="loading" label="Loading parent portal…" />
+  <StaffDashboardPageShell
+    title="Parent dashboard"
+    description="Your children, school fees, messages, and announcements in one place."
+    :breadcrumbs="['Parent dashboard']"
+    :loading="loading"
+    :last-updated="lastUpdated"
+    @refresh="refresh"
+  >
+    <DashboardSkeleton v-if="loading" />
     <ErrorState v-else-if="error" :description="error" @retry="refresh" />
 
     <template v-else-if="dashboard">
-      <section aria-labelledby="parent-progress-heading" class="space-y-4">
+      <section v-if="children.length" aria-label="Select a child">
+        <p class="mb-2 text-[11px] font-semibold tracking-[0.14em] text-muted-foreground uppercase">Viewing</p>
+        <div class="flex flex-wrap gap-2">
+          <Button
+            v-for="child in children"
+            :key="child.id"
+            size="sm"
+            class="h-9 rounded-full"
+            :variant="selectedChild?.id === child.id ? 'default' : 'outline'"
+            @click="selectedChildId = child.id"
+          >
+            {{ childName(child) }}
+            <span class="ml-1.5 text-xs opacity-80">{{ child.class ?? '' }}</span>
+          </Button>
+        </div>
+      </section>
+
+      <ParentGreetingCard
+        :parent-name="user?.name"
+        :child-name="selectedChild ? childName(selectedChild) : undefined"
+        :child-class="selectedChild?.class"
+        :child-number="selectedChild ? childNumber(selectedChild) : undefined"
+        :children-count="dashboard.children_count ?? children.length"
+        :attendance-label="attendanceLabel"
+        :fee-due="formatMoney(dashboard.outstanding_balance ?? 0)"
+        :unread-messages="dashboard.unread_notifications ?? 0"
+        :pending-consent="dashboard.pending_consent_forms ?? 0"
+      />
+
+      <section aria-labelledby="parent-quick-actions">
+        <h2 id="parent-quick-actions" class="mb-3 text-sm font-medium text-muted-foreground">
+          Quick actions
+        </h2>
+        <div class="flex flex-wrap gap-2">
+          <Button
+            v-for="action in quickActions"
+            :key="action.label"
+            variant="outline"
+            size="sm"
+            class="h-9 rounded-full"
+            as-child
+          >
+            <RouterLink :to="action.to">
+              <component :is="action.icon" class="mr-1.5 size-3.5" aria-hidden="true" />
+              {{ action.label }}
+            </RouterLink>
+          </Button>
+        </div>
+      </section>
+
+      <section aria-label="Family overview">
+        <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          <KpiCard v-for="card in overviewCards" :key="card.title" v-bind="card" />
+        </div>
+      </section>
+
+      <section aria-labelledby="family-children-heading" class="space-y-4">
         <div class="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <h2 id="parent-progress-heading" class="text-base font-semibold tracking-tight md:text-lg">
-              Your children’s progress
+            <h2 id="family-children-heading" class="text-base font-semibold tracking-tight md:text-lg">
+              My Children
             </h2>
             <p class="text-sm text-muted-foreground">
-              Open a child to see subject averages, recent marks, attendance, and fees.
+              Open a child to see subject averages, attendance, and fees.
             </p>
           </div>
           <Button variant="outline" size="sm" as-child>
-            <RouterLink to="/portal/children">All children</RouterLink>
+            <RouterLink to="/portal/children">Open profiles</RouterLink>
           </Button>
         </div>
 
         <div v-if="children.length" class="grid gap-4 lg:grid-cols-2">
-          <Card
+          <article
             v-for="child in children"
             :key="child.id"
-            class="border-border/70"
+            class="rounded-2xl bg-card p-5 shadow-[var(--shadow-soft)] ring-1 ring-border/80"
+            :class="selectedChild?.id === child.id ? 'ring-primary/40' : ''"
           >
-            <CardHeader class="pb-3">
-              <div class="flex items-start justify-between gap-3">
-                <div class="min-w-0 space-y-1">
-                  <CardTitle class="truncate text-lg">{{ childName(child) }}</CardTitle>
-                  <CardDescription>
-                    {{ child.class ?? 'Class not assigned' }}
-                    <span v-if="child.student_number"> · {{ child.student_number }}</span>
-                  </CardDescription>
-                </div>
-                <div class="rounded-xl bg-primary/10 px-3 py-2 text-right">
-                  <p class="text-[10px] font-medium tracking-wide text-muted-foreground uppercase">Average</p>
-                  <p class="text-lg font-semibold tabular-nums text-foreground">
-                    {{
-                      progressByChild[child.id]?.averagePercent != null
-                        ? `${progressByChild[child.id].averagePercent!.toFixed(0)}%`
-                        : '—'
-                    }}
-                  </p>
-                </div>
+            <div class="flex items-start justify-between gap-3">
+              <div class="min-w-0">
+                <h3 class="truncate text-lg font-semibold">{{ childName(child) }}</h3>
+                <p class="mt-0.5 text-sm text-muted-foreground">
+                  {{ child.class ?? 'Class not assigned' }}
+                  <span v-if="childNumber(child)"> · {{ childNumber(child) }}</span>
+                </p>
               </div>
-            </CardHeader>
-            <CardContent class="space-y-4">
-              <div
-                v-if="progressByChild[child.id]?.topSubjects?.length"
-                class="space-y-3"
-                :aria-label="`Subject snapshot for ${childName(child)}`"
-              >
-                <div
-                  v-for="subject in progressByChild[child.id].topSubjects"
-                  :key="subject.subject"
-                  class="space-y-1.5"
-                >
-                  <div class="flex items-center justify-between gap-2 text-sm">
-                    <span class="truncate font-medium">{{ subject.subject }}</span>
-                    <span class="tabular-nums text-muted-foreground">{{ subject.average_percent.toFixed(0) }}%</span>
-                  </div>
-                  <Progress :model-value="Math.min(100, Math.max(0, subject.average_percent))" class="h-2" />
-                </div>
+              <div class="rounded-2xl bg-primary/10 px-3 py-2 text-right">
+                <p class="text-[10px] font-medium tracking-wide text-muted-foreground uppercase">Average</p>
+                <p class="text-lg font-semibold tabular-nums">
+                  {{
+                    progressByChild[child.id]?.averagePercent != null
+                      ? `${progressByChild[child.id].averagePercent!.toFixed(0)}%`
+                      : '—'
+                  }}
+                </p>
               </div>
-              <p v-else class="flex items-center gap-2 text-sm text-muted-foreground">
-                <BookOpen class="size-4 shrink-0" aria-hidden="true" />
-                {{ averageLabel(child.id) }}
-              </p>
+            </div>
 
-              <div class="flex flex-wrap gap-2">
-                <Button as-child>
-                  <RouterLink :to="progressHref(child.id)">
-                    View progress
-                    <ArrowRight class="ml-2 size-4" aria-hidden="true" />
-                  </RouterLink>
-                </Button>
-                <Button variant="outline" as-child>
-                  <RouterLink
-                    :to="{ name: 'parent-child-detail', params: { id: child.id }, query: { tab: 'attendance' } }"
-                  >
-                    Attendance
-                  </RouterLink>
-                </Button>
-                <Button variant="outline" as-child>
-                  <RouterLink
-                    :to="{ name: 'parent-child-detail', params: { id: child.id }, query: { tab: 'fees' } }"
-                  >
-                    Fees
-                  </RouterLink>
-                </Button>
+            <dl class="mt-4 grid grid-cols-2 gap-3 text-sm">
+              <div class="rounded-2xl bg-muted/50 p-3 ring-1 ring-border/60">
+                <dt class="text-xs text-muted-foreground">Fees due</dt>
+                <dd class="mt-1 font-semibold tabular-nums">{{ formatMoney(child.balance ?? 0, child.currency) }}</dd>
               </div>
-            </CardContent>
-          </Card>
+              <div class="rounded-2xl bg-muted/50 p-3 ring-1 ring-border/60">
+                <dt class="text-xs text-muted-foreground">Subjects</dt>
+                <dd class="mt-1 font-semibold tabular-nums">{{ progressByChild[child.id]?.subjectCount ?? 0 }}</dd>
+              </div>
+            </dl>
+
+            <div class="mt-4 flex flex-wrap gap-2">
+              <Button size="sm" as-child>
+                <RouterLink :to="progressHref(child.id)">
+                  Details
+                  <ArrowRight class="ml-1.5 size-3.5" aria-hidden="true" />
+                </RouterLink>
+              </Button>
+              <Button variant="outline" size="sm" as-child>
+                <RouterLink
+                  :to="{ name: 'parent-child-detail', params: { id: child.id }, query: { tab: 'attendance' } }"
+                >
+                  Attendance
+                </RouterLink>
+              </Button>
+              <Button variant="outline" size="sm" as-child>
+                <RouterLink
+                  :to="{ name: 'parent-child-detail', params: { id: child.id }, query: { tab: 'fees' } }"
+                >
+                  Fees
+                </RouterLink>
+              </Button>
+            </div>
+          </article>
         </div>
-        <Card v-else class="border-dashed">
+        <Card v-else>
           <CardContent class="py-10 text-center text-sm text-muted-foreground">
             No children are linked to your account yet. Contact the school office if this looks wrong.
           </CardContent>
         </Card>
       </section>
 
-      <MetricBand
-        title="Family overview"
-        description="Quick counts across your linked children"
-        :cards="overviewCards"
-        skip-permission-filter
-      />
+      <section class="grid gap-4 xl:grid-cols-12" aria-label="Selected child academics and notices">
+        <Card class="xl:col-span-7">
+          <CardHeader class="flex flex-row items-start justify-between gap-3">
+            <div>
+              <CardTitle class="text-base">Subject Vitals</CardTitle>
+              <CardDescription>
+                {{ selectedChild ? `Latest averages for ${childName(selectedChild)}` : 'Select a child' }}
+              </CardDescription>
+            </div>
+            <Button v-if="selectedChild" variant="outline" size="sm" as-child>
+              <RouterLink :to="progressHref(selectedChild.id)">Full Report</RouterLink>
+            </Button>
+          </CardHeader>
+          <CardContent class="space-y-3">
+            <p v-if="!selectedProgress?.topSubjects?.length" class="flex items-center gap-2 text-sm text-muted-foreground">
+              <BookOpen class="size-4 shrink-0" aria-hidden="true" />
+              {{ selectedChild ? averageLabel(selectedChild.id) : 'No child selected.' }}
+            </p>
+            <div
+              v-for="subject in selectedProgress?.topSubjects ?? []"
+              :key="subject.subject"
+              class="space-y-1.5 rounded-2xl bg-muted/40 px-4 py-3 ring-1 ring-border/60"
+            >
+              <div class="flex items-center justify-between gap-2 text-sm">
+                <span class="truncate font-medium">{{ subject.subject }}</span>
+                <span class="tabular-nums font-semibold">{{ subject.average_percent.toFixed(0) }}%</span>
+              </div>
+              <Progress :model-value="Math.min(100, Math.max(0, subject.average_percent))" class="h-2" />
+            </div>
+          </CardContent>
+        </Card>
 
-      <MetricBand
-        title="Needs attention"
-        description="Absences, messages, consents, and school notices"
-        :cards="activityCards"
-        skip-permission-filter
-      />
+        <Card class="xl:col-span-5">
+          <CardHeader class="flex flex-row items-start justify-between gap-3">
+            <div>
+              <CardTitle class="text-base">Communication Hub</CardTitle>
+              <CardDescription>School notices for parents.</CardDescription>
+            </div>
+            <Button variant="outline" size="sm" as-child>
+              <RouterLink to="/portal/hub?tab=announcements">Inbox</RouterLink>
+            </Button>
+          </CardHeader>
+          <CardContent class="space-y-2">
+            <p v-if="!notices.length" class="text-sm text-muted-foreground">No announcements yet.</p>
+            <div
+              v-for="notice in notices"
+              :key="String(notice.id ?? notice.title)"
+              class="rounded-xl bg-muted/40 px-3 py-2 ring-1 ring-border/60"
+            >
+              <p class="truncate font-medium">{{ notice.title ?? 'Notice' }}</p>
+              <p class="text-xs text-muted-foreground">
+                {{ formatDate(notice.date ?? notice.created_at) }}
+              </p>
+            </div>
+            <div class="flex flex-wrap gap-2 pt-2">
+              <Badge v-if="(dashboard.pending_consent_forms ?? 0) > 0" variant="outline">
+                {{ dashboard.pending_consent_forms }} consent pending
+              </Badge>
+              <Badge v-if="(dashboard.open_discipline ?? 0) > 0" variant="outline">
+                {{ dashboard.open_discipline }} discipline notes
+              </Badge>
+            </div>
+          </CardContent>
+        </Card>
+      </section>
 
       <DashboardModulesGrid
         :groups="PARENT_DASHBOARD_MODULE_GROUPS"
@@ -362,5 +478,5 @@ onMounted(load)
         skip-permission-filter
       />
     </template>
-  </div>
+  </StaffDashboardPageShell>
 </template>

@@ -7,6 +7,8 @@ import {
   fetchCurrentUser,
   login as loginApi,
   logout as logoutApi,
+  challengeTwoFactor as challengeTwoFactorApi,
+  switchSchool as switchSchoolApi,
 } from '@/services/auth.service'
 import { useConfigStore } from '@/stores/config.store'
 import { useNotificationStore } from '@/stores/notification.store'
@@ -115,7 +117,46 @@ export const useAuthStore = defineStore('auth', () => {
     try {
       const payload = await loginApi(email, password, roleFilter)
 
+      if (payload.two_factor_required && payload.challenge_token) {
+        return payload
+      }
+
+      if (!payload.token || !payload.user) {
+        throw new Error('Login response was incomplete.')
+      }
+
       // Drop previous user's cached queries/config/notifications before applying the new session.
+      queryClient.clear()
+      useConfigStore().reset()
+      useNotificationStore().reset()
+
+      token.value = payload.token
+      user.value = payload.user
+      useNotificationStore().bindSession(payload.user.id)
+      setStoredToken(payload.token)
+
+      const configStore = useConfigStore()
+      if (payload.user.school_id != null) {
+        await configStore.fetchPublicConfig()
+      } else {
+        configStore.markLoadedWithoutSchool()
+      }
+
+      initialized.value = true
+      return payload
+    } finally {
+      loading.value = false
+    }
+  }
+
+  async function completeTwoFactorChallenge(challengeToken: string, code: string) {
+    loading.value = true
+    try {
+      const payload = await challengeTwoFactorApi(challengeToken, code)
+      if (!payload.token || !payload.user) {
+        throw new Error('Two-factor response was incomplete.')
+      }
+
       queryClient.clear()
       useConfigStore().reset()
       useNotificationStore().reset()
@@ -144,6 +185,36 @@ export const useAuthStore = defineStore('auth', () => {
     user.value = nextUser
     useNotificationStore().bindSession(nextUser.id)
     return nextUser
+  }
+
+  async function switchSchool(schoolId: number) {
+    loading.value = true
+    try {
+      const payload = await switchSchoolApi(schoolId)
+      if (!payload.token || !payload.user) {
+        throw new Error('School switch response was incomplete.')
+      }
+
+      queryClient.clear()
+      useConfigStore().reset()
+      useNotificationStore().reset()
+
+      token.value = payload.token
+      user.value = payload.user
+      useNotificationStore().bindSession(payload.user.id)
+      setStoredToken(payload.token)
+
+      const configStore = useConfigStore()
+      if (payload.user.school_id != null) {
+        await configStore.fetchPublicConfig()
+      } else {
+        configStore.markLoadedWithoutSchool()
+      }
+
+      return payload
+    } finally {
+      loading.value = false
+    }
   }
 
   /** Clear local auth state without calling the API (e.g. expired token / 401). */
@@ -190,7 +261,9 @@ export const useAuthStore = defineStore('auth', () => {
     initialize,
     bootstrapSession,
     login,
+    completeTwoFactorChallenge,
     fetchMe,
+    switchSchool,
     logout,
     clearLocalSession,
     setUser,

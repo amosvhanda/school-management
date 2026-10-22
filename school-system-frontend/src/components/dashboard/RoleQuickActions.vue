@@ -16,6 +16,7 @@ import {
   NotebookPen,
   Receipt,
   UserPlus,
+  Video,
   Wallet,
 } from '@lucide/vue'
 import type { StaffDashboardVariant } from '@/lib/role-dashboard'
@@ -63,6 +64,14 @@ const allActions: QuickAction[] = [
     icon: ClipboardCheck,
     capability: 'canManageStudents',
     variants: ['admin', 'teacher'],
+  },
+  {
+    label: 'LMS',
+    description: 'Create and manage online lessons',
+    href: '/teaching?tab=lms',
+    icon: Video,
+    capability: 'canManageTeachers',
+    variants: ['admin'],
   },
   {
     label: 'Teaching',
@@ -163,7 +172,7 @@ const allActions: QuickAction[] = [
   {
     label: 'Fee structures',
     description: 'Configure school fees',
-    href: '/finance?tab=fees',
+    href: '/finance?tab=fee-structures',
     icon: Wallet,
     capability: 'canManageFinance',
     variants: ['finance'],

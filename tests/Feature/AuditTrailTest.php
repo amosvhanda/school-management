@@ -6,12 +6,10 @@ use App\Models\AuditLog;
 use App\Models\Exam;
 use App\Models\ExamResult;
 use App\Models\GradeLevel;
-use App\Models\LoginHistory;
 use App\Models\Payment;
 use App\Models\Student;
 use App\Models\Subject;
 use App\Models\Term;
-use App\Models\User;
 use Tests\TestCase;
 
 class AuditTrailTest extends TestCase
@@ -182,5 +180,53 @@ class AuditTrailTest extends TestCase
             ->assertJsonStructure([
                 'data' => ['period', 'from', 'to', 'collected', 'by_payment_method'],
             ]);
+    }
+
+    public function test_mutating_api_requests_are_logged_in_audit_trail(): void
+    {
+        $auth = $this->createAuthenticatedUser();
+
+        $this->withHeaders(['Authorization' => 'Bearer '.$auth['token']])
+            ->postJson('/api/v1/announcements', [
+                'title' => 'Audit trail notice',
+                'message' => 'Logged activity',
+                'type' => 'info',
+                'target_audience' => 'all',
+                'date' => now()->toDateString(),
+            ])
+            ->assertSuccessful();
+
+        $this->assertDatabaseHas('audit_logs', [
+            'user_id' => $auth['user']->id,
+            'school_id' => $auth['school']->id,
+            'module' => 'communication',
+            'action' => 'http_post',
+        ]);
+
+        $this->assertTrue(
+            AuditLog::query()
+                ->where('user_id', $auth['user']->id)
+                ->where('action', 'created')
+                ->where('module', 'communication')
+                ->exists(),
+            'Expected model-level announcement created audit entry'
+        );
+    }
+
+    public function test_failed_mutating_requests_are_not_http_audited(): void
+    {
+        $auth = $this->createAuthenticatedUser();
+        $before = AuditLog::query()->where('action', 'http_post')->count();
+
+        $this->withHeaders(['Authorization' => 'Bearer '.$auth['token']])
+            ->postJson('/api/v1/announcements', [
+                'title' => '',
+            ])
+            ->assertStatus(422);
+
+        $this->assertSame(
+            $before,
+            AuditLog::query()->where('action', 'http_post')->count()
+        );
     }
 }

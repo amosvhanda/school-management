@@ -1,12 +1,18 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import type { z } from 'zod'
 import FormCardBody from '@/components/forms/FormCardBody.vue'
 import type { FormFieldSchema } from '@/components/forms/useFormBuilder'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { FORM_REQUIRED_DESCRIPTION } from '@/lib/form-standards'
+import {
+  FORM_REQUIRED_DESCRIPTION,
+  formSheetDescriptionClass,
+  formSheetTitleClass,
+  resolveFormSheetColumns,
+  resolveFormSheetSize,
+} from '@/lib/form-standards'
 
-withDefaults(
+const props = withDefaults(
   defineProps<{
     title: string
     description?: string
@@ -25,9 +31,12 @@ withDefaults(
     saveLabel: 'Save',
     savingLabel: 'Saving…',
     showRequiredHint: true,
-    columns: 2,
     formLoading: false,
   },
+)
+
+const resolvedColumns = computed(
+  () => props.columns ?? resolveFormSheetColumns(resolveFormSheetSize(props.fields)),
 )
 
 const emit = defineEmits<{ submit: [values: Record<string, unknown>] }>()
@@ -40,16 +49,19 @@ defineExpose({
 </script>
 
 <template>
-  <Card class="w-full">
-    <CardHeader class="border-b border-border/60 px-6 pb-4">
-      <CardTitle class="text-base font-semibold tracking-tight">
+  <Card class="w-full overflow-hidden py-0 shadow-[var(--shadow-soft)] ring-1 ring-border/70">
+    <CardHeader class="space-y-1.5 border-b border-border/60 px-6 pt-6 pb-4">
+      <CardTitle :class="formSheetTitleClass">
         {{ title }}
       </CardTitle>
-      <CardDescription v-if="showRequiredHint || description" class="text-xs leading-relaxed">
+      <CardDescription
+        v-if="showRequiredHint || description"
+        :class="formSheetDescriptionClass"
+      >
         {{ description ?? FORM_REQUIRED_DESCRIPTION }}
       </CardDescription>
     </CardHeader>
-    <CardContent class="px-6 pt-6">
+    <CardContent class="px-0 pt-0 pb-0">
       <FormCardBody
         ref="bodyRef"
         :fields="fields"
@@ -60,7 +72,7 @@ defineExpose({
         :saving="saving"
         :save-label="saveLabel"
         :saving-label="savingLabel"
-        :columns="columns"
+        :columns="resolvedColumns"
         @submit="(values) => emit('submit', values)"
       />
     </CardContent>

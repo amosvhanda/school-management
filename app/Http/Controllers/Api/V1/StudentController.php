@@ -38,31 +38,53 @@ class StudentController extends Controller
                 'class_id',
                 'grade_level_id',
                 'gender',
+                'blood_group',
                 'class',
                 AllowedFilter::callback('guardian_id', function ($query, $value) {
                     $query->whereHas('guardians', fn ($q) => $q->where('guardians.id', (int) $value));
                 }),
                 'search',
             ],
-            'search_columns' => ['full_name', 'first_name', 'last_name', 'student_number', 'email'],
-            'sorts' => ['full_name', 'created_at', 'student_number', 'status'],
-            'includes' => ['guardians', 'classModel', 'gradeLevel'],
+            'search_columns' => [
+                'full_name',
+                'first_name',
+                'last_name',
+                'student_number',
+                'roll_number',
+                'national_id',
+                'passport_number',
+                'email',
+            ],
+            'sorts' => ['full_name', 'created_at', 'student_number', 'roll_number', 'status'],
+            'includes' => ['guardians', 'classModel', 'gradeLevel', 'studentCategory', 'stream', 'house', 'medicalProfile'],
             'fields' => [
                 'students.id',
                 'students.full_name',
                 'students.first_name',
                 'students.last_name',
                 'students.student_number',
+                'students.roll_number',
                 'students.status',
+                'students.gender',
+                'students.blood_group',
+                'students.national_id',
+                'students.passport_number',
+                'students.photo_url',
+                'students.social_links',
                 'students.class_id',
                 'students.grade_level_id',
+                'students.student_category_id',
+                'students.stream_id',
+                'students.house_id',
+                'students.date_of_birth',
+                'students.class',
                 'students.email',
                 'students.phone',
                 'students.school_id',
                 'students.created_at',
             ],
             'default_sort' => '-created_at',
-            'with' => ['guardians', 'classModel', 'gradeLevel'],
+            'with' => ['guardians', 'classModel', 'gradeLevel', 'studentCategory', 'stream', 'house'],
         ]);
     }
 
@@ -70,7 +92,9 @@ class StudentController extends Controller
     {
         $this->authorize('view', $student);
 
-        return $this->success(new StudentResource($student->load('guardians')));
+        return $this->success(
+            new StudentResource($student->load(['guardians', 'classModel', 'stream', 'house', 'studentCategory', 'medicalProfile', 'documents']))
+        );
     }
 
     public function store(StoreStudentRequest $request)
@@ -79,24 +103,53 @@ class StudentController extends Controller
         $schoolId = $request->user()->school_id;
 
         $student = DB::transaction(function () use ($request, $guardian, $schoolId) {
+            $status = $request->input('status', 'active');
+            if (! in_array($status, ['active', 'inactive'], true)) {
+                $status = 'active';
+            }
+
+            $studentNumber = $request->filled('student_number')
+                ? (string) $request->input('student_number')
+                : $this->admissionService->generateStudentNumber((int) $schoolId);
+
             $student = Student::create([
                 'first_name' => $request->firstName,
                 'last_name' => $request->surname,
                 'full_name' => trim($request->firstName.' '.$request->surname),
-                'student_number' => $this->admissionService->generateStudentNumber((int) $schoolId),
+                'student_number' => $studentNumber,
+                'roll_number' => $request->input('roll_number'),
+                'admission_date' => $request->input('admission_date'),
                 'class' => $request->class,
                 'class_id' => $request->class_id,
                 'stream_id' => $request->input('stream_id'),
                 'house_id' => $request->input('house_id'),
                 'grade_level_id' => $request->grade_level_id,
+                'student_category_id' => $request->input('student_category_id'),
                 'date_of_birth' => $request->dateOfBirth,
                 'gender' => $request->gender,
+                'blood_group' => $request->input('blood_group'),
+                'religion' => $request->input('religion'),
+                'caste' => $request->input('caste'),
+                'mother_tongue' => $request->input('mother_tongue'),
+                'languages_known' => $request->input('languages_known'),
+                'national_id' => $request->input('national_id'),
+                'passport_number' => $request->input('passport_number'),
                 'phone' => $request->phone,
                 'email' => $request->email,
+                'photo_url' => $request->input('photo_url'),
                 'address' => $request->address,
                 'suburb' => $request->suburb,
+                'social_links' => $request->input('social_links'),
                 'school' => $request->school,
-                'status' => 'active',
+                'previous_school' => $request->input('previous_school'),
+                'father_name' => $request->input('father_name'),
+                'father_phone' => $request->input('father_phone'),
+                'father_occupation' => $request->input('father_occupation'),
+                'mother_name' => $request->input('mother_name'),
+                'mother_phone' => $request->input('mother_phone'),
+                'mother_occupation' => $request->input('mother_occupation'),
+                'siblings' => $request->input('siblings'),
+                'status' => $status,
                 'school_id' => $schoolId,
                 'guardian_first_name' => $guardian['firstName'] ?? $guardian['first_name'] ?? null,
                 'guardian_last_name' => $guardian['surname'] ?? $guardian['last_name'] ?? null,
@@ -120,7 +173,8 @@ class StudentController extends Controller
                 $schoolId,
             );
 
-            if ($request->filled('class_id')) {
+            // Draft / inactive admissions keep class_id on the row but skip placement.
+            if ($request->filled('class_id') && $status === 'active') {
                 $academicYear = (string) ($request->input('academic_year')
                     ?? $request->user()?->school?->academic_year
                     ?? date('Y'));
@@ -134,7 +188,7 @@ class StudentController extends Controller
                 ], $request->user()?->id);
             }
 
-            return $student->fresh()->load(['guardians', 'classModel', 'stream', 'house']);
+            return $student->fresh()->load(['guardians', 'classModel', 'stream', 'house', 'medicalProfile']);
         });
 
         return $this->created(
@@ -154,8 +208,23 @@ class StudentController extends Controller
                 $student->full_name = trim($student->first_name.' '.$student->last_name);
             }
 
-            // class_id changes go through placement so enrollments stay consistent.
-            $fill = $request->only(['grade_level_id', 'phone', 'email', 'address', 'suburb', 'status']);
+            $fill = $request->only([
+                'grade_level_id',
+                'student_category_id',
+                'stream_id',
+                'house_id',
+                'roll_number',
+                'blood_group',
+                'national_id',
+                'passport_number',
+                'photo_url',
+                'social_links',
+                'phone',
+                'email',
+                'address',
+                'suburb',
+                'status',
+            ]);
             if (! $request->filled('class_id') || (int) $request->class_id === (int) $previousClassId) {
                 $fill = array_merge($fill, $request->only(['class', 'class_id']));
             }
@@ -211,7 +280,7 @@ class StudentController extends Controller
                 ], $request->user()?->id);
             }
 
-            return $student->fresh()->load('guardians');
+            return $student->fresh()->load(['guardians', 'classModel', 'stream', 'house', 'medicalProfile']);
         });
 
         return $this->success(

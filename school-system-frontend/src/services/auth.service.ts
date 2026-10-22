@@ -1,8 +1,16 @@
 import { api } from '@/lib/api'
 import { unwrapOne } from '@/lib/api-response'
-import type { ApiResponse } from '@/types/api'
-import type { AuthUser, LoginResponse } from '@/types/auth'
+import { normalizeAuthUser } from '@/lib/auth-user'
+import type { ApiResponse, LicenseStatus } from '@/types/api'
+import type { AuthUser, LoginResponse, TwoFactorEnableResponse, TwoFactorStatus } from '@/types/auth'
 import { endpoints } from './endpoints'
+
+function withNormalizedUser(payload: LoginResponse): LoginResponse {
+  if (!payload.user) {
+    return payload
+  }
+  return { ...payload, user: normalizeAuthUser(payload.user) }
+}
 
 export async function login(email: string, password: string, role?: string) {
   const { data } = await api.post<ApiResponse<LoginResponse>>(endpoints.auth.login, {
@@ -10,7 +18,39 @@ export async function login(email: string, password: string, role?: string) {
     password,
     ...(role ? { role } : {}),
   })
-  return unwrapOne<LoginResponse>(data)
+  return withNormalizedUser(unwrapOne<LoginResponse>(data))
+}
+
+export async function challengeTwoFactor(challengeToken: string, code: string) {
+  const { data } = await api.post<ApiResponse<LoginResponse>>(endpoints.auth.twoFactorChallenge, {
+    challenge_token: challengeToken,
+    code,
+  })
+  return withNormalizedUser(unwrapOne<LoginResponse>(data))
+}
+
+export async function fetchTwoFactorStatus() {
+  const { data } = await api.get<ApiResponse<TwoFactorStatus>>(endpoints.auth.twoFactor)
+  return unwrapOne<TwoFactorStatus>(data)
+}
+
+export async function enableTwoFactor() {
+  const { data } = await api.post<ApiResponse<TwoFactorEnableResponse>>(endpoints.auth.twoFactor)
+  return unwrapOne<TwoFactorEnableResponse>(data)
+}
+
+export async function confirmTwoFactor(code: string) {
+  const { data } = await api.post<ApiResponse<TwoFactorStatus>>(endpoints.auth.twoFactorConfirm, {
+    code,
+  })
+  return unwrapOne<TwoFactorStatus>(data)
+}
+
+export async function disableTwoFactor(password: string) {
+  const { data } = await api.delete<ApiResponse<TwoFactorStatus>>(endpoints.auth.twoFactor, {
+    data: { password },
+  })
+  return unwrapOne<TwoFactorStatus>(data)
 }
 
 export async function logout() {
@@ -19,7 +59,14 @@ export async function logout() {
 
 export async function fetchCurrentUser() {
   const { data } = await api.get<ApiResponse<{ user: AuthUser }>>(endpoints.auth.me)
-  return unwrapOne<{ user: AuthUser }>(data).user
+  return normalizeAuthUser(unwrapOne<{ user: AuthUser }>(data).user)
+}
+
+export async function switchSchool(schoolId: number) {
+  const { data } = await api.post<ApiResponse<LoginResponse>>(endpoints.auth.switchSchool, {
+    school_id: schoolId,
+  })
+  return withNormalizedUser(unwrapOne<LoginResponse>(data))
 }
 
 export interface PlatformTermsPayload {
@@ -54,7 +101,7 @@ export async function activateLicense(licenseKey: string) {
 
 export async function fetchLicenseStatus() {
   const { data } = await api.get(endpoints.license.status)
-  return unwrapOne<Record<string, unknown>>(data)
+  return unwrapOne<LicenseStatus>(data)
 }
 
 export async function forgotPassword(payload: { email: string }) {

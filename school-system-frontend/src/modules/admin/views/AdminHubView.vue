@@ -6,7 +6,7 @@ import { ADMIN_HUB_DEFAULT_TAB, ADMIN_HUB_TABS } from '@/modules/admin/admin-hub
 <template>
   <ModuleHub
     title="Administration"
-    description="User accounts and role permissions."
+    description="User accounts, roles, and school subscription."
     route-name="admin"
     :tabs="ADMIN_HUB_TABS"
     :default-tab="ADMIN_HUB_DEFAULT_TAB"

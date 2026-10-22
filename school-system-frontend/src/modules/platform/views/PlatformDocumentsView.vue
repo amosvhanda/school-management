@@ -212,6 +212,7 @@ onMounted(load)
   <PageShell
     title="Signable documents"
     description="Optional school-specific e-sign documents. Platform use itself already requires agreement to the School ERP Terms of Use."
+    :breadcrumbs="['Platform', 'Documents']"
     max-width="wide"
   >
     <template #actions>

@@ -354,6 +354,7 @@ onMounted(load)
 <template>
   <PageShell
     title="Examinations"
+    :breadcrumbs="['Academics', 'Examinations']"
     :description="canManageExams
       ? 'Schedule exams, enter marks, approve results, and publish to parents'
       : 'Enter marks for exams in subjects you teach'"

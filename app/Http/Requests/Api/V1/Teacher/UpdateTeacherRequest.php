@@ -35,6 +35,11 @@ class UpdateTeacherRequest extends ApiFormRequest
             'address' => ['nullable', 'string'],
             'subject' => ['nullable', 'string', 'max:255'],
             'department' => ['nullable', 'string', 'max:255'],
+            'designation_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('designations', 'id')->where(fn ($q) => $q->where('school_id', $schoolId)),
+            ],
             'qualification' => ['nullable', 'string', 'max:255'],
             'joiningDate' => ['nullable', 'date'],
             'status' => ['sometimes', 'string', Rule::in(['active', 'inactive', 'on_leave'])],

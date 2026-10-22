@@ -10,6 +10,7 @@ export default tseslint.config(
       'dist/**',
       'node_modules/**',
       'src/types/api.generated.ts',
+      'scripts/**',
     ],
   },
   js.configs.recommended,
@@ -44,6 +45,7 @@ export default tseslint.config(
         Blob: 'readonly',
         BlobPart: 'readonly',
         File: 'readonly',
+        FileList: 'readonly',
         HTMLElement: 'readonly',
         HTMLInputElement: 'readonly',
         Event: 'readonly',
@@ -55,20 +57,6 @@ export default tseslint.config(
       '@typescript-eslint/no-explicit-any': 'off',
       '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
       'vue/multi-word-component-names': 'off',
-    },
-  },
-  {
-    files: ['scripts/**/*.{js,mjs,cjs}'],
-    languageOptions: {
-      ecmaVersion: 'latest',
-      sourceType: 'module',
-      globals: {
-        console: 'readonly',
-        fetch: 'readonly',
-        process: 'readonly',
-        URL: 'readonly',
-        URLSearchParams: 'readonly',
-      },
     },
   },
 )

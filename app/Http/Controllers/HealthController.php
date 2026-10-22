@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\RespondsWithPaginatedList;
 use App\Models\ClinicVisit;
 use App\Models\Student;
 use App\Models\StudentMedicalProfile;
@@ -9,6 +10,8 @@ use Illuminate\Http\Request;
 
 class HealthController extends Controller
 {
+    use RespondsWithPaginatedList;
+
     private function authorizeHealthAccess(Request $request): void
     {
         $this->authorizeModuleAccess(
@@ -60,13 +63,27 @@ class HealthController extends Controller
     public function visits(Request $request)
     {
         $this->authorizeHealthAccess($request);
-        $visits = ClinicVisit::where('school_id', $request->user()->school_id)
-            ->with('student:id,full_name,student_number')
-            ->orderByDesc('visit_date')
-            ->limit(100)
-            ->get();
 
-        return response()->json(['data' => $visits]);
+        $query = ClinicVisit::where('school_id', $request->user()->school_id)
+            ->with('student:id,full_name,student_number');
+
+        if ($request->filled('student_id')) {
+            $query->where('student_id', $request->integer('student_id'));
+        }
+
+        if ($request->filled('search')) {
+            $search = $request->string('search')->toString();
+            $query->where(function ($q) use ($search) {
+                $q->where('complaint', 'like', "%{$search}%")
+                    ->orWhere('treatment', 'like', "%{$search}%")
+                    ->orWhereHas('student', function ($sq) use ($search) {
+                        $sq->where('full_name', 'like', "%{$search}%")
+                            ->orWhere('student_number', 'like', "%{$search}%");
+                    });
+            });
+        }
+
+        return $this->indexResponse($request, $query->orderByDesc('visit_date'));
     }
 
     public function recordVisit(Request $request)

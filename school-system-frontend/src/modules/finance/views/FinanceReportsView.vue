@@ -53,6 +53,7 @@ onMounted(load)
   <PageShell
     title="Accounts receivable aging"
     description="Outstanding invoice balances grouped by how long they have been due"
+    :breadcrumbs="['Finance', 'Aging report']"
     max-width="wide"
   >
     <template #actions>

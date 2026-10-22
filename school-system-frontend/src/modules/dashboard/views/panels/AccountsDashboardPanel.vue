@@ -2,6 +2,7 @@
 import { computed, onMounted } from 'vue'
 import { Activity, ArrowLeftRight, DollarSign, Wallet } from '@lucide/vue'
 import DashboardHero from '@/components/dashboard/DashboardHero.vue'
+import StaffDashboardPageShell from '@/components/dashboard/StaffDashboardPageShell.vue'
 import RoleQuickActions from '@/components/dashboard/RoleQuickActions.vue'
 import DashboardModulesGrid from '@/components/dashboard/DashboardModulesGrid.vue'
 import DashboardSkeleton from '@/components/dashboard/DashboardSkeleton.vue'
@@ -75,14 +76,21 @@ onMounted(refresh)
 </script>
 
 <template>
-  <div class="mx-auto w-full max-w-[1600px] space-y-8 pb-8">
+  <StaffDashboardPageShell
+    :title="meta.pageTitle"
+    :description="meta.subtitle"
+    :breadcrumbs="[meta.pageTitle]"
+    :loading="loading"
+    :last-updated="lastUpdated"
+    @refresh="refresh"
+  >
     <DashboardHero
+      hide-page-header
+      hide-toolbar
       :name="user?.name"
       :role="meta.label"
       :subtitle="meta.subtitle"
       :loading="loading"
-      :last-updated="lastUpdated"
-      @refresh="refresh"
     />
 
     <DashboardSkeleton v-if="loading" />
@@ -113,5 +121,5 @@ onMounted(refresh)
     </template>
 
     <ErrorState v-else-if="error" :description="error" @retry="refresh" />
-  </div>
+  </StaffDashboardPageShell>
 </template>

@@ -76,6 +76,7 @@ onMounted(load)
 <template>
   <PageShell
     title="Cash flow 360"
+    :breadcrumbs="['Finance', 'Cash flow']"
     :description="`Money coming in and going out — they always reconcile: ${report?.equation ?? 'Money in − Money out = Net cash'}`"
     max-width="wide"
   >

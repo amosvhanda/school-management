@@ -18,11 +18,14 @@ Apply these rules to **every** frontend change in this project (Vue, shadcn-vue,
 
 ## Design system & layout
 
-- Use **design tokens** from the project theme (`style.css`, Tailwind theme, shadcn variables) — no arbitrary one-off hex/spacing unless adding a token.
-- Follow an **8px spacing rhythm** (`gap-2`, `p-4`, `space-y-6`, etc.).
+All new UI must follow the established application design system, reuse existing layouts and shared components, maintain consistent spacing, colours, typography, interaction states, and responsive behaviour, and integrate naturally with the existing application. Before introducing new styling or components, inspect and reuse existing patterns. Do not create a separate visual identity for individual modules.
+
+- Use **design tokens** from `style.css`, `src/lib/design-system.ts`, and `src/lib/ui-status.ts` — no arbitrary one-off hex/spacing or rainbow Tailwind hues unless adding a token.
+- Follow an **8px spacing rhythm** (`gap-2`, `p-4`, `space-y-6` / `PAGE_STACK`, etc.).
 - Clear typography hierarchy: page title → section title → label → helper text; consistent `font-weight` and `line-height`.
 - **Mobile-first** responsive layouts; test sm / md / lg breakpoints; avoid horizontal overflow on small screens.
-- Reuse shadcn-vue primitives (`Button`, `Card`, `Sheet`, `Form*`) before inventing new patterns.
+- Reuse shell patterns (`PageShell`, `ModuleHub`, `WorkspaceCard`) and shadcn-vue primitives (`Button`, `Card`, `Sheet`, `Form*`) before inventing new patterns.
+- See also `.cursor/rules/unified-design-system.mdc` and `workspace-page-pattern.mdc`.
 
 ## Components & code quality
 

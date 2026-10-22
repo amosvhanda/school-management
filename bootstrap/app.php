@@ -2,10 +2,17 @@
 
 use App\Exceptions\DomainException;
 use App\Http\Middleware\CaptureAuditContext;
+use App\Http\Middleware\EnsureCapability;
 use App\Http\Middleware\EnsureEmailIsVerified;
 use App\Http\Middleware\EnsurePasswordChanged;
+use App\Http\Middleware\EnsurePermission;
 use App\Http\Middleware\EnsureSchoolLicenseActive;
+use App\Http\Middleware\EnsureStaffOrPortalAccess;
 use App\Http\Middleware\EnsureSuperAdmin;
+use App\Http\Middleware\EnsureTwoFactorEnabled;
+use App\Http\Middleware\LogApiActivity;
+use App\Http\Middleware\ResolveSchoolFromDomain;
+use App\Http\Middleware\SecurityHeaders;
 use App\Http\Middleware\ValidateSchoolIsolation;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Auth\AuthenticationException;
@@ -47,10 +54,18 @@ return Application::configure(basePath: dirname(__DIR__))
             'school.licensed' => EnsureSchoolLicenseActive::class,
             'password.changed' => EnsurePasswordChanged::class,
             'super_admin' => EnsureSuperAdmin::class,
+            'school.domain' => ResolveSchoolFromDomain::class,
+            'capability' => EnsureCapability::class,
+            'permission' => EnsurePermission::class,
+            '2fa.enabled' => EnsureTwoFactorEnabled::class,
+            'staff.or.portal' => EnsureStaffOrPortalAccess::class,
         ]);
 
         $middleware->api(append: [
+            ResolveSchoolFromDomain::class,
             CaptureAuditContext::class,
+            LogApiActivity::class,
+            SecurityHeaders::class,
         ]);
 
         $middleware->throttleApi();

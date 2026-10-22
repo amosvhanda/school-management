@@ -90,6 +90,19 @@ api.interceptors.request.use((config) => {
     startRequestProgress()
   }
 
+  // FormData must use multipart with a browser-generated boundary.
+  // Never leave application/json or a bare "multipart/form-data" Content-Type.
+  if (typeof FormData !== 'undefined' && config.data instanceof FormData) {
+    const headers = config.headers
+    if (headers && typeof headers.delete === 'function') {
+      headers.delete('Content-Type')
+      headers.delete('content-type')
+    } else if (headers) {
+      delete (headers as Record<string, unknown>)['Content-Type']
+      delete (headers as Record<string, unknown>)['content-type']
+    }
+  }
+
   const token = getStoredToken()
   if (token) {
     config.headers.Authorization = `Bearer ${token}`
@@ -126,8 +139,18 @@ api.interceptors.response.use(
       }
     }
 
+    if (status === 403 && data?.code === 'two_factor_setup_required') {
+      if (routerInstance && routerInstance.currentRoute.value.name !== 'my-profile') {
+        routerInstance.push({ name: 'my-profile', query: { setup: '2fa' } })
+      }
+    }
+
     if (status === 403) {
-      onForbidden?.(getErrorMessage(error, 'You do not have permission to perform this action.'))
+      const message = getErrorMessage(error, 'You do not have permission to perform this action.')
+      // Page-level handlers already surface this soft teacher-portal failure.
+      if (!message.includes('Teacher profile not linked to this account.') && data?.code !== 'two_factor_setup_required') {
+        onForbidden?.(message)
+      }
     }
 
     return Promise.reject(error)

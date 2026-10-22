@@ -2,12 +2,22 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\IsolatesViaSchoolRelation;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class StudentTransportAllocation extends Model
 {
-    protected $guarded = [];
+    use IsolatesViaSchoolRelation;
+
+    protected $fillable = [
+        'student_id', 'route_id', 'pickup_point', 'status', 'allocated_at',
+    ];
+
+    public static function schoolIsolationRelation(): string
+    {
+        return 'student';
+    }
 
     protected function casts(): array
     {

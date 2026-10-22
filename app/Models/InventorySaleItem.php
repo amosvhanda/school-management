@@ -2,11 +2,14 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\IsolatesViaSchoolRelation;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class InventorySaleItem extends Model
 {
+    use IsolatesViaSchoolRelation;
+
     protected $fillable = [
         'inventory_sale_id', 'inventory_item_id', 'quantity', 'unit_price', 'line_total',
     ];
@@ -18,6 +21,11 @@ class InventorySaleItem extends Model
             'line_total' => 'decimal:2',
             'quantity' => 'integer',
         ];
+    }
+
+    public static function schoolIsolationRelation(): string
+    {
+        return 'sale';
     }
 
     public function sale(): BelongsTo

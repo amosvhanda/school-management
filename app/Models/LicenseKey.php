@@ -14,9 +14,12 @@ class LicenseKey extends Model
         'key_hash',
         'plan_type',
         'duration_months',
+        'amount',
+        'currency',
         'status',
         'school_id',
         'activated_at',
+        'paid_at',
         'expires_at',
         'revoked_at',
         'customer_name',
@@ -30,7 +33,9 @@ class LicenseKey extends Model
         return [
             'plan_type' => LicensePlanType::class,
             'status' => LicenseKeyStatus::class,
+            'amount' => 'decimal:2',
             'activated_at' => 'datetime',
+            'paid_at' => 'datetime',
             'expires_at' => 'datetime',
             'revoked_at' => 'datetime',
         ];

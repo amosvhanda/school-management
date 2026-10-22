@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Exceptions\DomainException;
+use App\Models\FeeGroup;
 use App\Models\FeeStructure;
 use App\Models\Invoice;
 use App\Models\Payment;
@@ -15,7 +16,10 @@ use InvalidArgumentException;
 
 class FinancialLedgerService
 {
-    public function __construct(private ParentNotificationService $parentNotifications) {}
+    public function __construct(
+        private ParentNotificationService $parentNotifications,
+        private FeeDiscountService $feeDiscounts,
+    ) {}
 
     public function schoolCurrency(int $schoolId): string
     {
@@ -72,15 +76,16 @@ class FinancialLedgerService
         float $amount,
         string $method,
         int $schoolId,
-        int $createdBy,
+        ?int $createdBy = null,
         ?string $reference = null,
         ?string $notes = null,
+        ?int $incomeHeadId = null,
     ): Payment {
         if ($amount <= 0) {
             throw new InvalidArgumentException('Payment amount must be greater than zero.');
         }
 
-        return DB::transaction(function () use ($invoiceId, $amount, $method, $schoolId, $createdBy, $reference, $notes) {
+        return DB::transaction(function () use ($invoiceId, $amount, $method, $schoolId, $createdBy, $reference, $notes, $incomeHeadId) {
             $invoice = Invoice::query()
                 ->where('school_id', $schoolId)
                 ->lockForUpdate()
@@ -112,6 +117,17 @@ class FinancialLedgerService
                 }
             }
 
+            if ($incomeHeadId) {
+                $headOk = \App\Models\IncomeHead::query()
+                    ->where('school_id', $schoolId)
+                    ->whereKey($incomeHeadId)
+                    ->where('is_active', true)
+                    ->exists();
+                if (! $headOk) {
+                    throw new InvalidArgumentException('Income head is inactive or not found for this school.');
+                }
+            }
+
             $payment = Payment::create([
                 'student_id' => $invoice->student_id,
                 'invoice_id' => $invoice->id,
@@ -127,7 +143,7 @@ class FinancialLedgerService
             ]);
 
             $this->applyPaymentToInvoice($invoice, $amount);
-            $this->postPaymentCredit($payment, $createdBy);
+            $this->postPaymentCredit($payment, $createdBy, $incomeHeadId);
 
             return $payment->fresh(['student', 'invoice']);
         });
@@ -170,11 +186,17 @@ class FinancialLedgerService
                 $newBalance = round($this->currentStudentBalance($student->id) + (float) $payment->amount, 2);
                 $student->update(['balance' => $newBalance]);
 
+                $incomeHeadId = Transaction::query()
+                    ->where('payment_id', $payment->id)
+                    ->where('type', 'payment')
+                    ->value('income_head_id');
+
                 Transaction::create([
                     'school_id' => $payment->school_id ?? $student->school_id,
                     'student_id' => $student->id,
                     'payment_id' => $payment->id,
                     'invoice_id' => $payment->invoice_id,
+                    'income_head_id' => $incomeHeadId ? (int) $incomeHeadId : null,
                     'type' => 'reversal',
                     'category' => 'student',
                     'description' => $reason ? "Payment reversed: {$reason}" : 'Payment reversed',
@@ -208,9 +230,23 @@ class FinancialLedgerService
 
     public function generateInvoiceNumber(int $schoolId): string
     {
-        $count = Invoice::where('school_id', $schoolId)->count() + 1;
+        $year = date('Y');
+        $prefix = 'INV-'.$year.'-';
 
-        return 'INV-'.date('Y').'-'.str_pad((string) $count, 4, '0', STR_PAD_LEFT);
+        // Caller must run inside a DB transaction so lockForUpdate serializes concurrent creates.
+        $latest = Invoice::query()
+            ->where('school_id', $schoolId)
+            ->where('invoice_number', 'like', $prefix.'%')
+            ->lockForUpdate()
+            ->orderByDesc('id')
+            ->value('invoice_number');
+
+        $next = 1;
+        if (is_string($latest) && preg_match('/^INV-\d{4}-(\d+)$/', $latest, $matches)) {
+            $next = ((int) $matches[1]) + 1;
+        }
+
+        return $prefix.str_pad((string) $next, 4, '0', STR_PAD_LEFT);
     }
 
     public function createInvoice(
@@ -220,26 +256,227 @@ class FinancialLedgerService
         ?int $feeStructureId = null,
         ?\DateTimeInterface $dueDate = null,
         ?int $createdBy = null,
+        bool $applyDiscounts = true,
+        ?int $feeGroupId = null,
+        ?int $feeCategoryId = null,
+        ?float $forcedOriginalAmount = null,
+        ?float $forcedDiscountAmount = null,
+        ?int $forcedDiscountId = null,
     ): Invoice {
-        $currency = $student->currency ?: $this->schoolCurrency($student->school_id);
+        return DB::transaction(function () use (
+            $student,
+            $amount,
+            $description,
+            $feeStructureId,
+            $dueDate,
+            $createdBy,
+            $applyDiscounts,
+            $feeGroupId,
+            $feeCategoryId,
+            $forcedOriginalAmount,
+            $forcedDiscountAmount,
+            $forcedDiscountId,
+        ) {
+            $currency = $student->currency ?: $this->schoolCurrency($student->school_id);
+            $structure = null;
+            if ($feeStructureId) {
+                $structure = FeeStructure::query()
+                    ->where('school_id', $student->school_id)
+                    ->find($feeStructureId);
+                if (! $structure) {
+                    throw new InvalidArgumentException('Fee structure not found for this school.');
+                }
+            }
 
-        $invoice = Invoice::create([
-            'school_id' => $student->school_id,
-            'student_id' => $student->id,
-            'fee_structure_id' => $feeStructureId,
-            'invoice_number' => $this->generateInvoiceNumber($student->school_id),
-            'description' => $description,
-            'amount' => $amount,
-            'amount_paid' => 0,
-            'balance' => $amount,
-            'currency' => $currency,
-            'due_date' => $dueDate ?? now()->addMonth(),
-            'status' => 'pending',
-        ]);
+            $categoryId = $feeCategoryId ?? $this->feeDiscounts->feeCategoryIdFromStructure($structure);
+            $originalAmount = round(max(0, $forcedOriginalAmount ?? $amount), 2);
+            $discountAmount = 0.0;
+            $discountId = null;
+            $finalAmount = $originalAmount;
+            $finalDescription = $description;
 
-        $this->postInvoiceDebit($invoice, $createdBy);
+            if ($forcedOriginalAmount !== null) {
+                $discountAmount = round(max(0, $forcedDiscountAmount ?? 0), 2);
+                $discountId = $forcedDiscountId;
+                $finalAmount = round(max(0, $originalAmount - $discountAmount), 2);
+            } elseif ($applyDiscounts && $originalAmount > 0) {
+                // Discount windows are evaluated on issue date, not due date.
+                $applied = $this->feeDiscounts->applyBestDiscount($student, $originalAmount, $categoryId, now());
+                $finalAmount = $applied['amount'];
+                $discountAmount = $applied['discount_amount'];
+                $discountId = $applied['discount']?->id;
+                if ($applied['discount'] && $discountAmount > 0) {
+                    $finalDescription = trim($description.' (discount: '.$applied['discount']->name.')');
+                }
+            }
 
-        return $invoice;
+            $invoice = Invoice::create([
+                'school_id' => $student->school_id,
+                'student_id' => $student->id,
+                'fee_structure_id' => $structure?->id,
+                'fee_discount_id' => $discountId,
+                'fee_group_id' => $feeGroupId,
+                'invoice_number' => $this->generateInvoiceNumber((int) $student->school_id),
+                'description' => $finalDescription,
+                'amount' => $finalAmount,
+                'original_amount' => $originalAmount,
+                'discount_amount' => $discountAmount,
+                'amount_paid' => 0,
+                'balance' => $finalAmount,
+                'currency' => $currency,
+                'due_date' => $dueDate ?? now()->addMonth(),
+                'status' => 'pending',
+            ]);
+
+            $this->postInvoiceDebit($invoice, $createdBy);
+
+            return $invoice;
+        });
+    }
+
+    /**
+     * Invoice all fee structures in a fee group that match the student's class.
+     *
+     * @return Collection<int, Invoice>
+     */
+    public function applyFeeGroup(
+        Student $student,
+        FeeGroup $group,
+        ?\DateTimeInterface $dueDate = null,
+        ?int $createdBy = null,
+        bool $applyDiscounts = true,
+        bool $combine = false,
+    ): Collection {
+        if (! $group->is_active) {
+            return collect();
+        }
+
+        $categoryIds = $group->categories()->pluck('fee_categories.id');
+        if ($categoryIds->isEmpty()) {
+            return collect();
+        }
+
+        $structures = $this->resolveFeeStructuresForCategories(
+            schoolId: (int) $student->school_id,
+            classId: $student->class_id ? (int) $student->class_id : null,
+            categoryIds: $categoryIds->all(),
+        );
+
+        if ($structures->isEmpty()) {
+            return collect();
+        }
+
+        if ($combine) {
+            $labels = [];
+            $discountNames = [];
+            $totalOriginal = 0.0;
+            $totalDiscount = 0.0;
+            $singleDiscountId = null;
+
+            foreach ($structures as $fee) {
+                $original = round((float) $fee->amount, 2);
+                $totalOriginal += $original;
+                if ($fee->category) {
+                    $labels[] = (string) $fee->category;
+                }
+
+                if (! $applyDiscounts) {
+                    continue;
+                }
+
+                $applied = $this->feeDiscounts->applyBestDiscount(
+                    $student,
+                    $original,
+                    $fee->fee_category_id ? (int) $fee->fee_category_id : null,
+                    now(),
+                );
+                $totalDiscount += $applied['discount_amount'];
+                if ($applied['discount'] && $applied['discount_amount'] > 0) {
+                    $discountNames[] = $applied['discount']->name;
+                    $singleDiscountId = $structures->count() === 1 ? $applied['discount']->id : null;
+                }
+            }
+
+            $labelText = collect($labels)->filter()->unique()->implode(', ');
+            $description = "Fee group {$group->name}".($labelText ? ": {$labelText}" : '');
+            if ($discountNames !== []) {
+                $description .= ' (discount: '.implode(', ', array_values(array_unique($discountNames))).')';
+            }
+
+            $invoice = $this->createInvoice(
+                student: $student,
+                amount: max(0, $totalOriginal - $totalDiscount),
+                description: $description,
+                feeStructureId: null,
+                dueDate: $dueDate,
+                createdBy: $createdBy,
+                applyDiscounts: false,
+                feeGroupId: $group->id,
+                forcedOriginalAmount: $totalOriginal,
+                forcedDiscountAmount: $totalDiscount,
+                forcedDiscountId: $singleDiscountId,
+            );
+
+            return collect([$invoice]);
+        }
+
+        $invoices = collect();
+        foreach ($structures as $fee) {
+            $invoices->push($this->createInvoice(
+                student: $student,
+                amount: (float) $fee->amount,
+                description: "{$group->name}: {$fee->category}",
+                feeStructureId: $fee->id,
+                dueDate: $dueDate,
+                createdBy: $createdBy,
+                applyDiscounts: $applyDiscounts,
+                feeGroupId: $group->id,
+                feeCategoryId: $fee->fee_category_id ? (int) $fee->fee_category_id : null,
+            ));
+        }
+
+        return $invoices;
+    }
+
+    /**
+     * Prefer class-specific fee structures; fall back to school-wide (null class) per category.
+     *
+     * @param  list<int|string>  $categoryIds
+     * @return Collection<int, FeeStructure>
+     */
+    public function resolveFeeStructuresForCategories(int $schoolId, ?int $classId, array $categoryIds): Collection
+    {
+        if ($categoryIds === []) {
+            return collect();
+        }
+
+        $rows = FeeStructure::query()
+            ->where('school_id', $schoolId)
+            ->whereIn('fee_category_id', $categoryIds)
+            ->where(function ($q) use ($classId) {
+                if ($classId) {
+                    $q->where('class_id', $classId)->orWhereNull('class_id');
+                } else {
+                    $q->whereNull('class_id');
+                }
+            })
+            ->orderBy('category')
+            ->get();
+
+        return $rows
+            ->groupBy(fn (FeeStructure $row) => $row->fee_category_id ?: 'name:'.$row->category)
+            ->map(function (Collection $group) use ($classId) {
+                if ($classId) {
+                    $specific = $group->firstWhere('class_id', $classId);
+                    if ($specific) {
+                        return $specific;
+                    }
+                }
+
+                return $group->firstWhere('class_id', null) ?? $group->first();
+            })
+            ->filter()
+            ->values();
     }
 
     /**
@@ -269,15 +506,31 @@ class FinancialLedgerService
             $query->whereIn('category', $categoryFilter);
         }
 
+        $rows = $query->orderBy('category')->get();
+        $structures = $rows
+            ->groupBy(fn (FeeStructure $row) => $row->fee_category_id ?: 'name:'.$row->category)
+            ->map(function (Collection $group) use ($classId) {
+                $specific = $group->firstWhere('class_id', $classId);
+                if ($specific) {
+                    return $specific;
+                }
+
+                return $group->firstWhere('class_id', null) ?? $group->first();
+            })
+            ->filter()
+            ->values();
+
         $invoices = collect();
 
-        foreach ($query->get() as $fee) {
+        foreach ($structures as $fee) {
             $invoices->push($this->createInvoice(
                 student: $student,
                 amount: (float) $fee->amount,
                 description: "{$contextLabel}: {$fee->category}",
                 feeStructureId: $fee->id,
                 createdBy: $createdBy,
+                applyDiscounts: true,
+                feeCategoryId: $fee->fee_category_id ? (int) $fee->fee_category_id : null,
             ));
         }
 
@@ -376,7 +629,7 @@ class FinancialLedgerService
         });
     }
 
-    public function postPaymentCredit(Payment $payment, ?int $createdBy = null): Transaction
+    public function postPaymentCredit(Payment $payment, ?int $createdBy = null, ?int $incomeHeadId = null): Transaction
     {
         $student = $payment->student ?? Student::find($payment->student_id);
         $newBalance = max(0, $this->currentStudentBalance($payment->student_id) - (float) $payment->amount);
@@ -390,6 +643,7 @@ class FinancialLedgerService
             'student_id' => $payment->student_id,
             'payment_id' => $payment->id,
             'invoice_id' => $payment->invoice_id,
+            'income_head_id' => $incomeHeadId,
             'type' => 'payment',
             'category' => 'student',
             'description' => 'Payment received',
@@ -464,9 +718,21 @@ class FinancialLedgerService
         ?string $reference = null,
         ?int $createdBy = null,
         ?string $notes = null,
+        ?int $expenseHeadId = null,
     ): Transaction {
         if ($amount <= 0) {
             throw new InvalidArgumentException('Expense amount must be greater than zero.');
+        }
+
+        if ($expenseHeadId) {
+            $headOk = \App\Models\ExpenseHead::query()
+                ->where('school_id', $schoolId)
+                ->whereKey($expenseHeadId)
+                ->where('is_active', true)
+                ->exists();
+            if (! $headOk) {
+                throw new InvalidArgumentException('Expense head is inactive or not found for this school.');
+            }
         }
 
         return Transaction::create([
@@ -484,6 +750,7 @@ class FinancialLedgerService
             'payment_method' => $paymentMethod,
             'created_by' => $createdBy,
             'notes' => $notes,
+            'expense_head_id' => $expenseHeadId,
         ]);
     }
 }

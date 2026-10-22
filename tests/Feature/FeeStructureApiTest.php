@@ -3,7 +3,9 @@
 namespace Tests\Feature;
 
 use App\Models\ClassModel;
+use App\Models\FeeCategory;
 use App\Models\FeeStructure;
+use App\Models\School;
 use Tests\TestCase;
 
 class FeeStructureApiTest extends TestCase
@@ -110,7 +112,7 @@ class FeeStructureApiTest extends TestCase
     {
         $auth = $this->createAuthenticatedUser();
         $class = ClassModel::factory()->create(['school_id' => $auth['school']->id]);
-        $category = \App\Models\FeeCategory::create([
+        $category = FeeCategory::create([
             'school_id' => $auth['school']->id,
             'name' => 'Tuition Fees',
             'description' => 'Core tuition',
@@ -138,13 +140,13 @@ class FeeStructureApiTest extends TestCase
     public function test_filter_fee_structures_by_category(): void
     {
         $auth = $this->createAuthenticatedUser();
-        $category = \App\Models\FeeCategory::create([
+        $category = FeeCategory::create([
             'school_id' => $auth['school']->id,
             'name' => 'Sports Levy',
             'is_active' => true,
             'order' => 0,
         ]);
-        $other = \App\Models\FeeCategory::create([
+        $other = FeeCategory::create([
             'school_id' => $auth['school']->id,
             'name' => 'Library',
             'is_active' => true,
@@ -173,7 +175,7 @@ class FeeStructureApiTest extends TestCase
     public function test_fee_categories_include_structure_count(): void
     {
         $auth = $this->createAuthenticatedUser();
-        $category = \App\Models\FeeCategory::create([
+        $category = FeeCategory::create([
             'school_id' => $auth['school']->id,
             'name' => 'Exam Fees',
             'is_active' => true,
@@ -193,5 +195,73 @@ class FeeStructureApiTest extends TestCase
         $row = collect($response->json('data'))->firstWhere('id', $category->id);
         $this->assertNotNull($row);
         $this->assertSame(2, $row['fee_structures_count']);
+    }
+
+    public function test_bulk_assign_copies_fee_structure_to_selected_classes(): void
+    {
+        $auth = $this->createAuthenticatedUser();
+        $sourceClass = ClassModel::factory()->create(['school_id' => $auth['school']->id]);
+        $targetClass = ClassModel::factory()->create(['school_id' => $auth['school']->id]);
+        $source = FeeStructure::factory()->create([
+            'school_id' => $auth['school']->id,
+            'class_id' => $sourceClass->id,
+            'class_name' => $sourceClass->name,
+            'category' => 'tuition',
+            'amount' => 1500,
+            'currency' => 'USD',
+        ]);
+
+        $this->withHeaders(['Authorization' => 'Bearer '.$auth['token']])
+            ->postJson('/api/v1/fee-structures/bulk-assign', [
+                'fee_structure_id' => $source->id,
+                'class_ids' => [$targetClass->id],
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.0.class_id', $targetClass->id)
+            ->assertJsonPath('data.0.amount', '1500.00');
+
+        $this->assertDatabaseHas('fee_structures', [
+            'school_id' => $auth['school']->id,
+            'class_id' => $targetClass->id,
+            'category' => 'tuition',
+            'amount' => 1500,
+        ]);
+    }
+
+    public function test_bulk_assign_rejects_other_school_fee_structure_and_classes(): void
+    {
+        $auth = $this->createAuthenticatedUser();
+        $otherSchool = School::factory()->create();
+        $otherClass = ClassModel::factory()->create(['school_id' => $otherSchool->id]);
+        $otherStructure = FeeStructure::factory()->create(['school_id' => $otherSchool->id]);
+
+        $this->withHeaders(['Authorization' => 'Bearer '.$auth['token']])
+            ->postJson('/api/v1/fee-structures/bulk-assign', [
+                'fee_structure_id' => $otherStructure->id,
+                'class_ids' => [$otherClass->id],
+            ])
+            ->assertStatus(422);
+    }
+
+    public function test_cannot_update_or_delete_fee_structure_from_other_school(): void
+    {
+        $auth = $this->createAuthenticatedUser();
+        $otherSchool = School::factory()->create();
+        $otherStructure = FeeStructure::factory()->create(['school_id' => $otherSchool->id]);
+
+        $this->withHeaders(['Authorization' => 'Bearer '.$auth['token']])
+            ->putJson("/api/v1/fee-structures/{$otherStructure->id}", [
+                'amount' => 999,
+            ])
+            ->assertNotFound();
+
+        $this->withHeaders(['Authorization' => 'Bearer '.$auth['token']])
+            ->deleteJson("/api/v1/fee-structures/{$otherStructure->id}")
+            ->assertNotFound();
+
+        $this->assertDatabaseHas('fee_structures', [
+            'id' => $otherStructure->id,
+            'school_id' => $otherSchool->id,
+        ]);
     }
 }

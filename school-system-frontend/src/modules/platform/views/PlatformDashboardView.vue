@@ -12,13 +12,13 @@ import {
   Server,
 } from '@lucide/vue'
 import PageLoader from '@/components/feedback/PageLoader.vue'
+import PageShell from '@/components/layout/PageShell.vue'
 import ErrorState from '@/components/feedback/ErrorState.vue'
 import KpiCard from '@/components/dashboard/KpiCard.vue'
 import DashboardModulesGrid from '@/components/dashboard/DashboardModulesGrid.vue'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { useAuth } from '@/composables/useAuth'
 import { getErrorMessage } from '@/lib/api-response'
 import {
   platformApi,
@@ -58,7 +58,6 @@ interface HealthSnapshot {
   server?: { php_version?: string; memory_usage_mb?: number }
 }
 
-const { user } = useAuth()
 const loading = ref(true)
 const error = ref<string | null>(null)
 const licenseSummary = ref<PlatformLicenseSummary | null>(null)
@@ -100,16 +99,12 @@ onMounted(load)
 </script>
 
 <template>
-  <div class="space-y-6">
-    <div>
-      <Badge variant="secondary" class="mb-2 font-normal">Super Admin</Badge>
-      <h1 class="text-2xl font-semibold tracking-tight">
-        Welcome, {{ user?.name?.split(' ')[0] ?? 'Admin' }}
-      </h1>
-      <p class="text-muted-foreground">
-        Platform-wide licenses, system health, operations, and tenant overview
-      </p>
-    </div>
+  <PageShell
+    title="Platform dashboard"
+    description="Platform-wide licenses, system health, operations, and tenant overview"
+    :breadcrumbs="['Platform']"
+    max-width="wide"
+  >
 
     <PageLoader v-if="loading" />
     <ErrorState v-else-if="error" :description="error" @retry="load" />
@@ -311,5 +306,5 @@ onMounted(load)
         skip-permission-filter
       />
     </template>
-  </div>
+  </PageShell>
 </template>

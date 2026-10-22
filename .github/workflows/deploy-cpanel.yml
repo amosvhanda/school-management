@@ -1,0 +1,144 @@
+name: deploy-cpanel
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      skip_migrate_reminder:
+        description: Suppress post-deploy migrate reminder
+        required: false
+        default: "false"
+        type: boolean
+
+concurrency:
+  group: deploy-cpanel
+  cancel-in-progress: false
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Verify deploy secrets
+        env:
+          CPANEL_FTP_HOST: ${{ secrets.CPANEL_FTP_HOST }}
+          CPANEL_FTP_USERNAME: ${{ secrets.CPANEL_FTP_USERNAME }}
+          CPANEL_FTP_PASSWORD: ${{ secrets.CPANEL_FTP_PASSWORD }}
+          CPANEL_FTP_REMOTE_DIR: ${{ secrets.CPANEL_FTP_REMOTE_DIR }}
+          APP_URL: ${{ secrets.APP_URL }}
+          VITE_API_URL: ${{ secrets.VITE_API_URL }}
+        run: |
+          missing=0
+          for key in CPANEL_FTP_HOST CPANEL_FTP_USERNAME CPANEL_FTP_PASSWORD CPANEL_FTP_REMOTE_DIR; do
+            if [ -z "${!key}" ]; then
+              echo "::error::Missing repository secret: $key"
+              missing=1
+            fi
+          done
+          if [ -z "$APP_URL" ] && [ -z "$VITE_API_URL" ]; then
+            echo "::error::Set APP_URL or VITE_API_URL (used to trigger zip extract over HTTPS)"
+            missing=1
+          fi
+          if [ "$missing" -ne 0 ]; then
+            echo "Set secrets via: ./scripts/setup-cpanel-deploy-secrets.sh --from-env"
+            exit 1
+          fi
+          echo "Deploy target: ${CPANEL_FTP_USERNAME}@${CPANEL_FTP_HOST} → ${CPANEL_FTP_REMOTE_DIR}"
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          extensions: bcmath, intl, mbstring, pdo_mysql, zip
+          tools: composer:v2
+          coverage: none
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            school-system-frontend/package-lock.json
+
+      - name: Install PHP dependencies (production)
+        run: composer install --no-dev --prefer-dist --no-interaction --optimize-autoloader
+
+      - name: Install Laravel Vite dependencies
+        run: npm ci
+
+      - name: Build Laravel frontend assets
+        run: npm run build
+
+      - name: Install Vue app dependencies
+        working-directory: school-system-frontend
+        run: npm ci
+
+      - name: Build Vue SPA
+        working-directory: school-system-frontend
+        run: npm run build
+        env:
+          VITE_API_URL: ${{ secrets.VITE_API_URL }}
+
+      - name: Stage deploy bundle
+        run: SKIP_BUILD=1 bash scripts/stage-cpanel-bundle.sh
+
+      - name: Install paramiko
+        run: python3 -m pip install --user paramiko
+
+      - name: Deploy via SFTP zip + HTTPS extract
+        env:
+          CPANEL_FTP_HOST: ${{ secrets.CPANEL_FTP_HOST }}
+          CPANEL_FTP_USERNAME: ${{ secrets.CPANEL_FTP_USERNAME }}
+          CPANEL_FTP_PASSWORD: ${{ secrets.CPANEL_FTP_PASSWORD }}
+          CPANEL_FTP_PORT: ${{ secrets.CPANEL_FTP_PORT }}
+          CPANEL_FTP_REMOTE_DIR: ${{ secrets.CPANEL_FTP_REMOTE_DIR }}
+          APP_URL: ${{ secrets.APP_URL }}
+          VITE_API_URL: ${{ secrets.VITE_API_URL }}
+        run: |
+          # Materialize the same env file the local deployer expects
+          {
+            echo "CPANEL_FTP_HOST=${CPANEL_FTP_HOST}"
+            echo "CPANEL_FTP_USERNAME=${CPANEL_FTP_USERNAME}"
+            echo "CPANEL_FTP_PASSWORD=${CPANEL_FTP_PASSWORD}"
+            echo "CPANEL_FTP_PORT=${CPANEL_FTP_PORT:-22}"
+            echo "CPANEL_FTP_REMOTE_DIR=${CPANEL_FTP_REMOTE_DIR}"
+            echo "APP_URL=${APP_URL:-$VITE_API_URL}"
+            echo "VITE_API_URL=${VITE_API_URL}"
+          } > .env.deploy.local
+          python3 scripts/deploy-cpanel-local.py
+
+      - name: Run post-deploy artisan commands (no SSH on this host)
+        env:
+          CPANEL_FTP_HOST: ${{ secrets.CPANEL_FTP_HOST }}
+          CPANEL_FTP_USERNAME: ${{ secrets.CPANEL_FTP_USERNAME }}
+          CPANEL_FTP_PASSWORD: ${{ secrets.CPANEL_FTP_PASSWORD }}
+          CPANEL_FTP_PORT: ${{ secrets.CPANEL_FTP_PORT }}
+          CPANEL_FTP_REMOTE_DIR: ${{ secrets.CPANEL_FTP_REMOTE_DIR }}
+          APP_URL: ${{ secrets.APP_URL }}
+          VITE_API_URL: ${{ secrets.VITE_API_URL }}
+        run: |
+          {
+            echo "CPANEL_FTP_HOST=${CPANEL_FTP_HOST}"
+            echo "CPANEL_FTP_USERNAME=${CPANEL_FTP_USERNAME}"
+            echo "CPANEL_FTP_PASSWORD=${CPANEL_FTP_PASSWORD}"
+            echo "CPANEL_FTP_PORT=${CPANEL_FTP_PORT:-22}"
+            echo "CPANEL_FTP_REMOTE_DIR=${CPANEL_FTP_REMOTE_DIR}"
+            echo "APP_URL=${APP_URL:-$VITE_API_URL}"
+            echo "VITE_API_URL=${VITE_API_URL}"
+          } > .env.deploy.local
+          python3 scripts/run-artisan-remote.py migrate storage-link config-cache route-cache view-cache
+
+      - name: Post-deploy reminder
+        if: ${{ github.event.inputs.skip_migrate_reminder != 'true' }}
+        run: |
+          echo "Deploy finished (SFTP zip + PHP extract)."
+          echo "Migrations + caches were run remotely via a self-deleting token-gated script"
+          echo "(no SSH/Terminal needed on this host)."
+          echo "Point a subdomain document root at school-management/public (do not wipe existing public_html)."

@@ -14,7 +14,7 @@ const props = withDefaults(defineProps<{
   <div
     data-slot="card"
     :data-size="size"
-    :class="cn('ring-foreground/10 bg-card text-card-foreground gap-4 overflow-hidden rounded-xl py-4 text-sm ring-1 has-data-[slot=card-footer]:pb-0 has-[>img:first-child]:pt-0 data-[size=sm]:gap-3 data-[size=sm]:py-3 data-[size=sm]:has-data-[slot=card-footer]:pb-0 *:[img:first-child]:rounded-t-xl *:[img:last-child]:rounded-b-xl group/card flex flex-col', props.class)"
+    :class="cn('ring-border/80 bg-card text-card-foreground gap-4 overflow-hidden rounded-2xl py-4 text-sm shadow-[var(--shadow-soft)] ring-1 transition-[box-shadow,transform] duration-200 dark:ring-border/50 has-data-[slot=card-footer]:pb-0 has-[>img:first-child]:pt-0 data-[size=sm]:gap-3 data-[size=sm]:py-3 data-[size=sm]:has-data-[slot=card-footer]:pb-0 *:[img:first-child]:rounded-t-2xl *:[img:last-child]:rounded-b-2xl group/card flex flex-col motion-reduce:transition-none', props.class)"
   >
     <slot />
   </div>

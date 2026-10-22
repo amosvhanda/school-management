@@ -2,8 +2,9 @@
 import { computed } from 'vue'
 import { RouterLink } from 'vue-router'
 import type { Component } from 'vue'
-import { Card, CardFooter, CardHeader } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
+import { ACCENT_SOFT } from '@/lib/design-system'
 import { useRouteAccess } from '@/composables/useRouteAccess'
 import TrendBadge from '@/components/dashboard/TrendBadge.vue'
 
@@ -27,61 +28,62 @@ const linkTo = computed(() => (props.href && canOpen(props.href) ? props.href : 
 const resolvedAccent = computed(() => (props.empty ? 'default' : (props.accent ?? 'default')))
 
 const accentClasses = {
-  default: 'bg-primary/10 text-primary',
-  success: 'bg-chart-2/15 text-chart-2',
-  warning: 'bg-chart-3/15 text-chart-3',
-  danger: 'bg-destructive/10 text-destructive',
-}
+  default: ACCENT_SOFT.primary,
+  success: ACCENT_SOFT.success,
+  warning: ACCENT_SOFT.warning,
+  danger: ACCENT_SOFT.danger,
+} as const
 </script>
 
 <template>
   <component
-    :is="linkTo ? RouterLink : 'div'"
+    :is="linkTo ? RouterLink : 'article'"
     :to="linkTo"
-    class="block h-full rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+    class="block h-full rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
     :aria-label="`${title}: ${value}`"
   >
     <Card
       :class="cn(
-        'group h-full transition-colors',
-        linkTo ? 'hover:bg-muted/25' : '',
+        'group h-full border-0 py-0 shadow-[var(--shadow-soft)] ring-1 ring-border/70 transition-all duration-200 motion-reduce:transition-none dark:bg-card dark:ring-border/50',
+        linkTo ? 'hover:-translate-y-0.5 hover:shadow-[var(--shadow-lift)] hover:ring-primary/25 motion-reduce:hover:translate-y-0' : '',
+        empty ? 'opacity-90' : '',
       )"
     >
-      <CardHeader class="flex flex-row items-start justify-between gap-3 space-y-0 px-5 pb-0">
-        <div class="min-w-0 space-y-1.5">
-          <p class="text-xs font-medium tracking-wide text-muted-foreground uppercase">{{ title }}</p>
+      <CardContent class="flex items-start justify-between gap-3 p-4 sm:p-5">
+        <div class="min-w-0 flex-1 space-y-2">
           <p
             :class="cn(
-              'text-3xl font-semibold tracking-tight tabular-nums',
+              'text-[1.75rem] font-medium tracking-tight tabular-nums sm:text-[1.875rem]',
               empty ? 'text-muted-foreground' : 'text-foreground',
             )"
           >
             {{ value }}
           </p>
+          <div class="space-y-1">
+            <p class="text-base font-medium text-foreground/85 dark:text-muted-foreground">{{ title }}</p>
+            <div class="flex flex-wrap items-center gap-2">
+              <p v-if="subtitle" class="text-sm leading-snug text-muted-foreground">{{ subtitle }}</p>
+              <TrendBadge
+                v-if="!empty && trend !== undefined"
+                :value="trend"
+                :label="trendLabel"
+                compact
+              />
+            </div>
+          </div>
         </div>
         <div
           v-if="icon"
           :class="cn(
-            'flex size-10 shrink-0 items-center justify-center rounded-xl',
+            'flex size-11 shrink-0 items-center justify-center rounded-xl',
             accentClasses[resolvedAccent],
             linkTo && !empty ? 'transition-transform duration-200 group-hover:scale-105' : '',
-            empty ? 'opacity-70' : '',
           )"
+          aria-hidden="true"
         >
-          <component :is="icon" class="size-5" aria-hidden="true" />
+          <component :is="icon" class="size-5" />
         </div>
-      </CardHeader>
-      <CardFooter
-        v-if="subtitle || (!empty && trend !== undefined)"
-        class="mt-auto flex flex-wrap items-center justify-between gap-2 border-t border-border/60 px-5 pt-3"
-      >
-        <p v-if="subtitle" class="text-xs text-muted-foreground">{{ subtitle }}</p>
-        <TrendBadge
-          v-if="!empty && trend !== undefined"
-          :value="trend"
-          :label="trendLabel ?? 'vs last period'"
-        />
-      </CardFooter>
+      </CardContent>
     </Card>
   </component>
 </template>

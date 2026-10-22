@@ -50,9 +50,16 @@ class TeacherController extends Controller
         ]);
     }
 
-    public function show($id)
+    public function show(Request $request, $id)
     {
-        $teacher = Teacher::findOrFail($id);
+        $schoolId = $request->user()?->school_id;
+        $query = Teacher::query()->with(['designation:id,name,code']);
+
+        if ($schoolId) {
+            $query->where('school_id', $schoolId);
+        }
+
+        $teacher = $query->findOrFail($id);
 
         return response()->json([
             'data' => $teacher,
@@ -111,7 +118,9 @@ class TeacherController extends Controller
 
     public function update(Request $request, $id)
     {
-        $teacher = Teacher::findOrFail($id);
+        $teacher = Teacher::query()
+            ->where('school_id', $request->user()->school_id)
+            ->findOrFail($id);
 
         // Get valid subjects from database
         $user = $request->user();
@@ -189,7 +198,9 @@ class TeacherController extends Controller
 
     public function destroy($id)
     {
-        $teacher = Teacher::findOrFail($id);
+        $teacher = Teacher::query()
+            ->where('school_id', $request->user()->school_id)
+            ->findOrFail($id);
         $teacher->delete();
 
         return response()->json([

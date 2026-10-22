@@ -66,7 +66,7 @@ defineSlots<{
   >
     <div
       v-if="searchable !== false"
-      class="flex flex-col gap-3 border-b border-border/60 bg-card px-4 py-4 sm:flex-row sm:items-center sm:justify-between"
+      class="flex flex-col gap-3 border-b border-border/50 bg-muted/15 px-4 py-4 sm:flex-row sm:items-center sm:justify-between dark:bg-muted/20"
     >
       <div class="relative w-full max-w-sm">
         <Search
@@ -77,7 +77,7 @@ defineSlots<{
           :model-value="globalFilter"
           :placeholder="searchPlaceholder ?? 'Search records…'"
           :aria-label="searchPlaceholder ?? 'Search records'"
-          class="h-10 bg-background pl-9 text-sm"
+          class="h-10 rounded-xl border-border/70 bg-background pl-9 text-sm shadow-none"
           type="search"
           @update:model-value="$emit('update:globalFilter', String($event))"
         />

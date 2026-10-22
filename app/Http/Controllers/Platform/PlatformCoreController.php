@@ -57,6 +57,7 @@ class PlatformCoreController extends Controller
             'actions' => 'array',
             'priority' => 'integer',
             'is_active' => 'boolean',
+            'stop_on_match' => 'boolean',
         ])->validate();
 
         $rule = $this->policies->upsertRule($request->user()->school_id, $data, $request->input('id'));

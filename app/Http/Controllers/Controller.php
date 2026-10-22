@@ -2,12 +2,16 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\UserRole;
 use App\Models\User;
 use App\Services\PermissionService;
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\Request;
 
 abstract class Controller
 {
+    use AuthorizesRequests;
+
     protected function userCanManageRoles(?User $user): bool
     {
         if (! $user) {
@@ -15,7 +19,7 @@ abstract class Controller
         }
 
         return app(PermissionService::class)->hasPermission($user, 'roles.manage')
-            || ($user->role instanceof \App\Enums\UserRole && $user->role->canManageTeachers());
+            || ($user->role instanceof UserRole && $user->role->canManageTeachers());
     }
 
     protected function authorizeRoleManagement(Request $request): void

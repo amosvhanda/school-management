@@ -112,6 +112,7 @@ onMounted(load)
   <PageShell
     title="School trips"
     description="Register your child for upcoming trips. Fees are added to their school account."
+    :breadcrumbs="['Parent portal', 'School trips']"
     max-width="wide"
   >
     <PageLoader v-if="loading" label="Loading trips" />

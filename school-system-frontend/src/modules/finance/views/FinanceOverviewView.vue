@@ -61,6 +61,7 @@ onMounted(load)
   <PageShell
     title="Finance overview"
     description="Money in (fees + till), money out (payroll), and cash flow so everything balances."
+    :breadcrumbs="['Finance', 'Overview']"
     max-width="wide"
   >
     <template #actions>

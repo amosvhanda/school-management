@@ -21,7 +21,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { parentPortalApi, studentsApi } from '@/services/index'
 import { formatMoney } from '@/lib/finance-constants'
 import { formatDate, formatDateTime } from '@/lib/format'
-import { getErrorMessage } from '@/lib/api-response'
+import { messageFromBlobError } from '@/lib/api-response'
 import { useToast } from '@/composables/useToast'
 import { cn } from '@/lib/utils'
 
@@ -149,7 +149,7 @@ async function downloadResults(format: 'html' | 'csv') {
     triggerBlobDownload(blob, filename)
     toast.success(format === 'csv' ? 'Results CSV downloaded' : 'Report card downloaded')
   } catch (err) {
-    toast.error('Download failed', getErrorMessage(err))
+    toast.error('Download failed', await messageFromBlobError(err, 'Could not download results.'))
   } finally {
     downloading.value = false
   }
@@ -211,6 +211,7 @@ onMounted(load)
   <PageShell
     :title="childName"
     :description="childDescription"
+    :breadcrumbs="['Parent portal', 'Children', childName]"
     max-width="wide"
   >
     <template #actions>

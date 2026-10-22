@@ -2,12 +2,24 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\Auditable;
+use App\Models\Concerns\IsolatesViaSchoolRelation;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class LibraryLoan extends Model
 {
-    protected $guarded = [];
+    use Auditable, IsolatesViaSchoolRelation;
+
+    protected $fillable = [
+        'book_id', 'student_id', 'library_member_id', 'borrowed_at', 'due_at',
+        'returned_at', 'fine_amount', 'status',
+    ];
+
+    public static function schoolIsolationRelation(): string
+    {
+        return 'book';
+    }
 
     protected function casts(): array
     {
@@ -27,5 +39,10 @@ class LibraryLoan extends Model
     public function student(): BelongsTo
     {
         return $this->belongsTo(Student::class);
+    }
+
+    public function member(): BelongsTo
+    {
+        return $this->belongsTo(LibraryMember::class, 'library_member_id');
     }
 }

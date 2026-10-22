@@ -215,4 +215,29 @@ class ExamApiTest extends TestCase
             ],
         ])->assertForbidden();
     }
+
+    public function test_record_exam_results_rejects_other_school_student(): void
+    {
+        $auth = $this->createAuthenticatedUser();
+        $term = Term::factory()->create(['school_id' => $auth['school']->id]);
+        $gradeLevel = GradeLevel::factory()->create(['school_id' => $auth['school']->id]);
+        $subject = Subject::factory()->create(['school_id' => $auth['school']->id]);
+        $otherStudent = Student::factory()->create();
+
+        $exam = Exam::factory()->create([
+            'school_id' => $auth['school']->id,
+            'term_id' => $term->id,
+            'grade_level_id' => $gradeLevel->id,
+            'subject_id' => $subject->id,
+        ]);
+
+        $this->withHeaders([
+            'Authorization' => 'Bearer '.$auth['token'],
+        ])->postJson("/api/v1/exams/{$exam->id}/results", [
+            'results' => [
+                ['student_id' => $otherStudent->id, 'marks_obtained' => 50],
+            ],
+        ])->assertStatus(422)
+            ->assertJsonValidationErrors('results.0.student_id');
+    }
 }

@@ -3,24 +3,19 @@
 namespace App\Http\Controllers;
 
 use App\Http\Concerns\HandlesResourceQueries;
+use App\Http\Requests\Api\V1\Finance\ReversePaymentRequest;
+use App\Http\Requests\Api\V1\Finance\StorePaymentRequest;
 use App\Http\Resources\Api\V1\PaymentResource;
 use App\Models\Payment;
-use App\Models\School;
 use App\Services\AuditService;
 use App\Services\FinancialLedgerService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Validator;
-use Illuminate\Validation\Rule;
 use InvalidArgumentException;
 use Spatie\QueryBuilder\AllowedFilter;
 
 class PaymentController extends Controller
 {
     use HandlesResourceQueries;
-
-    private const PAYMENT_METHODS = [
-        'cash', 'ecocash', 'onemoney', 'innbucks', 'bank_transfer', 'card', 'cheque', 'other',
-    ];
 
     public function __construct(
         private FinancialLedgerService $ledgerService,
@@ -29,11 +24,7 @@ class PaymentController extends Controller
 
     public function index(Request $request)
     {
-        $this->authorizeModuleAccess(
-            $request,
-            capabilities: ['canManageFinance'],
-            permissionSlugs: ['finance.manage', 'transactions.view'],
-        );
+        $this->authorize('viewAny', Payment::class);
 
         $schoolId = $request->user()->school_id;
 
@@ -68,58 +59,21 @@ class PaymentController extends Controller
         ]);
     }
 
-    public function store(Request $request)
+    public function store(StorePaymentRequest $request)
     {
-        $this->authorizeModuleAccess(
-            $request,
-            capabilities: ['canManageFinance'],
-            permissionSlugs: ['finance.manage'],
-        );
-
         $schoolId = $request->user()->school_id;
-
-        // Use relationship if available to save a query, or fallback safely
-        $schoolCurrency = $request->user()->school?->getDefaultCurrency()
-            ?? School::findOrFail($schoolId)->getDefaultCurrency();
-
-        $invoiceRule = Rule::exists('invoices', 'id');
-        if ($schoolId) {
-            $invoiceRule = $invoiceRule->where('school_id', $schoolId);
-        }
-
-        $validator = Validator::make($request->all(), [
-            'invoice_id' => ['required', $invoiceRule],
-            'amount' => 'required|numeric|min:0.01',
-            'currency' => ['nullable', 'string', Rule::in(['USD', 'ZWG'])],
-            'method' => ['required', 'string', 'max:50', Rule::in(self::PAYMENT_METHODS)],
-            'reference' => 'nullable|string|max:100',
-            'notes' => 'nullable|string|max:500',
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json([
-                'message' => 'Validation failed',
-                'errors' => $validator->errors(),
-            ], 422);
-        }
-
-        $currency = strtoupper($request->input('currency', $schoolCurrency));
-        if ($currency !== strtoupper($schoolCurrency)) {
-            return response()->json([
-                'message' => "Payment currency must match school currency ({$schoolCurrency})",
-                'errors' => ['currency' => ["Payment must be in {$schoolCurrency}"]],
-            ], 422);
-        }
+        $data = $request->validated();
 
         try {
             $payment = $this->ledgerService->recordPayment(
-                invoiceId: (int) $request->invoice_id,
-                amount: (float) $request->amount,
-                method: strtolower(trim((string) $request->input('method'))),
+                invoiceId: (int) $data['invoice_id'],
+                amount: (float) $data['amount'],
+                method: strtolower(trim((string) $data['method'])),
                 schoolId: $schoolId,
                 createdBy: $request->user()->id,
-                reference: $request->reference,
-                notes: $request->notes,
+                reference: $data['reference'] ?? null,
+                notes: $data['notes'] ?? null,
+                incomeHeadId: isset($data['income_head_id']) ? (int) $data['income_head_id'] : null,
             );
         } catch (InvalidArgumentException $e) {
             return response()->json(['message' => $e->getMessage()], 422);
@@ -133,16 +87,7 @@ class PaymentController extends Controller
 
     public function receipt(Request $request, Payment $payment)
     {
-        $this->authorizeModuleAccess(
-            $request,
-            capabilities: ['canManageFinance'],
-            permissionSlugs: ['finance.manage', 'transactions.view'],
-        );
-
-        // Tenant Scoping Guard
-        if ($request->user()->school_id && $payment->school_id !== $request->user()->school_id) {
-            abort(403, 'Unauthorized action.');
-        }
+        $this->authorize('view', $payment);
 
         $payment->load([
             'student:id,full_name,student_number,class',
@@ -161,35 +106,15 @@ class PaymentController extends Controller
         ]);
     }
 
-    public function reverse(Request $request, Payment $payment)
+    public function reverse(ReversePaymentRequest $request, Payment $payment)
     {
-        $this->authorizeModuleAccess(
-            $request,
-            capabilities: ['canManageFinance'],
-            permissionSlugs: ['finance.manage'],
-        );
-
-        // Tenant Scoping Guard
-        if ($request->user()->school_id && $payment->school_id !== $request->user()->school_id) {
-            abort(403, 'Unauthorized action.');
-        }
-
-        $validator = Validator::make($request->all(), [
-            'reason' => 'nullable|string|max:500',
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json([
-                'message' => 'Validation failed',
-                'errors' => $validator->errors(),
-            ], 422);
-        }
+        $data = $request->validated();
 
         try {
             $payment = $this->ledgerService->reversePayment(
                 $payment,
                 $request->user()->id,
-                $request->input('reason'),
+                $data['reason'] ?? null,
             );
         } catch (InvalidArgumentException $e) {
             return response()->json(['message' => $e->getMessage()], 422);
@@ -203,7 +128,7 @@ class PaymentController extends Controller
             metadata: [
                 'student_id' => $payment->student_id,
                 'invoice_id' => $payment->invoice_id,
-                'reason' => $request->input('reason'),
+                'reason' => $data['reason'] ?? null,
             ],
         );
 
@@ -214,16 +139,7 @@ class PaymentController extends Controller
 
     public function destroy(Request $request, Payment $payment)
     {
-        $this->authorizeModuleAccess(
-            $request,
-            capabilities: ['canManageFinance'],
-            permissionSlugs: ['finance.manage'],
-        );
-
-        // Tenant Scoping Guard
-        if ($request->user()->school_id && $payment->school_id !== $request->user()->school_id) {
-            abort(403, 'Unauthorized action.');
-        }
+        $this->authorize('delete', $payment);
 
         if ($payment->status === 'completed') {
             return response()->json([

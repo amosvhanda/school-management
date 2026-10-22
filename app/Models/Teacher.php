@@ -2,9 +2,9 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\Auditable;
 use App\Models\Concerns\BelongsToSchool;
 use App\Models\Concerns\HasCustomFields;
-use App\Models\CustomField;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -12,7 +12,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Teacher extends Model
 {
-    use BelongsToSchool, HasCustomFields, HasFactory;
+    use Auditable, BelongsToSchool, HasCustomFields, HasFactory;
 
     protected $fillable = [
         'employee_id',
@@ -21,9 +21,17 @@ class Teacher extends Model
         'name',
         'email',
         'phone',
+        'gender',                  // PreSkool UI parity
+        'blood_group',             // PreSkool UI parity
+        'national_id',             // PreSkool UI parity
+        'passport_number',         // PreSkool UI parity
         'address',
+        'social_links',            // PreSkool UI parity (JSON)
+        'emergency_contact_name',  // PreSkool UI parity
+        'emergency_contact_phone', // PreSkool UI parity
         'subject',
         'department',
+        'designation_id',
         'qualification',
         'joining_date',
         'status',
@@ -38,6 +46,10 @@ class Teacher extends Model
         'payment_method',
         'employment_type',
         'period_rate',
+        'date_of_birth',
+        'national_id',
+        'work_experience',
+        'previous_school',
     ];
 
     protected function casts(): array
@@ -48,6 +60,8 @@ class Teacher extends Model
             'period_rate' => 'decimal:2',
             'allowances' => 'array',
             'deductions' => 'array',
+            'social_links' => 'array',
+            'date_of_birth' => 'date',
         ];
     }
 
@@ -64,6 +78,11 @@ class Teacher extends Model
     public function school(): BelongsTo
     {
         return $this->belongsTo(School::class);
+    }
+
+    public function designation(): BelongsTo
+    {
+        return $this->belongsTo(Designation::class);
     }
 
     public function attendance(): HasMany

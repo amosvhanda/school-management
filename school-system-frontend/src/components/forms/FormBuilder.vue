@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, toRef } from 'vue'
+import { useFormValues } from 'vee-validate'
 import { useFormCascade } from '@/composables/useFormCascade'
 import { useClassNameDerive } from '@/composables/useClassNameDerive'
 import { Phone } from '@lucide/vue'
@@ -32,6 +33,7 @@ import {
 } from '@/lib/form-standards'
 import type { FormFieldSchema } from '@/components/forms/useFormBuilder'
 import RelationSelect from './RelationSelect.vue'
+import MultiRelationSelect from './MultiRelationSelect.vue'
 import GuardianLinkSection from './GuardianLinkSection.vue'
 import DatePicker from './DatePicker.vue'
 
@@ -51,16 +53,37 @@ const props = withDefaults(
 useFormCascade(toRef(() => props.fields))
 useClassNameDerive(toRef(() => props.fields))
 
+const formValues = useFormValues()
+
+function matchesVisibleWhen(field: FormFieldSchema, values: Record<string, unknown> | undefined): boolean {
+  const rule = field.visibleWhen
+  if (!rule) return true
+  const raw = values?.[rule.field]
+  const current = raw == null ? '' : String(raw)
+  const expected = Array.isArray(rule.equals) ? rule.equals : [rule.equals]
+  return expected.includes(current)
+}
+
+function fieldRenderKey(field: FormFieldSchema): string {
+  if (!field.visibleWhen) return field.name
+  const equals = Array.isArray(field.visibleWhen.equals)
+    ? field.visibleWhen.equals.join('|')
+    : field.visibleWhen.equals
+  return `${field.name}:${field.visibleWhen.field}=${equals}`
+}
+
 interface FieldGroup {
   title: string
   fields: FormFieldSchema[]
 }
 
 const groups = computed<FieldGroup[]>(() => {
+  const values = formValues.value as Record<string, unknown> | undefined
   const result: FieldGroup[] = []
   let current: FieldGroup = { title: '', fields: [] }
 
   for (const field of props.fields) {
+    if (!matchesVisibleWhen(field, values)) continue
     const section = field.section ?? ''
     if (section !== current.title) {
       if (current.fields.length) result.push(current)
@@ -85,7 +108,7 @@ const gridClass = computed(() => formGridClass(props.columns))
 // Determines column spacing rules dynamically across layout tiers
 function colClass(field: FormFieldSchema) {
   if (props.columns === 1) return ''
-  if (field.type === 'guardian-section') {
+  if (field.type === 'guardian-section' || field.type === 'multirelation') {
     return props.columns === 3 ? 'sm:col-span-2 lg:col-span-3' : 'sm:col-span-2'
   }
   if (field.colSpan === 2) {
@@ -112,15 +135,13 @@ function colClass(field: FormFieldSchema) {
       <div :class="gridClass">
         <div
           v-for="field in group.fields"
-          :key="field.name"
+          :key="fieldRenderKey(field)"
           :class="cn('min-w-0', colClass(field))"
         >
-          <!-- Special composite block wrapper -->
           <GuardianLinkSection v-if="field.type === 'guardian-section'" />
 
           <FormField v-else v-slot="{ componentField }" :name="field.name">
-            <FormItem>
-              <!-- Labels remain hidden for background panel attachments -->
+            <FormItem class="gap-2">
               <FormLabel
                 v-if="field.type !== 'checkbox'"
                 :class="cn(formLabelClass, 'flex items-center gap-1')"
@@ -130,12 +151,15 @@ function colClass(field: FormFieldSchema) {
                 <span v-if="field.required" class="sr-only">(required)</span>
               </FormLabel>
 
-              <FormDescription v-if="field.description" :id="`${field.name}-description`">
+              <FormDescription
+                v-if="field.description"
+                :id="`${field.name}-description`"
+                class="text-sm text-muted-foreground"
+              >
                 {{ field.description }}
               </FormDescription>
 
               <FormControl>
-                <!-- Textarea Inputs -->
                 <Textarea
                   v-if="field.type === 'textarea'"
                   v-bind="componentField"
@@ -145,7 +169,6 @@ function colClass(field: FormFieldSchema) {
                   :class="formTextareaClass"
                 />
 
-                <!-- Relational Select Fields (These typically manage internal search/async filtering) -->
                 <RelationSelect
                   v-else-if="field.type === 'relation' && field.relation"
                   :field="field"
@@ -153,15 +176,21 @@ function colClass(field: FormFieldSchema) {
                   @update:model-value="componentField['onUpdate:modelValue']"
                 />
 
+                <MultiRelationSelect
+                  v-else-if="field.type === 'multirelation' && field.relation"
+                  :field="field"
+                  :model-value="componentField.modelValue"
+                  @update:model-value="componentField['onUpdate:modelValue']"
+                />
+
                 <p
-                  v-else-if="field.type === 'relation'"
-                  class="text-sm text-muted-foreground italic"
+                  v-else-if="field.type === 'relation' || field.type === 'multirelation'"
+                  class="text-sm italic text-muted-foreground"
                   role="status"
                 >
                   This field is not configured. Contact your administrator.
                 </p>
 
-                <!-- Standard Configuration Dropdowns -->
                 <Select
                   v-else-if="field.type === 'select'"
                   :model-value="componentField.modelValue !== undefined && componentField.modelValue !== null ? String(componentField.modelValue) : undefined"
@@ -187,8 +216,10 @@ function colClass(field: FormFieldSchema) {
                   </SelectContent>
                 </Select>
 
-                <!-- Checkbox Flags -->
-                <div v-if="field.type === 'checkbox'" class="flex items-center gap-2 pt-1">
+                <div
+                  v-else-if="field.type === 'checkbox'"
+                  class="flex min-h-10 items-center gap-2.5"
+                >
                   <Checkbox
                     :id="field.name"
                     :checked="Boolean(componentField.modelValue)"
@@ -197,7 +228,7 @@ function colClass(field: FormFieldSchema) {
                   />
                   <label
                     :for="field.name"
-                    :class="cn(formLabelClass, 'cursor-pointer select-none font-normal text-sm')"
+                    :class="cn(formLabelClass, 'cursor-pointer select-none font-normal')"
                   >
                     {{ field.label }}
                     <span v-if="field.required" class="text-destructive" aria-hidden="true">*</span>
@@ -205,7 +236,6 @@ function colClass(field: FormFieldSchema) {
                   </label>
                 </div>
 
-                <!-- Calendar Dates -->
                 <DatePicker
                   v-else-if="field.type === 'date'"
                   :id="field.name"
@@ -218,10 +248,9 @@ function colClass(field: FormFieldSchema) {
                   @update:model-value="componentField['onUpdate:modelValue']"
                 />
 
-                <!-- Phone Line Masks -->
                 <div v-else-if="field.type === 'phone'" class="relative w-full">
                   <Phone
-                    class="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground/80"
+                    class="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground/80"
                     aria-hidden="true"
                   />
                   <Input
@@ -232,11 +261,10 @@ function colClass(field: FormFieldSchema) {
                     :placeholder="field.placeholder"
                     :aria-required="field.required || undefined"
                     :aria-describedby="field.description ? `${field.name}-description` : undefined"
-                    :class="cn(formInputClass, 'pl-9 h-10')"
+                    :class="cn(formInputClass, 'pl-9')"
                   />
                 </div>
 
-                <!-- Standard Text/Numeric Primitive Catch-all -->
                 <Input
                   v-else
                   v-bind="componentField"
@@ -244,7 +272,7 @@ function colClass(field: FormFieldSchema) {
                   :placeholder="field.placeholder"
                   :aria-required="field.required || undefined"
                   :aria-describedby="field.description ? `${field.name}-description` : undefined"
-                  :class="cn(formInputClass, 'h-10', field.type === 'number' && 'tabular-nums')"
+                  :class="cn(formInputClass, field.type === 'number' && 'tabular-nums')"
                 />
               </FormControl>
 

@@ -24,6 +24,7 @@ class PolicyEngineService
             'actions' => $data['actions'] ?? [],
             'priority' => $data['priority'] ?? 100,
             'is_active' => $data['is_active'] ?? true,
+            'stop_on_match' => (bool) ($data['stop_on_match'] ?? false),
         ];
 
         if ($id) {
@@ -53,6 +54,10 @@ class PolicyEngineService
                     'rule_code' => $rule->code,
                     'actions' => $this->executeActions($rule->actions ?? [], $context),
                 ];
+
+                if ($rule->stop_on_match) {
+                    break;
+                }
             }
         }
 

@@ -10,10 +10,23 @@ class ClinicVisit extends Model
 {
     use BelongsToSchool;
 
-    protected $guarded = [];
+    protected $fillable = [
+        'school_id', 'student_id', 'visit_date', 'complaint', 'diagnosis',
+        'treatment', 'nurse_user_id',
+    ];
+
+    protected function casts(): array
+    {
+        return ['visit_date' => 'date'];
+    }
 
     public function student(): BelongsTo
     {
         return $this->belongsTo(Student::class);
+    }
+
+    public function nurse(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'nurse_user_id');
     }
 }

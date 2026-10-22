@@ -131,7 +131,9 @@ onMounted(load)
   <PageShell
     title="Platform communications"
     description="Send platform-wide announcements and inspect delivery tracking from the live API."
-   max-width="wide">
+    :breadcrumbs="['Platform', 'Communications']"
+    max-width="wide"
+  >
     <MetricBand
       title="Platform communications"
       description="Send cross-school messages and inspect delivery tracking from the live platform APIs."

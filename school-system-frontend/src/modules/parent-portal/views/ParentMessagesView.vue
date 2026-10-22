@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import { MessageSquare, Plus, Send } from '@lucide/vue'
 import PageLoader from '@/components/feedback/PageLoader.vue'
 import ErrorState from '@/components/feedback/ErrorState.vue'
@@ -34,6 +35,7 @@ interface ThreadRow {
   id: number
   subject?: string
   status?: string
+  unread_count?: number
   student?: { full_name?: string }
 }
 
@@ -52,6 +54,7 @@ interface MessageRow {
 }
 
 const toast = useToast()
+const route = useRoute()
 const threads = ref<ThreadRow[]>([])
 const children = ref<ChildOption[]>([])
 const messages = ref<MessageRow[]>([])
@@ -72,11 +75,29 @@ const newThread = ref({
 const scopeStore = useParentPortalScope('messages-child')
 
 const activeTitle = computed(() => activeThread.value?.subject ?? 'Select a conversation')
+const isClosed = computed(() => (activeThread.value?.status ?? 'open') === 'closed')
+const updating = ref(false)
 
 function senderName(msg: MessageRow): string {
   const s = msg.sender
   if (!s) return 'School'
   return s.name ?? ([s.first_name, s.last_name].filter(Boolean).join(' ') || 'User')
+}
+
+async function setStatus(status: 'open' | 'closed') {
+  if (!activeThread.value) return
+  updating.value = true
+  try {
+    const updated = await parentPortalApi.updateThread(activeThread.value.id, { status }) as ThreadRow
+    activeThread.value = { ...activeThread.value, ...updated }
+    const row = threads.value.find((t) => t.id === activeThread.value?.id)
+    if (row) row.status = status
+    toast.success(status === 'closed' ? 'Conversation closed' : 'Conversation reopened')
+  } catch (err) {
+    toast.error('Could not update conversation', getErrorMessage(err))
+  } finally {
+    updating.value = false
+  }
 }
 
 async function loadThreads() {
@@ -92,6 +113,18 @@ async function loadThreads() {
 
     const restoredChildId = scopeStore.resolveChildSelection(childRows, scopeStore.read(''), '')
     if (restoredChildId) scopeStore.write(restoredChildId)
+
+    const threadParam = Array.isArray(route.query.thread)
+      ? route.query.thread[0]
+      : route.query.thread
+    const deepLinkId = threadParam ? Number(threadParam) : NaN
+    if (Number.isFinite(deepLinkId) && deepLinkId > 0) {
+      const match = threadRows.find((t) => t.id === deepLinkId)
+      if (match) {
+        await selectThread(match)
+        return
+      }
+    }
 
     if (threadRows.length && !activeThread.value) {
       await selectThread(threadRows[0])
@@ -110,6 +143,8 @@ async function selectThread(thread: ThreadRow) {
     const data = await parentPortalApi.threadMessages(thread.id)
     messages.value = (data.messages ?? []) as unknown as MessageRow[]
     if (data.thread) activeThread.value = data.thread as unknown as ThreadRow
+    const row = threads.value.find((t) => t.id === thread.id)
+    if (row) row.unread_count = 0
   } catch (err) {
     toast.error('Could not load messages', getErrorMessage(err))
     messages.value = []
@@ -183,6 +218,7 @@ watch(
   <PageShell
     title="Messages"
     description="Contact the school about your children"
+    :breadcrumbs="['Parent portal', 'Messages']"
     max-width="wide"
   >
     <template #actions>
@@ -209,7 +245,22 @@ watch(
             :class="activeThread?.id === thread.id ? 'border-primary bg-muted/40' : 'border-transparent'"
             @click="selectThread(thread)"
           >
-            <span class="font-medium line-clamp-1">{{ thread.subject ?? 'No subject' }}</span>
+            <span class="flex items-start justify-between gap-2">
+              <span
+                class="font-medium line-clamp-1"
+                :class="(thread.unread_count ?? 0) > 0 ? 'font-semibold' : ''"
+              >
+                {{ thread.subject ?? 'No subject' }}
+              </span>
+              <Badge
+                v-if="(thread.unread_count ?? 0) > 0"
+                variant="default"
+                class="shrink-0"
+                :aria-label="`${thread.unread_count} unread`"
+              >
+                {{ thread.unread_count }}
+              </Badge>
+            </span>
             <span v-if="thread.student?.full_name" class="text-xs text-muted-foreground">
               Re: {{ thread.student.full_name }}
             </span>
@@ -221,10 +272,34 @@ watch(
 
       <Card class="flex h-[min(70vh,640px)] flex-col overflow-hidden">
         <CardHeader class="border-b pb-3">
-          <CardTitle class="flex items-center gap-2 text-base">
-            <MessageSquare class="h-4 w-4" aria-hidden="true" />
-            {{ activeTitle }}
-          </CardTitle>
+          <div class="flex flex-wrap items-start justify-between gap-2">
+            <CardTitle class="flex items-center gap-2 text-base">
+              <MessageSquare class="h-4 w-4" aria-hidden="true" />
+              {{ activeTitle }}
+            </CardTitle>
+            <div v-if="activeThread" class="flex flex-wrap gap-2">
+              <Button
+                v-if="!isClosed"
+                type="button"
+                size="sm"
+                variant="outline"
+                :disabled="updating"
+                @click="setStatus('closed')"
+              >
+                Close
+              </Button>
+              <Button
+                v-else
+                type="button"
+                size="sm"
+                variant="outline"
+                :disabled="updating"
+                @click="setStatus('open')"
+              >
+                Reopen
+              </Button>
+            </div>
+          </div>
         </CardHeader>
         <CardContent class="flex flex-1 flex-col gap-4 overflow-hidden p-4">
           <PageLoader v-if="messagesLoading" />
@@ -247,7 +322,7 @@ watch(
               <Textarea
                 id="parent-reply"
                 v-model="replyBody"
-                placeholder="Type your message…"
+                :placeholder="isClosed ? 'Reopen by sending a reply…' : 'Type your message…'"
                 rows="3"
                 class="min-h-[80px] flex-1"
               />

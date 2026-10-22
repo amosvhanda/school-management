@@ -2,11 +2,14 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\RespondsWithPaginatedList;
 use App\Models\SchoolEvent;
 use Illuminate\Http\Request;
 
 class SchoolEventController extends Controller
 {
+    use RespondsWithPaginatedList;
+
     private function authorizeEventManage(Request $request): void
     {
         $this->authorizeModuleAccess(
@@ -28,9 +31,16 @@ class SchoolEventController extends Controller
             $query->where('status', $request->string('status'));
         }
 
-        return response()->json([
-            'data' => $query->orderBy('starts_at')->get(),
-        ]);
+        if ($request->filled('search')) {
+            $search = $request->string('search')->toString();
+            $query->where(function ($q) use ($search) {
+                $q->where('title', 'like', "%{$search}%")
+                    ->orWhere('location', 'like', "%{$search}%")
+                    ->orWhere('description', 'like', "%{$search}%");
+            });
+        }
+
+        return $this->indexResponse($request, $query->orderBy('starts_at'));
     }
 
     public function store(Request $request)
@@ -44,10 +54,12 @@ class SchoolEventController extends Controller
             'ends_at' => 'nullable|date|after:starts_at',
             'location' => 'nullable|string',
             'description' => 'nullable|string',
+            'status' => 'nullable|string|in:scheduled,ongoing,completed,cancelled',
         ]);
 
         $event = SchoolEvent::create([
             ...$data,
+            'status' => $data['status'] ?? 'scheduled',
             'school_id' => $request->user()->school_id,
             'created_by' => $request->user()->id,
         ]);
@@ -74,5 +86,14 @@ class SchoolEventController extends Controller
         $event->update($data);
 
         return response()->json(['data' => $event->fresh(), 'message' => 'Event updated']);
+    }
+
+    public function destroy(Request $request, int $id)
+    {
+        $event = SchoolEvent::where('school_id', $request->user()->school_id)->findOrFail($id);
+
+        $event->delete();
+
+        return response()->json(['message' => 'Event deleted']);
     }
 }

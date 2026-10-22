@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { computed, h, onMounted, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import type { ColumnDef } from '@tanstack/vue-table'
 import {
   Building2,
   Copy,
+  DollarSign,
   Key,
   Plus,
   RefreshCw,
@@ -51,8 +53,11 @@ import {
   type PlatformLicenseSummary,
   type SchoolLicenseRow,
 } from '@/services/api.service'
+import PlatformSchoolManageSheet from '@/modules/platform/views/PlatformSchoolManageSheet.vue'
 
 const toast = useToast()
+const route = useRoute()
+const router = useRouter()
 const loading = ref(true)
 const error = ref<string | null>(null)
 const activeTab = ref('schools')
@@ -65,6 +70,8 @@ const generating = ref(false)
 const revokingId = ref<number | null>(null)
 const registerOpen = ref(false)
 const registering = ref(false)
+const manageOpen = ref(false)
+const manageSchool = ref<SchoolLicenseRow | null>(null)
 const provisionResult = ref<{
   schoolName: string
   adminEmail: string
@@ -160,6 +167,22 @@ function planLabel(value?: string | null) {
   return value.charAt(0).toUpperCase() + value.slice(1)
 }
 
+function formatMoney(amount: number, currency = 'USD') {
+  try {
+    return new Intl.NumberFormat(undefined, { style: 'currency', currency }).format(amount)
+  } catch {
+    return `${currency} ${amount.toFixed(2)}`
+  }
+}
+
+const revenueByPlanSubtitle = computed(() => {
+  const byPlan = summary.value?.revenue?.by_plan
+  if (!byPlan || !Object.keys(byPlan).length) return 'From activated license keys'
+  return Object.entries(byPlan)
+    .map(([plan, amount]) => `${planLabel(plan)} ${formatMoney(amount, summary.value?.revenue?.currency ?? 'USD')}`)
+    .join(' · ')
+})
+
 function schoolNameColumn(): ColumnDef<Record<string, unknown>> {
   return {
     id: 'school-name',
@@ -238,6 +261,22 @@ const schoolColumns: ColumnDef<Record<string, unknown>>[] = [
     cell: ({ row }) => {
       const prefix = (row.original as unknown as SchoolLicenseRow).active_key?.key_prefix
       return prefix ? h('code', { class: 'text-xs' }, prefix) : '—'
+    },
+  },
+  {
+    id: 'school-actions',
+    header: '',
+    cell: ({ row }) => {
+      const record = row.original as unknown as SchoolLicenseRow
+      return h(
+        Button,
+        {
+          size: 'sm',
+          variant: 'outline',
+          onClick: () => openManageSchool(record),
+        },
+        () => 'Manage',
+      )
     },
   },
 ]
@@ -334,6 +373,11 @@ async function loadSchools() {
   const payload = await platformApi.schoolsOverview(params)
   schools.value = payload?.schools ?? []
   if (payload?.summary) summary.value = payload.summary
+}
+
+function openManageSchool(record: SchoolLicenseRow) {
+  manageSchool.value = record
+  manageOpen.value = true
 }
 
 async function loadKeys() {
@@ -503,6 +547,25 @@ async function copyText(value: string, label: string) {
   toast.success(`${label} copied`)
 }
 
+watch(
+  () => route.query.register,
+  (value) => {
+    if (value === '1') {
+      activeTab.value = 'schools'
+      resetRegisterForm()
+      registerOpen.value = true
+    }
+  },
+  { immediate: true },
+)
+
+watch(registerOpen, (open) => {
+  if (open || route.query.register !== '1') return
+  const query = { ...route.query }
+  delete query.register
+  void router.replace({ query })
+})
+
 onMounted(loadAll)
 </script>
 
@@ -510,7 +573,9 @@ onMounted(loadAll)
   <PageShell
     title="Licenses"
     description="All registered schools and license keys — see who is licensed, unlicensed, or expired."
-   max-width="wide">
+    :breadcrumbs="['Platform', 'Licenses']"
+    max-width="wide"
+  >
     <template #actions>
       <Button variant="outline" :disabled="loading" @click="loadAll">
         <RefreshCw class="size-4" aria-hidden="true" />
@@ -557,6 +622,29 @@ onMounted(loadAll)
           :value="String(summary?.keys.total ?? keys.length)"
           :subtitle="`${summary?.keys.unused ?? 0} unused · ${summary?.keys.active ?? 0} active`"
           :icon="Key"
+        />
+      </section>
+
+      <section aria-labelledby="revenue-kpis" class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        <h2 id="revenue-kpis" class="sr-only">Platform revenue</h2>
+        <KpiCard
+          title="Revenue MTD"
+          :value="formatMoney(summary?.revenue?.mtd ?? 0, summary?.revenue?.currency ?? 'USD')"
+          subtitle="Activated licenses this month"
+          :icon="DollarSign"
+          accent="success"
+        />
+        <KpiCard
+          title="Revenue YTD"
+          :value="formatMoney(summary?.revenue?.ytd ?? 0, summary?.revenue?.currency ?? 'USD')"
+          subtitle="Year to date"
+          :icon="DollarSign"
+        />
+        <KpiCard
+          title="Recognized total"
+          :value="formatMoney(summary?.revenue?.recognized_total ?? 0, summary?.revenue?.currency ?? 'USD')"
+          :subtitle="revenueByPlanSubtitle"
+          :icon="DollarSign"
         />
       </section>
 
@@ -611,6 +699,12 @@ onMounted(loadAll)
         </TabsContent>
       </Tabs>
     </div>
+
+    <PlatformSchoolManageSheet
+      v-model:open="manageOpen"
+      :school="manageSchool"
+      @changed="loadAll"
+    />
 
     <Dialog v-model:open="registerOpen">
       <DialogContent class="max-h-[90vh] overflow-y-auto sm:max-w-2xl">

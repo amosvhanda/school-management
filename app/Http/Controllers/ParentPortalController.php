@@ -5,7 +5,6 @@ namespace App\Http\Controllers;
 use App\Enums\UserRole;
 use App\Models\Announcement;
 use App\Models\Attendance;
-use App\Models\CommunicationMessage;
 use App\Models\CommunicationThread;
 use App\Models\ConsentForm;
 use App\Models\ConsentResponse;
@@ -429,6 +428,11 @@ class ParentPortalController extends Controller
         $threads = CommunicationThread::query()
             ->where('parent_user_id', $parent->id)
             ->with(['student:id,full_name,student_number', 'staff:id,name,first_name,last_name'])
+            ->withCount([
+                'messages as unread_count' => function ($q) use ($parent) {
+                    $q->whereNull('read_at')->where('sender_id', '!=', $parent->id);
+                },
+            ])
             ->orderByDesc('last_message_at')
             ->get();
 
@@ -442,7 +446,13 @@ class ParentPortalController extends Controller
         $validator = Validator::make($request->all(), [
             'subject' => 'required|string|max:255',
             'message' => 'required|string',
-            'student_id' => 'nullable|exists:students,id',
+            'student_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('students', 'id')->where(
+                    fn ($q) => $q->where('school_id', $parent->school_id)
+                ),
+            ],
             'staff_user_id' => [
                 'nullable',
                 Rule::exists('users', 'id')->where(fn ($q) => $q->where('school_id', $parent->school_id)),
@@ -480,13 +490,33 @@ class ParentPortalController extends Controller
             'last_message_at' => now(),
         ]);
 
-        CommunicationMessage::create([
-            'thread_id' => $thread->id,
-            'sender_id' => $parent->id,
-            'body' => $request->message,
+        app(\App\Services\CommunicationMessagingService::class)
+            ->createMessage($thread, $parent, (string) $request->message);
+
+        return response()->json(['data' => $thread->fresh()->load(['student', 'staff'])], 201);
+    }
+
+    public function updateThread(Request $request, int $threadId)
+    {
+        $parent = $this->requireParent($request);
+
+        $validator = Validator::make($request->all(), [
+            'status' => ['required', 'string', Rule::in(['open', 'closed'])],
         ]);
 
-        return response()->json(['data' => $thread->load(['student', 'staff'])], 201);
+        if ($validator->fails()) {
+            return response()->json(['message' => 'Validation failed', 'errors' => $validator->errors()], 422);
+        }
+
+        $thread = CommunicationThread::query()
+            ->where('parent_user_id', $parent->id)
+            ->findOrFail($threadId);
+
+        $thread->update(['status' => $request->string('status')->toString()]);
+
+        return response()->json([
+            'data' => $thread->fresh()->load(['student:id,full_name,student_number', 'staff:id,name,first_name,last_name']),
+        ]);
     }
 
     public function threadMessages(Request $request, int $threadId)
@@ -501,6 +531,9 @@ class ParentPortalController extends Controller
             ->with('sender:id,name,first_name,last_name,role')
             ->orderBy('created_at')
             ->get();
+
+        app(\App\Services\CommunicationMessagingService::class)
+            ->markThreadReadForViewer($thread, (int) $parent->id);
 
         return response()->json([
             'data' => [
@@ -526,13 +559,8 @@ class ParentPortalController extends Controller
             ->where('parent_user_id', $parent->id)
             ->findOrFail($threadId);
 
-        $message = CommunicationMessage::create([
-            'thread_id' => $thread->id,
-            'sender_id' => $parent->id,
-            'body' => $request->body,
-        ]);
-
-        $thread->update(['last_message_at' => now(), 'status' => 'open']);
+        $messaging = app(\App\Services\CommunicationMessagingService::class);
+        $message = $messaging->createMessage($thread, $parent, (string) $request->body);
 
         return response()->json(['data' => $message->load('sender')], 201);
     }
@@ -568,9 +596,21 @@ class ParentPortalController extends Controller
         $parent = $this->requireParent($request);
 
         $validator = Validator::make($request->all(), [
-            'student_id' => 'required|integer|exists:students,id',
+            'student_id' => [
+                'required',
+                'integer',
+                Rule::exists('students', 'id')->where(
+                    fn ($q) => $q->where('school_id', $parent->school_id)
+                ),
+            ],
             'items' => 'required|array|min:1',
-            'items.*.item_id' => 'required|integer|exists:inventory_items,id',
+            'items.*.item_id' => [
+                'required',
+                'integer',
+                Rule::exists('inventory_items', 'id')->where(
+                    fn ($q) => $q->where('school_id', $parent->school_id)
+                ),
+            ],
             'items.*.quantity' => 'required|integer|min:1',
             'notes' => 'nullable|string|max:500',
         ]);
@@ -650,7 +690,13 @@ class ParentPortalController extends Controller
         $parent = $this->requireParent($request);
 
         $validator = Validator::make($request->all(), [
-            'student_id' => 'required|integer|exists:students,id',
+            'student_id' => [
+                'required',
+                'integer',
+                Rule::exists('students', 'id')->where(
+                    fn ($q) => $q->where('school_id', $parent->school_id)
+                ),
+            ],
         ]);
 
         if ($validator->fails()) {

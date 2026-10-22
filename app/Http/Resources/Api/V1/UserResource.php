@@ -17,7 +17,7 @@ class UserResource extends JsonResource
             'email' => $this->email,
             'phone' => $this->phone,
             'role' => $this->roleValue(),
-            'avatar_url' => $this->avatar_url,
+            'avatar_url' => $this->resolveAvatarUrl(),
             'status' => $this->status ?? 'active',
             'school_id' => $this->school_id,
             'must_change_password' => (bool) $this->must_change_password,
@@ -25,6 +25,7 @@ class UserResource extends JsonResource
             'platform_terms_version' => $this->platform_terms_version,
             'platform_terms_accepted_at' => $this->platform_terms_accepted_at?->toIso8601String(),
             'platform_terms_required_version' => (string) config('platform_terms.version'),
+            'two_factor_enabled' => $this->two_factor_secret !== null && $this->two_factor_confirmed_at !== null,
             'created_at' => $this->created_at?->toIso8601String(),
             'updated_at' => $this->updated_at?->toIso8601String(),
         ];

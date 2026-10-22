@@ -3,14 +3,16 @@
 namespace App\Http\Controllers;
 
 use App\Http\Concerns\HandlesResourceQueries;
+use App\Http\Requests\Api\V1\Finance\StoreInvoiceRequest;
+use App\Http\Requests\Api\V1\Finance\UpdateInvoiceRequest;
 use App\Http\Resources\Api\V1\InvoiceResource;
+use App\Models\FeeGroup;
+use App\Models\FeeStructure;
 use App\Models\Invoice;
 use App\Models\NotificationQueue;
 use App\Models\Student;
 use App\Services\FinancialLedgerService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Validator;
-use Illuminate\Validation\Rule;
 use Spatie\QueryBuilder\AllowedFilter;
 
 class InvoiceController extends Controller
@@ -21,11 +23,7 @@ class InvoiceController extends Controller
 
     public function index(Request $request)
     {
-        $this->authorizeModuleAccess(
-            $request,
-            capabilities: ['canManageFinance'],
-            permissionSlugs: ['finance.manage', 'transactions.view'],
-        );
+        $this->authorize('viewAny', Invoice::class);
 
         $schoolId = $request->user()->school_id;
 
@@ -56,23 +54,19 @@ class InvoiceController extends Controller
                 'student.student_number',
             ],
             'sorts' => ['created_at', 'due_date', 'amount', 'balance', 'status'],
-            'includes' => ['student', 'payments', 'feeStructure'],
+            'includes' => ['student', 'payments', 'feeStructure', 'feeGroup', 'feeDiscount'],
             'default_sort' => '-created_at',
-            'with' => ['student:id,full_name,student_number'],
+            'with' => [
+                'student:id,full_name,student_number',
+                'feeGroup:id,name',
+                'feeDiscount:id,name',
+            ],
         ]);
     }
 
     public function show(Request $request, Invoice $invoice)
     {
-        $this->authorizeModuleAccess(
-            $request,
-            capabilities: ['canManageFinance'],
-            permissionSlugs: ['finance.manage', 'transactions.view'],
-        );
-
-        if ($request->user()->school_id && $invoice->school_id !== $request->user()->school_id) {
-            abort(403, 'Unauthorized action.');
-        }
+        $this->authorize('view', $invoice);
 
         $invoice->load([
             'student:id,full_name,student_number,class,balance,currency',
@@ -83,51 +77,106 @@ class InvoiceController extends Controller
         return (new InvoiceResource($invoice))->additional(['message' => 'Success']);
     }
 
-    public function store(Request $request)
+    public function print(Request $request, Invoice $invoice)
     {
-        $this->authorizeModuleAccess(
-            $request,
-            capabilities: ['canManageFinance'],
-            permissionSlugs: ['finance.manage'],
-        );
+        $this->authorize('view', $invoice);
 
-        $schoolId = $request->user()->school_id;
-
-        $validator = Validator::make($request->all(), [
-            'student_id' => [
-                'required',
-                Rule::exists('students', 'id')->where('school_id', $schoolId),
-            ],
-            'description' => ['required', 'string', 'max:500'],
-            'amount' => ['required', 'numeric', 'min:0.01'],
-            'due_date' => ['required', 'date'],
-            'fee_structure_id' => [
-                'nullable',
-                Rule::exists('fee_structures', 'id')->where('school_id', $schoolId),
-            ],
+        $invoice->load([
+            'student:id,full_name,student_number,class',
+            'payments' => fn ($q) => $q->orderByDesc('date')->limit(50),
+            'feeStructure:id,category,amount',
+            'feeGroup:id,name',
+            'feeDiscount:id,name',
+            'school:id,name,code,address,phone,email',
         ]);
 
-        if ($validator->fails()) {
-            return response()->json([
-                'message' => 'Validation failed',
-                'errors' => $validator->errors(),
-            ], 422);
+        return response()->json([
+            'data' => [
+                'document_number' => 'INV-'.str_pad((string) $invoice->id, 6, '0', STR_PAD_LEFT),
+                'issued_at' => now()->toIso8601String(),
+                'invoice' => new InvoiceResource($invoice),
+                'school' => $invoice->school,
+            ],
+        ]);
+    }
+
+    public function store(StoreInvoiceRequest $request)
+    {
+        $schoolId = $request->user()?->school_id;
+        if (! $schoolId) {
+            abort(403, 'User is not associated with a school.');
         }
 
-        $student = Student::where('school_id', $schoolId)->findOrFail($request->student_id);
+        $data = $request->validated();
+        $student = Student::where('school_id', $schoolId)->findOrFail($data['student_id']);
+        $dueDate = new \DateTimeImmutable($data['due_date']);
+        $applyDiscounts = $request->boolean('apply_discounts', true);
+
+        if ($request->filled('fee_group_id')) {
+            $group = FeeGroup::query()
+                ->where('school_id', $schoolId)
+                ->where('is_active', true)
+                ->with('categories:id')
+                ->findOrFail((int) $data['fee_group_id']);
+
+            $invoices = $this->ledgerService->applyFeeGroup(
+                student: $student,
+                group: $group,
+                dueDate: $dueDate,
+                createdBy: $request->user()->id,
+                applyDiscounts: $applyDiscounts,
+                combine: $request->boolean('combine_group', false),
+            );
+
+            if ($invoices->isEmpty()) {
+                return response()->json([
+                    'message' => 'No fee structures found for this student\'s class in the selected fee group.',
+                ], 422);
+            }
+
+            foreach ($invoices as $invoice) {
+                $this->sendInvoiceNotification($invoice, $student);
+            }
+
+            $first = $invoices->first()->load(['student', 'school', 'feeDiscount', 'feeGroup']);
+
+            return response()->json([
+                'message' => $invoices->count() === 1
+                    ? 'Invoice created successfully'
+                    : "{$invoices->count()} invoices created from fee group",
+                'data' => new InvoiceResource($first),
+                'meta' => [
+                    'created_count' => $invoices->count(),
+                    'invoice_ids' => $invoices->pluck('id'),
+                ],
+            ], 201);
+        }
+
+        $amount = (float) ($data['amount'] ?? 0);
+        $description = (string) ($data['description'] ?? '');
+        $feeStructureId = isset($data['fee_structure_id']) ? (int) $data['fee_structure_id'] : null;
+
+        if ($feeStructureId && ! $request->filled('amount')) {
+            $structure = FeeStructure::query()
+                ->where('school_id', $schoolId)
+                ->findOrFail($feeStructureId);
+            $amount = (float) $structure->amount;
+            $description = $description !== '' ? $description : (string) $structure->category;
+        }
 
         $invoice = $this->ledgerService->createInvoice(
             student: $student,
-            amount: (float) $request->amount,
-            description: $request->description,
-            feeStructureId: $request->fee_structure_id ? (int) $request->fee_structure_id : null,
-            dueDate: new \DateTimeImmutable($request->due_date),
+            amount: $amount,
+            description: $description !== '' ? $description : 'Invoice',
+            feeStructureId: $feeStructureId,
+            dueDate: $dueDate,
             createdBy: $request->user()->id,
+            applyDiscounts: $applyDiscounts,
         );
 
         $this->sendInvoiceNotification($invoice, $student);
 
-        return (new InvoiceResource($invoice->load(['student', 'school'])))
+        return (new InvoiceResource($invoice->load(['student', 'school', 'feeDiscount', 'feeGroup'])))
             ->additional(['message' => 'Invoice created successfully'])
             ->response()
             ->setStatusCode(201);
@@ -179,53 +228,26 @@ class InvoiceController extends Controller
         }
     }
 
-    public function update(Request $request, Invoice $invoice)
+    public function update(UpdateInvoiceRequest $request, Invoice $invoice)
     {
-        $this->authorizeModuleAccess(
-            $request,
-            capabilities: ['canManageFinance'],
-            permissionSlugs: ['finance.manage'],
-        );
-
-        if ($request->user()->school_id && $invoice->school_id !== $request->user()->school_id) {
-            abort(403, 'Unauthorized action.');
-        }
-
         if (in_array($invoice->status, ['paid'], true)) {
             return response()->json(['message' => 'Paid invoices cannot be edited.'], 422);
         }
 
-        $validator = Validator::make($request->all(), [
-            'description' => 'sometimes|string|max:500',
-            'amount' => 'sometimes|numeric|min:0.01',
-            'due_date' => 'sometimes|date',
-        ]);
+        $data = $request->validated();
 
-        if ($validator->fails()) {
-            return response()->json([
-                'message' => 'Validation failed',
-                'errors' => $validator->errors(),
-            ], 422);
+        if (array_key_exists('description', $data)) {
+            $invoice->description = $data['description'];
+        }
+        if (array_key_exists('due_date', $data)) {
+            $invoice->due_date = $data['due_date'];
         }
 
-        if ($request->has('amount') && (float) $request->amount < (float) $invoice->amount_paid) {
-            return response()->json([
-                'message' => 'Invoice amount cannot be less than amount already paid.',
-            ], 422);
-        }
-
-        if ($request->filled('description')) {
-            $invoice->description = $request->input('description');
-        }
-        if ($request->filled('due_date')) {
-            $invoice->due_date = $request->input('due_date');
-        }
-
-        if ($request->has('amount') && (float) $request->amount !== (float) $invoice->amount) {
+        if (array_key_exists('amount', $data) && (float) $data['amount'] !== (float) $invoice->amount) {
             try {
                 $invoice = $this->ledgerService->adjustInvoiceAmount(
                     $invoice,
-                    (float) $request->amount,
+                    (float) $data['amount'],
                     $request->user()?->id,
                 );
             } catch (\InvalidArgumentException $e) {

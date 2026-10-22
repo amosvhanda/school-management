@@ -19,6 +19,8 @@ class EnsureSchoolLicenseActive
         'api/v1/license/*',
         'api/v1/auth/logout',
         'api/v1/auth/me',
+        'api/v1/auth/schools',
+        'api/v1/auth/switch-school',
         'api/v1/auth/platform-terms',
         'api/v1/auth/accept-platform-terms',
     ];
@@ -27,16 +29,6 @@ class EnsureSchoolLicenseActive
 
     public function handle(Request $request, Closure $next): Response
     {
-        if (! config('license.enforcement', false)) {
-            return $next($request);
-        }
-
-        foreach ($this->except as $pattern) {
-            if ($request->is($pattern)) {
-                return $next($request);
-            }
-        }
-
         $user = $request->user();
 
         if (! $user || $user->isSuperAdmin()) {
@@ -51,6 +43,30 @@ class EnsureSchoolLicenseActive
         }
 
         $school = School::find($user->school_id);
+
+        if ($school && $school->status === 'deleted') {
+            return response()->json([
+                'message' => 'This school has been deprovisioned.',
+                'code' => 'school_deleted',
+            ], 403);
+        }
+
+        if ($school && $school->status !== 'active') {
+            return response()->json([
+                'message' => 'This school is currently suspended.',
+                'code' => 'school_suspended',
+            ], 403);
+        }
+
+        if (! config('license.enforcement', false)) {
+            return $next($request);
+        }
+
+        foreach ($this->except as $pattern) {
+            if ($request->is($pattern)) {
+                return $next($request);
+            }
+        }
 
         if (! $school || ! $this->licenses->isLicensed($school)) {
             $state = $school ? $this->licenses->resolveLicenseState($school) : [

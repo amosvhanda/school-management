@@ -2,12 +2,20 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\IsolatesViaSchoolRelation;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class CommunicationMessage extends Model
 {
+    use IsolatesViaSchoolRelation;
+
     protected $fillable = ['thread_id', 'sender_id', 'body', 'read_at'];
+
+    public static function schoolIsolationRelation(): string
+    {
+        return 'thread';
+    }
 
     protected function casts(): array
     {

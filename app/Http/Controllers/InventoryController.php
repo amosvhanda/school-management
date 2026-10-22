@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\RespondsWithPaginatedList;
 use App\Models\InventoryItem;
 use App\Models\InventorySale;
 use App\Services\InventoryService;
@@ -9,6 +10,8 @@ use Illuminate\Http\Request;
 
 class InventoryController extends Controller
 {
+    use RespondsWithPaginatedList;
+
     public function __construct(private InventoryService $inventoryService) {}
 
     private function authorizeInventory(Request $request): void
@@ -25,13 +28,26 @@ class InventoryController extends Controller
         $this->authorizeInventory($request);
 
         $schoolId = $request->user()->school_id;
-        $items = InventoryItem::where('school_id', $schoolId)
-            ->when($request->filled('type'), fn ($q) => $q->where('type', $request->string('type')))
-            ->when($request->has('is_active'), fn ($q) => $q->where('is_active', $request->boolean('is_active')))
-            ->orderBy('name')
-            ->get();
+        $filters = is_array($request->input('filter')) ? $request->input('filter') : [];
+        $type = $request->input('type', $filters['type'] ?? null);
+        $search = $request->input('search', $filters['search'] ?? null);
+        $isActive = $request->has('is_active')
+            ? $request->boolean('is_active')
+            : (array_key_exists('is_active', $filters) ? filter_var($filters['is_active'], FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) : null);
 
-        return response()->json(['data' => $items]);
+        $query = InventoryItem::where('school_id', $schoolId)
+            ->when(filled($type), fn ($q) => $q->where('type', $type))
+            ->when($isActive !== null, fn ($q) => $q->where('is_active', $isActive))
+            ->when(filled($search), function ($q) use ($search) {
+                $q->where(function ($inner) use ($search) {
+                    $inner->where('name', 'like', "%{$search}%")
+                        ->orWhere('sku', 'like', "%{$search}%")
+                        ->orWhere('description', 'like', "%{$search}%");
+                });
+            })
+            ->orderBy('name');
+
+        return $this->indexResponse($request, $query);
     }
 
     public function store(Request $request)

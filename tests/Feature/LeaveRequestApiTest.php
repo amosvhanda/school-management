@@ -59,6 +59,33 @@ class LeaveRequestApiTest extends TestCase
 
         $response->assertOk()
             ->assertJsonPath('data.status', 'approved');
+
+        $this->assertSame('on_leave', $teacher->fresh()->status);
+    }
+
+    public function test_leave_sync_restores_teacher_when_leave_ended(): void
+    {
+        $auth = $this->createAuthenticatedUser();
+        $teacher = Teacher::factory()->create([
+            'school_id' => $auth['school']->id,
+            'status' => 'on_leave',
+        ]);
+
+        LeaveRequest::create([
+            'school_id' => $auth['school']->id,
+            'teacher_id' => $teacher->id,
+            'requested_by' => $auth['user']->id,
+            'type' => 'annual',
+            'start_date' => now()->subDays(5),
+            'end_date' => now()->subDay(),
+            'days' => 5,
+            'status' => 'approved',
+        ]);
+
+        $this->artisan('hr:sync-teacher-leave-status', ['--school' => $auth['school']->id])
+            ->assertSuccessful();
+
+        $this->assertSame('active', $teacher->fresh()->status);
     }
 
     public function test_reject_leave_requires_notes(): void

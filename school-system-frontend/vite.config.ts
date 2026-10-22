@@ -22,6 +22,11 @@ export default defineConfig(({ mode }) => {
           target: apiTarget,
           changeOrigin: true,
         },
+        // Student photos / documents stored on the public disk.
+        '/storage': {
+          target: apiTarget,
+          changeOrigin: true,
+        },
       },
     },
   }

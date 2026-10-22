@@ -39,8 +39,9 @@ Existing hubs: Finance, Operations, People, Communications, HR, Admin, Parent Sc
 
 ## Visual rules
 
-- Reuse shadcn-vue + existing tokens; no one-off purple/cream themes
+- Reuse shadcn-vue + existing tokens (`style.css`, `design-system.ts`, `ui-status.ts`); no one-off purple/cream themes or module-specific palettes
 - Row actions: ellipsis dropdown — not a wall of buttons
+- Status chips: `badgeVariantForStatus` / `STATUS_TONE_BADGE` — not ad-hoc emerald/sky classes
 
 ## When NOT to use ModuleHub
 

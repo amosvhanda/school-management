@@ -90,13 +90,14 @@ class SettingsController extends Controller
 
         // Add default security settings if not set
         if (empty($result['security'])) {
+            $user = $request->user();
             $result['security'] = [
-                'twoFactorAuth' => false,
+                'twoFactorAuth' => (bool) ($user?->two_factor_secret && $user?->two_factor_confirmed_at),
                 'sessionTimeout' => 60,
                 'passwordExpiry' => 90,
                 'loginAttempts' => 5,
                 'dataBackupFrequency' => 'Daily',
-                'auditLogging' => true
+                'auditLogging' => true,
             ];
         }
 

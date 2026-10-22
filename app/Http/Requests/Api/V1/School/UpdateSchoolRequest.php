@@ -31,6 +31,8 @@ class UpdateSchoolRequest extends ApiFormRequest
             'student_capacity' => ['nullable', 'integer', 'min:1'],
             'timezone' => ['nullable', 'string', 'max:100'],
             'motto' => ['nullable', 'string', 'max:500'],
+            'logo_path' => ['nullable', 'string', 'max:500'],
+            'status' => ['sometimes', 'string', 'max:50'],
         ];
     }
 }

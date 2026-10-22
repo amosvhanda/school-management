@@ -457,4 +457,19 @@ class StudentApiTest extends TestCase
         ])->get("/api/v1/students/{$other->id}/results/download")
             ->assertForbidden();
     }
+
+    public function test_create_student_rejects_other_school_class(): void
+    {
+        $auth = $this->createAuthenticatedUser();
+        $otherClass = ClassModel::factory()->create();
+
+        $this->withHeaders([
+            'Authorization' => 'Bearer '.$auth['token'],
+        ])->postJson('/api/v1/students', [
+            'firstName' => 'Cross',
+            'surname' => 'Tenant',
+            'class_id' => $otherClass->id,
+        ])->assertStatus(422)
+            ->assertJsonValidationErrors('class_id');
+    }
 }

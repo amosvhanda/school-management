@@ -14,7 +14,7 @@ import {
   Save,
   Search,
   Thermometer,
-  UserX,
+  Trash2,
   Users,
   X,
 } from '@lucide/vue'
@@ -45,6 +45,14 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { toast } from 'vue-sonner'
 import { useAuth } from '@/composables/useAuth'
 import { getErrorMessage } from '@/lib/api-response'
@@ -54,7 +62,6 @@ import { todayIsoDate } from '@/lib/validation'
 import {
   ATTENDANCE_STATUS_TONE,
   STATUS_TONE_DOT,
-  STATUS_TONE_ICON,
   STATUS_TONE_SOLID,
   type AttendanceMarkStatus,
 } from '@/lib/ui-status'
@@ -152,9 +159,14 @@ const STATUS_FILTER_OPTIONS: { value: StatusFilter; label: string }[] = [
 const route = useRoute()
 const { user, checkCapability } = useAuth()
 const canViewAudit = computed(() => checkCapability('canViewAuditLogs'))
+const canClearRegister = computed(
+  () => checkCapability('canManageStudents') || checkCapability('canManageTeachers'),
+)
 const loading = ref(true)
 const registerLoading = ref(false)
 const saving = ref(false)
+const clearing = ref(false)
+const clearConfirmOpen = ref(false)
 const error = ref<string | null>(null)
 const classes = ref<ClassOption[]>([])
 const selectedClassId = ref('')
@@ -210,8 +222,60 @@ const stats = computed(() => {
     sickPct: pct(sick),
     leftEarlyPct: pct(leftEarly),
     progressPct: pct(marked),
+    onLeave: excused + sick,
   }
 })
+
+const summaryCards = computed(() => [
+  {
+    key: 'today',
+    label: 'Today',
+    value: stats.value.total,
+    hint: selectedClass.value?.name ?? 'Students on register',
+    active: statusFilter.value === 'all',
+    onClick: () => applyStatusFilter('all'),
+  },
+  {
+    key: 'absent',
+    label: 'Absentees',
+    value: stats.value.absent,
+    hint: `${stats.value.absentPct}% of class`,
+    active: statusFilter.value === 'absent',
+    onClick: () => applyStatusFilter(statusFilter.value === 'absent' ? 'all' : 'absent'),
+  },
+  {
+    key: 'late',
+    label: 'Late',
+    value: stats.value.late,
+    hint: `${stats.value.latePct}% of class`,
+    active: statusFilter.value === 'late',
+    onClick: () => applyStatusFilter(statusFilter.value === 'late' ? 'all' : 'late'),
+  },
+  {
+    key: 'leave',
+    label: 'On leave',
+    value: stats.value.onLeave,
+    hint: 'Excused or sick',
+    active: statusFilter.value === 'excused' || statusFilter.value === 'sick',
+    onClick: () => applyStatusFilter(statusFilter.value === 'excused' ? 'all' : 'excused'),
+  },
+  {
+    key: 'risk',
+    label: 'At risk',
+    value: classAtRisk.value.length,
+    hint: 'Low attendance learners',
+    active: activeTab.value === 'analytics',
+    onClick: () => { activeTab.value = 'analytics' },
+  },
+  {
+    key: 'unmarked',
+    label: 'Not marked',
+    value: stats.value.unmarked,
+    hint: 'Still to mark',
+    active: statusFilter.value === 'unmarked',
+    onClick: () => applyStatusFilter(statusFilter.value === 'unmarked' ? 'all' : 'unmarked'),
+  },
+])
 
 const filteredRows = computed(() => {
   const q = searchQuery.value.trim().toLowerCase()
@@ -665,6 +729,33 @@ async function lockRegister() {
   }
 }
 
+async function clearSavedAttendance() {
+  if (!selectedClassId.value || !canClearRegister.value) return
+  clearing.value = true
+  try {
+    const result = await academicsApi.attendance.clearClass(
+      Number(selectedClassId.value),
+      registerDate.value,
+    )
+    const deleted =
+      result && typeof result === 'object' && 'deleted' in result
+        ? Number((result as { deleted?: number }).deleted ?? 0)
+        : 0
+    toast.success('Saved attendance cleared', {
+      description: deleted > 0
+        ? `${deleted} mark(s) removed for ${formatDate(registerDate.value)}.`
+        : `No saved marks for ${formatDate(registerDate.value)}.`,
+    })
+    clearConfirmOpen.value = false
+    registerDirty.value = false
+    await Promise.all([loadRegister(), loadHistory()])
+  } catch (err) {
+    toast.error('Could not clear attendance', { description: getErrorMessage(err) })
+  } finally {
+    clearing.value = false
+  }
+}
+
 watch([selectedClassId, registerDate], () => {
   clearRegisterFilters()
   void loadRegister()
@@ -685,8 +776,9 @@ onMounted(async () => {
 
 <template>
   <PageShell
-    title="Attendance"
-    description="Mark daily class attendance, review history, and track learners at risk."
+    title="Student attendance"
+    description="Student attendance register with status, timings, and class analytics."
+    :breadcrumbs="['Academics', 'Student attendance']"
     max-width="wide"
   >
     <template #actions>
@@ -746,6 +838,16 @@ onMounted(async () => {
         <Lock class="mr-2 size-4" aria-hidden="true" />
         Lock
       </Button>
+      <Button
+        v-if="canClearRegister"
+        variant="destructive"
+        :disabled="!selectedClassId || clearing"
+        :aria-busy="clearing"
+        @click="clearConfirmOpen = true"
+      >
+        <Trash2 class="mr-2 size-4" aria-hidden="true" />
+        Clear saved marks
+      </Button>
     </template>
 
     <PageLoader v-if="loading" label="Loading attendance workspace…" />
@@ -773,9 +875,10 @@ onMounted(async () => {
         </Button>
       </div>
 
-      <Card class="border-border/70 shadow-sm">
+      <Card>
         <CardHeader class="pb-4">
-          <CardTitle class="text-base">Filters &amp; controls</CardTitle>
+          <p class="text-[11px] font-semibold tracking-[0.16em] text-muted-foreground uppercase">Filters</p>
+          <CardTitle class="text-base">Class register</CardTitle>
           <CardDescription>Choose the class and date for this full-day register.</CardDescription>
         </CardHeader>
         <CardContent class="space-y-4">
@@ -891,129 +994,21 @@ onMounted(async () => {
         class="grid gap-4 sm:grid-cols-2 xl:grid-cols-6"
       >
         <h2 id="attendance-stats" class="sr-only">Attendance summary</h2>
-
-        <Card
-          class="border-border/70 transition-colors"
-          :class="statusFilter === 'present' && 'ring-2 ring-chart-2/40'"
+        <button
+          v-for="card in summaryCards"
+          :key="card.key"
+          type="button"
+          class="rounded-2xl bg-card p-4 text-left shadow-[var(--shadow-soft)] ring-1 ring-border/80 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          :class="card.active ? 'ring-primary/40' : ''"
+          @click="card.onClick"
         >
-          <CardContent class="flex items-start justify-between gap-3 px-5 py-5">
-            <button
-              type="button"
-              class="space-y-1 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
-              @click="applyStatusFilter(statusFilter === 'present' ? 'all' : 'present')"
-            >
-              <p class="text-xs font-medium tracking-wide text-muted-foreground uppercase">Present</p>
-              <p class="text-3xl font-semibold tabular-nums">{{ stats.present }}</p>
-              <p class="text-xs text-muted-foreground">{{ stats.presentPct }}%</p>
-            </button>
-            <div :class="cn('flex size-10 items-center justify-center rounded-xl', STATUS_TONE_ICON.success)">
-              <CheckCircle2 class="size-5" aria-hidden="true" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card
-          class="border-border/70 transition-colors"
-          :class="statusFilter === 'absent' && 'ring-2 ring-destructive/30'"
-        >
-          <CardContent class="flex items-start justify-between gap-3 px-5 py-5">
-            <button
-              type="button"
-              class="space-y-1 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
-              @click="applyStatusFilter(statusFilter === 'absent' ? 'all' : 'absent')"
-            >
-              <p class="text-xs font-medium tracking-wide text-muted-foreground uppercase">Absent</p>
-              <p class="text-3xl font-semibold tabular-nums">{{ stats.absent }}</p>
-              <p class="text-xs text-muted-foreground">{{ stats.absentPct }}%</p>
-            </button>
-            <div class="flex size-10 items-center justify-center rounded-xl bg-destructive/10 text-destructive">
-              <UserX class="size-5" aria-hidden="true" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card
-          class="border-border/70 transition-colors"
-          :class="statusFilter === 'late' && 'ring-2 ring-chart-3/40'"
-        >
-          <CardContent class="flex items-start justify-between gap-3 px-5 py-5">
-            <button
-              type="button"
-              class="space-y-1 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
-              @click="applyStatusFilter(statusFilter === 'late' ? 'all' : 'late')"
-            >
-              <p class="text-xs font-medium tracking-wide text-muted-foreground uppercase">Late</p>
-              <p class="text-3xl font-semibold tabular-nums">{{ stats.late }}</p>
-              <p class="text-xs text-muted-foreground">{{ stats.latePct }}%</p>
-            </button>
-            <div :class="cn('flex size-10 items-center justify-center rounded-xl', STATUS_TONE_ICON.warning)">
-              <Clock class="size-5" aria-hidden="true" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card
-          class="border-border/70 transition-colors"
-          :class="statusFilter === 'excused' && 'ring-2 ring-chart-4/40'"
-        >
-          <CardContent class="flex items-start justify-between gap-3 px-5 py-5">
-            <button
-              type="button"
-              class="space-y-1 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
-              @click="applyStatusFilter(statusFilter === 'excused' ? 'all' : 'excused')"
-            >
-              <p class="text-xs font-medium tracking-wide text-muted-foreground uppercase">Excused</p>
-              <p class="text-3xl font-semibold tabular-nums">{{ stats.excused }}</p>
-              <p class="text-xs text-muted-foreground">{{ stats.excusedPct }}%</p>
-            </button>
-            <div :class="cn('flex size-10 items-center justify-center rounded-xl', STATUS_TONE_ICON.info)">
-              <BookOpen class="size-5" aria-hidden="true" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card
-          class="border-border/70 transition-colors"
-          :class="statusFilter === 'sick' && 'ring-2 ring-destructive/30'"
-        >
-          <CardContent class="flex items-start justify-between gap-3 px-5 py-5">
-            <button
-              type="button"
-              class="space-y-1 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
-              @click="applyStatusFilter(statusFilter === 'sick' ? 'all' : 'sick')"
-            >
-              <p class="text-xs font-medium tracking-wide text-muted-foreground uppercase">Sick</p>
-              <p class="text-3xl font-semibold tabular-nums">{{ stats.sick }}</p>
-              <p class="text-xs text-muted-foreground">{{ stats.sickPct }}%</p>
-            </button>
-            <div :class="cn('flex size-10 items-center justify-center rounded-xl', STATUS_TONE_ICON.accent)">
-              <Thermometer class="size-5" aria-hidden="true" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card
-          class="border-border/70 transition-colors"
-          :class="statusFilter === 'unmarked' && 'ring-2 ring-foreground/20'"
-        >
-          <CardContent class="flex items-start justify-between gap-3 px-5 py-5">
-            <button
-              type="button"
-              class="space-y-1 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
-              @click="applyStatusFilter(statusFilter === 'unmarked' ? 'all' : 'unmarked')"
-            >
-              <p class="text-xs font-medium tracking-wide text-muted-foreground uppercase">Unmarked</p>
-              <p class="text-3xl font-semibold tabular-nums">{{ stats.unmarked }}</p>
-              <p class="text-xs text-muted-foreground">Still to mark</p>
-            </button>
-            <div class="flex size-10 items-center justify-center rounded-xl bg-muted text-muted-foreground">
-              <Users class="size-5" aria-hidden="true" />
-            </div>
-          </CardContent>
-        </Card>
+          <p class="text-xs font-medium tracking-wide text-muted-foreground uppercase">{{ card.label }}</p>
+          <p class="mt-2 text-3xl font-semibold tabular-nums">{{ card.value }}</p>
+          <p class="mt-1 text-xs text-muted-foreground">{{ card.hint }}</p>
+        </button>
       </section>
 
-      <Card class="border-border/70 shadow-sm">
+      <Card>
         <CardContent class="space-y-3 px-5 py-5">
           <div class="flex flex-wrap items-center justify-between gap-2">
             <p class="text-sm font-medium text-foreground">Attendance Progress</p>
@@ -1046,8 +1041,8 @@ onMounted(async () => {
       </Card>
 
       <Tabs v-model="activeTab" class="space-y-4">
-        <TabsList aria-label="Attendance views" class="flex h-auto flex-wrap gap-1">
-          <TabsTrigger value="mark">Mark</TabsTrigger>
+        <TabsList aria-label="Attendance views" class="flex h-auto flex-wrap gap-1 rounded-full bg-muted/50 p-1">
+          <TabsTrigger value="mark" class="rounded-full">Register</TabsTrigger>
           <TabsTrigger value="history">History</TabsTrigger>
           <TabsTrigger value="reports">Reports</TabsTrigger>
           <TabsTrigger value="analytics" class="gap-1.5">
@@ -1064,17 +1059,18 @@ onMounted(async () => {
         </TabsList>
 
         <TabsContent value="mark" class="space-y-4">
-          <Card class="border-border/70 shadow-sm">
+          <Card>
             <CardHeader class="border-b border-border/60 pb-4">
               <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div class="space-y-1">
+                  <p class="text-[11px] font-semibold tracking-[0.16em] text-muted-foreground uppercase">Workspace</p>
                   <CardTitle class="flex items-center gap-2 text-base">
                     <CalendarDays class="size-4 text-muted-foreground" aria-hidden="true" />
-                    Student Attendance
+                    Attendance Register
                     <span v-if="selectedClass">— {{ selectedClass.name }}</span>
                   </CardTitle>
                   <CardDescription>
-                    {{ formatDate(registerDate) }} · Full day
+                    Student attendance register for {{ formatDate(registerDate) }} with status, timings and actions
                     <span v-if="registerLocked" class="text-foreground"> · Locked — edits disabled</span>
                   </CardDescription>
                 </div>
@@ -1440,5 +1436,25 @@ onMounted(async () => {
         </TabsContent>
       </Tabs>
     </div>
+
+    <Dialog v-model:open="clearConfirmOpen">
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Clear saved attendance?</DialogTitle>
+          <DialogDescription>
+            This deletes saved marks for {{ selectedClass?.name ?? 'this class' }} on
+            {{ formatDate(registerDate) }}. It does not change unsaved edits on this screen.
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter class="gap-2">
+          <Button variant="outline" :disabled="clearing" @click="clearConfirmOpen = false">
+            Cancel
+          </Button>
+          <Button variant="destructive" :disabled="clearing" :aria-busy="clearing" @click="clearSavedAttendance">
+            {{ clearing ? 'Clearing…' : 'Clear saved marks' }}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   </PageShell>
 </template>

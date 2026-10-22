@@ -60,21 +60,21 @@ const busy = () => props.saving || props.formLoading || isSubmitting.value
 
 <template>
   <form
-    class="w-full space-y-6"
+    class="flex w-full flex-col"
     :aria-busy="busy()"
     novalidate
     @submit.prevent="onSubmit"
   >
     <div
       v-auto-animate="formFieldsAnimateOptions"
-      class="relative w-full"
+      class="relative w-full px-6 py-5"
       :class="formLoading ? 'pointer-events-none opacity-40' : undefined"
     >
       <FormBuilder :key="formKey" :fields="fields" :columns="columns" />
 
       <div
         v-if="formLoading"
-        class="absolute inset-0 z-10 flex flex-col gap-4 rounded-lg bg-background/80 py-2 backdrop-blur-[1px]"
+        class="absolute inset-0 z-10 flex flex-col gap-4 rounded-lg bg-background/80 px-6 py-5 backdrop-blur-[1px]"
         role="status"
         aria-live="polite"
         aria-busy="true"
@@ -84,15 +84,19 @@ const busy = () => props.saving || props.formLoading || isSubmitting.value
       </div>
     </div>
 
-    <Button
+    <div
       v-if="showSubmit"
-      type="submit"
-      :class="cn(formButtonClass, 'min-w-[8rem]')"
-      :disabled="busy()"
-      :aria-busy="busy()"
+      class="flex shrink-0 justify-end gap-2 border-t border-border/60 bg-background px-6 py-4"
     >
-      <Loader2 v-if="busy()" class="mr-2 size-4 animate-spin" aria-hidden="true" />
-      {{ busy() ? savingLabel : saveLabel }}
-    </Button>
+      <Button
+        type="submit"
+        :class="cn(formButtonClass, 'min-w-[8rem]')"
+        :disabled="busy()"
+        :aria-busy="busy()"
+      >
+        <Loader2 v-if="busy()" class="mr-2 size-4 animate-spin" aria-hidden="true" />
+        {{ busy() ? savingLabel : saveLabel }}
+      </Button>
+    </div>
   </form>
 </template>

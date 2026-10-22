@@ -31,6 +31,7 @@ onMounted(load)
   <PageShell
     title="Command center"
     description="Executive overview of school health, finance, and risk"
+    :breadcrumbs="['Enterprise', 'Command center']"
     max-width="wide"
   >
     <PageLoader v-if="loading" />

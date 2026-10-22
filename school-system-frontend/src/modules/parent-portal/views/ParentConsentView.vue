@@ -243,6 +243,7 @@ onMounted(load)
   <PageShell
     title="Consent forms"
     description="Approve or decline separately for each child on the same form."
+    :breadcrumbs="['Parent portal', 'Consent']"
     max-width="wide"
   >
     <PageLoader v-if="loading" label="Loading consent forms" />

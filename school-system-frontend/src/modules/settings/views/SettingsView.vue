@@ -2,7 +2,6 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import {
-  Check,
   CheckCircle2,
   CircleDashed,
   GitBranch,
@@ -12,24 +11,33 @@ import {
 } from '@lucide/vue'
 import PageShell from '@/components/layout/PageShell.vue'
 import WorkspaceCard from '@/components/layout/WorkspaceCard.vue'
-import FormBuilder from '@/components/forms/FormBuilder.vue'
-import { useFormBuilder } from '@/components/forms/useFormBuilder'
 import PageLoader from '@/components/feedback/PageLoader.vue'
 import ErrorState from '@/components/feedback/ErrorState.vue'
 import SchoolSetupSection from '@/modules/settings/components/SchoolSetupSection.vue'
+import SchoolProfileShell from '@/modules/settings/school-profile/SchoolProfileShell.vue'
+import AcademicYearPane from '@/modules/settings/school-profile/AcademicYearPane.vue'
+import GradingRulesPane from '@/modules/settings/school-profile/GradingRulesPane.vue'
+import SettingsConfigPane from '@/modules/settings/school-profile/SettingsConfigPane.vue'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { useToast } from '@/composables/useToast'
-import { useSchoolProfile } from '@/composables/useSchoolProfile'
 import { schoolApi } from '@/services/api.service'
 import { fetchList, moduleEndpoints } from '@/services'
+import { fetchPaginatedList } from '@/services/dashboard.service'
 import { getErrorMessage } from '@/lib/api-response'
 import { cn } from '@/lib/utils'
-import {
-  schoolSettingsFormFields,
-  schoolSettingsFormSchema,
-} from '@/modules/settings/school-settings-form'
+import { HUB_TAB_NAV_WRAP, hubTabButtonClass } from '@/lib/page-meta'
 import {
   SETUP_TABS,
   sectionsForTab,
@@ -37,9 +45,11 @@ import {
   type SetupTabId,
 } from '@/modules/settings/school-setup-tabs'
 import { schoolSetupLocation } from '@/modules/settings/school-setup-links'
+import { shouldAutoCreateSection } from '@/lib/module-hub'
 
 interface SchoolProfile {
   name?: string
+  code?: string
   principal_name?: string
   email?: string
   phone?: string
@@ -54,6 +64,12 @@ interface SchoolProfile {
   currency?: string
   currency_locked?: boolean
   logo_path?: string
+  academic_year?: string
+  current_term?: string
+  status?: string
+  license_status?: string
+  created_at?: string
+  updated_at?: string
 }
 
 interface SetupCounts {
@@ -71,12 +87,9 @@ interface SetupCounts {
 const toast = useToast()
 const route = useRoute()
 const router = useRouter()
-const { loadSchool } = useSchoolProfile()
 const loading = ref(true)
 const error = ref<string | null>(null)
-const currencyLocked = ref(false)
 const currentSchool = ref<SchoolProfile | null>(null)
-const formResetValues = ref<Record<string, unknown> | undefined>()
 const activeTab = ref<SetupTabId>('profile')
 const setupCounts = ref<SetupCounts>({
   terms: 0,
@@ -97,28 +110,95 @@ function parseSetupTab(value: unknown): SetupTabId | null {
   return validTabIds.has(tab as SetupTabId) ? (tab as SetupTabId) : null
 }
 
-const formFields = computed(() =>
-  schoolSettingsFormFields({ currencyLocked: currencyLocked.value }),
-)
-
-const {
-  handleSubmit,
-  resetForm,
-  applyServerErrors,
-  isSubmitting,
-} = useFormBuilder(schoolSettingsFormSchema)
-
-watch(
-  () => formResetValues.value,
-  (values) => {
-    resetForm({ values: (values ?? {}) as never })
-  },
-  { deep: true, immediate: true },
-)
-
 const activeTabConfig = computed(() => tabById(activeTab.value))
 const activeSections = computed(() => sectionsForTab(activeTabConfig.value))
 const isProfileTab = computed(() => activeTab.value === 'profile')
+const isAcademicYearTab = computed(() => activeTab.value === 'academic-year')
+const isClassSettingsTab = computed(() => activeTab.value === 'class-settings')
+const isExamSettingsTab = computed(() => activeTab.value === 'exam-settings')
+const isGradingTab = computed(() => activeTab.value === 'grading')
+const isNotificationsTab = computed(() => activeTab.value === 'notifications')
+
+const pageTitle = computed(() => activeTabConfig.value.title)
+
+const pageDescription = computed(() => activeTabConfig.value.description)
+
+const pageBreadcrumbTrail = computed(() => ['Settings', activeTabConfig.value.title])
+
+const profileShellRef = ref<InstanceType<typeof SchoolProfileShell> | null>(null)
+const publishing = ref(false)
+const studentCount = ref<number | null>(null)
+
+const NOTIFICATION_OPTIONS = [
+  {
+    key: 'email_notices',
+    title: 'Allow email notices',
+    description: 'Preference for using email when the school sends announcements and notices.',
+  },
+  {
+    key: 'sms_notices',
+    title: 'Allow SMS notices',
+    description: 'Preference for using SMS for urgent notices when phone numbers are available.',
+  },
+  {
+    key: 'whatsapp_notices',
+    title: 'Allow WhatsApp notices',
+    description: 'Preference for sending notices via WhatsApp when phone numbers are available.',
+  },
+  {
+    key: 'parent_messages',
+    title: 'Parent message alerts',
+    description: 'Preference for notifying guardians about new staff message threads.',
+  },
+  {
+    key: 'leave_alerts',
+    title: 'Leave request alerts',
+    description: 'Preference for alerting approvers when leave requests are submitted.',
+  },
+] as const
+
+type NotificationKey = (typeof NOTIFICATION_OPTIONS)[number]['key']
+
+const notificationPrefs = ref<Record<NotificationKey, boolean>>({
+  email_notices: false,
+  sms_notices: false,
+  whatsapp_notices: false,
+  parent_messages: false,
+  leave_alerts: false,
+})
+const notificationsLoading = ref(false)
+const notificationsSaving = ref(false)
+const mailSaving = ref(false)
+const messagingSaving = ref(false)
+const mailForm = ref({
+  enabled: false,
+  from_address: '',
+  from_name: '',
+  smtp_host: '',
+  smtp_port: '587',
+  smtp_username: '',
+  smtp_password: '',
+  smtp_encryption: 'tls',
+})
+const smsForm = ref({
+  enabled: false,
+  provider: 'log',
+  twilio_sid: '',
+  twilio_token: '',
+  twilio_from: '',
+  africastalking_username: '',
+  africastalking_api_key: '',
+  africastalking_from: '',
+})
+const whatsappForm = ref({
+  enabled: false,
+  provider: 'log',
+  twilio_sid: '',
+  twilio_token: '',
+  twilio_from: '',
+  twilio_content_sid: '',
+  use_template: false,
+})
 
 const activeSectionMeta = computed(() => {
   switch (activeTab.value) {
@@ -223,7 +303,7 @@ const quickLinks = computed(() => [
   {
     title: 'Custom fields',
     description: 'Add school-specific student and staff fields.',
-    href: '/settings/custom-fields',
+    tabId: 'custom-fields' as SetupTabId,
     icon: SlidersHorizontal,
   },
   {
@@ -244,7 +324,9 @@ function selectTab(tabId: SetupTabId) {
   activeTab.value = tabId
   void router.replace(schoolSetupLocation(tabId, {
     query: Object.fromEntries(
-      Object.entries(route.query).filter(([key]) => key !== 'tab' && key !== 'create'),
+      Object.entries(route.query).filter(
+        ([key]) => key !== 'tab' && key !== 'create' && key !== 'section',
+      ),
     ),
   }))
 }
@@ -260,17 +342,13 @@ watch(
   { immediate: true },
 )
 
-const onSubmit = handleSubmit(async (values) => {
-  try {
-    await schoolApi.update(values as Record<string, unknown>)
-    toast.success('School settings saved')
-    await loadSchool({ force: true })
-    await load()
-  } catch (err) {
-    applyServerErrors(err)
-    toast.error('Save failed', getErrorMessage(err))
-  }
-})
+watch(
+  isNotificationsTab,
+  (active) => {
+    if (active) void loadNotifications()
+  },
+  { immediate: true },
+)
 
 async function loadSetupCounts() {
   const [
@@ -308,31 +386,195 @@ async function loadSetupCounts() {
   }
 }
 
+async function loadNotifications() {
+  notificationsLoading.value = true
+  try {
+    const settings = (await schoolApi.settings()) as Record<string, Record<string, unknown>>
+    const group = settings?.notifications ?? {}
+    for (const option of NOTIFICATION_OPTIONS) {
+      notificationPrefs.value[option.key] = group[option.key] === true
+    }
+
+    const mail = settings?.mail ?? {}
+    mailForm.value = {
+      enabled: mail.enabled === true,
+      from_address: String(mail.from_address ?? ''),
+      from_name: String(mail.from_name ?? ''),
+      smtp_host: String(mail.smtp_host ?? ''),
+      smtp_port: String(mail.smtp_port ?? '587'),
+      smtp_username: String(mail.smtp_username ?? ''),
+      smtp_password: '',
+      smtp_encryption: String(mail.smtp_encryption ?? 'tls'),
+    }
+
+    const sms = settings?.sms ?? {}
+    smsForm.value = {
+      enabled: sms.enabled === true,
+      provider: String(sms.provider ?? 'log'),
+      twilio_sid: String(sms.twilio_sid ?? ''),
+      twilio_token: '',
+      twilio_from: String(sms.twilio_from ?? ''),
+      africastalking_username: String(sms.africastalking_username ?? ''),
+      africastalking_api_key: '',
+      africastalking_from: String(sms.africastalking_from ?? ''),
+    }
+
+    const whatsapp = settings?.whatsapp ?? {}
+    whatsappForm.value = {
+      enabled: whatsapp.enabled === true,
+      provider: String(whatsapp.provider ?? 'log'),
+      twilio_sid: String(whatsapp.twilio_sid ?? ''),
+      twilio_token: '',
+      twilio_from: String(whatsapp.twilio_from ?? ''),
+      twilio_content_sid: String(whatsapp.twilio_content_sid ?? ''),
+      use_template: whatsapp.use_template === true,
+    }
+  } catch (err) {
+    toast.error('Could not load notification settings', getErrorMessage(err))
+  } finally {
+    notificationsLoading.value = false
+  }
+}
+
+async function saveNotifications() {
+  notificationsSaving.value = true
+  try {
+    await schoolApi.updateSettings(
+      NOTIFICATION_OPTIONS.map((option) => ({
+        group: 'notifications',
+        key: option.key,
+        value: notificationPrefs.value[option.key],
+        type: 'boolean',
+      })),
+    )
+    toast.success('Notification settings saved')
+  } catch (err) {
+    toast.error('Save failed', getErrorMessage(err))
+  } finally {
+    notificationsSaving.value = false
+  }
+}
+
+async function saveMailSettings() {
+  mailSaving.value = true
+  try {
+    const payload: Array<{ group: string; key: string; value: unknown; type?: string }> = [
+      { group: 'mail', key: 'enabled', value: mailForm.value.enabled, type: 'boolean' },
+      { group: 'mail', key: 'from_address', value: mailForm.value.from_address || null },
+      { group: 'mail', key: 'from_name', value: mailForm.value.from_name || null },
+      { group: 'mail', key: 'smtp_host', value: mailForm.value.smtp_host || null },
+      { group: 'mail', key: 'smtp_port', value: Number(mailForm.value.smtp_port || 587), type: 'integer' },
+      { group: 'mail', key: 'smtp_username', value: mailForm.value.smtp_username || null },
+      { group: 'mail', key: 'smtp_encryption', value: mailForm.value.smtp_encryption || 'tls' },
+    ]
+
+    if (mailForm.value.smtp_password.trim()) {
+      payload.push({
+        group: 'mail',
+        key: 'smtp_password',
+        value: mailForm.value.smtp_password,
+        type: 'encrypted',
+      })
+    }
+
+    await schoolApi.updateSettings(payload)
+    mailForm.value.smtp_password = ''
+    toast.success('Email delivery settings saved')
+  } catch (err) {
+    toast.error('Save failed', getErrorMessage(err))
+  } finally {
+    mailSaving.value = false
+  }
+}
+
+async function saveMessagingSettings() {
+  messagingSaving.value = true
+  try {
+    const payload: Array<{ group: string; key: string; value: unknown; type?: string }> = [
+      { group: 'sms', key: 'enabled', value: smsForm.value.enabled, type: 'boolean' },
+      { group: 'sms', key: 'provider', value: smsForm.value.provider || 'log' },
+      { group: 'sms', key: 'twilio_sid', value: smsForm.value.twilio_sid || null },
+      { group: 'sms', key: 'twilio_from', value: smsForm.value.twilio_from || null },
+      { group: 'sms', key: 'africastalking_username', value: smsForm.value.africastalking_username || null },
+      { group: 'sms', key: 'africastalking_from', value: smsForm.value.africastalking_from || null },
+      { group: 'whatsapp', key: 'enabled', value: whatsappForm.value.enabled, type: 'boolean' },
+      { group: 'whatsapp', key: 'provider', value: whatsappForm.value.provider || 'log' },
+      { group: 'whatsapp', key: 'twilio_sid', value: whatsappForm.value.twilio_sid || null },
+      { group: 'whatsapp', key: 'twilio_from', value: whatsappForm.value.twilio_from || null },
+      { group: 'whatsapp', key: 'twilio_content_sid', value: whatsappForm.value.twilio_content_sid || null },
+      { group: 'whatsapp', key: 'use_template', value: whatsappForm.value.use_template, type: 'boolean' },
+    ]
+
+    if (smsForm.value.twilio_token.trim()) {
+      payload.push({
+        group: 'sms',
+        key: 'twilio_token',
+        value: smsForm.value.twilio_token,
+        type: 'encrypted',
+      })
+    }
+    if (smsForm.value.africastalking_api_key.trim()) {
+      payload.push({
+        group: 'sms',
+        key: 'africastalking_api_key',
+        value: smsForm.value.africastalking_api_key,
+        type: 'encrypted',
+      })
+    }
+    if (whatsappForm.value.twilio_token.trim()) {
+      payload.push({
+        group: 'whatsapp',
+        key: 'twilio_token',
+        value: whatsappForm.value.twilio_token,
+        type: 'encrypted',
+      })
+    }
+
+    await schoolApi.updateSettings(payload)
+    smsForm.value.twilio_token = ''
+    smsForm.value.africastalking_api_key = ''
+    whatsappForm.value.twilio_token = ''
+    toast.success('SMS & WhatsApp settings saved')
+  } catch (err) {
+    toast.error('Save failed', getErrorMessage(err))
+  } finally {
+    messagingSaving.value = false
+  }
+}
+
+async function publishSchoolProfile() {
+  publishing.value = true
+  try {
+    await schoolApi.update({ status: 'active' })
+    await schoolApi.updateSettings([
+      { group: 'profile', key: 'published_at', value: new Date().toISOString() },
+    ])
+    toast.success('School profile published')
+    await load()
+  } catch (err) {
+    toast.error('Publish failed', getErrorMessage(err))
+  } finally {
+    publishing.value = false
+  }
+}
+
+function openProfileEditor() {
+  profileShellRef.value?.openEditor()
+}
+
 async function load() {
   loading.value = true
   error.value = null
   try {
-    const [school] = await Promise.all([
+    const [school, studentsPage] = await Promise.all([
       schoolApi.show() as Promise<SchoolProfile>,
-      loadSetupCounts(),
+      loadSetupCounts().then(() =>
+        fetchPaginatedList(moduleEndpoints.students, { per_page: 1 }).catch(() => null),
+      ),
     ])
+
     currentSchool.value = school
-    currencyLocked.value = school.currency_locked === true
-    formResetValues.value = {
-      name: String(school.name ?? ''),
-      principal_name: String(school.principal_name ?? ''),
-      email: String(school.email ?? ''),
-      phone: String(school.phone ?? ''),
-      website: String(school.website ?? ''),
-      year_founded: school.year_founded ?? '',
-      suburb: String(school.suburb ?? ''),
-      city: String(school.city ?? ''),
-      student_capacity: school.student_capacity ?? '',
-      timezone: String(school.timezone ?? ''),
-      currency: school.currency === 'ZWG' ? 'ZWG' : 'USD',
-      motto: String(school.motto ?? ''),
-      address: String(school.address ?? ''),
-    }
+    studentCount.value = studentsPage?.total ?? null
   } catch (err) {
     error.value = getErrorMessage(err, 'Failed to load school settings')
   } finally {
@@ -345,29 +587,27 @@ onMounted(load)
 
 <template>
   <PageShell
-    title="School Setup & Configuration"
-    description="Configure all foundational settings for your school in one place."
+    :title="pageTitle"
+    :description="pageDescription"
+    :breadcrumbs="pageBreadcrumbTrail"
     max-width="wide"
   >
     <template #actions>
-      <Button
-        v-if="isProfileTab"
-        type="submit"
-        form="school-setup-form"
-        class="min-w-[10rem]"
-        :disabled="loading || isSubmitting"
-        :aria-busy="isSubmitting"
-      >
-        <Save class="mr-2 size-4" aria-hidden="true" />
-        {{ isSubmitting ? 'Saving…' : 'Save All Setup' }}
-      </Button>
+      <template v-if="isProfileTab">
+        <Button type="button" variant="outline" :disabled="loading" @click="openProfileEditor">
+          Edit information
+        </Button>
+        <Button type="button" :disabled="loading || publishing" @click="publishSchoolProfile">
+          {{ publishing ? 'Publishing…' : 'Publish' }}
+        </Button>
+      </template>
     </template>
 
     <PageLoader v-if="loading" label="Loading school setup" />
     <ErrorState v-else-if="error" :description="error" @retry="load" />
 
     <div v-else class="space-y-6">
-      <section class="rounded-2xl border border-border/70 bg-card p-4 shadow-sm">
+      <section class="rounded-2xl bg-card p-4 shadow-[var(--shadow-soft)] ring-1 ring-border/80">
         <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
           <button
             v-for="item in setupProgressItems"
@@ -404,18 +644,13 @@ onMounted(load)
         </div>
       </section>
 
-      <section class="overflow-x-auto rounded-2xl border border-border/60 bg-muted/30 p-2">
+      <section :class="HUB_TAB_NAV_WRAP">
         <nav class="flex min-w-max items-center gap-2" aria-label="School setup sections">
           <button
             v-for="tab in SETUP_TABS"
             :key="tab.id"
             type="button"
-            :class="cn(
-              'inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-              activeTab === tab.id
-                ? 'bg-background text-foreground shadow-sm'
-                : 'text-muted-foreground hover:bg-background/80 hover:text-foreground',
-            )"
+            :class="hubTabButtonClass(activeTab === tab.id)"
             :aria-current="activeTab === tab.id ? 'page' : undefined"
             @click="selectTab(tab.id)"
           >
@@ -426,23 +661,65 @@ onMounted(load)
       </section>
 
       <div class="grid gap-6 xl:grid-cols-[minmax(0,1.7fr)_minmax(20rem,0.9fr)]">
+        <SchoolProfileShell
+          v-if="isProfileTab"
+          ref="profileShellRef"
+          class="min-w-0"
+          :school="currentSchool"
+          :setup-counts="setupCounts"
+          :student-count="studentCount ?? undefined"
+          @refreshed="load"
+        />
+
+        <AcademicYearPane
+          v-else-if="isAcademicYearTab"
+          class="min-w-0"
+          :school-name="currentSchool?.name"
+          :school-email="currentSchool?.email"
+          :principal-name="currentSchool?.principal_name"
+          :academic-year="currentSchool?.academic_year"
+          @saved="load"
+        />
+
+        <GradingRulesPane
+          v-else-if="isGradingTab"
+          class="min-w-0"
+          :school-name="currentSchool?.name"
+          :school-email="currentSchool?.email"
+          :principal-name="currentSchool?.principal_name"
+          @saved="load"
+        />
+
+        <SettingsConfigPane
+          v-else-if="isClassSettingsTab"
+          class="min-w-0"
+          title="Class Settings"
+          active-nav-label="Class Settings"
+          settings-prefix="class_settings"
+          :school-name="currentSchool?.name"
+          :school-email="currentSchool?.email"
+          :principal-name="currentSchool?.principal_name"
+          @saved="load"
+        />
+
+        <SettingsConfigPane
+          v-else-if="isExamSettingsTab"
+          class="min-w-0"
+          title="Exam Settings"
+          active-nav-label="Exam Settings"
+          settings-prefix="exam_settings"
+          :school-name="currentSchool?.name"
+          :school-email="currentSchool?.email"
+          :principal-name="currentSchool?.principal_name"
+          @saved="load"
+        />
+
         <WorkspaceCard
+          v-else
           :title="activeTabConfig.title"
           :description="activeTabConfig.description"
         >
-          <template v-if="isProfileTab" #meta>
-            <div class="inline-flex size-16 shrink-0 items-center justify-center rounded-full bg-muted text-xl font-semibold text-muted-foreground">
-              {{ String(currentSchool?.name ?? 'SC').slice(0, 2).toUpperCase() }}
-            </div>
-            <div class="space-y-1.5">
-              <p class="text-sm font-medium text-foreground">Upload School Logo</p>
-              <p class="text-xs text-muted-foreground">
-                Recommended: 500x500px, PNG or JPG, max 2MB
-              </p>
-            </div>
-          </template>
-
-          <template v-else-if="activeSectionMeta" #meta>
+          <template v-if="activeSectionMeta" #meta>
             <div class="inline-flex size-16 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
               <component :is="activeTabConfig.icon" class="size-7" aria-hidden="true" />
             </div>
@@ -454,34 +731,258 @@ onMounted(load)
             </div>
           </template>
 
-          <div v-if="isProfileTab">
-            <form
-              id="school-setup-form"
-              class="space-y-6"
-              novalidate
-              :aria-busy="isSubmitting"
-              @submit.prevent="onSubmit"
-            >
-              <FormBuilder
-                :fields="formFields"
-                :columns="2"
-              />
+          <div v-if="isNotificationsTab" class="space-y-6">
+            <PageLoader v-if="notificationsLoading" label="Loading notification settings" />
+            <template v-else>
+              <fieldset class="space-y-3">
+                <legend class="sr-only">Notification preferences</legend>
+                <label
+                  v-for="option in NOTIFICATION_OPTIONS"
+                  :key="option.key"
+                  :for="`notify-${option.key}`"
+                  class="flex cursor-pointer items-start gap-3 rounded-xl border border-border/60 px-4 py-3 transition-colors hover:bg-muted/40"
+                >
+                  <Checkbox
+                    :id="`notify-${option.key}`"
+                    class="mt-0.5"
+                    :checked="notificationPrefs[option.key]"
+                    @update:checked="(checked: boolean | 'indeterminate') => (notificationPrefs[option.key] = checked === true)"
+                  />
+                  <span class="min-w-0 space-y-1">
+                    <span class="block text-sm font-medium text-foreground">{{ option.title }}</span>
+                    <span class="block text-xs leading-relaxed text-muted-foreground">{{ option.description }}</span>
+                  </span>
+                </label>
+              </fieldset>
+              <div class="flex justify-end">
+                <Button type="button" :disabled="notificationsSaving" @click="saveNotifications">
+                  <Save class="mr-2 size-4" aria-hidden="true" />
+                  {{ notificationsSaving ? 'Saving…' : 'Save notifications' }}
+                </Button>
+              </div>
 
-              <div class="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border/60 bg-muted/30 px-4 py-3">
-                <p class="text-sm text-muted-foreground">
-                  Fees currency applies to invoices, fee structures, student accounts, store sales, and trip fees.
-                </p>
-                <div class="flex items-center gap-2 text-sm">
-                  <Badge :variant="currencyLocked ? 'secondary' : 'outline'">
-                    {{ currencyLocked ? 'Currency locked' : 'Currency editable' }}
-                  </Badge>
-                  <Button type="submit" :disabled="isSubmitting" variant="outline">
-                    <Check class="mr-2 size-4" aria-hidden="true" />
-                    {{ isSubmitting ? 'Saving…' : 'Save profile' }}
+              <section class="space-y-4 border-t pt-6" aria-labelledby="mail-settings-heading">
+                <div class="space-y-1">
+                  <h3 id="mail-settings-heading" class="text-sm font-semibold">Email delivery</h3>
+                  <p class="text-xs text-muted-foreground">
+                    Configure the from-address and optional SMTP server used for school notices and queued emails.
+                  </p>
+                </div>
+
+                <label class="flex items-start gap-3 rounded-xl border border-border/60 px-4 py-3">
+                  <Checkbox
+                    id="mail-enabled"
+                    class="mt-0.5"
+                    :checked="mailForm.enabled"
+                    @update:checked="(checked: boolean | 'indeterminate') => (mailForm.enabled = checked === true)"
+                  />
+                  <span class="space-y-1">
+                    <span class="block text-sm font-medium">Use school SMTP</span>
+                    <span class="block text-xs text-muted-foreground">
+                      When enabled, outbound email uses this school&apos;s SMTP credentials instead of the platform default.
+                    </span>
+                  </span>
+                </label>
+
+                <div class="grid gap-4 sm:grid-cols-2">
+                  <div class="space-y-2">
+                    <Label for="mail-from-name">From name</Label>
+                    <Input id="mail-from-name" v-model="mailForm.from_name" autocomplete="organization" />
+                  </div>
+                  <div class="space-y-2">
+                    <Label for="mail-from-address">From email</Label>
+                    <Input id="mail-from-address" v-model="mailForm.from_address" type="email" autocomplete="email" />
+                  </div>
+                  <div class="space-y-2">
+                    <Label for="mail-smtp-host">SMTP host</Label>
+                    <Input id="mail-smtp-host" v-model="mailForm.smtp_host" autocomplete="off" />
+                  </div>
+                  <div class="space-y-2">
+                    <Label for="mail-smtp-port">SMTP port</Label>
+                    <Input id="mail-smtp-port" v-model="mailForm.smtp_port" inputmode="numeric" />
+                  </div>
+                  <div class="space-y-2">
+                    <Label for="mail-smtp-username">SMTP username</Label>
+                    <Input id="mail-smtp-username" v-model="mailForm.smtp_username" autocomplete="off" />
+                  </div>
+                  <div class="space-y-2">
+                    <Label for="mail-smtp-password">SMTP password</Label>
+                    <Input
+                      id="mail-smtp-password"
+                      v-model="mailForm.smtp_password"
+                      type="password"
+                      autocomplete="new-password"
+                      placeholder="Leave blank to keep current password"
+                    />
+                  </div>
+                  <div class="space-y-2 sm:col-span-2">
+                    <Label for="mail-smtp-encryption">Encryption</Label>
+                    <Select v-model="mailForm.smtp_encryption">
+                      <SelectTrigger id="mail-smtp-encryption">
+                        <SelectValue placeholder="Select encryption" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="tls">TLS</SelectItem>
+                        <SelectItem value="ssl">SSL</SelectItem>
+                        <SelectItem value="none">None</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div class="flex justify-end">
+                  <Button type="button" :disabled="mailSaving" @click="saveMailSettings">
+                    <Save class="mr-2 size-4" aria-hidden="true" />
+                    {{ mailSaving ? 'Saving…' : 'Save email delivery' }}
                   </Button>
                 </div>
-              </div>
-            </form>
+              </section>
+
+              <section class="space-y-4 border-t pt-6" aria-labelledby="messaging-settings-heading">
+                <div class="space-y-1">
+                  <h3 id="messaging-settings-heading" class="text-sm font-semibold">SMS & WhatsApp</h3>
+                  <p class="text-xs text-muted-foreground">
+                    Optional per-school provider credentials. When disabled, the platform defaults from
+                    environment variables are used (if enabled).
+                  </p>
+                </div>
+
+                <label class="flex items-start gap-3 rounded-xl border border-border/60 px-4 py-3">
+                  <Checkbox
+                    id="sms-enabled"
+                    class="mt-0.5"
+                    :checked="smsForm.enabled"
+                    @update:checked="(checked: boolean | 'indeterminate') => (smsForm.enabled = checked === true)"
+                  />
+                  <span class="space-y-1">
+                    <span class="block text-sm font-medium">Use school SMS credentials</span>
+                    <span class="block text-xs text-muted-foreground">
+                      Requires &quot;Allow SMS notices&quot; above. Leave blank secrets to keep current values.
+                    </span>
+                  </span>
+                </label>
+
+                <div class="grid gap-4 sm:grid-cols-2">
+                  <div class="space-y-2">
+                    <Label for="sms-provider">SMS provider</Label>
+                    <Select v-model="smsForm.provider">
+                      <SelectTrigger id="sms-provider">
+                        <SelectValue placeholder="Select provider" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="log">Log (dev)</SelectItem>
+                        <SelectItem value="twilio">Twilio</SelectItem>
+                        <SelectItem value="africastalking">Africa&apos;s Talking</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div class="space-y-2">
+                    <Label for="sms-twilio-from">Twilio from number</Label>
+                    <Input id="sms-twilio-from" v-model="smsForm.twilio_from" autocomplete="off" placeholder="+263…" />
+                  </div>
+                  <div class="space-y-2">
+                    <Label for="sms-twilio-sid">Twilio Account SID</Label>
+                    <Input id="sms-twilio-sid" v-model="smsForm.twilio_sid" autocomplete="off" />
+                  </div>
+                  <div class="space-y-2">
+                    <Label for="sms-twilio-token">Twilio auth token</Label>
+                    <Input
+                      id="sms-twilio-token"
+                      v-model="smsForm.twilio_token"
+                      type="password"
+                      autocomplete="new-password"
+                      placeholder="Leave blank to keep current token"
+                    />
+                  </div>
+                  <div class="space-y-2">
+                    <Label for="sms-at-username">Africa&apos;s Talking username</Label>
+                    <Input id="sms-at-username" v-model="smsForm.africastalking_username" autocomplete="off" />
+                  </div>
+                  <div class="space-y-2">
+                    <Label for="sms-at-key">Africa&apos;s Talking API key</Label>
+                    <Input
+                      id="sms-at-key"
+                      v-model="smsForm.africastalking_api_key"
+                      type="password"
+                      autocomplete="new-password"
+                      placeholder="Leave blank to keep current key"
+                    />
+                  </div>
+                  <div class="space-y-2 sm:col-span-2">
+                    <Label for="sms-at-from">Africa&apos;s Talking sender ID</Label>
+                    <Input id="sms-at-from" v-model="smsForm.africastalking_from" autocomplete="off" />
+                  </div>
+                </div>
+
+                <label class="flex items-start gap-3 rounded-xl border border-border/60 px-4 py-3">
+                  <Checkbox
+                    id="whatsapp-enabled"
+                    class="mt-0.5"
+                    :checked="whatsappForm.enabled"
+                    @update:checked="(checked: boolean | 'indeterminate') => (whatsappForm.enabled = checked === true)"
+                  />
+                  <span class="space-y-1">
+                    <span class="block text-sm font-medium">Use school WhatsApp credentials</span>
+                    <span class="block text-xs text-muted-foreground">
+                      Requires &quot;Allow WhatsApp notices&quot; above.
+                    </span>
+                  </span>
+                </label>
+
+                <div class="grid gap-4 sm:grid-cols-2">
+                  <div class="space-y-2">
+                    <Label for="wa-provider">WhatsApp provider</Label>
+                    <Select v-model="whatsappForm.provider">
+                      <SelectTrigger id="wa-provider">
+                        <SelectValue placeholder="Select provider" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="log">Log (dev)</SelectItem>
+                        <SelectItem value="twilio">Twilio</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div class="space-y-2">
+                    <Label for="wa-from">From (whatsapp:+…)</Label>
+                    <Input id="wa-from" v-model="whatsappForm.twilio_from" autocomplete="off" />
+                  </div>
+                  <div class="space-y-2">
+                    <Label for="wa-sid">Twilio Account SID</Label>
+                    <Input id="wa-sid" v-model="whatsappForm.twilio_sid" autocomplete="off" />
+                  </div>
+                  <div class="space-y-2">
+                    <Label for="wa-token">Twilio auth token</Label>
+                    <Input
+                      id="wa-token"
+                      v-model="whatsappForm.twilio_token"
+                      type="password"
+                      autocomplete="new-password"
+                      placeholder="Leave blank to keep current token"
+                    />
+                  </div>
+                  <div class="space-y-2">
+                    <Label for="wa-content-sid">Content template SID</Label>
+                    <Input id="wa-content-sid" v-model="whatsappForm.twilio_content_sid" autocomplete="off" />
+                  </div>
+                  <label class="flex items-start gap-3 self-end rounded-xl border border-border/60 px-4 py-3">
+                    <Checkbox
+                      id="wa-use-template"
+                      class="mt-0.5"
+                      :checked="whatsappForm.use_template"
+                      @update:checked="(checked: boolean | 'indeterminate') => (whatsappForm.use_template = checked === true)"
+                    />
+                    <span class="text-sm font-medium">Use Twilio content template</span>
+                  </label>
+                </div>
+
+                <div class="flex justify-end">
+                  <Button type="button" :disabled="messagingSaving" @click="saveMessagingSettings">
+                    <Save class="mr-2 size-4" aria-hidden="true" />
+                    {{ messagingSaving ? 'Saving…' : 'Save SMS & WhatsApp' }}
+                  </Button>
+                </div>
+              </section>
+            </template>
           </div>
 
           <div v-else class="space-y-8">
@@ -500,7 +1001,7 @@ onMounted(load)
               </div>
               <SchoolSetupSection
                 :list-key="section.listKey"
-                :auto-create="route.query.create === '1' && index === 0"
+                :auto-create="shouldAutoCreateSection(section, index, route.query)"
                 @saved="loadSetupCounts"
               />
             </section>
